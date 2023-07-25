@@ -51,7 +51,11 @@ type testState struct {
 func (ts *testState) Broadcast(id uint64, data []byte) error {
 	return ts.ForAll(func(o *LocalOwner) error {
 		//if o.info.ID != id {
-		if err := o.Process(id, data); err != nil {
+		st := &wire2.SignedTransport{}
+		if err := st.UnmarshalSSZ(data); err != nil {
+			return err
+		}
+		if err := o.Process(id, st); err != nil {
 			return err
 		}
 		//}
@@ -123,11 +127,16 @@ func TestDKG(t *testing.T) {
 	req := wire2.GetRandRequestID()
 
 	//ops := make(map[uint64]Operator, len(ts.ops))
-	opsarr := make([]uint64, 0, len(ts.ops))
+	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 
 	for id, _ := range ts.ops {
 		//ops[id] = own.info
-		opsarr = append(opsarr, id)
+		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
+		require.NoError(t, err)
+		opsarr = append(opsarr, &wire2.Operator{
+			ID:     id,
+			Pubkey: pktobytes,
+		})
 	}
 
 	init := &wire2.Init{
@@ -155,20 +164,6 @@ func TestDKG(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	//err := ts.ForAll(func(o *LocalOwner) error {
-	//	eciesSK, pk := InitSecret(o.suite)
-	//	o.Init(req, init)
-	//	o.data.Secret = eciesSK
-	//	bts, _, err := CreateExchange(pk)
-	//	if err != nil {
-	//		fmt.Println("retuned err", o.ID)
-	//		return err
-	//	}
-	//	//o.Exchanges[o.info.ID] = raw
-	//	return o.Broadcast(ExchangeWireMessage(bts, req))
-	//})
-
-	//require.NoError(t, err)
 
 	err = ts.ForAll(func(o *LocalOwner) error {
 		<-o.done
@@ -176,14 +171,6 @@ func TestDKG(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-
-	//
-	//exch, err := Initiate(req, suite)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//
-	//require.Equal(t, exch.Identifier, req)
 
 }
 
