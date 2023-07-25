@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"encoding/hex"
 	"errors"
@@ -21,7 +22,7 @@ var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
 type Instance interface {
-	Process(uint64, []byte) error // maybe return resp, threadsafe
+	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
 	ReadResponse() []byte
 }
 
@@ -43,6 +44,23 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		return nil, nil, err
 	}
 
+	myID := uint64(0)
+	mypubkey := s.privateKey.Public().(*rsa.PublicKey)
+	pkbytes, err := crypto.EncodePublicKey(mypubkey)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, op := range init.Operators {
+		if bytes.Equal(op.Pubkey, pkbytes) {
+			myID = op.ID
+			break
+		}
+	}
+
+	if myID == 0 {
+		return nil, nil, errors.New("my operator is missing inside the op list")
+	}
+
 	bchan := make(chan []byte, 1)
 
 	broadcast := func(msg []byte) error {
@@ -56,6 +74,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		SignFunc:   s.Sign,
 		VerifyFunc: verify,
 		Suite:      bls.NewBLS12381Suite(),
+		ID:         myID,
 		//Init:       init,
 	}
 	owner := dkg.New(opts)
@@ -75,21 +94,22 @@ func (s *Switch) Sign(msg []byte) ([]byte, error) {
 	return crypto.SignRSA(s.privateKey, msg)
 }
 
-func (s *Switch) CreateVerifyFunc(ops []uint64) (func(id uint64, msg []byte, sig []byte) error, error) {
-	inst_ops := make(map[uint64]struct{})
+func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
+
+	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
-		if _, ok := s.opList[op]; !ok {
-			return nil, errors.New("operator doesn't exist")
+		pk, err := crypto.ParseRSAPubkey(op.Pubkey)
+		if err != nil {
+			return nil, err
 		}
-		inst_ops[op] = struct{}{}
+		inst_ops[op.ID] = pk
 	}
 	return func(id uint64, msg []byte, sig []byte) error {
-		_, ok := inst_ops[id]
+		pk, ok := inst_ops[id]
 		if !ok {
 			return errors.New("ops not exist for this instance")
 		}
-		k, _ := s.opList[id] // should never be !ok since we check on creation
-		return crypto.VerifyRSA(k, msg, sig)
+		return crypto.VerifyRSA(pk, msg, sig)
 	}, nil
 }
 
@@ -101,20 +121,16 @@ type Switch struct {
 
 	privateKey *rsa.PrivateKey
 
-	opList map[uint64]*rsa.PublicKey
-
 	//broadcastF func([]byte) error
 }
 
-func NewSwitch(pv *rsa.PrivateKey, opList map[uint64]*rsa.PublicKey) *Switch {
+func NewSwitch(pv *rsa.PrivateKey) *Switch {
 	return &Switch{
 		logger:           logrus.NewEntry(logrus.New()),
 		mtx:              sync.RWMutex{},
 		instanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		instances:        make(map[InstanceID]Instance, MaxInstances),
-		//broadcastF:       broadcastF,
-		privateKey: pv,
-		opList:     opList,
+		privateKey:       pv,
 	}
 }
 
@@ -249,7 +265,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 
 	for _, ts := range st.Messages {
 
-		err = inst.Process(ts.Signer, dkgMsg)
+		err = inst.Process(ts.Signer, ts)
 		if err != nil {
 			return nil, err
 		}

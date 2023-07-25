@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -155,9 +155,25 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 
 func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
+	parts := make([]*wire.Operator, 0, 0)
+	for _, id := range ids {
+		op, ok := c.ops[id]
+		if !ok {
+			return errors.New("op is not in list")
+		}
+		pkbytes, err := crypto.EncodePublicKey(op.Pubkey)
+		if err != nil {
+			return err
+		}
+		parts = append(parts, &wire.Operator{
+			ID:     op.ID,
+			Pubkey: pkbytes,
+		})
+	}
+
 	// make init message
 	init := &wire.Init{
-		Operators:             ids,
+		Operators:             parts,
 		T:                     consts.Threshold,
 		WithdrawalCredentials: withdraw,
 		Fork:                  consts.Fork,
@@ -176,6 +192,8 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		Data:       sszinit,
 	}
 
+	//todo handle error being sent back in ssz
+
 	tsssz, err := ts.MarshalSSZ()
 	if err != nil {
 		return fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
@@ -186,13 +204,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return fmt.Errorf("failed sending init msg  %v", err)
 	}
 
-	//for _, r := range results {
-	//	errmsg, err := wire.GetErr(r)
-	//	if err == nil {
-	//		c.logger.Error("Got error from server ", errmsg)
-	//		return errmsg
-	//	}
-	//}
+	c.logger.Infof("Init phase finished, sending exchange messages")
 
 	mltpl, err := c.makeMultiple(id, results)
 	if err != nil {
@@ -209,6 +221,8 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return err
 	}
 
+	c.logger.Infof("Exchange phase finished, sending kyber deals messages")
+
 	mltpl2, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err
@@ -224,14 +238,14 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return err
 	}
 
-	last, err := c.makeMultiple(id, results)
-	if err != nil {
-		return err
-	}
+	c.logger.Infof("Got DKG results")
 
-	spew.Dump(last)
-	//this should probably be final result
-	//results =
-	// pack results together dissminate results to all
+	//
+	//last, err := c.makeMultiple(id, results)
+	//if err != nil {
+	//	return err
+	//}
+
+	//c.logger.Infof("DKG Should be finished now, last results is this: %v", spew.Sdump(last))
 	return nil
 }

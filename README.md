@@ -12,9 +12,9 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 Init data -
 ```go
 
- ID [24]byte //  [ addres:nonce ] or random
+ ID [24]byte //  todo: [ addres:nonce ] or random
  // Operators involved in the DKG
- Operators []uint64  // add pubkeys to deprecate pubkey file in serverside
+ Operators []{uint64, []byte}  // ID, PUBKEY
  // T is the threshold for signing
  T uint64
  // WithdrawalCredentials for deposit data
@@ -22,7 +22,7 @@ Init data -
  // Fork ethereum fork for signing
  Fork [4]byte
 
-
+//TODO:
 Owner address, 
 Nonce
 Timestamp - prevent replay account
@@ -46,7 +46,6 @@ Whenever the server recieves a message it directs it to the right instance by th
 
 ### TODO: 
 - [ ] Complete design with flows and structure
-- [ ] Add pubkeys to init message
 - [ ] output - signed ssv deposit data
 - [ ] more testing
 - [ ] logging
