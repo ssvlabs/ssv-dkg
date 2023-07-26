@@ -5,6 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
@@ -67,4 +70,32 @@ func ResultsToValidatorPK(commitments []kyber.Point, suite dkg.Suite) (*bls.Publ
 		return nil, err
 	}
 	return pk, nil
+}
+
+func ParseRSAPubkey(pk []byte) (*rsa.PublicKey, error) {
+	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))
+	if err != nil {
+		return nil, err
+	}
+	pemblock, _ := pem.Decode(operatorKeyByte)
+	pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pbkey.(*rsa.PublicKey), nil
+}
+
+func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
+	pkBytes, err := x509.MarshalPKIXPublicKey(pk)
+	if err != nil {
+		return nil, err
+	}
+	pemByte := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: pkBytes,
+		},
+	)
+
+	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }

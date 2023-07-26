@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -159,9 +159,25 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 
 func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
+	parts := make([]*wire.Operator, 0, 0)
+	for _, id := range ids {
+		op, ok := c.ops[id]
+		if !ok {
+			return errors.New("op is not in list")
+		}
+		pkbytes, err := crypto.EncodePublicKey(op.Pubkey)
+		if err != nil {
+			return err
+		}
+		parts = append(parts, &wire.Operator{
+			ID:     op.ID,
+			Pubkey: pkbytes,
+		})
+	}
+
 	// make init message
 	init := &wire.Init{
-		Operators:             ids,
+		Operators:             parts,
 		T:                     consts.Threshold,
 		WithdrawalCredentials: withdraw,
 		Fork:                  consts.Fork,
@@ -214,33 +230,31 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return err
 	}
 
-	c.logger.Info("DKG round response received, creating combined message")
+	c.logger.Infof("Exchange phase finished, sending kyber deals messages")
+
 	mltpl2, err := c.makeMultiple(id, results)
-	// TODO: fix unmarshal error
 	if err != nil {
-		c.logger.Error(err)
 		return err
 	}
-	c.logger.Info("Marshall response to DKG round message")
+
 	mltpl2byts, err := mltpl2.MarshalSSZ()
 	if err != nil {
-		c.logger.Error(err)
 		return err
 	}
-	c.logger.Info("Send combined DKG round response message")
+
 	results, err = c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return err
 	}
 
-	last, err := c.makeMultiple(id, results)
-	if err != nil {
-		return err
-	}
+	c.logger.Infof("Got DKG results")
 
-	spew.Dump(last)
-	//this should probably be final result
-	//results =
-	// pack results together dissminate results to all
+	//
+	//last, err := c.makeMultiple(id, results)
+	//if err != nil {
+	//	return err
+	//}
+
+	//c.logger.Infof("DKG Should be finished now, last results is this: %v", spew.Sdump(last))
 	return nil
 }

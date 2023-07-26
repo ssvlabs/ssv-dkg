@@ -2,8 +2,6 @@ package wire
 
 import (
 	"encoding/binary"
-	"errors"
-	"fmt"
 )
 
 type MultipleSignedTransports struct {
@@ -13,21 +11,6 @@ type MultipleSignedTransports struct {
 
 type ErrSSZ struct {
 	Error []byte `ssz-max:"512"`
-}
-
-func MakeErr(err error) []byte {
-	fmt.Printf("writing %v to err")
-	rawerr := &ErrSSZ{Error: []byte(err.Error())}
-	reterr, _ := rawerr.MarshalSSZ()
-	return reterr
-}
-
-func GetErr(msg []byte) (error, error) {
-	msgerr := &ErrSSZ{}
-	if err := msgerr.UnmarshalSSZ(msg); err != nil {
-		return nil, err
-	}
-	return errors.New(string(msgerr.Error[:])), nil
 }
 
 func NewIdentifier(address []byte, nonce uint64) [24]byte {
@@ -98,9 +81,14 @@ type KyberMessage struct {
 	Data []byte `ssz-max:"2048"`
 }
 
+type Operator struct {
+	ID     uint64
+	Pubkey []byte `ssz-max:"2048"`
+}
+
 type Init struct {
 	// Operators involved in the DKG
-	Operators []uint64 `ssz-max:"13"`
+	Operators []*Operator `ssz-max:"13"`
 	// T is the threshold for signing
 	T uint64
 	// WithdrawalCredentials for deposit data

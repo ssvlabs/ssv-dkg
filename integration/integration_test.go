@@ -16,10 +16,7 @@ const exmaplePath = "../examples/"
 func CreateServer(t *testing.T, id uint64) *server.Server {
 	pk, err := load.PrivateKey(exmaplePath + "server" + fmt.Sprintf("%v", id) + "/key")
 	require.NoError(t, err)
-	ops, err := load.OperatorsPubkeys(exmaplePath + "/operators.csv")
-	require.NoError(t, err)
-
-	srv := server.New(pk, ops)
+	srv := server.New(pk)
 
 	return srv
 }

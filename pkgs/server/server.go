@@ -76,9 +76,9 @@ func RegisterRoutes(s *Server) {
 	})
 }
 
-func New(key *rsa.PrivateKey, opList map[uint64]*rsa.PublicKey) *Server {
+func New(key *rsa.PrivateKey) *Server {
 	r := chi.NewRouter()
-	swtch := NewSwitch(key, opList)
+	swtch := NewSwitch(key)
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
 	s := &Server{

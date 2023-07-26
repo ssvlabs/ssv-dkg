@@ -142,6 +142,15 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
 	o.Logger.Infof("RESULT %v", res.Result)
+
+	// TODO: compose output message OR propagate results to server and handle outputs there
+	tsmsg := &wire.Transport{
+		Type:       wire.OutputMessageType,
+		Identifier: o.data.ReqID,
+		Data:       []byte("WTF"),
+	}
+
+	o.Broadcast(tsmsg)
 	close(o.done)
 }
 
@@ -236,14 +245,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	return nil
 }
 
-func (o *LocalOwner) Process(from uint64, msg []byte) error {
-
-	// todo verify sig
-	st := &wire.SignedTransport{}
-
-	if err := st.UnmarshalSSZ(msg); err != nil {
-		return err
-	}
+func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
@@ -270,9 +272,6 @@ func (o *LocalOwner) Process(from uint64, msg []byte) error {
 
 		o.Exchanges[from] = exchMsg
 
-		//o.Logger.Infof("Collected %v exchange messages, waiting for %v", len(o.Exchanges), len(o.data.init.Operators))
-
-		// TODO: handle case if len(o.Exchanges) != len(o.data.init.Operators)
 		if len(o.Exchanges) == len(o.data.init.Operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
@@ -280,7 +279,6 @@ func (o *LocalOwner) Process(from uint64, msg []byte) error {
 		}
 	case wire.KyberMessageType:
 		<-o.startedDKG
-		o.Logger.Infof("Process DKG from %d", from)
 		return o.processDKG(from, t)
 	case wire.OutputMessageType:
 		o.Logger.Infof("Got output but not used to")

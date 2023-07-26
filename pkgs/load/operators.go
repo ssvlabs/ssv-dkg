@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"os"
 	"strconv"
 )
@@ -75,16 +76,11 @@ func OperatorsPubkeys(path string) (map[uint64]*rsa.PublicKey, error) {
 			return nil, err
 		}
 		strkey := opdata[1]
-		operatorKeyByte, err := base64.StdEncoding.DecodeString(strkey)
+		pbkey, err := crypto.ParseRSAPubkey([]byte(strkey))
 		if err != nil {
 			return nil, err
 		}
-		pemblock, _ := pem.Decode(operatorKeyByte)
-		pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		opmap[id] = pbkey.(*rsa.PublicKey)
+		opmap[id] = pbkey
 	}
 	return opmap, nil
 }
