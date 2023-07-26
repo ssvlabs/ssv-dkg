@@ -20,7 +20,8 @@ type Server struct {
 
 func RegisterRoutes(s *Server) {
 
-	// todo do we want any middleware?
+	// TODO: create middleware for handling
+	// TODO: timeouts for a response creation
 	s.router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 		s.logger.Debug("Got init msg")
 		rawdata, _ := io.ReadAll(request.Body)
@@ -32,7 +33,7 @@ func RegisterRoutes(s *Server) {
 			writer.Write(wire.MakeErr(err))
 			return
 		}
-
+		// Validate that incoming message is an init message
 		if tr.Type != wire.InitMessageType {
 			s.logger.Debug("non init message send to init route")
 			writer.WriteHeader(http.StatusBadRequest)
@@ -41,6 +42,8 @@ func RegisterRoutes(s *Server) {
 		}
 
 		reqid := tr.Identifier
+
+		// TODO: Validate message signature of the initiator
 		logger := s.logger.WithField("reqid", hex.EncodeToString(reqid[:]))
 
 		logger.Infof("Initiating instance with init data")
@@ -58,9 +61,10 @@ func RegisterRoutes(s *Server) {
 	})
 
 	s.router.Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Infof("Got dkg message")
-		rawdata, _ := io.ReadAll(request.Body)
-
+		s.logger.Info("Got dkg message")
+		// TODO: Consider validate signature from initiator
+		// TODO: error handling
+		rawdata, err := io.ReadAll(request.Body)
 		b, err := s.state.ProcessMessage(rawdata)
 		if err != nil {
 			writer.WriteHeader(http.StatusBadRequest)

@@ -438,6 +438,7 @@ func (s *SignedTransport) UnmarshalSSZ(buf []byte) error {
 	}
 
 	// Field (2) 'Signature'
+	// TODO: validate signature
 	{
 		buf = tail[o2:]
 		if len(buf) > 2048 {

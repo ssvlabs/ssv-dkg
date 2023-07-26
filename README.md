@@ -12,7 +12,25 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 
 Basic Flow:
 
-1. The initiator creates an initial message, signs it and sends it to all operators:
+1. The initiator creates an initial message, signs it and sends it to all operators (/init)
+2. The operators upon receiving initial message check initiator message signature and create their DKG identity:
+ - new DKG secrets created 
+ - if 5 mins pass after the last init message with ID [24]byte and new init message with the same ID is incoming the DKG instance is recreated 
+ - `Exchange` signed message containing the DKG identity is created
+ - operator replies to init message with the created `Exchange` message
+3. The initiator collects all responses into one message and verify signatures
+4. The initiator  sends back to all operators the combined message (/dkg)
+5. Operators receive all exchange messages to start the DKG process, responding back to initiator with a signed dkg deal bundle
+6. Initiator packs the deal bundles together and sends them back to all operators (/dkg)
+7. Operators process dkg bundles and finish the DKG protocol of creating a shared key
+
+Output? : TBD
+
+### Server
+
+The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement. 
+The server is able to participate in multiple instances in parallel. 
+Whenever the server recieves a message it directs it to the right instance by the identifier, and respond with an answer.
 
 Initial message fields:
 
@@ -35,21 +53,6 @@ Initial message fields:
  // Initiator signature
  Sig []byte
 ```
-
-2. The operators upon receiving initial message check initiator message signature and create their DKG identity, and response with an `Exchange` message containing the key of this identity and signed with corresponding private key.
-3. The initiator collects all responses into one message and verify operator signatures.
-4. The initiator  sends back to all operators as one message.
-5. Operators receive enough exchange messages to start the DKG process, responding back to initiator with a signed dkg deal bundle.
-6. Initiator packs the deal bundles together and sends them to all operators.
-
-Output? : TBD
-
-### Server
-
-The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement. 
-The server is able to participate in multiple instances in parallel. 
-Whenever the server recieves a message it directs it to the right instance by the identifier, and respond with an answer.
-
 
 ### TODO: 
 - [ ] Complete design with flows and structure

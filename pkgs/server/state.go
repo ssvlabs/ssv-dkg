@@ -60,6 +60,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
+	// TODO: handle err
 	resp, err := owner.Init(reqID, init)
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err

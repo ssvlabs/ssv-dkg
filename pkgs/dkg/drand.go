@@ -256,7 +256,7 @@ func (o *LocalOwner) Process(from uint64, msg []byte) error {
 
 	t := st.Message
 
-	o.Logger.Infof("got msg from type %v", t.Type.String())
+	o.Logger.Infof("got msg from type %s", t.Type.String())
 
 	switch t.Type {
 	case wire.ExchangeMessageType:
@@ -272,6 +272,7 @@ func (o *LocalOwner) Process(from uint64, msg []byte) error {
 
 		//o.Logger.Infof("Collected %v exchange messages, waiting for %v", len(o.Exchanges), len(o.data.init.Operators))
 
+		// TODO: handle case if len(o.Exchanges) != len(o.data.init.Operators)
 		if len(o.Exchanges) == len(o.data.init.Operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
@@ -279,6 +280,7 @@ func (o *LocalOwner) Process(from uint64, msg []byte) error {
 		}
 	case wire.KyberMessageType:
 		<-o.startedDKG
+		o.Logger.Infof("Process DKG from %d", from)
 		return o.processDKG(from, t)
 	case wire.OutputMessageType:
 		o.Logger.Infof("Got output but not used to")
