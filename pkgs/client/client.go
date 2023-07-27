@@ -4,12 +4,13 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
-	"io"
 )
 
 // Client will send messages to DKG servers, collect responses and redirects messages to them.
@@ -52,7 +53,7 @@ func IDtoOperator(id uint64) Operator {
 type Operator struct {
 	Addr   string
 	ID     uint64
-	Pubkey *rsa.PublicKey
+	PubKey *rsa.PublicKey
 }
 
 type Operators map[uint64]Operator
@@ -165,13 +166,13 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		if !ok {
 			return errors.New("op is not in list")
 		}
-		pkbytes, err := crypto.EncodePublicKey(op.Pubkey)
+		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
 		if err != nil {
 			return err
 		}
 		parts = append(parts, &wire.Operator{
 			ID:     op.ID,
-			Pubkey: pkbytes,
+			PubKey: pkBytes,
 		})
 	}
 
@@ -207,7 +208,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return fmt.Errorf("failed sending init msg  %v", err)
 	}
 
-	c.logger.Info("Init round received, creating combined message")
+	c.logger.Info("Exchange round received from all operators, creating combined message")
 	mltpl, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err

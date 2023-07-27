@@ -628,14 +628,14 @@ func (o *Operator) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Pubkey'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(o.Pubkey)
+	offset += len(o.PubKey)
 
 	// Field (1) 'Pubkey'
-	if size := len(o.Pubkey); size > 2048 {
+	if size := len(o.PubKey); size > 2048 {
 		err = ssz.ErrBytesLengthFn("Operator.Pubkey", size, 2048)
 		return
 	}
-	dst = append(dst, o.Pubkey...)
+	dst = append(dst, o.PubKey...)
 
 	return
 }
@@ -669,10 +669,10 @@ func (o *Operator) UnmarshalSSZ(buf []byte) error {
 		if len(buf) > 2048 {
 			return ssz.ErrBytesLength
 		}
-		if cap(o.Pubkey) == 0 {
-			o.Pubkey = make([]byte, 0, len(buf))
+		if cap(o.PubKey) == 0 {
+			o.PubKey = make([]byte, 0, len(buf))
 		}
-		o.Pubkey = append(o.Pubkey, buf...)
+		o.PubKey = append(o.PubKey, buf...)
 	}
 	return err
 }
@@ -682,7 +682,7 @@ func (o *Operator) SizeSSZ() (size int) {
 	size = 12
 
 	// Field (1) 'Pubkey'
-	size += len(o.Pubkey)
+	size += len(o.PubKey)
 
 	return
 }
@@ -702,12 +702,12 @@ func (o *Operator) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 	// Field (1) 'Pubkey'
 	{
 		elemIndx := hh.Index()
-		byteLen := uint64(len(o.Pubkey))
+		byteLen := uint64(len(o.PubKey))
 		if byteLen > 2048 {
 			err = ssz.ErrIncorrectListSize
 			return
 		}
-		hh.Append(o.Pubkey)
+		hh.Append(o.PubKey)
 		hh.MerkleizeWithMixin(elemIndx, byteLen, (2048+31)/32)
 	}
 

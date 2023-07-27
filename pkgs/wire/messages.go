@@ -83,7 +83,7 @@ type KyberMessage struct {
 
 type Operator struct {
 	ID     uint64
-	Pubkey []byte `ssz-max:"2048"`
+	PubKey []byte `ssz-max:"2048"`
 }
 
 type Init struct {

@@ -8,10 +8,11 @@ import (
 	"encoding/csv"
 	"encoding/pem"
 	"fmt"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"os"
 	"strconv"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 )
 
 func Operators(path string) (client.Operators, error) {
@@ -39,8 +40,8 @@ func Operators(path string) (client.Operators, error) {
 		if err != nil {
 			return nil, err
 		}
-		pemblock, _ := pem.Decode(operatorKeyByte)
-		pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
+		pemBlock, _ := pem.Decode(operatorKeyByte)
+		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +50,7 @@ func Operators(path string) (client.Operators, error) {
 		opmap[id] = client.Operator{
 			Addr:   ip,
 			ID:     id,
-			Pubkey: pbkey.(*rsa.PublicKey),
+			PubKey: pbKey.(*rsa.PublicKey),
 		}
 	}
 	return opmap, nil

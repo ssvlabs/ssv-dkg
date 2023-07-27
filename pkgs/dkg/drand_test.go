@@ -3,13 +3,14 @@ package dkg
 import (
 	"crypto/rsa"
 	"fmt"
+	mrand "math/rand"
+	"testing"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	mrand "math/rand"
-	"testing"
 )
 
 type testVerify struct {
@@ -131,11 +132,11 @@ func TestDKG(t *testing.T) {
 
 	for id, _ := range ts.ops {
 		//ops[id] = own.info
-		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
+		pkToBytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &wire2.Operator{
 			ID:     id,
-			Pubkey: pktobytes,
+			PubKey: pkToBytes,
 		})
 	}
 

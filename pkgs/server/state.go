@@ -5,13 +5,14 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 const MaxInstances = 1024
@@ -44,20 +45,20 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		return nil, nil, err
 	}
 
-	myID := uint64(0)
-	mypubkey := s.privateKey.Public().(*rsa.PublicKey)
-	pkbytes, err := crypto.EncodePublicKey(mypubkey)
+	serverID := uint64(0)
+	serverPubKey := s.privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(serverPubKey)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, op := range init.Operators {
-		if bytes.Equal(op.Pubkey, pkbytes) {
-			myID = op.ID
+		if bytes.Equal(op.PubKey, pkBytes) {
+			serverID = op.ID
 			break
 		}
 	}
 
-	if myID == 0 {
+	if serverID == 0 {
 		return nil, nil, errors.New("my operator is missing inside the op list")
 	}
 
@@ -74,7 +75,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		SignFunc:   s.Sign,
 		VerifyFunc: verify,
 		Suite:      bls.NewBLS12381Suite(),
-		ID:         myID,
+		ID:         serverID,
 		//Init:       init,
 	}
 	owner := dkg.New(opts)
@@ -99,7 +100,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
-		pk, err := crypto.ParseRSAPubkey(op.Pubkey)
+		pk, err := crypto.ParseRSAPubkey(op.PubKey)
 		if err != nil {
 			return nil, err
 		}

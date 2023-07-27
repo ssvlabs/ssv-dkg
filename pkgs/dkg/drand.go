@@ -160,12 +160,12 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	}
 	o.data.init = init
 	o.data.ReqID = reqID
-	kyberlogger := logrus.NewEntry(logrus.New())
-	kyberlogger = kyberlogger.WithField("reqid", o.data.ReqID)
+	kyberLogger := logrus.NewEntry(logrus.New())
+	kyberLogger = kyberLogger.WithField("reqid", o.data.ReqID)
 	o.b = board.NewBoard(
-		kyberlogger,
+		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			kyberlogger.Logger.Infof("Server: broadcasting kyber message")
+			kyberLogger.Logger.Infof("Server: broadcasting kyber message")
 
 			byts, err := msg.MarshalSSZ()
 			if err != nil {

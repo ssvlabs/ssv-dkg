@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 )
 
 // TODO: CLI
@@ -19,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	// Load operators TODO: add more sources.
-	opmap, err := load.Operators(*operatorFile)
+	opMap, err := load.Operators(*operatorFile)
 	if err != nil {
 		log.Fatalf("Failed to load operators: %v", err)
 	}
@@ -30,9 +31,9 @@ func main() {
 		log.Fatalf("failed: %v", err)
 	}
 
-	dkgclient := client.New(opmap)
+	dkgClient := client.New(opMap)
 
-	err = dkgclient.StartDKG([]byte(*withdrawAddr), parts)
+	err = dkgClient.StartDKG([]byte(*withdrawAddr), parts)
 
 	if err != nil {
 		log.Fatalf("wtf %v")

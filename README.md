@@ -28,6 +28,29 @@ Basic Flow:
 
 Output? : TBD
 
+Exchange message creation protocol:
+1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
+- randomly generated scalar
+- corresponding point in elliptic curve group G1 (384 bit)
+2. Creates a signed with  exchange message consisting of ID[24]byte and point bits
+
+DKG protocol steps at operator after receiving all exchange messages from the initiator
+1. Generation of DKG nodes: 
+- operator ID uint64; 
+- operators G1 point;
+2. Creation of a time phaser
+3. DKG time phaser starts DealPhase
+ - computes a private share for each of the operators ids
+ - encrypts with a corresponding to the operator BLS public key created at exchange step
+ - pack all deals together and signs 
+4. Deal bundle is created and sent back to the initiator
+
+DKG protocol steps at operator after receiving all deal messages from the initiator:
+1. Creates the public polynomial from received bundle
+2. For each deal decrypts a deal share
+3. Checks if share is valid w.r.t. public commitment
+4. Forms a response bundle 
+
 ### Server
 
 The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement. 
