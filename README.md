@@ -12,7 +12,7 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 
 ![flow](./imgs/DKGinit.drawio.png)
 
-Basic Flow:
+#### Basic Flow:
 
 1. The initiator creates an initial message, signs it and sends it to all operators (/init)
 2. The operators upon receiving initial message check initiator message signature and create their DKG identity:
@@ -28,13 +28,13 @@ Basic Flow:
 
 Output? : TBD
 
-Exchange message creation protocol:
+#### Exchange message creation protocol:
 1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
 - randomly generated scalar
 - corresponding point in elliptic curve group G1 (384 bit)
 2. Creates a signed with  exchange message consisting of ID[24]byte and point bits
 
-DKG protocol steps at operator after receiving all exchange messages from the initiator
+#### DKG protocol steps at operator after receiving all exchange messages from the initiator
 1. Generation of DKG nodes: 
 - operator ID uint64; 
 - operators G1 point;
@@ -45,7 +45,7 @@ DKG protocol steps at operator after receiving all exchange messages from the in
  - pack all deals together and signs 
 4. Deal bundle is created and sent back to the initiator
 
-DKG protocol steps at operator after receiving all deal messages from the initiator:
+### DKG protocol steps at operator after receiving all deal messages from the initiator:
 1. Creates the public polynomial from received bundle
 2. For each deal decrypts a deal share
 3. Checks if share is valid w.r.t. public commitment
