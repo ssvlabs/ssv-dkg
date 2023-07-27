@@ -106,7 +106,7 @@ func (c *Client) SendToAll(method string, msg []byte) ([][]byte, error) {
 	for _, op := range c.ops {
 		go func(operator Operator) {
 			res, err := c.SendAndCollect(operator, method, msg)
-
+			c.logger.Infof("Collected message: method: %s, from: %s", method, operator.Addr)
 			resc <- opReqResult{
 				opid: operator.ID,
 				err:  err,
@@ -207,24 +207,17 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return fmt.Errorf("failed sending init msg  %v", err)
 	}
 
-	//for _, r := range results {
-	//	errmsg, err := wire.GetErr(r)
-	//	if err == nil {
-	//		c.logger.Error("Got error from server ", errmsg)
-	//		return errmsg
-	//	}
-	//}
 	c.logger.Info("Init round received, creating combined message")
 	mltpl, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err
 	}
-	c.logger.Info("Marshall init response combined message")
+	c.logger.Info("Marshall exchange response combined message")
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
 		return err
 	}
-	c.logger.Info("Send init response combined message")
+	c.logger.Info("Send exchange response combined message")
 	results, err = c.SendToAll(consts.API_DKG_URL, mltplbyts)
 	if err != nil {
 		return err

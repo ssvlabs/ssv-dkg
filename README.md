@@ -10,6 +10,8 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
 
+![flow](./imgs/DKGinit.drawio.png)
+
 Basic Flow:
 
 1. The initiator creates an initial message, signs it and sends it to all operators (/init)

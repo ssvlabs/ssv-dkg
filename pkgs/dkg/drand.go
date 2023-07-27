@@ -165,7 +165,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	o.b = board.NewBoard(
 		kyberlogger,
 		func(msg *wire.KyberMessage) error {
-			kyberlogger.Logger.Infof("broadcasting kyber message")
+			kyberlogger.Logger.Infof("Server: broadcasting kyber message")
 
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
@@ -206,7 +206,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Infof("Recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
+	o.Logger.Infof("Server: Recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
@@ -215,11 +215,11 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("received deal bundle from %d", from)
+		o.Logger.Infof("Server: received deal bundle from %d", from)
 
 		o.b.DealC <- *b
 
-		o.Logger.Infof("gone through deal sending %d", from)
+		o.Logger.Infof("Server: gone through deal sending %d", from)
 
 	case wire.KyberResponseBundleMessageType:
 		b, err := wire.DecodeResponseBundle(kyberMsg.Data)
@@ -227,7 +227,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("received response bundle from %d", from)
+		o.Logger.Infof("Server: received response bundle from %d", from)
 
 		o.b.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
@@ -236,7 +236,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("received justification bundle from %d", from)
+		o.Logger.Infof("Server: received justification bundle from %d", from)
 
 		o.b.JustificationC <- *b
 	default:
@@ -258,7 +258,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 	t := st.Message
 
-	o.Logger.Infof("got msg from type %s", t.Type.String())
+	o.Logger.Infof("Server: got msg from type %s, at: %d", t.Type.String(), o.ID)
 
 	switch t.Type {
 	case wire.ExchangeMessageType:
@@ -272,6 +272,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
+		// TODO: Handle if len(o.Exchanges) != len(o.data.init.Operators)
 		if len(o.Exchanges) == len(o.data.init.Operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
