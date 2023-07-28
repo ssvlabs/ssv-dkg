@@ -6,6 +6,12 @@
 
 The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
 
+### Server
+
+The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement. 
+The server is able to participate in multiple instances in parallel. 
+Whenever the server receives a message it directs it to the right instance by the identifier, and respond with an answer.
+
 ### CLI Client
 
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
@@ -24,9 +30,32 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 4. The initiator  sends back to all operators the combined message (/dkg)
 5. Operators receive all exchange messages to start the DKG process, responding back to initiator with a signed dkg deal bundle
 6. Initiator packs the deal bundles together and sends them back to all operators (/dkg)
-7. Operators process dkg bundles and finish the DKG protocol of creating a shared key
+7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing duties
+8. Operator sends to the initiator a success message
+9. Initiator prepares the deposit transaction and sends to the operators to sign
+10. After the sigs are collected the deposit transaction is send to the network
 
-Output? : TBD
+Output of DKG process:
+```go
+type Result struct {
+	QUAL []Node // list of nodes that successfully ran the protocol
+	Key  *DistKeyShare // the share of the node 
+}
+type DistKeyShare struct {
+    // Coefficients of the public polynomial holding the public key.
+    Commits []kyber.Point
+    // Share of the distributed secret which is private information.
+    Share *share.PriShare
+}
+```
+
+Output of creating a Deposit process:
+- ID [24]byte
+- EncryptedShare
+- SharePubKey
+- ValidatorPubKey
+- DepositDataSignature
+
 
 #### Exchange message creation protocol:
 1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
@@ -50,12 +79,6 @@ Output? : TBD
 2. For each deal decrypts a deal share
 3. Checks if share is valid w.r.t. public commitment
 4. Forms a response bundle 
-
-### Server
-
-The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement. 
-The server is able to participate in multiple instances in parallel. 
-Whenever the server recieves a message it directs it to the right instance by the identifier, and respond with an answer.
 
 Initial message fields:
 

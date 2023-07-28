@@ -140,6 +140,8 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 }
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
+	// TODO: Result consists of the Pivate Share of the distributed key
+	// We need to store at the instance and use for operators duties
 	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
 	o.Logger.Infof("RESULT %v", res.Result)
 
@@ -222,6 +224,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		o.Logger.Infof("Server: gone through deal sending %d", from)
 
 	case wire.KyberResponseBundleMessageType:
+
 		b, err := wire.DecodeResponseBundle(kyberMsg.Data)
 		if err != nil {
 			return err
