@@ -2,6 +2,8 @@ package client
 
 import (
 	"crypto/rsa"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -243,12 +246,42 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
 	c.logger.Infof("Got DKG results")
 
-	//
-	//last, err := c.makeMultiple(id, results)
-	//if err != nil {
-	//	return err
-	//}
+	// Collect operators answers as a confirmation of DKG process and prepare deposit data
+	validatorPK, _ := hex.DecodeString("b3d50de8d77299da8d830de1edfb34d3ce03c1941846e73870bb33f6de7b8a01383f6b32f55a1d038a4ddcb21a765194")
+	withdrawalCredentials, _ := hex.DecodeString("005b55a6c968852666b132a80f53712e5097b0fca86301a16992e695a8e86f16")
 
-	//c.logger.Infof("DKG Should be finished now, last results is this: %v", spew.Sdump(last))
+	signingRoot, _, err := ssvspec_types.GenerateETHDepositData(
+		validatorPK,
+		withdrawalCredentials,
+		ssvspec_types.MainNetwork.ForkVersion(),
+		ssvspec_types.DomainDeposit,
+	)
+
+	toSignData := KeySign{
+		ValidatorPK: validatorPK,
+		SigningRoot: signingRoot,
+	}
+	enc, err := toSignData.Encode()
+	
+	// Send the root to sign
+	results, err = c.SendToAll("sign", enc)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+type KeySign struct {
+	ValidatorPK ssvspec_types.ValidatorPK
+	SigningRoot []byte
+}
+// Encode returns a msg encoded bytes or error
+func (msg *KeySign) Encode() ([]byte, error) {
+	return json.Marshal(msg)
+}
+
+// Decode returns error if decoding failed
+func (msg *KeySign) Decode(data []byte) error {
+	return json.Unmarshal(data, msg)
 }

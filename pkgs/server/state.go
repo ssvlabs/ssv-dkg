@@ -13,6 +13,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
+	kyber "github.com/drand/kyber/share/dkg"
 )
 
 const MaxInstances = 1024
@@ -276,4 +277,16 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	resp := inst.ReadResponse()
 
 	return resp, nil
+}
+// TODO store DKG result at instance
+func (s *Switch) AddDKGResultToInstance (reqID [24]byte, res *kyber.OptionResult) error {
+	s.mtx.Lock()
+	_, ok := s.instances[reqID]
+	if !ok {
+		s.mtx.Unlock()
+		return ErrMissingInstance
+	}
+	// _ := s.instances[reqID] 
+	s.mtx.Unlock()
+	return nil
 }

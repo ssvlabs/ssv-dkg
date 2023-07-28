@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"errors"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/drand/kyber"
@@ -141,15 +142,26 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	// TODO: Result consists of the Pivate Share of the distributed key
-	// We need to store at the instance and use for operators duties
 	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
 	o.Logger.Infof("RESULT %v", res.Result)
+	// TODO: handle error
+	if res.Error != nil {
+		return
+	}
+	// TODO: store DKG result at instance
+
+	publicKey := res.Result.Key.Public()
+	bin, err := publicKey.MarshalBinary()
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
 
 	// TODO: compose output message OR propagate results to server and handle outputs there
 	tsmsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.ReqID,
-		Data:       []byte("WTF"),
+		Data:       bin,
 	}
 
 	o.Broadcast(tsmsg)

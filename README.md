@@ -32,8 +32,7 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 6. Initiator packs the deal bundles together and sends them back to all operators (/dkg)
 7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing duties
 8. Operator sends to the initiator a success message
-9. Initiator prepares the deposit transaction and sends to the operators to sign
-10. After the sigs are collected the deposit transaction is send to the network
+9. Initiator prepares the deposit data with a signing root
 
 Output of DKG process:
 ```go
