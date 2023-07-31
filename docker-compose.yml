@@ -1,0 +1,62 @@
+version: '3'
+services:
+  server1:
+    image: ssv-dkg-tool:latest
+    networks:
+      - shared_network
+    ports:
+      - 3031:3030
+    entrypoint: /app/server
+    command: [ "--port 3030", "--private-key /app/data/server1/key", "--operators /app/data/operators.csv" ]
+    volumes:
+      - ./examples:/data
+
+  server2:
+    image: ssv-dkg-tool:latest
+    networks:
+      - shared_network
+    ports:
+      - 3032:3030
+    entrypoint: /app/server
+    command: [ "--port 3030", "--private-key /app/data/server2/key", "--operators /app/data/operators.csv" ]
+    volumes:
+      - ./examples:/data
+
+  server3:
+    image: ssv-dkg-tool:latest
+    networks:
+      - shared_network
+    ports:
+      - 3033:3030
+    entrypoint: /app/server
+    command: [ "--port 3030", "--private-key /app/data/server3/key", "--operators /app/data/operators.csv" ]
+    volumes:
+      - ./examples:/data
+
+  server4:
+    image: ssv-dkg-tool:latest
+    networks:
+      - shared_network
+    ports:
+      - 3034:3030
+    entrypoint: /app/server
+    command: [ "--port 3030", "--private-key /app/data/server4/key", "--operators /app/data/operators.csv" ]
+    volumes:
+      - ./examples:/data
+
+  client:
+    image: ssv-dkg-tool:latest
+    depends_on:
+      - server1
+      - server2
+      - server3
+      - server4
+    networks:
+      - shared_network
+    entrypoint: /app/client
+    command: [ "--operators /app/data/operators.csv" ]
+    volumes:
+      - ./examples:/data
+
+networks:
+  shared_network:
