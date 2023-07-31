@@ -262,7 +262,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		SigningRoot: signingRoot,
 	}
 	enc, err := toSignData.Encode()
-	
+
 	// Send the root to sign
 	results, err = c.SendToAll("sign", enc)
 	if err != nil {
@@ -276,6 +276,7 @@ type KeySign struct {
 	ValidatorPK ssvspec_types.ValidatorPK
 	SigningRoot []byte
 }
+
 // Encode returns a msg encoded bytes or error
 func (msg *KeySign) Encode() ([]byte, error) {
 	return json.Marshal(msg)

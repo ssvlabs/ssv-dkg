@@ -2,13 +2,14 @@ package integration
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"testing"
 )
 
 const exmaplePath = "../examples/"

@@ -12,8 +12,8 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
-	"github.com/sirupsen/logrus"
 	kyber "github.com/drand/kyber/share/dkg"
+	"github.com/sirupsen/logrus"
 )
 
 const MaxInstances = 1024
@@ -77,6 +77,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		VerifyFunc: verify,
 		Suite:      bls.NewBLS12381Suite(),
 		ID:         serverID,
+		OpPrivKey:  s.privateKey,
 		//Init:       init,
 	}
 	owner := dkg.New(opts)
@@ -278,15 +279,16 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 
 	return resp, nil
 }
+
 // TODO store DKG result at instance
-func (s *Switch) AddDKGResultToInstance (reqID [24]byte, res *kyber.OptionResult) error {
+func (s *Switch) AddDKGResultToInstance(reqID [24]byte, res *kyber.OptionResult) error {
 	s.mtx.Lock()
 	_, ok := s.instances[reqID]
 	if !ok {
 		s.mtx.Unlock()
 		return ErrMissingInstance
 	}
-	// _ := s.instances[reqID] 
+	// _ := s.instances[reqID]
 	s.mtx.Unlock()
 	return nil
 }

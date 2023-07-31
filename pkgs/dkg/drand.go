@@ -1,17 +1,19 @@
 package dkg
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"errors"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 	"github.com/sirupsen/logrus"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
 
 type Operator struct {
@@ -38,6 +40,7 @@ type LocalOwner struct {
 	BroadcastF func([]byte) error
 	Exchanges  map[uint64]*wire.Exchange
 	outputs    map[uint64]*wire.Output
+	OpPrivKey  *rsa.PrivateKey
 
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
@@ -52,6 +55,7 @@ type OwnerOpts struct {
 	Suite      pairing.Suite
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
+	OpPrivKey  *rsa.PrivateKey
 	//Init       *wire.Init
 }
 
@@ -67,6 +71,7 @@ func New(opts OwnerOpts) *LocalOwner {
 		VerifyFunc: opts.VerifyFunc,
 		done:       make(chan struct{}, 1),
 		suite:      opts.Suite,
+		OpPrivKey:  opts.OpPrivKey,
 	}
 	return owner
 }
@@ -148,20 +153,19 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	if res.Error != nil {
 		return
 	}
+	var tsmsg *wire.Transport
 	// TODO: store DKG result at instance
-
-	publicKey := res.Result.Key.Public()
-	bin, err := publicKey.MarshalBinary()
+	// Send encrypted shares to initiator for preparing a deposit messages
+	encShare, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(res.Result.Key.Share.String()))
+	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
-		return
 	}
-
 	// TODO: compose output message OR propagate results to server and handle outputs there
-	tsmsg := &wire.Transport{
+	tsmsg = &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.ReqID,
-		Data:       bin,
+		Data:       encShare,
 	}
 
 	o.Broadcast(tsmsg)

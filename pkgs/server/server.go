@@ -25,6 +25,7 @@ type KeySign struct {
 	ValidatorPK ssvspec_types.ValidatorPK
 	SigningRoot []byte
 }
+
 // Encode returns a msg encoded bytes or error
 func (msg *KeySign) Encode() ([]byte, error) {
 	return json.Marshal(msg)
