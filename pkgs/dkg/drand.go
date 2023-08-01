@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/sirupsen/logrus"
 
@@ -28,19 +30,42 @@ type DKGData struct {
 	Secret kyber.Scalar
 }
 
+type Result struct {
+	EncShare        []byte `json:"encShare"`
+	ValidatorPubKey []byte `json:"validatorPub"`
+	Commits         []byte `json:"commits"`
+}
+
+func (r *Result) MarshalBinary() ([]byte, error) {
+	bin, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return bin, nil
+}
+
+func (r *Result) UnmarshalBinary(b []byte) error {
+	err := json.Unmarshal(b, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 var ErrAlreadyExists = errors.New("duplicate message")
 
 type LocalOwner struct {
-	Logger     *logrus.Entry
-	startedDKG chan struct{}
-	ID         uint64
-	data       *DKGData
-	b          *board.Board
-	suite      pairing.Suite
-	BroadcastF func([]byte) error
-	Exchanges  map[uint64]*wire.Exchange
-	outputs    map[uint64]*wire.Output
-	OpPrivKey  *rsa.PrivateKey
+	Logger      *logrus.Entry
+	startedDKG  chan struct{}
+	ID          uint64
+	data        *DKGData
+	b           *board.Board
+	suite       pairing.Suite
+	BroadcastF  func([]byte) error
+	Exchanges   map[uint64]*wire.Exchange
+	outputs     map[uint64]*wire.Output
+	OpPrivKey   *rsa.PrivateKey
+	SecretShare *dkg.DistKeyShare
 
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
@@ -106,6 +131,7 @@ func (o *LocalOwner) StartDKG() error {
 	if err != nil {
 		return err
 	}
+	o.Logger.Infof("Protocol secret %d", o.data.Secret.String())
 	//i.dkgProtocol = p
 
 	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult)) {
@@ -151,21 +177,56 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	o.Logger.Infof("RESULT %v", res.Result)
 	// TODO: handle error
 	if res.Error != nil {
+		o.Logger.Error(res.Error)
 		return
 	}
+
+	validatorPubKey, err := res.Result.Key.Public().MarshalBinary()
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	o.Logger.Infof("Created validator public key %x", validatorPubKey)
 	var tsmsg *wire.Transport
-	// TODO: store DKG result at instance
+	// TODO: store DKG result at instance for now just as global variable
+	o.SecretShare = res.Result.Key
 	// Send encrypted shares to initiator for preparing a deposit messages
-	encShare, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(res.Result.Key.Share.String()))
+	operatorPrivShare, err := res.Result.Key.Share.V.MarshalBinary()
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	encShare, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, operatorPrivShare)
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
+		return
+	}
+	var commitsBytes []byte
+	o.Logger.Infof("Commits in the res %x", len(res.Result.Key.Commits))
+	for _, commit := range res.Result.Key.Commits {
+		c, _ := commit.MarshalBinary()
+		o.Logger.Infof("Commit point len %x", len(c))
+		commitsBytes = append(commitsBytes, c...)
+	}
+
+	dkgResult := Result{
+		EncShare:        encShare,
+		ValidatorPubKey: validatorPubKey,
+		Commits:         commitsBytes,
+	}
+
+	bin, err := dkgResult.MarshalBinary()
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
 	}
 	// TODO: compose output message OR propagate results to server and handle outputs there
 	tsmsg = &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.ReqID,
-		Data:       encShare,
+		Data:       bin,
 	}
 
 	o.Broadcast(tsmsg)
@@ -337,4 +398,16 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 		Identifier: reqID,
 		Data:       exchData,
 	}
+}
+
+func (o *LocalOwner) SignRoot(root []byte) ([]byte, error) {
+	scheme := tbls.NewThresholdSchemeOnG1(o.suite)
+	o.Logger.Infof("Operator share secret %v", o.SecretShare.Share)
+	sig, err := scheme.Sign(o.SecretShare.Share, root)
+	if err != nil {
+		return nil, err
+	}
+	o.Logger.Infof("Sig len %d", len(sig))
+	o.Logger.Infof("Sig %x", sig)
+	return sig, nil
 }

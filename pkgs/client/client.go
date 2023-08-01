@@ -2,7 +2,6 @@ package client
 
 import (
 	"crypto/rsa"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +9,13 @@ import (
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/drand/kyber"
+	bls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/sign/tbls"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -239,32 +243,74 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return err
 	}
 
-	results, err = c.SendToAll(consts.API_DKG_URL, mltpl2byts)
+	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return err
 	}
 
 	c.logger.Infof("Got DKG results")
+	
+	var dkgResults []*dkg.Result
+	for i := 0; i < len(responseResult); i++ {
+		msg := responseResult[i]
+		tsp := &wire.SignedTransport{}
+		if err := tsp.UnmarshalSSZ(msg); err != nil {
+			return err
+		}
+		var result dkg.Result
+		err := result.UnmarshalBinary(tsp.Message.Data)
+		if err != nil {
+			return err
+		}
+		dkgResults = append(dkgResults, &result)
+
+	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	validatorPK, _ := hex.DecodeString("b3d50de8d77299da8d830de1edfb34d3ce03c1941846e73870bb33f6de7b8a01383f6b32f55a1d038a4ddcb21a765194")
-	withdrawalCredentials, _ := hex.DecodeString("005b55a6c968852666b132a80f53712e5097b0fca86301a16992e695a8e86f16")
-
-	signingRoot, _, err := ssvspec_types.GenerateETHDepositData(
-		validatorPK,
-		withdrawalCredentials,
+	signingRoot, depositData, err := ssvspec_types.GenerateETHDepositData(
+		dkgResults[0].ValidatorPubKey,
+		init.WithdrawalCredentials,
 		ssvspec_types.MainNetwork.ForkVersion(),
 		ssvspec_types.DomainDeposit,
 	)
 
-	toSignData := KeySign{
-		ValidatorPK: validatorPK,
-		SigningRoot: signingRoot,
+	c.logger.Infof("Deposit data %v", depositData)
+	messageWithRootToSign := &wire.Transport{
+		Type:       wire.BlsSignRequestType,
+		Identifier: id,
+		Data:       signingRoot,
 	}
-	enc, err := toSignData.Encode()
 
+	messageWithRoot, err := messageWithRootToSign.MarshalSSZ()
+	if err != nil {
+		return fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
+	}
 	// Send the root to sign
-	results, err = c.SendToAll("sign", enc)
+	signedRoot, err := c.SendToAll("sign", messageWithRoot)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(signedRoot); i++ {
+		c.logger.Infof("Signed root received %x", signedRoot[i])
+	}
+
+	var commits []kyber.Point
+	var t int
+	for i:=0; i<int(init.T); i++ {
+		var point kyber.Point
+		point.UnmarshalBinary(dkgResults[0].Commits[t:t+30])
+		commits = append(commits, point)
+		t += 30
+	}
+
+	scheme := tbls.NewThresholdSchemeOnG1(bls.NewBLS12381Suite())
+	pubPoly := share.NewPubPoly(bls.NewBLS12381Suite().G1(), bls.NewBLS12381Suite().G1().Point(), commits)
+	sig, err := scheme.Recover(pubPoly, signingRoot, signedRoot, int(init.T), len(ids))
+	if err != nil {
+		return err
+	}
+	err = scheme.VerifyRecovered(pubPoly.Commit(), signingRoot, sig)
 	if err != nil {
 		return err
 	}
