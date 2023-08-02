@@ -2,20 +2,21 @@ package client
 
 import (
 	"crypto/rsa"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-spec/types"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/drand/kyber"
-	bls "github.com/drand/kyber-bls12381"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/sign/tbls"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -69,6 +70,18 @@ type Client struct {
 	logger *logrus.Entry
 	clnt   *req.Client
 	ops    Operators
+}
+
+type DepositDataJson struct {
+	PubKey                string      `json:"pubkey"`
+	WithdrawalCredentials string      `json:"withdrawal_credentials"`
+	Amount                phase0.Gwei `json:"amount"`
+	Signature             string      `json:"signature"`
+	DepositMessageRoot    string      `json:"deposit_message_root"`
+	DepositDataRoot       string      `json:"deposit_data_root"`
+	ForkVersion           string      `json:"fork_version"`
+	NetworkName           string      `json:"network_name"`
+	DepositCliVersion     string      `json:"deposit_cli_version"`
 }
 
 func New(opmap Operators) *Client {
@@ -251,6 +264,8 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	c.logger.Infof("Got DKG results")
 	
 	var dkgResults []*dkg.Result
+	var depositSig ssvspec_types.Signature
+	
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -258,63 +273,53 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 			return err
 		}
 		var result dkg.Result
-		err := result.UnmarshalBinary(tsp.Message.Data)
+		err := result.Decode(tsp.Message.Data)
 		if err != nil {
 			return err
 		}
 		dkgResults = append(dkgResults, &result)
-
+		c.logger.Infof("Result of DKG from an operator %v", result)
+		// Combine the signature from partial sigs
+		depositSig, err = depositSig.Aggregate(result.PartialSignature)
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	signingRoot, depositData, err := ssvspec_types.GenerateETHDepositData(
+	_, depositData, err := ssvspec_types.GenerateETHDepositData(
 		dkgResults[0].ValidatorPubKey,
 		init.WithdrawalCredentials,
 		ssvspec_types.MainNetwork.ForkVersion(),
 		ssvspec_types.DomainDeposit,
 	)
+	amount := phase0.Gwei(types.MaxEffectiveBalanceInGwei)
+	depositMsg := &phase0.DepositMessage{
+		PublicKey:             depositData.PublicKey,
+		WithdrawalCredentials: init.WithdrawalCredentials,
+		Amount:                amount,
+	}
+	depositMsgRoot, _ := depositMsg.HashTreeRoot()
 
-	c.logger.Infof("Deposit data %v", depositData)
-	messageWithRootToSign := &wire.Transport{
-		Type:       wire.BlsSignRequestType,
-		Identifier: id,
-		Data:       signingRoot,
-	}
+	blsSig := phase0.BLSSignature{}
+	copy(blsSig[:], depositSig)
+	depositData.Signature = blsSig
 
-	messageWithRoot, err := messageWithRootToSign.MarshalSSZ()
-	if err != nil {
-		return fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
-	}
-	// Send the root to sign
-	signedRoot, err := c.SendToAll("sign", messageWithRoot)
-	if err != nil {
-		return err
-	}
+	depositDataRoot, _ := depositData.HashTreeRoot()
 
-	for i := 0; i < len(signedRoot); i++ {
-		c.logger.Infof("Signed root received %x", signedRoot[i])
+	depositDataJson := DepositDataJson{
+		PubKey:                hex.EncodeToString(dkgResults[0].ValidatorPubKey),
+		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
+		Amount:                amount,
+		Signature:             depositData.Signature.String(),
+		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
+		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
+		ForkVersion:           hex.EncodeToString(init.Fork[:]),
+		// TODO: network name according to fork
+		NetworkName:           "mainnet",
+		DepositCliVersion:     "2.3.0",
 	}
-
-	var commits []kyber.Point
-	var t int
-	for i:=0; i<int(init.T); i++ {
-		var point kyber.Point
-		point.UnmarshalBinary(dkgResults[0].Commits[t:t+30])
-		commits = append(commits, point)
-		t += 30
-	}
-
-	scheme := tbls.NewThresholdSchemeOnG1(bls.NewBLS12381Suite())
-	pubPoly := share.NewPubPoly(bls.NewBLS12381Suite().G1(), bls.NewBLS12381Suite().G1().Point(), commits)
-	sig, err := scheme.Recover(pubPoly, signingRoot, signedRoot, int(init.T), len(ids))
-	if err != nil {
-		return err
-	}
-	err = scheme.VerifyRecovered(pubPoly.Commit(), signingRoot, sig)
-	if err != nil {
-		return err
-	}
-
+	// Save deposit file
+	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
+	fmt.Printf("writing deposit data json to file %s\n", filepath)
+	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
 	return nil
 }
 

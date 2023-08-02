@@ -26,7 +26,6 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
 	ReadResponse() []byte
-	SignRoot([]byte) ([]byte, error)
 }
 
 type instWrapper struct {
@@ -292,16 +291,4 @@ func (s *Switch) AddDKGResultToInstance(reqID [24]byte, res *kyber.OptionResult)
 	// _ := s.instances[reqID]
 	s.mtx.Unlock()
 	return nil
-}
-
-func (s *Switch) SignRoot(reqID [24]byte, root []byte) ([]byte, error) {
-	logger := s.logger.WithField("reqid", hex.EncodeToString(reqID[:]))
-	logger.Infof("Got root sign message")
-	// Get instance 
-	_, ok := s.instances[reqID]
-	if !ok {
-		return nil, ErrMissingInstance
-	}
-	resp, err := s.instances[reqID].SignRoot(root)
-	return resp, err
 }

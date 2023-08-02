@@ -92,35 +92,6 @@ func RegisterRoutes(s *Server) {
 		writer.WriteHeader(http.StatusOK)
 		writer.Write(b)
 	})
-
-	s.router.Post("/sign", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Info("Received request to sign root")
-		rawdata, err := io.ReadAll(request.Body)
-		s.logger.Debug("parsing sig msg")
-		tr := &wire.Transport{}
-		if err := tr.UnmarshalSSZ(rawdata); err != nil {
-			s.logger.Debug("parsing failed, err %v", err)
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(err))
-			return
-		}
-		// Validate that incoming message is an init message
-		if tr.Type != wire.BlsSignRequestType {
-			s.logger.Debug("non sig message request")
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(errors.New("non sig message request")))
-			return
-		}
-		reqid := tr.Identifier
-		b, err := s.state.SignRoot(reqid, tr.Data)
-		if err != nil {
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(err))
-			return
-		}
-		writer.WriteHeader(http.StatusOK)
-		writer.Write(b)
-	})
 }
 
 func New(key *rsa.PrivateKey) *Server {

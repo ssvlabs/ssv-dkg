@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -10,12 +9,15 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/sirupsen/logrus"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-spec/types"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/herumi/bls-eth-go-binary/bls"
 )
 
 type Operator struct {
@@ -30,26 +32,28 @@ type DKGData struct {
 	Secret kyber.Scalar
 }
 
+// Result is the last message in every DKG which marks a specific node's end of process
 type Result struct {
-	EncShare        []byte `json:"encShare"`
-	ValidatorPubKey []byte `json:"validatorPub"`
-	Commits         []byte `json:"commits"`
+	// RequestID for the DKG instance (not used for signing)
+	RequestID [24]byte
+	// EncryptedShare standard SSV encrypted shares
+	EncryptedShare []byte
+	// SharePubKey is the share's BLS pubkey
+	SharePubKey []byte
+	// ValidatorPubKey the resulting public key corresponding to the shared private key
+	ValidatorPubKey types.ValidatorPK
+	// Partial Operator Signature of Deposit Data
+	PartialSignature types.Signature
 }
 
-func (r *Result) MarshalBinary() ([]byte, error) {
-	bin, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	return bin, nil
+// Encode returns a msg encoded bytes or error
+func (msg *Result) Encode() ([]byte, error) {
+	return json.Marshal(msg)
 }
 
-func (r *Result) UnmarshalBinary(b []byte) error {
-	err := json.Unmarshal(b, r)
-	if err != nil {
-		return err
-	}
-	return nil
+// Decode returns error if decoding failed
+func (msg *Result) Decode(data []byte) error {
+	return json.Unmarshal(data, msg)
 }
 
 var ErrAlreadyExists = errors.New("duplicate message")
@@ -65,7 +69,7 @@ type LocalOwner struct {
 	Exchanges   map[uint64]*wire.Exchange
 	outputs     map[uint64]*wire.Output
 	OpPrivKey   *rsa.PrivateKey
-	SecretShare *dkg.DistKeyShare
+	SecretShare *bls.SecretKey
 
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
@@ -174,49 +178,61 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	// TODO: Result consists of the Pivate Share of the distributed key
 	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
-	o.Logger.Infof("RESULT %v", res.Result)
+	o.Logger.Infof("DKG PROTOCOL RESULT %v", res.Result)
 	// TODO: handle error
 	if res.Error != nil {
 		o.Logger.Error(res.Error)
 		return
 	}
 
-	validatorPubKey, err := res.Result.Key.Public().MarshalBinary()
-	if err != nil {
-		o.Logger.Error(err)
-		return
-	}
-	o.Logger.Infof("Created validator public key %x", validatorPubKey)
-	var tsmsg *wire.Transport
-	// TODO: store DKG result at instance for now just as global variable
-	o.SecretShare = res.Result.Key
-	// Send encrypted shares to initiator for preparing a deposit messages
-	operatorPrivShare, err := res.Result.Key.Share.V.MarshalBinary()
-	if err != nil {
-		o.Logger.Error(err)
-		return
-	}
-	encShare, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, operatorPrivShare)
+	validatorPubKey, err := crypto.ResultsToValidatorPK(res.Result.Key.Commits, o.suite.G1().(dkg.Suite))
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
 		return
 	}
-	var commitsBytes []byte
-	o.Logger.Infof("Commits in the res %x", len(res.Result.Key.Commits))
-	for _, commit := range res.Result.Key.Commits {
-		c, _ := commit.MarshalBinary()
-		o.Logger.Infof("Commit point len %x", len(c))
-		commitsBytes = append(commitsBytes, c...)
+
+	o.Logger.Infof("Created validator public key %x", validatorPubKey)
+	var tsmsg *wire.Transport
+	// TODO: store DKG result at instance for now just as global variable
+	o.SecretShare, err = crypto.ResultToShareSecretKey(res.Result)
+	
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	
+	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.SerializeToHexStr()))
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
 	}
 
-	dkgResult := Result{
-		EncShare:        encShare,
-		ValidatorPubKey: validatorPubKey,
-		Commits:         commitsBytes,
+	// Collect operators answers as a confirmation of DKG process and prepare deposit data
+	signingRoot, _, err := ssvspec_types.GenerateETHDepositData(
+		validatorPubKey.Serialize(),
+		o.data.init.WithdrawalCredentials,
+		ssvspec_types.MainNetwork.ForkVersion(),
+		ssvspec_types.DomainDeposit,
+	)
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
 	}
+	// Sign a root
+	signedRoot := o.SecretShare.SignByte(signingRoot)
 
-	bin, err := dkgResult.MarshalBinary()
+	out := Result{
+		RequestID: o.data.ReqID,
+		EncryptedShare: encryptedShare,
+		SharePubKey: o.SecretShare.GetPublicKey().Serialize(),
+		ValidatorPubKey: validatorPubKey.Serialize(),
+		PartialSignature: signedRoot.Serialize(),
+	}
+	encodedOutput, err := out.Encode()
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
@@ -226,7 +242,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	tsmsg = &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.ReqID,
-		Data:       bin,
+		Data:       encodedOutput,
 	}
 
 	o.Broadcast(tsmsg)
@@ -398,16 +414,4 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 		Identifier: reqID,
 		Data:       exchData,
 	}
-}
-
-func (o *LocalOwner) SignRoot(root []byte) ([]byte, error) {
-	scheme := tbls.NewThresholdSchemeOnG1(o.suite)
-	o.Logger.Infof("Operator share secret %v", o.SecretShare.Share)
-	sig, err := scheme.Sign(o.SecretShare.Share, root)
-	if err != nil {
-		return nil, err
-	}
-	o.Logger.Infof("Sig len %d", len(sig))
-	o.Logger.Infof("Sig %x", sig)
-	return sig, nil
 }
