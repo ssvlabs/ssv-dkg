@@ -417,7 +417,6 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
 	fmt.Printf("writing keyshares to file: %s\n", filename)
 	return utils.WriteJSON(filename, keyshares)
-	return nil
 }
 
 type KeySign struct {

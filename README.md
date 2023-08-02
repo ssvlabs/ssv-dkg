@@ -33,7 +33,7 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing
 8. Operator using its share of the shared key signs a deposit root, encrypts with the initial RSA key the share and sends it to the initiator 
 9. Initiator receives all messages from operators with signatures/encrypted shares and prepares the deposit data with a signature and save it as JSON file
-10. Initiator prepares a payload for SSV contract with a owner signature
+10. Initiator prepares a payload for SSV contract
 11. After the deposit is successfull and SSV contract transaction is accepted, operators can continue with their duties using their share of the distributes key
 
 The result of DKG process at operators:
