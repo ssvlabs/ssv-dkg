@@ -30,11 +30,13 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 4. The initiator  sends back to all operators the combined message (/dkg)
 5. Operators receive all exchange messages to start the DKG process, responding back to initiator with a signed dkg deal bundle
 6. Initiator packs the deal bundles together and sends them back to all operators (/dkg)
-7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing duties
-8. Operator sends to the initiator a success message
-9. Initiator prepares the deposit data with a signing root
+7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing
+8. Operator using its share of the shared key signs a deposit root, encrypts with the initial RSA key the share and sends it to the initiator 
+9. Initiator receives all messages from operators with signatures/encrypted shares and prepares the deposit data with a signature and save it as JSON file
+10. Initiator prepares a payload for SSV contract with a owner signature
+11. After the deposit is successfull and SSV contract transaction is accepted, operators can continue with their duties using their share of the distributes key
 
-Output of DKG process:
+The result of DKG process at operators:
 ```go
 type Result struct {
 	QUAL []Node // list of nodes that successfully ran the protocol
@@ -43,18 +45,24 @@ type Result struct {
 type DistKeyShare struct {
     // Coefficients of the public polynomial holding the public key.
     Commits []kyber.Point
-    // Share of the distributed secret which is private information.
+    // Share of the distributed secret which is private information. This will be used to sign. All sigs can be aggregated to create a T-threshold signature 
     Share *share.PriShare
 }
 ```
 
-Output of creating a Deposit process:
-- ID [24]byte
-- EncryptedShare
-- SharePubKey
-- ValidatorPubKey
-- DepositDataSignature
-
+Output of an operator after DKG is finished:
+```go
+	// RequestID for the DKG instance (not used for signing)
+	RequestID [24]byte
+	// EncryptedShare standard SSV encrypted shares
+	EncryptedShare []byte
+	// SharePubKey is the share's BLS pubkey
+	SharePubKey []byte
+	// ValidatorPubKey the resulting public key corresponding to the shared private key
+	ValidatorPubKey types.ValidatorPK
+	// Partial Operator Signature of Deposit Data
+	PartialSignature types.Signature
+```
 
 #### Exchange message creation protocol:
 1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
@@ -91,13 +99,15 @@ Initial message fields:
  WithdrawalCredentials []byte
  // Fork ethereum fork for signing
  Fork [4]byte
- // Owner address
+
+ ////////////////////
+ // Owner address TDB
  Owner [20]byte
- // Nonce
- Nonce int
- // Timestamp prevent replay account in unix time
+ // Nonce TBD
+ Nonce int 
+ // Timestamp prevent replay account in unix time TBD
  Timestamp uint64 // ??? 
- // Initiator signature
+ // Owner signature TBD
  Sig []byte
 ```
 
