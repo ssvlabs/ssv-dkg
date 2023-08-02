@@ -1,12 +1,15 @@
 package client
 
 import (
+	"bytes"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -82,6 +85,88 @@ type DepositDataJson struct {
 	ForkVersion           string      `json:"fork_version"`
 	NetworkName           string      `json:"network_name"`
 	DepositCliVersion     string      `json:"deposit_cli_version"`
+}
+
+type KeyShares struct {
+	Version   string           `json:"version"`
+	Data      KeySharesData    `json:"data"`
+	Payload   KeySharesPayload `json:"payload"`
+	CreatedAt time.Time        `json:"createdAt"`
+}
+
+type KeySharesData struct {
+	PublicKey string         `json:"publicKey"`
+	Operators []OperatorData `json:"operators"`
+}
+
+type OperatorData struct {
+	ID          uint32 `json:"id"`
+	OperatorKey string `json:"operatorKey"`
+}
+
+type KeySharesKeys struct {
+	PublicKeys    []string `json:"publicKeys"`
+	EncryptedKeys []string `json:"encryptedKeys"`
+}
+
+type KeySharesPayload struct {
+	Readable ReadablePayload `json:"readable"`
+}
+
+type ReadablePayload struct {
+	PublicKey   string   `json:"publicKey"`
+	OperatorIDs []uint32 `json:"operatorIds"`
+	Shares      string   `json:"shares"`
+	Amount      string   `json:"amount"`
+	Cluster     string   `json:"cluster"`
+}
+
+
+func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) error {
+	shares := KeySharesKeys{
+		PublicKeys:    make([]string, 0),
+		EncryptedKeys: make([]string, 0),
+	}
+	operatorData := make([]OperatorData, 0)
+	operatorIds := make([]uint32, 0)
+	for _, operatorResult := range result {
+		operatorData = append(operatorData, OperatorData{
+			ID:          operatorResult.OperatorID,
+			OperatorKey: operatorResult.PubKeyRSA.N.String(),
+		})
+		operatorIds = append(operatorIds, operatorResult.OperatorID)
+		shares.PublicKeys = append(shares.PublicKeys, "0x"+hex.EncodeToString(operatorResult.SharePubKey))
+		shares.EncryptedKeys = append(shares.EncryptedKeys, base64.StdEncoding.EncodeToString(operatorResult.EncryptedShare))
+	}
+
+	sort.SliceStable(operatorIds, func(i, j int) bool {
+		return operatorIds[i] < operatorIds[j]
+	})
+
+	sort.SliceStable(operatorData, func(i, j int) bool {
+		return operatorData[i].ID < operatorData[j].ID
+	})
+
+	data := KeySharesData{
+		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
+		Operators: operatorData,
+	}
+
+	payload := KeySharesPayload{
+		Readable: ReadablePayload{
+			PublicKey:   "0x" +  hex.EncodeToString(result[0].ValidatorPubKey),
+			OperatorIDs: operatorIds,
+			Shares:      sharesToBytes(shares.PublicKeys, shares.EncryptedKeys, ownerPrefix),
+			Amount:      "Amount of SSV tokens to be deposited to your validator's cluster balance (mandatory only for 1st validator in a cluster)",
+			Cluster:     "The latest cluster snapshot data, obtained using the cluster-scanner tool. If this is the cluster's 1st validator then use - {0,0,0,0,0,false}",
+		},
+	}
+
+	ks.Version = "v4"
+	ks.Data = data
+	ks.Payload = payload
+	ks.CreatedAt = time.Now().UTC()
+	return nil
 }
 
 func New(opmap Operators) *Client {
@@ -263,7 +348,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
 	c.logger.Infof("Got DKG results")
 	
-	var dkgResults []*dkg.Result
+	var dkgResults []dkg.Result
 	var depositSig ssvspec_types.Signature
 	
 	for i := 0; i < len(responseResult); i++ {
@@ -277,7 +362,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		if err != nil {
 			return err
 		}
-		dkgResults = append(dkgResults, &result)
+		dkgResults = append(dkgResults, result)
 		c.logger.Infof("Result of DKG from an operator %v", result)
 		// Combine the signature from partial sigs
 		depositSig, err = depositSig.Aggregate(result.PartialSignature)
@@ -320,6 +405,18 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
 	fmt.Printf("writing deposit data json to file %s\n", filepath)
 	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
+
+
+	// Save SSV contract payload
+	// TODO: check if ownerPrefix is indeed depositSig
+	keyshares := &KeyShares{}
+	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(depositSig)); err != nil {
+		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
+	}
+
+	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
+	fmt.Printf("writing keyshares to file: %s\n", filename)
+	return utils.WriteJSON(filename, keyshares)
 	return nil
 }
 
@@ -336,4 +433,36 @@ func (msg *KeySign) Encode() ([]byte, error) {
 // Decode returns error if decoding failed
 func (msg *KeySign) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
+}
+
+func sharesToBytes(publicKeys []string, privateKeys []string, prefix string) string {
+	encryptedShares, _ := decodeEncryptedShares(privateKeys)
+	arrayPublicKeys := bytes.Join(toArrayByteSlices(publicKeys), []byte{})
+	arrayEncryptedShares := bytes.Join(toArrayByteSlices(encryptedShares), []byte{})
+	pkPsBytes := append(arrayPublicKeys, arrayEncryptedShares...)
+	return "0x" + prefix + hex.EncodeToString(pkPsBytes)
+}
+
+func decodeEncryptedShares(encodedEncryptedShares []string) ([]string, error) {
+	var result []string
+	for _, item := range encodedEncryptedShares {
+		// Decode the base64 string
+		decoded, err := base64.StdEncoding.DecodeString(item)
+		if err != nil {
+			return nil, err
+		}
+
+		// Encode the decoded bytes as a hexadecimal string with '0x' prefix
+		result = append(result, "0x"+hex.EncodeToString(decoded))
+	}
+	return result, nil
+}
+
+func toArrayByteSlices(input []string) [][]byte {
+	var result [][]byte
+	for _, str := range input {
+		bytes, _ := hex.DecodeString(str[2:]) // remove the '0x' prefix and decode the hex string to bytes
+		result = append(result, bytes)
+	}
+	return result
 }

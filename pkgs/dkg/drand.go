@@ -34,6 +34,8 @@ type DKGData struct {
 
 // Result is the last message in every DKG which marks a specific node's end of process
 type Result struct {
+	OperatorID uint32
+	PubKeyRSA *rsa.PublicKey
 	// RequestID for the DKG instance (not used for signing)
 	RequestID [24]byte
 	// EncryptedShare standard SSV encrypted shares
