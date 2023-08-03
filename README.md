@@ -36,7 +36,7 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
 10. Initiator prepares a payload for SSV contract
 11. After the deposit is successfull and SSV contract transaction is accepted, operators can continue with their duties using their share of the distributes key
 
-The result of DKG process at operators:
+The result of successfull DKG protocol at operator side:
 ```go
 type Result struct {
 	QUAL []Node // list of nodes that successfully ran the protocol
@@ -63,8 +63,8 @@ Output of an operator after DKG is finished:
 	// Partial Operator Signature of Deposit Data
 	PartialSignature types.Signature
 ```
-
-#### Exchange message creation protocol:
+## DKG protocol description
+#### Exchange message creation DKG protocol:
 1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
 - randomly generated scalar
 - corresponding point in elliptic curve group G1 (384 bit)
@@ -114,6 +114,15 @@ Initial message fields:
 ### TODO: 
 - [ ] Complete design with flows and structure
 - [ ] Add pubkeys to init message
-- [ ] output - signed ssv deposit data
+- [ ] output - signed ssv deposit data + encrypted shares for SSV contract
+- [ ] verification of ssv deposit data and encrypted shares
+- [ ] withdrawal message
+- [ ] private key recreation from shares (in case of switch to a standard ETH validator)
+- [ ] CLI for initiator and operators
 - [ ] more testing
 - [ ] logging
+
+### Additional:
+- [ ] get existing pub key share by ID from operators
+- [ ] limit max of operators (T-threshold min/max)
+- [ ] max security of the communication between initiator and operators
