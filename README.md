@@ -117,8 +117,10 @@ Initial message fields:
 - [ ] output - signed ssv deposit data + encrypted shares for SSV contract
 - [ ] verification of ssv deposit data and encrypted shares
 - [ ] withdrawal message
+- [ ] existing validator public key resharing
 - [ ] private key recreation from shares (in case of switch to a standard ETH validator)
 - [ ] CLI for initiator and operators
+- [ ] storage for initiator and keystore for operators
 - [ ] more testing
 - [ ] logging
 
