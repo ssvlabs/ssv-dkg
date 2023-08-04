@@ -90,7 +90,7 @@ Output of an operator after DKG is finished:
 Initial message fields:
 
 ```go
- ID [24]byte //  [ addres:nonce ] or random
+ ID [16]byte //   random UUID
  // Operators involved in the DKG
  Operators []byte  // [ ID:pubkey ]  // uint8 ID 1byte + RSA pub key
  // T is the threshold for signing
@@ -104,9 +104,7 @@ Initial message fields:
  // Owner address TDB
  Owner [20]byte
  // Nonce TBD
- Nonce int 
- // Timestamp prevent replay account in unix time TBD
- Timestamp uint64 // ??? 
+ Nonce int
  // Owner signature TBD
  Sig []byte
 ```
@@ -116,7 +114,6 @@ Initial message fields:
 - [ ] Add pubkeys to init message
 - [ ] output - signed ssv deposit data + encrypted shares for SSV contract
 - [ ] verification of ssv deposit data and encrypted shares
-- [ ] withdrawal message
 - [ ] existing validator public key resharing
 - [ ] private key recreation from shares (in case of switch to a standard ETH validator)
 - [ ] CLI for initiator and operators
@@ -128,3 +125,44 @@ Initial message fields:
 - [ ] get existing pub key share by ID from operators
 - [ ] limit max of operators (T-threshold min/max)
 - [ ] max security of the communication between initiator and operators
+
+### Flow TODO Brakedown
+____
+New key generation - implemented ~70-80%
+#### Round 1
+- CLI for initiator
+- CLI for operator
+- RSA private/pub at initiator
+- Secure messages of initiator (pub + signature)
+- Init message owner + nonce fields. ID is random UUID
+- Timeouts
+- Code refactoring 
+- Error handling
+- Unit tests
+
+#### Round 2
+- Secure storage for key shares and DKG result (keystore + db) + recover option
+- Validate signature shares + validator pub key + pub and encrypted shares at initiator
+- Solution to convert kyber.Points to bls G1 points !!!
+- Timeouts
+- Code refactoring 
+- Error handling
+- Unit tests
+
+_____
+Key resharing (new operator keys but same validator pub key) - implemented 0%
+
+- CLI command and message to initiate resharing protocol
+- Handlers of DKG key resharing messages exchange
+- Store new keys, update storage at operators
+- Error handling
+- Unit tests
+___
+
+Private key recreation from shares at initiator  - implemented 0%
+- CLI command and message to initiate reconstruction of the key from shares
+- Handlers to send encrypted with RSA pub key shares to initiator
+- DKG private key recovery from shares
+- Keystore storage of validator priv key
+- Error handling
+- Unit tests
