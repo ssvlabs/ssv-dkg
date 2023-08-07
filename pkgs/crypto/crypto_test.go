@@ -9,7 +9,7 @@ import (
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign/schnorr"
+	kyberbls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	clock "github.com/jonboulle/clockwork"
@@ -19,18 +19,21 @@ import (
 func TestDKGFull(t *testing.T) {
 	n := 4
 	thr := n - 1
-	suite := kyber_bls12381.NewBLS12381Suite().G1().(dkg.Suite)
-	tns := GenerateTestNodes(suite, n)
+	suite := kyber_bls12381.NewBLS12381Suite()
+	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
 	list := NodesFromTest(tns)
 	conf := dkg.Config{
-		Suite:     suite,
+		Suite:     suite.G1().(dkg.Suite),
 		NewNodes:  list,
 		Threshold: thr,
-		Auth:      schnorr.NewScheme(suite),
+		Auth:      kyberbls.NewSchemeOnG2(suite),
 	}
 
+	err := bls.Init(bls.BLS12_381)
+	require.NoError(t, err)
+
 	results := RunDKG(t, tns, conf, nil, nil, nil)
-	testResults(t, suite, thr, n, results)
+	testResults(t, suite.G1().(dkg.Suite), thr, n, results)
 }
 
 type TestNode struct {
@@ -150,7 +153,8 @@ func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Resul
 	require.NoError(t, err)
 	require.NotEmpty(t, bytsPK)
 	t.Logf("Pub key bytes %x", bytsPK)
-	var pk bls.PublicKey
+	pk := &bls.PublicKey{}
+
 	// TODO: SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x0] at Deserialize
 	err = pk.Deserialize(bytsPK)
 	require.NoError(t, err)
