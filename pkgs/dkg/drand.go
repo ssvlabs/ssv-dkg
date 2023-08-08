@@ -35,7 +35,7 @@ type DKGData struct {
 // Result is the last message in every DKG which marks a specific node's end of process
 type Result struct {
 	OperatorID uint32
-	PubKeyRSA *rsa.PublicKey
+	PubKeyRSA  *rsa.PublicKey
 	// RequestID for the DKG instance (not used for signing)
 	RequestID [24]byte
 	// EncryptedShare standard SSV encrypted shares
@@ -198,20 +198,20 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	var tsmsg *wire.Transport
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare, err = crypto.ResultToShareSecretKey(res.Result)
-	
-	// TODO: handle error
-	if err != nil {
-		o.Logger.Error(err)
-		return
-	}
-	
-	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.SerializeToHexStr()))
+
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
 		return
 	}
 
+	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.SerializeToHexStr()))
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	o.Logger.Infof("Encrypted share %x", encryptedShare)
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
 	signingRoot, _, err := ssvspec_types.GenerateETHDepositData(
 		validatorPubKey.Serialize(),
@@ -226,12 +226,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	}
 	// Sign a root
 	signedRoot := o.SecretShare.SignByte(signingRoot)
-
+	o.Logger.Infof("Signed root %s", signedRoot.GetHexString())
 	out := Result{
-		RequestID: o.data.ReqID,
-		EncryptedShare: encryptedShare,
-		SharePubKey: o.SecretShare.GetPublicKey().Serialize(),
-		ValidatorPubKey: validatorPubKey.Serialize(),
+		RequestID:        o.data.ReqID,
+		EncryptedShare:   encryptedShare,
+		SharePubKey:      o.SecretShare.GetPublicKey().Serialize(),
+		ValidatorPubKey:  validatorPubKey.Serialize(),
 		PartialSignature: signedRoot.Serialize(),
 	}
 	encodedOutput, err := out.Encode()

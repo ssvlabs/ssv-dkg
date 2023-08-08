@@ -11,27 +11,34 @@ require (
 	github.com/herumi/bls-eth-go-binary v1.29.1
 	github.com/imroc/req/v3 v3.37.2
 	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.3.0
 )
 
 require (
-	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/ethereum/go-ethereum v1.12.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/goccy/go-yaml v1.11.0 // indirect
 	github.com/holiman/uint256 v1.2.2 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 )
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/bloxapp/ssv v0.5.4
 	github.com/bloxapp/ssv-spec v0.3.1
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect

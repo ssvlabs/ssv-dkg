@@ -8,11 +8,18 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/herumi/bls-eth-go-binary/bls"
 )
+
+func init() {
+	if err := bls.Init(bls.BLS12_381); err != nil {
+		panic(err)
+	}
+}
 
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	pv, err := rsa.GenerateKey(rand.Reader, 1024)

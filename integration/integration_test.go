@@ -57,7 +57,7 @@ func TestEverything(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("lol"), []uint64{1, 2, 3, 4})
+	err = clnt.StartDKG([]byte("10000000000001010101010101010101"), []uint64{1, 2, 3, 4})
 
 	require.NoError(t, err)
 
