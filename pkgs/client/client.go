@@ -121,7 +121,6 @@ type ReadablePayload struct {
 	Cluster     string   `json:"cluster"`
 }
 
-
 func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) error {
 	shares := KeySharesKeys{
 		PublicKeys:    make([]string, 0),
@@ -154,7 +153,7 @@ func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) 
 
 	payload := KeySharesPayload{
 		Readable: ReadablePayload{
-			PublicKey:   "0x" +  hex.EncodeToString(result[0].ValidatorPubKey),
+			PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 			OperatorIDs: operatorIds,
 			Shares:      sharesToBytes(shares.PublicKeys, shares.EncryptedKeys, ownerPrefix),
 			Amount:      "Amount of SSV tokens to be deposited to your validator's cluster balance (mandatory only for 1st validator in a cluster)",
@@ -347,10 +346,10 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	}
 
 	c.logger.Infof("Got DKG results")
-	
+
 	var dkgResults []dkg.Result
 	var depositSig ssvspec_types.Signature
-	
+
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -364,8 +363,11 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		}
 		dkgResults = append(dkgResults, result)
 		c.logger.Infof("Result of DKG from an operator %v", result)
-		// Combine the signature from partial sigs
+		// Aggregate signature from partial sigs
 		depositSig, err = depositSig.Aggregate(result.PartialSignature)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
@@ -398,14 +400,13 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
 		ForkVersion:           hex.EncodeToString(init.Fork[:]),
 		// TODO: network name according to fork
-		NetworkName:           "mainnet",
-		DepositCliVersion:     "2.3.0",
+		NetworkName:       "mainnet",
+		DepositCliVersion: "2.3.0",
 	}
 	// Save deposit file
 	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
 	fmt.Printf("writing deposit data json to file %s\n", filepath)
 	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
-
 
 	// Save SSV contract payload
 	// TODO: check if ownerPrefix is indeed depositSig

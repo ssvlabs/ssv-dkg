@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	kyberbls "github.com/drand/kyber/sign/bls"
+	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	clock "github.com/jonboulle/clockwork"
@@ -28,9 +30,6 @@ func TestDKGFull(t *testing.T) {
 		Threshold: thr,
 		Auth:      kyberbls.NewSchemeOnG2(suite),
 	}
-
-	err := bls.Init(bls.BLS12_381)
-	require.NoError(t, err)
 
 	results := RunDKG(t, tns, conf, nil, nil, nil)
 	testResults(t, suite.G1().(dkg.Suite), thr, n, results)
@@ -146,21 +145,6 @@ func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Resul
 		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
 	}
 
-	// test public key is recoverable
-	// validatorPubKey, err := ResultsToValidatorPK(results[0].Key.Commitments(), suite)
-
-	bytsPK, err := exp.Eval(0).V.MarshalBinary()
-	require.NoError(t, err)
-	require.NotEmpty(t, bytsPK)
-	t.Logf("Pub key bytes %x", bytsPK)
-	pk := &bls.PublicKey{}
-
-	// TODO: SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x0] at Deserialize
-	err = pk.Deserialize(bytsPK)
-	require.NoError(t, err)
-
-	require.NotEmpty(t, pk.Serialize())
-
 	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
 	require.NoError(t, err)
 	gotPub := secretPoly.Commit(suite.Point().Base())
@@ -171,6 +155,64 @@ func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Resul
 	public := suite.Point().Mul(secret, nil)
 	expKey := results[0].Key.Public()
 	require.True(t, public.Equal(expKey))
+
+	// Test Threshold Kyber message signing
+	scheme := tbls.NewThresholdSchemeOnG1(kyber_bls12381.NewBLS12381Suite())
+	sigShares := make([][]byte, 0)
+	for _, x := range shares {
+		sig, err := scheme.Sign(x, []byte("Hello World!"))
+		require.Nil(t, err)
+		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
+		idx, err := scheme.IndexOf(sig)
+		require.NoError(t, err)
+		require.Equal(t, x.I, idx)
+		sigShares = append(sigShares, sig)
+		idx, err = scheme.IndexOf(sig)
+		require.NoError(t, err)
+		require.Equal(t, idx, x.I)
+	}
+
+	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
+	require.Nil(t, err)
+	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), sig)
+	require.Nil(t, err)
+	t.Logf("Kyber DKG signature %x", sig)
+
+	// Try to deserialize Kyber recovered signature to BLS signature
+	masterSig := &bls.Sign{}
+	err = masterSig.Deserialize(sig)
+	require.NoError(t, err)
+	// test public key is recoverable to BLS library
+	validatorPubKey, err := ResultsToValidatorPK(results[0].Key.Commitments(), suite)
+	require.NoError(t, err)
+	require.NotEmpty(t, validatorPubKey.Serialize())
+	t.Logf("Pub key bytes %x", validatorPubKey.Serialize())
+	res := masterSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
+	require.True(t, res)
+
+	// Try to reconstruct BLS sig from Kyber partial sigs
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	reconstructedSig := bls.Sign{}
+	for _, res := range results {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", res.Key.Share.I))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+
+		priv, err := ResultToShareSecretKey(res)
+		require.NoError(t, err)
+		blsSig := priv.SignByte([]byte("Hello World!"))
+		sigVec = append(sigVec, *blsSig)
+	}
+	err = reconstructedSig.Recover(sigVec, idVec)
+	require.NoError(t, err)
+	t.Logf("BLS reconstructed signature %x", sig)
+
+	// Verify aggregated sig
+	res = reconstructedSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
+	require.True(t, res)
+
 }
 
 type MapDeal func([]*dkg.DealBundle) []*dkg.DealBundle
