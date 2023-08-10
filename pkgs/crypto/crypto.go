@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 
+	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
@@ -16,9 +17,7 @@ import (
 )
 
 func init() {
-	if err := bls.Init(bls.BLS12_381); err != nil {
-		panic(err)
-	}
+	types.InitBLS()
 }
 
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
