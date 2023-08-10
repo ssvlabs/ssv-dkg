@@ -1,11 +1,13 @@
 package crypto
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
@@ -482,8 +484,23 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	require.NoError(t, err)
 	t.Logf("BLS reconstructed signature %x", sig)
 
+	valPk := bls.PublicKey{}
+	pkVec := make([]bls.PublicKey, 0)
+	for _, res := range results {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", res.Key.Share.I))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+
+		priv, err := ResultToShareSecretKey(res)
+		require.NoError(t, err)
+		pkVec = append(pkVec, *priv.GetPublicKey())
+	}
+	err = valPk.Recover(pkVec, idVec)
+	require.NoError(t, err)
+	t.Logf("BLS reconstructed pub key %s", valPk.GetHexString())
 	// Verify aggregated sig
-	res = reconstructedSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
+	res = reconstructedSig.VerifyByte(&valPk, []byte("Hello World!"))
 	require.True(t, res)
 }
 
@@ -529,6 +546,11 @@ func testResultsKyberToBLSLowLevel(t *testing.T, suite dkg.Suite, thr, n int, re
 	}
 
 	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
+	coefs := secretPoly.Coefficients()
+	t.Logf("Ploly len %d", len(coefs))
+	for _, c := range coefs {
+		t.Logf("Ploly coef %s", c.String())
+	}
 	require.NoError(t, err)
 	gotPub := secretPoly.Commit(suite.Point().Base())
 	require.True(t, exp.Equal(gotPub))
@@ -540,5 +562,114 @@ func testResultsKyberToBLSLowLevel(t *testing.T, suite dkg.Suite, thr, n int, re
 	require.True(t, public.Equal(expKey))
 
 	// Go here to low level operations at poly and the group
+	// operators := []types.OperatorID{
+	// 	1, 2, 3, 4,
+	// }
+	// // polyDegree := thr - 1
+	// payloadToSign := "Hello World!"
+	// // calculate shares
+	// sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
+	// pks := make(map[types.OperatorID]*bls.PublicKey)
+	// sigs := make(map[types.OperatorID]*bls.Sign)
 
+	// for i, id := range operators {
+	// 	var sum *bls.Fr
+	// 	secret, err := shares[i].V.MarshalBinary()
+	// 	require.NoError(t, err)
+	// 	sum.Deserialize(secret)
+	// 	sharesBLS[id] = bls.CastToSecretKey(sum)
+	// 	pks[id] = sharesBLS[id].GetPublicKey()
+	// 	sigs[id] = sharesBLS[id].Sign(payloadToSign)
+	// }
+
+	operators := []types.OperatorID{
+		1, 2, 3, 4,
+	}
+	k := 3
+	polyDegree := k - 1
+	payloadToSign := "hello"
+
+	// create polynomials for each operator
+	poly := make(map[types.OperatorID][]bls.Fr)
+	for _, id := range operators {
+		coeff := make([]bls.Fr, 0)
+		for i := 1; i <= polyDegree; i++ {
+			c := bls.Fr{}
+			c.SetByCSPRNG()
+			coeff = append(coeff, c)
+		}
+		poly[id] = coeff
+	}
+
+	// create points for each operator
+	points := make(map[types.OperatorID][]*bls.Fr)
+	for _, id := range operators {
+		for _, evalID := range operators {
+			if points[evalID] == nil {
+				points[evalID] = make([]*bls.Fr, 0)
+			}
+
+			res := &bls.Fr{}
+			x := &bls.Fr{}
+			x.SetInt64(int64(evalID))
+			require.NoError(t, bls.FrEvaluatePolynomial(res, poly[id], x))
+
+			points[evalID] = append(points[evalID], res)
+		}
+	}
+
+	// calculate shares
+	sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
+	pks := make(map[types.OperatorID]*bls.PublicKey)
+	sigs := make(map[types.OperatorID]*bls.Sign)
+	for id, ps := range points {
+		var sum *bls.Fr
+		for _, p := range ps {
+			if sum == nil {
+				sum = p
+			} else {
+				bls.FrAdd(sum, sum, p)
+			}
+		}
+		sharesBLS[id] = bls.CastToSecretKey(sum)
+		pks[id] = sharesBLS[id].GetPublicKey()
+		sigs[id] = sharesBLS[id].Sign(payloadToSign)
+	}
+
+	// get validator pk
+	validatorPK := bls.PublicKey{}
+	idVec := make([]bls.ID, 0)
+	pkVec := make([]bls.PublicKey, 0)
+	for operatorID, pk := range pks {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+
+		pkVec = append(pkVec, *pk)
+	}
+	require.NoError(t, validatorPK.Recover(pkVec, idVec))
+	fmt.Printf("validator pk: %s\n", hex.EncodeToString(validatorPK.Serialize()))
+
+	// reconstruct sig
+	reconstructedSig := bls.Sign{}
+	idVec = make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	for operatorID, sig := range sigs {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+
+		sigVec = append(sigVec, *sig)
+
+		if len(sigVec) >= thr {
+			break
+		}
+	}
+	require.NoError(t, reconstructedSig.Recover(sigVec, idVec))
+	fmt.Printf("reconstructed sig: %s\n", hex.EncodeToString(reconstructedSig.Serialize()))
+
+	// verify
+	require.True(t, reconstructedSig.Verify(&validatorPK, payloadToSign))
 }
