@@ -20,6 +20,10 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/bloxapp/ssv-spec/types"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/drand/kyber"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/sign/tbls"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -263,7 +267,7 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 }
 
 func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
-
+	suite := kyber_bls12381.NewBLS12381Suite()
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
 		op, ok := c.ops[id]
@@ -347,32 +351,46 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
 	c.logger.Infof("Got DKG results")
 
-	var dkgResults []dkg.Result
-	var depositSig ssvspec_types.Signature
-
+	dkgResults := make([]dkg.Result, 0)
+	commitments := make([]kyber.Point, 0)
+	var ValidatorPubKey []byte
+	sigShares := make([][]byte, 0)
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			return err
 		}
-		var result dkg.Result
+		result := &dkg.Result{}
 		err := result.Decode(tsp.Message.Data)
 		if err != nil {
 			return err
 		}
-		dkgResults = append(dkgResults, result)
-		c.logger.Infof("Result of DKG from an operator %v", result)
-		// Aggregate signature from partial sigs
-		depositSig, err = depositSig.Aggregate(result.PartialSignature)
-		if err != nil {
-			return err
+		dkgResults = append(dkgResults, *result)
+		// Unmarshall public commitments
+		commitsFromRes := make([]kyber.Point, 0)
+		for _, commit := range result.Commitments {
+			point := suite.G1().Point()
+			err := point.UnmarshalBinary(commit)
+			if err != nil {
+				return err
+			}
+			c.logger.Infof("Commit points %s", point.String())
+			commitsFromRes = append(commitsFromRes, point)
 		}
+		commitments = commitsFromRes
+		ValidatorPubKey = result.ValidatorPubKey
+		c.logger.Infof("Validator pub %x", ValidatorPubKey)
+		sigShares = append(sigShares, result.PartialSignature)
+		c.logger.Infof("Result of DKG from an operator %v", result)
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	_, depositData, err := ssvspec_types.GenerateETHDepositData(
-		dkgResults[0].ValidatorPubKey,
+	c.logger.Infof("Withdrawal Credentials %x", init.WithdrawalCredentials)
+	c.logger.Infof("Fork Version %x", ssvspec_types.MainNetwork.ForkVersion())
+	c.logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
+	signRoot, depositData, err := ssvspec_types.GenerateETHDepositData(
+		ValidatorPubKey,
 		init.WithdrawalCredentials,
 		ssvspec_types.MainNetwork.ForkVersion(),
 		ssvspec_types.DomainDeposit,
@@ -385,6 +403,37 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	}
 	depositMsgRoot, _ := depositMsg.HashTreeRoot()
 
+	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+	if err != nil {
+		return err
+	}
+
+	pubPoly := share.NewPubPoly(suite.G1(), suite.G1().Point().Base(), commitments)
+
+	// Verify partial signatures and recovered threshold signature
+	for _, resShare := range dkgResults {
+		if err := scheme.VerifyPartial(pubPoly, signRoot, resShare.PartialSignature); err != nil {
+			c.logger.Errorf("Error verifying partial sig %s, sig %x, T %d, root %x", err.Error(), resShare.PartialSignature, pubPoly.Threshold(), signRoot)
+			return err
+		}
+	}
+
+	// Recover and verify Master Signature
+	depositSig, err := scheme.Recover(pubPoly, signRoot, sigShares, int(init.T), len(init.Operators))
+	if err != nil {
+		return err
+	}
+
+	pubKeyPoint := suite.G1().Point()
+	err = pubKeyPoint.UnmarshalBinary(ValidatorPubKey)
+	if err != nil {
+		return err
+	}
+	c.logger.Infof("Validator pub key %s", pubKeyPoint.String())
+	if err := scheme.VerifyRecovered(pubKeyPoint, signRoot, depositSig); err != nil {
+		return err
+	}
+
 	blsSig := phase0.BLSSignature{}
 	copy(blsSig[:], depositSig)
 	depositData.Signature = blsSig
@@ -392,7 +441,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	depositDataRoot, _ := depositData.HashTreeRoot()
 
 	depositDataJson := DepositDataJson{
-		PubKey:                hex.EncodeToString(dkgResults[0].ValidatorPubKey),
+		PubKey:                hex.EncodeToString(ValidatorPubKey),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
 		Amount:                amount,
 		Signature:             depositData.Signature.String(),

@@ -6,18 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
+	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/sirupsen/logrus"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	"github.com/bloxapp/ssv-spec/types"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/herumi/bls-eth-go-binary/bls"
 )
 
 type Operator struct {
@@ -43,9 +44,11 @@ type Result struct {
 	// SharePubKey is the share's BLS pubkey
 	SharePubKey []byte
 	// ValidatorPubKey the resulting public key corresponding to the shared private key
-	ValidatorPubKey types.ValidatorPK
+	ValidatorPubKey []byte
 	// Partial Operator Signature of Deposit Data
-	PartialSignature types.Signature
+	PartialSignature []byte
+	// Public commitments
+	Commitments [][]byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -71,7 +74,7 @@ type LocalOwner struct {
 	Exchanges   map[uint64]*wire.Exchange
 	outputs     map[uint64]*wire.Output
 	OpPrivKey   *rsa.PrivateKey
-	SecretShare *bls.SecretKey
+	SecretShare *dkg.DistKeyShare
 
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
@@ -187,17 +190,19 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 		return
 	}
 
-	validatorPubKey, err := crypto.ResultsToValidatorPK(res.Result.Key.Commits, o.suite.G1().(dkg.Suite))
+	// validatorPubKey, err := crypto.ResultsToValidatorPK(res.Result.Key.Commits, o.suite.G1().(dkg.Suite))
+	validatorPubKey, err := res.Result.Key.Public().MarshalBinary()
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
 		return
 	}
 
-	o.Logger.Infof("Created validator public key %x", validatorPubKey)
+	o.Logger.Infof("Validator public key %s", res.Result.Key.Public().String())
+	o.Logger.Infof("Validator public key %x", validatorPubKey)
 	var tsmsg *wire.Transport
 	// TODO: store DKG result at instance for now just as global variable
-	o.SecretShare, err = crypto.ResultToShareSecretKey(res.Result)
+	o.SecretShare = res.Result.Key
 
 	// TODO: handle error
 	if err != nil {
@@ -205,16 +210,19 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 		return
 	}
 
-	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.SerializeToHexStr()))
+	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.Share.V.String()))
 	// TODO: handle error
 	if err != nil {
 		o.Logger.Error(err)
 		return
 	}
 	o.Logger.Infof("Encrypted share %x", encryptedShare)
+	o.Logger.Infof("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
+	o.Logger.Infof("Fork Version %x", ssvspec_types.MainNetwork.ForkVersion())
+	o.Logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	signingRoot, _, err := ssvspec_types.GenerateETHDepositData(
-		validatorPubKey.Serialize(),
+	signRoot, _, err := ssvspec_types.GenerateETHDepositData(
+		validatorPubKey,
 		o.data.init.WithdrawalCredentials,
 		ssvspec_types.MainNetwork.ForkVersion(),
 		ssvspec_types.DomainDeposit,
@@ -225,15 +233,51 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 		return
 	}
 	// Sign a root
-	signedRoot := o.SecretShare.SignByte(signingRoot)
-	o.Logger.Infof("Signed root %s", signedRoot.GetHexString())
+	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+	sig, err := scheme.Sign(o.SecretShare.Share, signRoot)
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	o.Logger.Infof("Root %x", signRoot)
+	// Validate partial signature
+	pubPoly := share.NewPubPoly(o.suite.G1(), o.suite.G1().Point().Base(), o.SecretShare.Commitments())
+	o.Logger.Infof("Pub Poly T %d", pubPoly.Threshold())
+	// TODO: handle error
+	if err := scheme.VerifyPartial(pubPoly, signRoot, sig); err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	o.Logger.Infof("Root sig %x", sig)
+	sharePubKey := o.suite.G1().Point().Mul(o.SecretShare.Share.V, nil)
+	sharePubKeyBin, err := sharePubKey.MarshalBinary()
+	// TODO: handle error
+	if err != nil {
+		o.Logger.Error(err)
+		return
+	}
+	commitments := make([][]byte, 0)
+	for _, commitment := range o.SecretShare.Commitments() {
+		o.Logger.Infof("Commit point %s", commitment.String())
+		b, err := commitment.MarshalBinary()
+		// TODO: handle error
+		if err != nil {
+			o.Logger.Error(err)
+			return
+		}
+		commitments = append(commitments, b)
+	}
+
 	out := Result{
 		RequestID:        o.data.ReqID,
 		EncryptedShare:   encryptedShare,
-		SharePubKey:      o.SecretShare.GetPublicKey().Serialize(),
-		ValidatorPubKey:  validatorPubKey.Serialize(),
-		PartialSignature: signedRoot.Serialize(),
+		SharePubKey:      sharePubKeyBin,
+		ValidatorPubKey:  validatorPubKey,
+		PartialSignature: sig,
+		Commitments:      commitments,
 	}
+
 	encodedOutput, err := out.Encode()
 	// TODO: handle error
 	if err != nil {

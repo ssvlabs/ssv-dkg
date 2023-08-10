@@ -176,7 +176,7 @@ func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Resul
 
 	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
 	require.Nil(t, err)
-	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), sig)
+	err = scheme.VerifyRecovered(expKey, []byte("Hello World!"), sig)
 	require.Nil(t, err)
 }
 
