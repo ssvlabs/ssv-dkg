@@ -8,6 +8,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
@@ -19,6 +20,9 @@ func init() {
 	flags.WithdrawAddressFlag(StartDKG)
 	flags.OperatorsInfoFlag(StartDKG)
 	flags.OperatorIDsFlag(StartDKG)
+	flags.OwnerAddressFlag(StartDKG)
+	flags.NonceFlag(StartDKG)
+	flags.ForkVersionFlag(StartDKG)
 }
 
 var StartDKG = &cobra.Command{
@@ -54,8 +58,26 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
 		}
+		threshold, err := flags.GetThresholdFlagValue(cmd)
+		if err != nil {
+			logger.Fatal("failed to get owner address flag value", zap.Error(err))
+		}
+		fork, err := flags.GetForkVersionFlagValue(cmd)
+		if err != nil {
+			logger.Fatal("failed to get fork versiion flag value", zap.Error(err))
+		}
 
-		err = dkgClient.StartDKG([]byte(withdrawAddr), parts)
+		owner, err := flags.GetOwnerAddressFlagValue(cmd)
+		if err != nil {
+			logger.Fatal("failed to get owner address flag value", zap.Error(err))
+		}
+
+		nonce, err := flags.GetNonceFlagValue(cmd)
+		if err != nil {
+			logger.Fatal("failed to get nonce flag value", zap.Error(err))
+		}
+
+		err = dkgClient.StartDKG([]byte(withdrawAddr), parts, threshold, fork, [20]byte(common.HexToAddress(owner).Bytes()), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))

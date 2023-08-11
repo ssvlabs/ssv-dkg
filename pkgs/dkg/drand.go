@@ -35,8 +35,10 @@ type DKGData struct {
 
 // Result is the last message in every DKG which marks a specific node's end of process
 type Result struct {
+	// Operator ID
 	OperatorID uint32
-	PubKeyRSA  *rsa.PublicKey
+	// Operator RSA pubkey
+	PubKeyRSA *rsa.PublicKey
 	// RequestID for the DKG instance (not used for signing)
 	RequestID [24]byte
 	// EncryptedShare standard SSV encrypted shares
@@ -66,13 +68,12 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger      *logrus.Entry
 	startedDKG  chan struct{}
-	ID          uint64 //
+	ID          uint64
 	data        *DKGData
 	b           *board.Board
 	suite       pairing.Suite
 	BroadcastF  func([]byte) error
 	Exchanges   map[uint64]*wire.Exchange
-	outputs     map[uint64]*wire.Output
 	OpPrivKey   *rsa.PrivateKey
 	SecretShare *dkg.DistKeyShare
 
@@ -90,7 +91,6 @@ type OwnerOpts struct {
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
 	OpPrivKey  *rsa.PrivateKey
-	//Init       *wire.Init
 }
 
 func New(opts OwnerOpts) *LocalOwner {
@@ -100,7 +100,6 @@ func New(opts OwnerOpts) *LocalOwner {
 		ID:         opts.ID,
 		BroadcastF: opts.BroadcastF,
 		Exchanges:  make(map[uint64]*wire.Exchange),
-		outputs:    make(map[uint64]*wire.Output),
 		SignFunc:   opts.SignFunc,
 		VerifyFunc: opts.VerifyFunc,
 		done:       make(chan struct{}, 1),
@@ -112,7 +111,6 @@ func New(opts OwnerOpts) *LocalOwner {
 
 func (o *LocalOwner) StartDKG() error {
 	o.Logger.Infof("Starting DKG")
-
 	nodes := make([]dkg.Node, 0)
 	for id, e := range o.Exchanges {
 		p := o.suite.G1().Point()
@@ -140,13 +138,10 @@ func (o *LocalOwner) StartDKG() error {
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("Protocol secret %d", o.data.Secret.String())
-	//i.dkgProtocol = p
-
-	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult)) {
+	// TODO: handle error
+	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
 		postF(&res)
-
 	}(p, o.PostDKG)
 
 	close(o.startedDKG)
@@ -159,6 +154,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	if err != nil {
 		return err
 	}
+	// Sign message with RSA private key
 	sign, err := o.SignFunc(bts)
 	if err != nil {
 		return err
@@ -180,91 +176,71 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	return o.BroadcastF(final)
 }
 
-func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
+func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// TODO: Result consists of the Pivate Share of the distributed key
 	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
 	o.Logger.Infof("DKG PROTOCOL RESULT %v", res.Result)
-	// TODO: handle error
+
 	if res.Error != nil {
-		o.Logger.Error(res.Error)
-		return
+		return res.Error
 	}
 
 	// validatorPubKey, err := crypto.ResultsToValidatorPK(res.Result.Key.Commits, o.suite.G1().(dkg.Suite))
 	validatorPubKey, err := res.Result.Key.Public().MarshalBinary()
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
-
-	o.Logger.Infof("Validator public key %s", res.Result.Key.Public().String())
 	o.Logger.Infof("Validator public key %x", validatorPubKey)
 	var tsmsg *wire.Transport
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
-
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 
 	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.Share.V.String()))
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 	o.Logger.Infof("Encrypted share %x", encryptedShare)
 	o.Logger.Infof("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
-	o.Logger.Infof("Fork Version %x", ssvspec_types.MainNetwork.ForkVersion())
+	o.Logger.Infof("Fork Version %x", o.data.init.Fork)
 	o.Logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
 	signRoot, _, err := ssvspec_types.GenerateETHDepositData(
 		validatorPubKey,
 		o.data.init.WithdrawalCredentials,
-		ssvspec_types.MainNetwork.ForkVersion(),
+		o.data.init.Fork,
 		ssvspec_types.DomainDeposit,
 	)
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 	// Sign a root
 	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
 	sig, err := scheme.Sign(o.SecretShare.Share, signRoot)
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 	o.Logger.Infof("Root %x", signRoot)
 	// Validate partial signature
 	pubPoly := share.NewPubPoly(o.suite.G1(), o.suite.G1().Point().Base(), o.SecretShare.Commitments())
 	o.Logger.Infof("Pub Poly T %d", pubPoly.Threshold())
-	// TODO: handle error
-	if err := scheme.VerifyPartial(pubPoly, signRoot, sig); err != nil {
-		o.Logger.Error(err)
-		return
+	if err != nil {
+		return err
 	}
 	o.Logger.Infof("Root sig %x", sig)
 	sharePubKey := o.suite.G1().Point().Mul(o.SecretShare.Share.V, nil)
 	sharePubKeyBin, err := sharePubKey.MarshalBinary()
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 	commitments := make([][]byte, 0)
 	for _, commitment := range o.SecretShare.Commitments() {
 		o.Logger.Infof("Commit point %s", commitment.String())
 		b, err := commitment.MarshalBinary()
-		// TODO: handle error
 		if err != nil {
-			o.Logger.Error(err)
-			return
+			return err
 		}
 		commitments = append(commitments, b)
 	}
@@ -281,10 +257,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 	}
 
 	encodedOutput, err := out.Encode()
-	// TODO: handle error
 	if err != nil {
-		o.Logger.Error(err)
-		return
+		return err
 	}
 	// TODO: compose output message OR propagate results to server and handle outputs there
 	tsmsg = &wire.Transport{
@@ -295,6 +269,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 
 	o.Broadcast(tsmsg)
 	close(o.done)
+	return nil
 }
 
 func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
@@ -339,7 +314,6 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	if err != nil {
 		return nil, err
 	}
-	//o.Exchanges[o.ID] = raw // TODO: this is probably needed
 	return ExchangeWireMessage(bts, reqID), nil
 }
 
@@ -395,7 +369,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-
+	// Verify operator signatures
 	if err := o.VerifyFunc(st.Signer, msgbts, st.Signature); err != nil {
 		return err
 	}
@@ -416,7 +390,6 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
-		// TODO: Handle if len(o.Exchanges) != len(o.data.init.Operators)
 		if len(o.Exchanges) == len(o.data.init.Operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
@@ -425,8 +398,6 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	case wire.KyberMessageType:
 		<-o.startedDKG
 		return o.processDKG(from, t)
-	case wire.OutputMessageType:
-		o.Logger.Infof("Got output but not used to")
 	default:
 		return errors.New("unknown type")
 	}

@@ -1,9 +1,5 @@
 package wire
 
-import (
-	"encoding/binary"
-)
-
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
@@ -11,16 +7,6 @@ type MultipleSignedTransports struct {
 
 type ErrSSZ struct {
 	Error []byte `ssz-max:"512"`
-}
-
-func NewIdentifier(address []byte, nonce uint64) [24]byte {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(nonce))
-
-	ret := [24]byte{}
-	copy(ret[:], address[:20])
-	copy(ret[20:], b[:])
-	return ret
 }
 
 type TransportType uint64
@@ -62,7 +48,7 @@ func (t TransportType) String() string {
 
 type Transport struct {
 	Type       TransportType
-	Identifier [24]byte `ssz-size:"24"`     // | -- 20 bytes address --- | --- 4 bytes nonce --- |
+	Identifier [24]byte `ssz-size:"24"`
 	Data       []byte   `ssz-max:"8388608"` // 2^23
 }
 
@@ -98,6 +84,10 @@ type Init struct {
 	WithdrawalCredentials []byte `ssz-max:"256"` // 2^23
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
+	// Owner address
+	Owner [20]byte `ssz-size:"20"`
+	// Owner nonce
+	Nonce uint64
 }
 
 // Exchange contains the session auth/ encryption key for each node

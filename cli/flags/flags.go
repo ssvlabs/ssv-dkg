@@ -14,6 +14,9 @@ const (
 	operatorsInfo   = "operatorsInfoPath"
 	operatorPrivKey = "privKey"
 	operatorPort    = "port"
+	owner           = "owner"
+	nonce           = "nonce"
+	fork            = "fork"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -28,7 +31,7 @@ func GetThresholdFlagValue(c *cobra.Command) (uint64, error) {
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", false)
+	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", true)
 }
 
 // GetWithdrawAddressFlagValue gets withdraw address flag from the command
@@ -48,12 +51,55 @@ func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", false)
+	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", true)
 }
 
 // GetOperatorsInfoFlagValue gets path to operators' ifo file flag from the command
 func GetOperatorsInfoFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(operatorsInfo)
+}
+
+// OwnerAddressFlag  adds owner address flag to the command
+func OwnerAddressFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, owner, "", "Owner address", true)
+}
+
+// GetOwnerAddressFlagValue gets owner address flag from the command
+func GetOwnerAddressFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(owner)
+}
+
+// NonceFlag  owner nonce flag to the command
+func NonceFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", true)
+}
+
+// GetNonceFlagValue gets owner nonce flag from the command
+func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
+	return c.Flags().GetUint64(nonce)
+}
+
+// ForkVersionFlag  adds the fork version of the network flag to the command
+func ForkVersionFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, fork, "", "Fork version", true)
+}
+
+// GetForkVersionFlagValue gets the fork version of the network flag from the command
+func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, error) {
+	fork, err := c.Flags().GetString(fork)
+	if err != nil {
+		return [4]byte{}, err
+	}
+	switch fork {
+	case "prater":
+		return [4]byte{0x00, 0x00, 0x10, 0x20}, nil
+	case "mainnet":
+		return [4]byte{0, 0, 0, 0}, nil
+	case "now_test_network":
+		return [4]byte{0x99, 0x99, 0x99, 0x99}, nil
+	default:
+		return [4]byte{0x98, 0x98, 0x98, 0x98}, nil
+	}
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command

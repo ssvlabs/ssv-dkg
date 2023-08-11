@@ -7,6 +7,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -57,7 +58,7 @@ func TestEverything(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("10000000000001010101010101010101"), []uint64{1, 2, 3, 4})
+	err = clnt.StartDKG([]byte("10000000000001010101010101010101"), []uint64{1, 2, 3, 4}, 3, [4]byte{0x00, 0x00, 0x10, 0x20}, [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0)
 
 	require.NoError(t, err)
 

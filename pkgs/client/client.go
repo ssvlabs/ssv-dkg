@@ -24,6 +24,7 @@ import (
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
+	"github.com/google/uuid"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -74,9 +75,10 @@ type Operator struct {
 type Operators map[uint64]Operator
 
 type Client struct {
-	logger *logrus.Entry
-	clnt   *req.Client
-	ops    Operators
+	logger     *logrus.Entry
+	clnt       *req.Client
+	ops        Operators
+	VerifyFunc func(id uint64, msg, sig []byte) error
 }
 
 type DepositDataJson struct {
@@ -190,7 +192,7 @@ type opReqResult struct {
 
 func (c *Client) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
 	r := c.clnt.R()
-	// Consider to sign a message
+	// TODO: Consider signing a message
 	r.SetBodyBytes(data)
 	c.logger.Infof("final addr %v", fmt.Sprintf("%v/%v", op.Addr, method))
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -248,6 +250,7 @@ func (c *Client) SendToAll(method string, msg []byte) ([][]byte, error) {
 
 func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
 	// todo should we do any validation here? validate the number of msgs?
+	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
 		Messages:   make([]*wire.SignedTransport, len(allmsgs)),
@@ -260,13 +263,27 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			return nil, err
 		}
+		signedBytes, err := tsp.Message.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+		// Verify that incoming messages have valid DKG ceremony ID
+		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
+			return nil, fmt.Errorf("incoming message has wrong ID. Aborting. Operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
+		}
+		// Verification operator signatures
+		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
+			return nil, err
+		}
+		c.logger.Info("Operator messages are valid. Continue.")
+
 		final.Messages[i] = tsp
 	}
 
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, owner [20]byte, nonce uint64) error {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
@@ -283,13 +300,21 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 			PubKey: pkBytes,
 		})
 	}
+	// Add messages verification coming form operators
+	verify, err := c.CreateVerifyFunc(parts)
+	if err != nil {
+		return err
+	}
+	c.VerifyFunc = verify
 
 	// make init message
 	init := &wire.Init{
 		Operators:             parts,
-		T:                     consts.Threshold,
+		T:                     threshold,
 		WithdrawalCredentials: withdraw,
-		Fork:                  consts.Fork,
+		Fork:                  fork,
+		Owner:                 owner,
+		Nonce:                 nonce,
 	}
 
 	sszinit, err := init.MarshalSSZ()
@@ -297,7 +322,11 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 		return fmt.Errorf("failed marshiling init msg to ssz %v", err)
 	}
 
-	id := wire.NewIdentifier([]byte("1234567894561234567894561321231"), 1)
+	// id := wire.NewIdentifier([]byte("1234567894561234567894561321231"), 1)
+	var id [24]byte
+	copy(id[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+	b := uuid.New() // random ID for each new DKG initiation
+	copy(id[8:], b[:])
 
 	ts := &wire.Transport{
 		Type:       wire.InitMessageType,
@@ -313,7 +342,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
 	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
 	if err != nil {
-		return fmt.Errorf("failed sending init msg  %v", err)
+		return fmt.Errorf("error at processing init messages  %v", err)
 	}
 
 	c.logger.Info("Exchange round received from all operators, creating combined message")
@@ -329,11 +358,10 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	c.logger.Info("Send exchange response combined message")
 	results, err = c.SendToAll(consts.API_DKG_URL, mltplbyts)
 	if err != nil {
-		return err
+		return fmt.Errorf("error at processing exchange messages  %v", err)
 	}
 
 	c.logger.Infof("Exchange phase finished, sending kyber deals messages")
-
 	mltpl2, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err
@@ -346,7 +374,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
 	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
-		return err
+		return fmt.Errorf("error at processing kyber deal messages  %v", err)
 	}
 
 	c.logger.Infof("Got DKG results")
@@ -387,12 +415,12 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
 	c.logger.Infof("Withdrawal Credentials %x", init.WithdrawalCredentials)
-	c.logger.Infof("Fork Version %x", ssvspec_types.MainNetwork.ForkVersion())
+	c.logger.Infof("Fork Version %x", init.Fork)
 	c.logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
 	signRoot, depositData, err := ssvspec_types.GenerateETHDepositData(
 		ValidatorPubKey,
 		init.WithdrawalCredentials,
-		ssvspec_types.MainNetwork.ForkVersion(),
+		init.Fork,
 		ssvspec_types.DomainDeposit,
 	)
 	amount := phase0.Gwei(types.MaxEffectiveBalanceInGwei)
@@ -458,7 +486,6 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64) error {
 	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
 
 	// Save SSV contract payload
-	// TODO: check if ownerPrefix is indeed depositSig
 	keyshares := &KeyShares{}
 	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(depositSig)); err != nil {
 		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
@@ -514,4 +541,22 @@ func toArrayByteSlices(input []string) [][]byte {
 		result = append(result, bytes)
 	}
 	return result
+}
+
+func (c *Client) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
+	inst_ops := make(map[uint64]*rsa.PublicKey)
+	for _, op := range ops {
+		pk, err := crypto.ParseRSAPubkey(op.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		inst_ops[op.ID] = pk
+	}
+	return func(id uint64, msg []byte, sig []byte) error {
+		pk, ok := inst_ops[id]
+		if !ok {
+			return errors.New("ops not exist for this instance")
+		}
+		return crypto.VerifyRSA(pk, msg, sig)
+	}, nil
 }

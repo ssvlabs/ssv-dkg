@@ -12,7 +12,6 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
-	kyber "github.com/drand/kyber/share/dkg"
 	"github.com/sirupsen/logrus"
 )
 
@@ -250,7 +249,6 @@ func (s *Switch) cleanInstances() int {
 
 func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	// get instanceID
-
 	st := &wire.MultipleSignedTransports{}
 	err := st.UnmarshalSSZ(dkgMsg)
 	if err != nil {
@@ -268,27 +266,12 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	}
 
 	for _, ts := range st.Messages {
-
 		err = inst.Process(ts.Signer, ts)
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	resp := inst.ReadResponse()
 
 	return resp, nil
-}
-
-// TODO store DKG result at instance
-func (s *Switch) AddDKGResultToInstance(reqID [24]byte, res *kyber.OptionResult) error {
-	s.mtx.Lock()
-	_, ok := s.instances[reqID]
-	if !ok {
-		s.mtx.Unlock()
-		return ErrMissingInstance
-	}
-	// _ := s.instances[reqID]
-	s.mtx.Unlock()
-	return nil
 }

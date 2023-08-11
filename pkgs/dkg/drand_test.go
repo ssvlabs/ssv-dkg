@@ -9,6 +9,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
@@ -125,7 +126,11 @@ func TestDKG(t *testing.T) {
 		ts.ops[op.ID] = op
 	}
 
-	req := wire2.GetRandRequestID()
+	// req := wire2.GetRandRequestID()
+	var req [24]byte
+	copy(req[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+	b := uuid.New() // random ID for each new DKG initiation
+	copy(req[8:], b[:])
 
 	//ops := make(map[uint64]Operator, len(ts.ops))
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
