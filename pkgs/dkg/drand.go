@@ -66,7 +66,7 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger      *logrus.Entry
 	startedDKG  chan struct{}
-	ID          uint64
+	ID          uint64 //
 	data        *DKGData
 	b           *board.Board
 	suite       pairing.Suite
@@ -276,6 +276,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) {
 		ValidatorPubKey:  validatorPubKey,
 		PartialSignature: sig,
 		Commitments:      commitments,
+		PubKeyRSA:        &o.OpPrivKey.PublicKey,
+		OperatorID:       uint32(o.ID),
 	}
 
 	encodedOutput, err := out.Encode()

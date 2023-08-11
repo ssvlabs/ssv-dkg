@@ -61,7 +61,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
 
-		logger.Info("DKG protocol initiated")
+		logger.Info("DKG protocol finished successfuly")
 	},
 }
 
