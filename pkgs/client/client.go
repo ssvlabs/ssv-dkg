@@ -283,7 +283,7 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, owner [20]byte, nonce uint64) error {
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner [20]byte, nonce uint64) error {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
@@ -462,9 +462,9 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return err
 	}
 
-	blsSig := phase0.BLSSignature{}
-	copy(blsSig[:], depositSig)
-	depositData.Signature = blsSig
+	// blsSig := phase0.BLSSignature{}
+	// copy(blsSig[:], depositSig)
+	// depositData.Signature = blsSig
 
 	depositDataRoot, _ := depositData.HashTreeRoot()
 
@@ -472,13 +472,12 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		PubKey:                hex.EncodeToString(ValidatorPubKey),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
 		Amount:                amount,
-		Signature:             depositData.Signature.String(),
+		Signature:             hex.EncodeToString(depositSig),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
 		ForkVersion:           hex.EncodeToString(init.Fork[:]),
-		// TODO: network name according to fork
-		NetworkName:       "mainnet",
-		DepositCliVersion: "2.3.0",
+		NetworkName:           forkName,
+		DepositCliVersion:     "2.5.0",
 	}
 	// Save deposit file
 	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())

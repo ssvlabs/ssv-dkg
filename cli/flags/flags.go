@@ -85,20 +85,20 @@ func ForkVersionFlag(c *cobra.Command) {
 }
 
 // GetForkVersionFlagValue gets the fork version of the network flag from the command
-func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, error) {
+func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, string, error) {
 	fork, err := c.Flags().GetString(fork)
 	if err != nil {
-		return [4]byte{}, err
+		return [4]byte{}, "", err
 	}
 	switch fork {
 	case "prater":
-		return [4]byte{0x00, 0x00, 0x10, 0x20}, nil
+		return [4]byte{0x00, 0x00, 0x10, 0x20}, "prater", nil
 	case "mainnet":
-		return [4]byte{0, 0, 0, 0}, nil
+		return [4]byte{0, 0, 0, 0}, "mainnet", nil
 	case "now_test_network":
-		return [4]byte{0x99, 0x99, 0x99, 0x99}, nil
+		return [4]byte{0x99, 0x99, 0x99, 0x99}, "now_test_network", nil
 	default:
-		return [4]byte{0x98, 0x98, 0x98, 0x98}, nil
+		return [4]byte{0, 0, 0, 0}, "mainnet", nil
 	}
 }
 

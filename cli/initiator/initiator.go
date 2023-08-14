@@ -62,7 +62,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to get owner address flag value", zap.Error(err))
 		}
-		fork, err := flags.GetForkVersionFlagValue(cmd)
+		fork, forkName, err := flags.GetForkVersionFlagValue(cmd)
 		if err != nil {
 			logger.Fatal("failed to get fork versiion flag value", zap.Error(err))
 		}
@@ -77,7 +77,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to get nonce flag value", zap.Error(err))
 		}
 
-		err = dkgClient.StartDKG([]byte(withdrawAddr), parts, threshold, fork, [20]byte(common.HexToAddress(owner).Bytes()), nonce)
+		err = dkgClient.StartDKG([]byte(withdrawAddr), parts, threshold, fork, forkName, [20]byte(common.HexToAddress(owner).Bytes()), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
