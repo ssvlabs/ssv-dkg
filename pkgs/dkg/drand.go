@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
@@ -51,6 +52,24 @@ type Result struct {
 	PartialSignature []byte
 	// Public commitments
 	Commitments [][]byte
+	// SSV owner + nonce signature
+	SigRootSSV []byte
+	RootSSV    []byte
+}
+
+type SSVKeySig struct {
+	ValidatorPK []byte
+	SignRoot    []byte
+}
+
+// Encode returns a msg encoded bytes or error
+func (msg *SSVKeySig) Encode() ([]byte, error) {
+	return json.Marshal(msg)
+}
+
+// Decode returns error if decoding failed
+func (msg *SSVKeySig) Decode(data []byte) error {
+	return json.Unmarshal(data, msg)
 }
 
 // Encode returns a msg encoded bytes or error
@@ -80,7 +99,9 @@ type LocalOwner struct {
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
 
-	done chan struct{}
+	Owner [20]byte
+	Nonce uint64
+	done  chan struct{}
 }
 
 type OwnerOpts struct {
@@ -91,6 +112,8 @@ type OwnerOpts struct {
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
 	OpPrivKey  *rsa.PrivateKey
+	Owner      [20]byte
+	Nonce      uint64
 }
 
 func New(opts OwnerOpts) *LocalOwner {
@@ -105,6 +128,8 @@ func New(opts OwnerOpts) *LocalOwner {
 		done:       make(chan struct{}, 1),
 		suite:      opts.Suite,
 		OpPrivKey:  opts.OpPrivKey,
+		Owner:      opts.Owner,
+		Nonce:      opts.Nonce,
 	}
 	return owner
 }
@@ -245,6 +270,26 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		commitments = append(commitments, b)
 	}
 
+	// Sign SSV contract root
+	signingRootSSV := SSVKeySig{
+		ValidatorPK: validatorPubKey,
+		SignRoot:    []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce)),
+	}
+	signingRootSSVenc, err := signingRootSSV.Encode()
+	if err != nil {
+		return err
+	}
+	o.Logger.Infof("SSV Root  %x", signingRootSSVenc)
+	sigSSV, err := scheme.Sign(o.SecretShare.Share, signingRootSSVenc)
+	if err != nil {
+		return err
+	}
+	// Verify partial SSV root signature
+	err = scheme.VerifyPartial(pubPoly, signingRootSSVenc, sigSSV)
+	if err != nil {
+		return err
+	}
+	o.Logger.Infof("SSV Root Sig Share  %x", sigSSV)
 	out := Result{
 		RequestID:        o.data.ReqID,
 		EncryptedShare:   encryptedShare,
@@ -254,6 +299,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		Commitments:      commitments,
 		PubKeyRSA:        &o.OpPrivKey.PublicKey,
 		OperatorID:       uint32(o.ID),
+		SigRootSSV:       sigSSV,
+		RootSSV:          signingRootSSVenc,
 	}
 
 	encodedOutput, err := out.Encode()

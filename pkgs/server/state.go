@@ -77,7 +77,8 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		Suite:      bls.NewBLS12381Suite(),
 		ID:         serverID,
 		OpPrivKey:  s.privateKey,
-		//Init:       init,
+		Owner:      init.Owner,
+		Nonce:      init.Nonce,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg

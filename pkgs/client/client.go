@@ -382,7 +382,9 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	dkgResults := make([]dkg.Result, 0)
 	commitments := make([]kyber.Point, 0)
 	var ValidatorPubKey []byte
+	var rootSSVenc []byte
 	sigShares := make([][]byte, 0)
+	ssvContractRootSigShares := make([][]byte, 0)
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -410,6 +412,8 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		ValidatorPubKey = result.ValidatorPubKey
 		c.logger.Infof("Validator pub %x", ValidatorPubKey)
 		sigShares = append(sigShares, result.PartialSignature)
+		ssvContractRootSigShares = append(ssvContractRootSigShares, result.SigRootSSV)
+		rootSSVenc = result.RootSSV
 		c.logger.Infof("Result of DKG from an operator %v", result)
 	}
 
@@ -483,13 +487,30 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
 	fmt.Printf("writing deposit data json to file %s\n", filepath)
 	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
-
-	// Save SSV contract payload
-	keyshares := &KeyShares{}
-	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(depositSig)); err != nil {
-		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
+	if err != nil {
+		return err
+	}
+	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
+	for _, resShare := range dkgResults {
+		if err := scheme.VerifyPartial(pubPoly, rootSSVenc, resShare.SigRootSSV); err != nil {
+			c.logger.Errorf("Error verifying partial sig for SSV contract payload %s, sig %x, T %d, root %x", err.Error(), resShare.SigRootSSV, pubPoly.Threshold(), rootSSVenc)
+			return err
+		}
+	}
+	// Recover and verify Master Signature for SSV contract owner+nonce
+	ssvContractRootSig, err := scheme.Recover(pubPoly, rootSSVenc, ssvContractRootSigShares, int(init.T), len(init.Operators))
+	if err != nil {
+		return err
 	}
 
+	if err := scheme.VerifyRecovered(pubKeyPoint, rootSSVenc, ssvContractRootSig); err != nil {
+		return err
+	}
+
+	keyshares := &KeyShares{}
+	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(ssvContractRootSig)); err != nil {
+		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
+	}
 	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
 	fmt.Printf("writing keyshares to file: %s\n", filename)
 	return utils.WriteJSON(filename, keyshares)
