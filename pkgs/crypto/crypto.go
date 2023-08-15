@@ -67,7 +67,7 @@ func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
 
 func ResultsToValidatorPK(commitments []kyber.Point, suite dkg.Suite) (*bls.PublicKey, error) {
 	exp := share.NewPubPoly(suite, suite.Point().Base(), commitments)
-	bytsPK, err := exp.Eval(0).V.MarshalBinary()
+	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
