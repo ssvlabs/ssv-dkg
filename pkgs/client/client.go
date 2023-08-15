@@ -507,6 +507,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
 	data := []byte(fmt.Sprintf("%s:%d", init.Owner, init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
+	c.logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
 	c.logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 
 	for _, resShare := range dkgResults {

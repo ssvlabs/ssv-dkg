@@ -206,7 +206,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// TODO: Result consists of the Pivate Share of the distributed key
-	o.Logger.Infof("<<<< ---- DKG Result Received ---- >>>>")
+	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 
 	if res.Error != nil {
@@ -264,6 +264,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
+	o.Logger.Debugf("Owner, Nonce  %x, %d", o.Owner, o.Nonce)
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 	sigSSV, err := scheme.Sign(o.SecretShare.Share, hash)
 	if err != nil {
