@@ -15,6 +15,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/sirupsen/logrus"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
@@ -52,24 +53,10 @@ type Result struct {
 	PartialSignature []byte
 	// Public commitments
 	Commitments [][]byte
+	// SSV hash of owner + nonce
+	HashOwnerNonce []byte
 	// SSV owner + nonce signature
-	SigRootSSV []byte
-	RootSSV    []byte
-}
-
-type SSVKeySig struct {
-	ValidatorPK []byte
-	SignRoot    []byte
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *SSVKeySig) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *SSVKeySig) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
+	SigOwnerNonce []byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -203,8 +190,8 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// TODO: Result consists of the Pivate Share of the distributed key
-	o.Logger.Infof("<<<< ---- Post DKG ---- >>>>")
-	o.Logger.Infof("DKG PROTOCOL RESULT %v", res.Result)
+	o.Logger.Infof("<<<< ---- DKG Result Received ---- >>>>")
+	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 
 	if res.Error != nil {
 		return res.Error
@@ -215,7 +202,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("Validator public key %x", validatorPubKey)
+	o.Logger.Debugf("Validator public key %x", validatorPubKey)
 	var tsmsg *wire.Transport
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
@@ -227,10 +214,10 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("Encrypted share %x", encryptedShare)
-	o.Logger.Infof("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
-	o.Logger.Infof("Fork Version %x", o.data.init.Fork)
-	o.Logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
+	o.Logger.Debugf("Encrypted share %x", encryptedShare)
+	o.Logger.Debugf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
+	o.Logger.Debugf("Fork Version %x", o.data.init.Fork)
+	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
 	signRoot, _, err := ssvspec_types.GenerateETHDepositData(
 		validatorPubKey,
@@ -247,14 +234,14 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("Root %x", signRoot)
+	o.Logger.Debugf("Root %x", signRoot)
 	// Validate partial signature
 	pubPoly := share.NewPubPoly(o.suite.G1(), o.suite.G1().Point().Base(), o.SecretShare.Commitments())
-	o.Logger.Infof("Pub Poly T %d", pubPoly.Threshold())
+	o.Logger.Debugf("Pub Poly T %d", pubPoly.Threshold())
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("Root sig %x", sig)
+	o.Logger.Debugf("Root sig %x", sig)
 	sharePubKey := o.suite.G1().Point().Mul(o.SecretShare.Share.V, nil)
 	sharePubKeyBin, err := sharePubKey.MarshalBinary()
 	if err != nil {
@@ -270,26 +257,20 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		commitments = append(commitments, b)
 	}
 
-	// Sign SSV contract root
-	signingRootSSV := SSVKeySig{
-		ValidatorPK: validatorPubKey,
-		SignRoot:    []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce)),
-	}
-	signingRootSSVenc, err := signingRootSSV.Encode()
-	if err != nil {
-		return err
-	}
-	o.Logger.Infof("SSV Root  %x", signingRootSSVenc)
-	sigSSV, err := scheme.Sign(o.SecretShare.Share, signingRootSSVenc)
+	// Sign SSV onwe + nonce
+	data := []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce))
+	hash := eth_crypto.Keccak256([]byte(data))
+	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
+	sigSSV, err := scheme.Sign(o.SecretShare.Share, hash)
 	if err != nil {
 		return err
 	}
 	// Verify partial SSV root signature
-	err = scheme.VerifyPartial(pubPoly, signingRootSSVenc, sigSSV)
+	err = scheme.VerifyPartial(pubPoly, hash, sigSSV)
 	if err != nil {
 		return err
 	}
-	o.Logger.Infof("SSV Root Sig Share  %x", sigSSV)
+	o.Logger.Debugf("SSV owner + nonce signature  %x", sigSSV)
 	out := Result{
 		RequestID:        o.data.ReqID,
 		EncryptedShare:   encryptedShare,
@@ -299,8 +280,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		Commitments:      commitments,
 		PubKeyRSA:        &o.OpPrivKey.PublicKey,
 		OperatorID:       uint32(o.ID),
-		SigRootSSV:       sigSSV,
-		RootSSV:          signingRootSSVenc,
+		SigOwnerNonce:    sigSSV,
+		HashOwnerNonce:   hash,
 	}
 
 	encodedOutput, err := out.Encode()

@@ -338,30 +338,28 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if err != nil {
 		return fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
 	}
-
+	c.logger.Info("Round 1. Sending init message to operators")
 	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
 	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
 	if err != nil {
 		return fmt.Errorf("error at processing init messages  %v", err)
 	}
 
-	c.logger.Info("Exchange round received from all operators, creating combined message")
+	c.logger.Info("Round 1. Exchange round received from all operators, creating combined message and verifying signatures")
 	mltpl, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err
 	}
-	c.logger.Info("Marshall exchange response combined message")
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
 		return err
 	}
-	c.logger.Info("Send exchange response combined message")
+	c.logger.Info("Round 1. Send exchange response combined message to operators / receive kyber deal messages")
 	results, err = c.SendToAll(consts.API_DKG_URL, mltplbyts)
 	if err != nil {
 		return fmt.Errorf("error at processing exchange messages  %v", err)
 	}
 
-	c.logger.Infof("Exchange phase finished, sending kyber deals messages")
 	mltpl2, err := c.makeMultiple(id, results)
 	if err != nil {
 		return err
@@ -371,20 +369,20 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if err != nil {
 		return err
 	}
-
+	c.logger.Infof("Round 2. Exchange phase finished, sending kyber deal messages")
 	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return fmt.Errorf("error at processing kyber deal messages  %v", err)
 	}
 
-	c.logger.Infof("Got DKG results")
+	c.logger.Infof("Round 2. Finished successfuly. Got DKG results")
 
 	dkgResults := make([]dkg.Result, 0)
 	commitments := make([]kyber.Point, 0)
 	var ValidatorPubKey []byte
-	var rootSSVenc []byte
+	var hashOwnerNonce []byte
 	sigShares := make([][]byte, 0)
-	ssvContractRootSigShares := make([][]byte, 0)
+	ssvContractOwnerNonceSigShares := make([][]byte, 0)
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -405,22 +403,22 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 			if err != nil {
 				return err
 			}
-			c.logger.Infof("Commit points %s", point.String())
+			c.logger.Debugf("Commit points %s", point.String())
 			commitsFromRes = append(commitsFromRes, point)
 		}
 		commitments = commitsFromRes
 		ValidatorPubKey = result.ValidatorPubKey
-		c.logger.Infof("Validator pub %x", ValidatorPubKey)
+		c.logger.Debugf("Validator pub %x", ValidatorPubKey)
 		sigShares = append(sigShares, result.PartialSignature)
-		ssvContractRootSigShares = append(ssvContractRootSigShares, result.SigRootSSV)
-		rootSSVenc = result.RootSSV
-		c.logger.Infof("Result of DKG from an operator %v", result)
+		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, result.SigOwnerNonce)
+		hashOwnerNonce = result.HashOwnerNonce
+		c.logger.Debugf("Result of DKG from an operator %v", result)
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	c.logger.Infof("Withdrawal Credentials %x", init.WithdrawalCredentials)
-	c.logger.Infof("Fork Version %x", init.Fork)
-	c.logger.Infof("Domain %x", ssvspec_types.DomainDeposit)
+	c.logger.Debugf("Withdrawal Credentials %x", init.WithdrawalCredentials)
+	c.logger.Debugf("Fork Version %x", init.Fork)
+	c.logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 	signRoot, depositData, err := ssvspec_types.GenerateETHDepositData(
 		ValidatorPubKey,
 		init.WithdrawalCredentials,
@@ -461,7 +459,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if err != nil {
 		return err
 	}
-	c.logger.Infof("Validator pub key %s", pubKeyPoint.String())
+	c.logger.Debugf("Validator pub key %s", pubKeyPoint.String())
 	if err := scheme.VerifyRecovered(pubKeyPoint, signRoot, depositSig); err != nil {
 		return err
 	}
@@ -485,34 +483,35 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 	// Save deposit file
 	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
-	fmt.Printf("writing deposit data json to file %s\n", filepath)
+	c.logger.Infof("DKG finished. All data is validated. Writing deposit data json to file %s\n", filepath)
 	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
 	if err != nil {
 		return err
 	}
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
 	for _, resShare := range dkgResults {
-		if err := scheme.VerifyPartial(pubPoly, rootSSVenc, resShare.SigRootSSV); err != nil {
-			c.logger.Errorf("Error verifying partial sig for SSV contract payload %s, sig %x, T %d, root %x", err.Error(), resShare.SigRootSSV, pubPoly.Threshold(), rootSSVenc)
+		if err := scheme.VerifyPartial(pubPoly, hashOwnerNonce, resShare.SigOwnerNonce); err != nil {
+			c.logger.Errorf("Error verifying partial sig for SSV contract payload %s, sig %x, T %d, root %x", err.Error(), resShare.SigOwnerNonce, pubPoly.Threshold(), hashOwnerNonce)
 			return err
 		}
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	ssvContractRootSig, err := scheme.Recover(pubPoly, rootSSVenc, ssvContractRootSigShares, int(init.T), len(init.Operators))
+	ssvContractOwnerNonceMasterSig, err := scheme.Recover(pubPoly, hashOwnerNonce, ssvContractOwnerNonceSigShares, int(init.T), len(init.Operators))
 	if err != nil {
 		return err
 	}
 
-	if err := scheme.VerifyRecovered(pubKeyPoint, rootSSVenc, ssvContractRootSig); err != nil {
+	if err := scheme.VerifyRecovered(pubKeyPoint, hashOwnerNonce, ssvContractOwnerNonceMasterSig); err != nil {
 		return err
 	}
 
 	keyshares := &KeyShares{}
-	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(ssvContractRootSig)); err != nil {
+	if err := keyshares.GeneratePayloadV4(dkgResults, hex.EncodeToString(ssvContractOwnerNonceMasterSig)); err != nil {
 		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
+
 	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
-	fmt.Printf("writing keyshares to file: %s\n", filename)
+	c.logger.Infof("DKG finished. All data is validated. Writing keyshares to file: %s\n", filename)
 	return utils.WriteJSON(filename, keyshares)
 }
 
