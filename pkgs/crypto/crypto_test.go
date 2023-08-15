@@ -391,7 +391,7 @@ func TestDKGKyberToBLS(t *testing.T) {
 		Threshold: thr,
 		Auth:      kyberbls.NewSchemeOnG2(suite),
 	}
-
+	types.InitBLS()
 	results := RunDKG(t, tns, conf, nil, nil, nil)
 	testResultsKyberToBLS(t, suite.G1().(dkg.Suite), thr, n, results)
 }
@@ -448,7 +448,7 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	}
 
 	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), sig)
 	require.Nil(t, err)
 	t.Logf("Kyber DKG signature %x", sig)
