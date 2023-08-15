@@ -4,24 +4,42 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/sign"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	types "github.com/wealdtech/go-eth2-types/v2"
+	util "github.com/wealdtech/go-eth2-util"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
+
+const (
+	// MaxEffectiveBalanceInGwei is the max effective balance
+	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
+
+	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
+	BLSWithdrawalPrefixByte = byte(0)
+)
+
+// IsSupportedDepositNetwork returns true if the given network is supported
+var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
+	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
+}
 
 type Operator struct {
 	IP     string
@@ -53,8 +71,6 @@ type Result struct {
 	PartialSignature []byte
 	// Public commitments
 	Commitments [][]byte
-	// SSV hash of owner + nonce
-	HashOwnerNonce []byte
 	// SSV owner + nonce signature
 	SigOwnerNonce []byte
 }
@@ -183,7 +199,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Infof("responding with a signed message, msg:%v", hex.EncodeToString(final))
+	o.Logger.Debugf("responding with a signed message, msg:%v", hex.EncodeToString(final))
 
 	return o.BroadcastF(final)
 }
@@ -218,22 +234,10 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
 	o.Logger.Debugf("Fork Version %x", o.data.init.Fork)
 	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
-	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	signRoot, _, err := ssvspec_types.GenerateETHDepositData(
-		validatorPubKey,
-		o.data.init.WithdrawalCredentials,
-		o.data.init.Fork,
-		ssvspec_types.DomainDeposit,
-	)
-	if err != nil {
-		return err
-	}
-	// Sign a root
+
+	// Sign root
 	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	sig, err := scheme.Sign(o.SecretShare.Share, signRoot)
-	if err != nil {
-		return err
-	}
+	sig, signRoot, err := SignDepositData(o.SecretShare.Share, scheme, o.data.init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debugf("Root %x", signRoot)
 	// Validate partial signature
 	pubPoly := share.NewPubPoly(o.suite.G1(), o.suite.G1().Point().Base(), o.SecretShare.Commitments())
@@ -249,7 +253,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 	commitments := make([][]byte, 0)
 	for _, commitment := range o.SecretShare.Commitments() {
-		o.Logger.Infof("Commit point %s", commitment.String())
+		o.Logger.Debugf("Commit point %s", commitment.String())
 		b, err := commitment.MarshalBinary()
 		if err != nil {
 			return err
@@ -257,7 +261,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		commitments = append(commitments, b)
 	}
 
-	// Sign SSV onwe + nonce
+	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
@@ -281,7 +285,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		PubKeyRSA:        &o.OpPrivKey.PublicKey,
 		OperatorID:       uint32(o.ID),
 		SigOwnerNonce:    sigSSV,
-		HashOwnerNonce:   hash,
 	}
 
 	encodedOutput, err := out.Encode()
@@ -460,5 +463,71 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 		Type:       wire.ExchangeMessageType,
 		Identifier: reqID,
 		Data:       exchData,
+	}
+}
+
+func SignDepositData(validationKey *share.PriShare, scheme sign.ThresholdScheme, withdrawalPubKey []byte, publicKey []byte, network eth2_key_manager_core.Network, amount phase0.Gwei) ([]byte, []byte, error) {
+	if !IsSupportedDepositNetwork(network) {
+		return nil, nil, errors.Errorf("Network %s is not supported", network)
+	}
+
+	depositMessage := &phase0.DepositMessage{
+		WithdrawalCredentials: withdrawalCredentialsHash(withdrawalPubKey),
+		Amount:                amount,
+	}
+	copy(depositMessage.PublicKey[:], publicKey)
+
+	objRoot, err := depositMessage.HashTreeRoot()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to determine the root hash of deposit data")
+	}
+
+	// Compute domain
+	genesisForkVersion := network.GenesisForkVersion()
+	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to calculate domain")
+	}
+
+	signingData := phase0.SigningData{
+		ObjectRoot: objRoot,
+	}
+	copy(signingData.Domain[:], domain[:])
+
+	root, err := signingData.HashTreeRoot()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to determine the root hash of signing container")
+	}
+
+	// Sign
+	sig, err := scheme.Sign(validationKey, root[:])
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to sign the root")
+	}
+	return sig, root[:], nil
+}
+
+// withdrawalCredentialsHash forms a 32 byte hash of the withdrawal public
+// address.
+//
+// The specification is as follows:
+//
+//	withdrawal_credentials[:1] == BLS_WITHDRAWAL_PREFIX_BYTE
+//	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
+//
+// where withdrawal_credentials is of type bytes32.
+func withdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
+	h := util.SHA256(withdrawalPubKey)
+	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
+}
+
+func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
+	switch fork {
+	case [4]byte{0x00, 0x00, 0x10, 0x20}:
+		return eth2_key_manager_core.PraterNetwork
+	case [4]byte{0, 0, 0, 0}:
+		return eth2_key_manager_core.MainNetwork
+	default:
+		return eth2_key_manager_core.MainNetwork
 	}
 }

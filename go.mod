@@ -11,9 +11,12 @@ require (
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/herumi/bls-eth-go-binary v1.29.1
 	github.com/imroc/req/v3 v3.37.2
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
+	github.com/wealdtech/go-eth2-types/v2 v2.8.0
+	github.com/wealdtech/go-eth2-util v1.6.3
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.3.0
 )
@@ -28,9 +31,10 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+	github.com/wealdtech/go-bytesutil v1.1.1 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
@@ -38,6 +42,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/bloxapp/eth2-key-manager v1.3.1
 	github.com/bloxapp/ssv v0.5.4
 	github.com/bloxapp/ssv-spec v0.3.1
 	github.com/gaukas/godicttls v0.0.3 // indirect
@@ -68,7 +73,6 @@ require (
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
