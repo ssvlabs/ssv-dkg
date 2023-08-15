@@ -706,6 +706,10 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 }
 
 func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager_core.Network) (bool, error) {
+	err := types.InitBLS()
+	if err != nil {
+		return false, err
+	}
 	depositMessage := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                depositData.Amount,
