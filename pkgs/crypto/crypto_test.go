@@ -12,7 +12,7 @@ import (
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	kyberbls "github.com/drand/kyber/sign/bls"
+	drand_bls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -30,7 +30,7 @@ func TestDKGFull(t *testing.T) {
 		Suite:     suite.G1().(dkg.Suite),
 		NewNodes:  list,
 		Threshold: thr,
-		Auth:      kyberbls.NewSchemeOnG2(suite),
+		Auth:      drand_bls.NewSchemeOnG2(suite),
 	}
 
 	results := RunDKG(t, tns, conf, nil, nil, nil)
@@ -390,7 +390,7 @@ func TestDKGKyberToBLS(t *testing.T) {
 		Suite:     suite.G1().(dkg.Suite),
 		NewNodes:  list,
 		Threshold: thr,
-		Auth:      kyberbls.NewSchemeOnG2(suite),
+		Auth:      drand_bls.NewSchemeOnG2(suite),
 	}
 	types.InitBLS()
 	results := RunDKG(t, tns, conf, nil, nil, nil)
@@ -451,25 +451,48 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 		require.Equal(t, idx, x.I)
 	}
 
-	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
+	masterSig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
 	require.NoError(t, err)
-	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), sig)
+	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), masterSig)
 	require.NoError(t, err)
-	t.Logf("Kyber DKG signature %x", sig)
+	t.Logf("Kyber DKG signature %x", masterSig)
 	kyberValPubKey, err = exp.Commit().MarshalBinary()
 	require.NoError(t, err)
 	t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
-	// Try to deserialize Kyber recovered signature to BLS signature
-	masterSig := &bls.Sign{}
-	err = masterSig.Deserialize(sig)
+
+	// Try Kyber BLS package to verify master sig
+	drand_bls_scheme := drand_bls.NewSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+	err = drand_bls_scheme.Verify(exp.Commit(), []byte("Hello World!"), masterSig)
 	require.NoError(t, err)
-	t.Logf("BLS signature %x", masterSig.Serialize())
-	// test public key is recoverable to BLS library
+
+	// Try kyber_bls12381 to verify mater sig
+	s := kyber_bls12381.NewBLS12381Suite()
+	pubkeyP := s.G1().Point()
+	pubkeyP.UnmarshalBinary(kyberValPubKey)
+	sigP := s.G2().Point()
+	sigP.UnmarshalBinary(masterSig)
+	base := s.G1().Point().Base().Clone()
+	MsgP := s.G2().Point().(kyber.HashablePoint).Hash([]byte("Hello World!"))
+
+	res := s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+	require.True(t, res)
+	// Fail if wrong hash
+	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte("Bye World!"))
+	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+	require.False(t, res)
+
+	// Try to deserialize Kyber recovered signature to BLS signature
+	blsHerumiSig := &bls.Sign{}
+	err = blsHerumiSig.Deserialize(masterSig)
+	require.NoError(t, err)
+	t.Logf("BLS signature %x", blsHerumiSig.Serialize())
+
+	// test public key is recoverable by herumi/BLS library
 	validatorPubKey, err := ResultsToValidatorPK(results[0].Key.Commitments(), suite)
 	require.NoError(t, err)
 	require.NotEmpty(t, validatorPubKey.Serialize())
 	t.Logf("Pub key bytes BlS %x", validatorPubKey.Serialize())
-	res := masterSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
+	res = blsHerumiSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
 	require.True(t, res)
 
 	// // Try to reconstruct BLS sig from Kyber partial sigs
@@ -521,7 +544,7 @@ func TestDKGKyberToBLSLowLevel(t *testing.T) {
 		Suite:     suite.G1().(dkg.Suite),
 		NewNodes:  list,
 		Threshold: thr,
-		Auth:      kyberbls.NewSchemeOnG2(suite),
+		Auth:      drand_bls.NewSchemeOnG2(suite),
 	}
 
 	results := RunDKG(t, tns, conf, nil, nil, nil)
