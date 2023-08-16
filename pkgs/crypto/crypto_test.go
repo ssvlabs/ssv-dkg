@@ -459,7 +459,9 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	kyberValPubKey, err = exp.Commit().MarshalBinary()
 	require.NoError(t, err)
 	t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
-
+	// Check pubKey and signature len
+	require.Equal(t, 48, len(kyberValPubKey))
+	require.Equal(t, 96, len(masterSig))
 	// Try Kyber BLS package to verify master sig
 	drand_bls_scheme := drand_bls.NewSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
 	err = drand_bls_scheme.Verify(exp.Commit(), []byte("Hello World!"), masterSig)
@@ -469,8 +471,10 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	s := kyber_bls12381.NewBLS12381Suite()
 	pubkeyP := s.G1().Point()
 	pubkeyP.UnmarshalBinary(kyberValPubKey)
+	t.Logf("Master sig point in G2 Kyber %s", pubkeyP.String())
 	sigP := s.G2().Point()
 	sigP.UnmarshalBinary(masterSig)
+	t.Logf("Master sig point in G2 Kyber %s", sigP.String())
 	base := s.G1().Point().Base().Clone()
 	MsgP := s.G2().Point().(kyber.HashablePoint).Hash([]byte("Hello World!"))
 
@@ -480,6 +484,23 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte("Bye World!"))
 	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
 	require.False(t, res)
+
+	// Try to verify herumi/bls at kyber
+	var sec bls.SecretKey
+	sec.SetByCSPRNG()
+	pub := sec.GetPublicKey()
+	m := "Hello World!"
+	sig1 := sec.Sign(m)
+	res = sig1.VerifyByte(pub, []byte(m))
+	require.True(t, res)
+	pubkeyP = s.G1().Point()
+	pubkeyP.UnmarshalBinary(pub.Serialize())
+	sigP.UnmarshalBinary(sig1.Serialize())
+	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte(m))
+	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+	if !res {
+		t.Error("Fail to validate herumi/bls at kyber")
+	}
 
 	// Try to deserialize Kyber recovered signature to BLS signature
 	blsHerumiSig := &bls.Sign{}
@@ -494,8 +515,7 @@ func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []
 	t.Logf("Pub key bytes BlS %x", validatorPubKey.Serialize())
 	res = blsHerumiSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
 	require.True(t, res)
-
-	// // Try to reconstruct BLS sig from Kyber partial sigs
+	// Try to reconstruct BLS sig from Kyber partial sigs
 	// idVec := make([]bls.ID, 0)
 	// sigVec := make([]bls.Sign, 0)
 	// reconstructedSig := bls.Sign{}
