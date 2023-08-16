@@ -8,12 +8,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 
 	"github.com/bloxapp/ssv-spec/types"
-	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -65,11 +66,11 @@ func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
 	return sk, nil
 }
 
-func ResultsToValidatorPK(commitments []kyber.Point, suite dkg.Suite) (*bls.PublicKey, error) {
-	exp := share.NewPubPoly(suite, suite.Point().Base(), commitments)
-	bytsPK, err := exp.Commit().MarshalBinary()
+func ResultsToValidatorPK(results []*dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
+	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
+	bytsPK, err := exp.Eval(0).V.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not marshal share")
 	}
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(bytsPK); err != nil {
@@ -104,4 +105,33 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	)
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
+}
+
+// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
+// It then reconstructs the original threshold signature using lagrange interpolation
+func ReconstructSignatures(signatures map[int][]byte) (*bls.Sign, error) {
+	reconstructedSig := bls.Sign{}
+
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+
+	for index, signature := range signatures {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", index))
+		if err != nil {
+			return nil, err
+		}
+
+		idVec = append(idVec, blsID)
+		blsSig := bls.Sign{}
+
+		err = blsSig.Deserialize(signature)
+		if err != nil {
+			return nil, err
+		}
+
+		sigVec = append(sigVec, blsSig)
+	}
+	err := reconstructedSig.Recover(sigVec, idVec)
+	return &reconstructedSig, err
 }
