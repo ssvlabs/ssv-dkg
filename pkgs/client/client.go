@@ -465,6 +465,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return fmt.Errorf("incoming validator pub key isnt equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
 
+	// 2. Recover master signature from shares
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec = make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
@@ -500,10 +501,10 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return fmt.Errorf("deposit data is invalid")
 	}
 	depositMsg := &phase0.DepositMessage{
-		PublicKey:             depositData.PublicKey,
-		WithdrawalCredentials: init.WithdrawalCredentials,
+		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                MaxEffectiveBalanceInGwei,
 	}
+	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, _ := depositMsg.HashTreeRoot()
 	depositDataJson := DepositDataJson{
 		PubKey:                hex.EncodeToString(validatorPubKey.Serialize()),
@@ -531,7 +532,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 
 	for _, resShare := range dkgResults {
 		if !ssvContractOwnerNonceSigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], hash) {
-			return fmt.Errorf("Error verifying partial deposit signature %s, sig %x, root %x", err.Error(), ssvContractOwnerNonceSigShares[resShare.DepositPartialSignatureIndex].Serialize(), shareRoot)
+			return fmt.Errorf("error verifying partial deposit signature %s, sig %x, root %x", err.Error(), ssvContractOwnerNonceSigShares[resShare.DepositPartialSignatureIndex].Serialize(), shareRoot)
 		}
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
@@ -559,7 +560,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 
 	keyshares := &KeyShares{}
 	if err := keyshares.GeneratePayloadV4(dkgResults, reconstructedOwnerNonceMasterSig.GetHexString()); err != nil {
-		return fmt.Errorf("HandleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
+		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
 
 	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
@@ -737,10 +738,6 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 }
 
 func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager_core.Network) (bool, error) {
-	err := types.InitBLS()
-	if err != nil {
-		return false, err
-	}
 	depositMessage := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                depositData.Amount,
