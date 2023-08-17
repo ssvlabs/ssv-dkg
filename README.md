@@ -114,22 +114,17 @@ Initial message fields:
  WithdrawalCredentials []byte
  // Fork ethereum fork for signing
  Fork [4]byte
-
- ////////////////////
- // Owner address TDB
+  // Owner address
  Owner [20]byte
- // Nonce TBD
+ // Nonce
  Nonce int
- // Owner signature TBD
- Sig []byte
 ```
 
 ### TODO:
 
-- [ ] Complete design with flows and structure
-- [ ] Add pubkeys to init message
-- [ ] output - signed ssv deposit data + encrypted shares for SSV contract
-- [ ] verification of ssv deposit data and encrypted shares
+- [X] Complete design with flows and structure
+- [X] output - signed ssv deposit data + encrypted shares for SSV contract
+- [X] verification of ssv deposit data and encrypted shares
 - [ ] existing validator public key resharing
 - [ ] private key recreation from shares (in case of switch to a standard ETH validator)
 - [ ] CLI for initiator and operators
@@ -141,7 +136,7 @@ Initial message fields:
 
 - [ ] get existing pub key share by ID from operators
 - [ ] limit max of operators (T-threshold min/max)
-- [ ] max security of the communication between initiator and operators
+- [X] secure the communication between initiator and operators
 
 ### Flow TODO Brakedown
 
@@ -151,20 +146,17 @@ Initial message fields:
 
 #### Round 1
 
-- [ ] CLI for initiator
-- [ ] CLI for operator
-- [ ] Add RSA private/pub at initiator
+- [X] CLI for initiator
+- [X] CLI for operator
 - [ ] RSA secret storage for both initiator and operator
 - [ ] Init message:
-  - [ ] Secure initiator message (pub + signature)
-  - [ ] Init message owner + nonce fields. ID is random UUID
-  - [ ] Middleware
+  - [X] Message sig validation
+  - [X] Init message owner + nonce fields. ID is random UUID
   - [ ] Timeouts
   - [ ] Error handling
 - [ ] Exchange message:
-  - [ ] Secure initiator message
-  - [ ] Middleware
-  - [ ] Secret scalar storage
+  - [X] Message sig validation
+  - [ ] Secret RSA key storage
   - [ ] Timeouts
   - [ ] Error handling
 - [ ] Code refactoring
@@ -173,12 +165,10 @@ Initial message fields:
 
 #### Round 2
 
-- [ ] Deal message:
-  - [ ] Secure initiator message (pub + signature)
-- [ ] Result message:
+- [X] Deal message:
+- [X] Result message:
   - [ ] Secure storage for key shares and DKG result (keystore + db) + recover option
-  - [ ] Validate signature shares + validator pub key + pub and encrypted shares at initiator
-  - [ ] Solution to convert kyber.Points to bls G1 points !!!
+  - [X] Validate signature shares + validator pub key + pub and encrypted shares at initiator
 - [ ] Timeouts
 - [ ] Code refactoring
 - [ ] Error handling
