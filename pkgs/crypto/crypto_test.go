@@ -538,6 +538,7 @@ func TestDKGKyberToBLSLowLevel(t *testing.T) {
 func testResultsKyberToBLSLowLevel(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.Result) {
 	// test if all results are consistent
 	sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
+	valPK := &bls.PublicKey{}
 	for i, res := range results {
 		require.Equal(t, thr, len(res.Key.Commitments()))
 		for j, res2 := range results {
@@ -549,6 +550,8 @@ func testResultsKyberToBLSLowLevel(t *testing.T, suite pairing.Suite, thr, n int
 		blsSecKey, err := ResultToShareSecretKey(res)
 		require.NoError(t, err)
 		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey
+		valPK, err = ResultToValidatorPK(res, suite.G1().(dkg.Suite))
+		require.NoError(t, err)
 	}
 	// test if re-creating secret key gives same public key
 	var shares []*share.PriShare
@@ -617,7 +620,7 @@ func testResultsKyberToBLSLowLevel(t *testing.T, suite pairing.Suite, thr, n int
 	}
 	require.NoError(t, validatorPK.Recover(pkVec, idVec))
 	fmt.Printf("validator pk: %s\n", hex.EncodeToString(validatorPK.Serialize()))
-
+	require.Equal(t, validatorPK.Serialize(), valPK.Serialize())
 	// reconstruct sig
 	reconstructedSig := bls.Sign{}
 	idVec = make([]bls.ID, 0)

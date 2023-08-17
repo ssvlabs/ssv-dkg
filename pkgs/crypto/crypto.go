@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 
 	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber/share"
@@ -79,6 +78,19 @@ func ResultsToValidatorPK(results []*dkg.Result, suite dkg.Suite) (*bls.PublicKe
 	return pk, nil
 }
 
+func ResultToValidatorPK(result *dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
+	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Key.Commitments())
+	bytsPK, err := exp.Commit().MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not marshal share")
+	}
+	pk := &bls.PublicKey{}
+	if err := pk.Deserialize(bytsPK); err != nil {
+		return nil, err
+	}
+	return pk, nil
+}
+
 func ParseRSAPubkey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))
 	if err != nil {
@@ -105,33 +117,4 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	)
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
-}
-
-// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
-// It then reconstructs the original threshold signature using lagrange interpolation
-func ReconstructSignatures(signatures map[int][]byte) (*bls.Sign, error) {
-	reconstructedSig := bls.Sign{}
-
-	idVec := make([]bls.ID, 0)
-	sigVec := make([]bls.Sign, 0)
-
-	for index, signature := range signatures {
-		blsID := bls.ID{}
-		err := blsID.SetDecString(fmt.Sprintf("%d", index))
-		if err != nil {
-			return nil, err
-		}
-
-		idVec = append(idVec, blsID)
-		blsSig := bls.Sign{}
-
-		err = blsSig.Deserialize(signature)
-		if err != nil {
-			return nil, err
-		}
-
-		sigVec = append(sigVec, blsSig)
-	}
-	err := reconstructedSig.Recover(sigVec, idVec)
-	return &reconstructedSig, err
 }

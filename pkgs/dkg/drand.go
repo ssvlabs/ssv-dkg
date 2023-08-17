@@ -10,14 +10,11 @@ import (
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
-	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign"
-	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	types "github.com/wealdtech/go-eth2-types/v2"
@@ -68,11 +65,13 @@ type Result struct {
 	// ValidatorPubKey the resulting public key corresponding to the shared private key
 	ValidatorPubKey []byte
 	// Partial Operator Signature of Deposit Data
-	PartialSignature []byte
+	DepositPartialSignature []byte
+	// DepositPartialSignature index
+	DepositPartialSignatureIndex uint64
 	// Public commitments
 	Commitments [][]byte
 	// SSV owner + nonce signature
-	SigOwnerNonce []byte
+	OwnerNoncePartialSignature []byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -208,25 +207,29 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// TODO: Result consists of the Pivate Share of the distributed key
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
-
 	if res.Error != nil {
 		return res.Error
 	}
-
-	// validatorPubKey, err := crypto.ResultsToValidatorPK(res.Result.Key.Commits, o.suite.G1().(dkg.Suite))
-	validatorPubKey, err := res.Result.Key.Public().MarshalBinary()
-	if err != nil {
-		return err
-	}
-	o.Logger.Debugf("Validator public key %x", validatorPubKey)
-	var tsmsg *wire.Transport
+	// Store result share a instance
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
+
+	// Get validator BLS public key from result
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
 	if err != nil {
 		return err
 	}
-
-	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+o.SecretShare.Share.V.String()))
+	o.Logger.Debugf("Validator public key %x", validatorPubKey.Serialize())
+	var tsmsg *wire.Transport
+	// Get BLS partial secret key share from DKG
+	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
+	if err != nil {
+		return err
+	}
+	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
+	secretKeyBLSindex := res.Result.Key.Share.I + 1
+	// Encrypt BLS share for SSV contract
+	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+secretKeyBLS.GetHexString()))
 	if err != nil {
 		return err
 	}
@@ -236,56 +239,38 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 
 	// Sign root
-	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	sig, signRoot, err := SignDepositData(o.SecretShare.Share, scheme, o.data.init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debugf("Root %x", signRoot)
 	// Validate partial signature
-	pubPoly := share.NewPubPoly(o.suite.G1(), o.suite.G1().Point().Base(), o.SecretShare.Commitments())
-	o.Logger.Debugf("Pub Poly T %d", pubPoly.Threshold())
-	if err != nil {
-		return err
+	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
+	if !val {
+		return fmt.Errorf("partial deposit root signature isnt valid %x", depositRootSig.Serialize())
 	}
-	o.Logger.Debugf("Root sig %x", sig)
-	sharePubKey := o.suite.G1().Point().Mul(o.SecretShare.Share.V, nil)
-	sharePubKeyBin, err := sharePubKey.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	commitments := make([][]byte, 0)
-	for _, commitment := range o.SecretShare.Commitments() {
-		o.Logger.Debugf("Commit point %s", commitment.String())
-		b, err := commitment.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		commitments = append(commitments, b)
-	}
-
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	o.Logger.Debugf("Owner, Nonce  %x, %d", o.Owner, o.Nonce)
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
-	sigSSV, err := scheme.Sign(o.SecretShare.Share, hash)
+	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
 		return err
 	}
-	// Verify partial SSV root signature
-	err = scheme.VerifyPartial(pubPoly, hash, sigSSV)
-	if err != nil {
-		return err
+	// Verify partial SSV owner + nonce signature
+	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
+	if !val {
+		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	o.Logger.Debugf("SSV owner + nonce signature  %x", sigSSV)
+	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
 	out := Result{
-		RequestID:        o.data.ReqID,
-		EncryptedShare:   encryptedShare,
-		SharePubKey:      sharePubKeyBin,
-		ValidatorPubKey:  validatorPubKey,
-		PartialSignature: sig,
-		Commitments:      commitments,
-		PubKeyRSA:        &o.OpPrivKey.PublicKey,
-		OperatorID:       uint32(o.ID),
-		SigOwnerNonce:    sigSSV,
+		RequestID:                    o.data.ReqID,
+		EncryptedShare:               encryptedShare,
+		SharePubKey:                  secretKeyBLS.GetPublicKey().Serialize(),
+		ValidatorPubKey:              validatorPubKey.Serialize(),
+		DepositPartialSignature:      depositRootSig.Serialize(),
+		DepositPartialSignatureIndex: uint64(secretKeyBLSindex),
+		PubKeyRSA:                    &o.OpPrivKey.PublicKey,
+		OperatorID:                   uint32(o.ID),
+		OwnerNoncePartialSignature:   sigOwnerNonce.Serialize(),
 	}
 
 	encodedOutput, err := out.Encode()
@@ -467,7 +452,7 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 	}
 }
 
-func SignDepositData(validationKey *share.PriShare, scheme sign.ThresholdScheme, withdrawalPubKey []byte, publicKey []byte, network eth2_key_manager_core.Network, amount phase0.Gwei) ([]byte, []byte, error) {
+func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network eth2_key_manager_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
 	if !IsSupportedDepositNetwork(network) {
 		return nil, nil, errors.Errorf("Network %s is not supported", network)
 	}
@@ -476,7 +461,7 @@ func SignDepositData(validationKey *share.PriShare, scheme sign.ThresholdScheme,
 		WithdrawalCredentials: withdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
-	copy(depositMessage.PublicKey[:], publicKey)
+	copy(depositMessage.PublicKey[:], validatorPublicKey.Serialize())
 
 	objRoot, err := depositMessage.HashTreeRoot()
 	if err != nil {
@@ -501,7 +486,7 @@ func SignDepositData(validationKey *share.PriShare, scheme sign.ThresholdScheme,
 	}
 
 	// Sign
-	sig, err := scheme.Sign(validationKey, root[:])
+	sig := validationKey.SignByte(root[:])
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to sign the root")
 	}
