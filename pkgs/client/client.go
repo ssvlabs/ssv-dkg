@@ -506,6 +506,16 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, _ := depositMsg.HashTreeRoot()
+	// Final checks of prepared deposit data
+	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
+		return fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
+	}
+	if !bytes.Equal(depositData.WithdrawalCredentials, withdrawalCredentialsHash(init.WithdrawalCredentials)) {
+		return fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
+	}
+	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
+		return fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
+	}
 	depositDataJson := DepositDataJson{
 		PubKey:                hex.EncodeToString(validatorPubKey.Serialize()),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),

@@ -68,8 +68,6 @@ type Result struct {
 	DepositPartialSignature []byte
 	// DepositPartialSignature index
 	DepositPartialSignatureIndex uint64
-	// Public commitments
-	Commitments [][]byte
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte
 }

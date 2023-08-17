@@ -8,15 +8,15 @@ import (
 
 // Flag names.
 const (
-	threshold       = "threshold"
-	withdrawAddress = "withdrawAddress"
-	operatorIDs     = "operatorIDs"
-	operatorsInfo   = "operatorsInfoPath"
-	operatorPrivKey = "privKey"
-	operatorPort    = "port"
-	owner           = "owner"
-	nonce           = "nonce"
-	fork            = "fork"
+	threshold         = "threshold"
+	withdrawPublicKey = "withdrawPublicKey"
+	operatorIDs       = "operatorIDs"
+	operatorsInfo     = "operatorsInfoPath"
+	operatorPrivKey   = "privKey"
+	operatorPort      = "port"
+	owner             = "owner"
+	nonce             = "nonce"
+	fork              = "fork"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -31,12 +31,12 @@ func GetThresholdFlagValue(c *cobra.Command) (uint64, error) {
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", true)
+	AddPersistentStringFlag(c, withdrawPublicKey, "", "Withdrawal public key", true)
 }
 
 // GetWithdrawAddressFlagValue gets withdraw address flag from the command
 func GetWithdrawAddressFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(withdrawAddress)
+	return c.Flags().GetString(withdrawPublicKey)
 }
 
 // operatorIDsFlag adds operators IDs flag to the command

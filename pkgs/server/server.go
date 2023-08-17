@@ -39,9 +39,8 @@ func (msg *KeySign) Decode(data []byte) error {
 func RegisterRoutes(s *Server) {
 	// TODO: timeouts for a response creation
 	s.router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Debug("Got init msg")
+		s.logger.Info("Received init msg")
 		rawdata, _ := io.ReadAll(request.Body)
-		s.logger.Debug("parsing init msg")
 		tr := &wire.Transport{}
 		if err := tr.UnmarshalSSZ(rawdata); err != nil {
 			s.logger.Errorf("parsing failed, err %v", err)
@@ -75,7 +74,7 @@ func RegisterRoutes(s *Server) {
 	})
 
 	s.router.Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Info("Got dkg message")
+		s.logger.Info("Received a dkg protocol message")
 		// TODO: Consider validating signature from initiator
 		rawdata, err := io.ReadAll(request.Body)
 		b, err := s.state.ProcessMessage(rawdata)

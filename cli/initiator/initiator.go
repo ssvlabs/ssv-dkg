@@ -1,6 +1,7 @@
 package initiator
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strconv"
@@ -76,8 +77,11 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to get nonce flag value", zap.Error(err))
 		}
-
-		err = dkgClient.StartDKG([]byte(withdrawAddr), parts, threshold, fork, forkName, [20]byte(common.HexToAddress(owner).Bytes()), nonce)
+		withdrawPubKey, err := hex.DecodeString(withdrawAddr)
+		if err != nil {
+			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
+		}
+		err = dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, [20]byte(common.HexToAddress(owner).Bytes()), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
