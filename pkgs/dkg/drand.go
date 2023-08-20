@@ -164,13 +164,24 @@ func (o *LocalOwner) StartDKG() error {
 		return err
 	}
 	// TODO: handle error
-	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
-		res := <-p.WaitEnd()
-		postF(&res)
-	}(p, o.PostDKG)
+	dkgProcess := func() <-chan error {
+		errChan := make(chan error)
+		go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
+			defer close(errChan)
+			res := <-p.WaitEnd()
+			errChan <- postF(&res)
+		}(p, o.PostDKG)
+		return errChan
+	}
 
+	for err := range dkgProcess() {
+		if err != nil {
+			o.Logger.Errorf("error at DKG process %s", err.Error())
+			close(o.startedDKG)
+			return err
+		}
+	}
 	close(o.startedDKG)
-
 	return nil
 }
 
@@ -206,6 +217,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
+		o.Logger.Error(res.Error)
 		return res.Error
 	}
 	// Store result share a instance

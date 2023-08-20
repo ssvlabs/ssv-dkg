@@ -31,7 +31,7 @@ func NewBoard(
 }
 
 func (b *Board) PushDeals(bundle *dkg.DealBundle) {
-	b.logger.Info("pushing deal bundle")
+	b.logger.Debug("pushing deal bundle")
 
 	byts, err := wire2.EncodeDealBundle(bundle)
 	if err != nil {
