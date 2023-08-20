@@ -164,23 +164,13 @@ func (o *LocalOwner) StartDKG() error {
 		return err
 	}
 	// TODO: handle error
-	dkgProcess := func() <-chan error {
-		errChan := make(chan error)
-		go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
-			defer close(errChan)
-			res := <-p.WaitEnd()
-			errChan <- postF(&res)
-		}(p, o.PostDKG)
-		return errChan
-	}
-
-	for err := range dkgProcess() {
+	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
+		res := <-p.WaitEnd()
+		err := postF(&res)
 		if err != nil {
-			o.Logger.Errorf("error at DKG process %s", err.Error())
-			close(o.startedDKG)
-			return err
+			o.Logger.Error(err)
 		}
-	}
+	}(p, o.PostDKG)
 	close(o.startedDKG)
 	return nil
 }
@@ -217,7 +207,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
-		o.Logger.Error(res.Error)
+		close(o.done)
 		return res.Error
 	}
 	// Store result share a instance
@@ -227,6 +217,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
 	if err != nil {
+		close(o.done)
 		return err
 	}
 	o.Logger.Debugf("Validator public key %x", validatorPubKey.Serialize())
@@ -234,6 +225,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
+		close(o.done)
 		return err
 	}
 	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
@@ -241,6 +233,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Encrypt BLS share for SSV contract
 	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+secretKeyBLS.GetHexString()))
 	if err != nil {
+		close(o.done)
 		return err
 	}
 	o.Logger.Debugf("Encrypted share %x", encryptedShare)
@@ -254,6 +247,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
 	if !val {
+		close(o.done)
 		return fmt.Errorf("partial deposit root signature isnt valid %x", depositRootSig.Serialize())
 	}
 	// Sign SSV owner + nonce
@@ -263,11 +257,13 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
+		close(o.done)
 		return err
 	}
 	// Verify partial SSV owner + nonce signature
 	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
 	if !val {
+		close(o.done)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
@@ -285,6 +281,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 
 	encodedOutput, err := out.Encode()
 	if err != nil {
+		close(o.done)
 		return err
 	}
 	// TODO: compose output message OR propagate results to server and handle outputs there
