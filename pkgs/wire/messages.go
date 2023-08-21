@@ -21,6 +21,7 @@ const (
 	KyberResponseBundleMessageType
 	KyberJustificationBundleMessageType
 	BlsSignRequestType
+	ErrorMessageType
 )
 
 func (t TransportType) String() string {
@@ -32,7 +33,7 @@ func (t TransportType) String() string {
 	case ExchangeMessageType:
 		return "ExchangeMessageType"
 	case OutputMessageType:
-		return "OutputMessageTypeca"
+		return "OutputMessageType"
 	case KyberDealBundleMessageType:
 		return "KyberDealBundleMessageType"
 	case KyberResponseBundleMessageType:
@@ -41,6 +42,8 @@ func (t TransportType) String() string {
 		return "KyberJustificationBundleMessageType"
 	case BlsSignRequestType:
 		return "BlsSignRequestType"
+	case ErrorMessageType:
+		return "ErrorMessageType"
 	default:
 		return "no type impl"
 	}

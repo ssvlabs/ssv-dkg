@@ -402,6 +402,18 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			return err
 		}
+		// check message type
+		if tsp.Message.Type == wire.ErrorMessageType {
+			var msgErr string
+			err := json.Unmarshal(tsp.Message.Data, &msgErr)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf(msgErr)
+		}
+		if tsp.Message.Type != wire.OutputMessageType {
+			return fmt.Errorf("wrong incoming message type")
+		}
 		result := &dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
 			return err

@@ -25,15 +25,20 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
 	ReadResponse() []byte
+	ReadError() error
 }
 
 type instWrapper struct {
 	*dkg.LocalOwner
 	respChan chan []byte
+	errChan  chan error
 }
 
 func (iw *instWrapper) ReadResponse() []byte {
 	return <-iw.respChan
+}
+func (iw *instWrapper) ReadError() error {
+	return <-iw.errChan
 }
 
 type InstanceID [24]byte
@@ -82,16 +87,16 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	// TODO: handle err
 	resp, err := owner.Init(reqID, init)
+	if err != nil {
+		return nil, nil, err
+	}
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
 	s.logger.Infof("Waiting for owner response to init")
-
 	res := <-bchan
-
-	return &instWrapper{owner, bchan}, res, nil
+	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
@@ -230,6 +235,12 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	}
 	s.instances[reqID] = inst
 	s.mtx.Unlock()
+	go func([]byte) {
+		err = inst.ReadError()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(resp)
 
 	// TODO: get some ret from inst
 	return resp, nil
