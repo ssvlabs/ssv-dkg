@@ -6,19 +6,53 @@
 
 The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
 
+### Build
+
+```sh
+go build cmd/dkgtool/dkgtool.go
+```
+
 ### Server
 
 The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement.
 The server is able to participate in multiple instances in parallel.
 Whenever the server receives a message it directs it to the right instance by the identifier, and respond with an answer.
 
+Start a DKG server
+
+```sh
+./dkgtool start-dkg-server --privKey ./examples/server1/key  --port 3030
+
+### where
+--privKey ./examples/server1/key # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
+--port 3030 # port for listening messages
+```
+
 ### CLI Client
 
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
 
+```sh
+./dkgtool init-dkg \
+          --operatorIDs 1,2,3,4 \
+          --operatorsInfoPath ./examples/operators_integration.csv \
+          --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
+          --nonce 1 \
+          --threshold 3 \
+          --withdrawPublicKey 0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7  \
+          --fork "prater"
+#### where
+--operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
+--operatorsInfoPath ./examples/operators_integration.csv # path to info about operators - ID,base64(RSA pub key),
+--threshold 3 # threshold set for a master signature - if T out on N signatures provided the master signature will be recovered
+--owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
+--nonce 1 # owner nonce for the SSV contract
+--fork "prater" # network
+```
+
 ![flow](./imgs/DKGinit.drawio.png)
 
-#### Basic Flow:
+#### Basic Flow Description:
 
 1. The initiator creates an initial message, signs it and sends it to all operators (/init)
 2. The operators upon receiving initial message check initiator message signature and create their DKG identity:
@@ -122,9 +156,9 @@ Initial message fields:
 
 ### TODO:
 
-- [X] Complete design with flows and structure
-- [X] output - signed ssv deposit data + encrypted shares for SSV contract
-- [X] verification of ssv deposit data and encrypted shares
+- [x] Complete design with flows and structure
+- [x] output - signed ssv deposit data + encrypted shares for SSV contract
+- [x] verification of ssv deposit data and encrypted shares
 - [ ] existing validator public key resharing
 - [ ] private key recreation from shares (in case of switch to a standard ETH validator)
 - [ ] CLI for initiator and operators
@@ -136,7 +170,7 @@ Initial message fields:
 
 - [ ] get existing pub key share by ID from operators
 - [ ] limit max of operators (T-threshold min/max)
-- [X] secure the communication between initiator and operators
+- [x] secure the communication between initiator and operators
 
 ### Flow TODO Brakedown
 
@@ -146,16 +180,16 @@ Initial message fields:
 
 #### Round 1
 
-- [X] CLI for initiator
-- [X] CLI for operator
+- [x] CLI for initiator
+- [x] CLI for operator
 - [ ] RSA secret storage for both initiator and operator
 - [ ] Init message:
-  - [X] Message sig validation
-  - [X] Init message owner + nonce fields. ID is random UUID
+  - [x] Message sig validation
+  - [x] Init message owner + nonce fields. ID is random UUID
   - [ ] Timeouts
   - [ ] Error handling
 - [ ] Exchange message:
-  - [X] Message sig validation
+  - [x] Message sig validation
   - [ ] Secret RSA key storage
   - [ ] Timeouts
   - [ ] Error handling
@@ -165,10 +199,10 @@ Initial message fields:
 
 #### Round 2
 
-- [X] Deal message:
-- [X] Result message:
+- [x] Deal message:
+- [x] Result message:
   - [ ] Secure storage for key shares and DKG result (keystore + db) + recover option
-  - [X] Validate signature shares + validator pub key + pub and encrypted shares at initiator
+  - [x] Validate signature shares + validator pub key + pub and encrypted shares at initiator
 - [ ] Timeouts
 - [ ] Code refactoring
 - [ ] Error handling

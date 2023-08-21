@@ -87,6 +87,7 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger      *logrus.Entry
 	startedDKG  chan struct{}
+	ErrorChan   chan error
 	ID          uint64
 	data        *DKGData
 	b           *board.Board
@@ -120,6 +121,7 @@ func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:     opts.Logger,
 		startedDKG: make(chan struct{}, 1),
+		ErrorChan:  make(chan error, 1),
 		ID:         opts.ID,
 		BroadcastF: opts.BroadcastF,
 		Exchanges:  make(map[uint64]*wire.Exchange),
@@ -166,11 +168,12 @@ func (o *LocalOwner) StartDKG() error {
 	// TODO: handle error
 	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
-		postF(&res)
+		err := postF(&res)
+		if err != nil {
+			o.ErrorChan <- err
+		}
 	}(p, o.PostDKG)
-
 	close(o.startedDKG)
-
 	return nil
 }
 
@@ -206,6 +209,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
+		o.broadcastError(res.Error)
 		return res.Error
 	}
 	// Store result share a instance
@@ -215,13 +219,15 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
 	if err != nil {
+		o.broadcastError(err)
 		return err
 	}
 	o.Logger.Debugf("Validator public key %x", validatorPubKey.Serialize())
-	var tsmsg *wire.Transport
+
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
+		o.broadcastError(err)
 		return err
 	}
 	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
@@ -229,6 +235,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Encrypt BLS share for SSV contract
 	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+secretKeyBLS.GetHexString()))
 	if err != nil {
+		o.broadcastError(err)
 		return err
 	}
 	o.Logger.Debugf("Encrypted share %x", encryptedShare)
@@ -242,6 +249,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
 	if !val {
+		o.broadcastError(err)
 		return fmt.Errorf("partial deposit root signature isnt valid %x", depositRootSig.Serialize())
 	}
 	// Sign SSV owner + nonce
@@ -251,11 +259,13 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
+		o.broadcastError(err)
 		return err
 	}
 	// Verify partial SSV owner + nonce signature
 	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
 	if !val {
+		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
@@ -273,16 +283,17 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 
 	encodedOutput, err := out.Encode()
 	if err != nil {
+		o.broadcastError(err)
 		return err
 	}
-	// TODO: compose output message OR propagate results to server and handle outputs there
-	tsmsg = &wire.Transport{
+
+	tsMsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.ReqID,
 		Data:       encodedOutput,
 	}
 
-	o.Broadcast(tsmsg)
+	o.Broadcast(tsMsg)
 	close(o.done)
 	return nil
 }
@@ -514,4 +525,16 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	default:
 		return eth2_key_manager_core.MainNetwork
 	}
+}
+
+func (o *LocalOwner) broadcastError(err error) {
+	errMsgEnc, _ := json.Marshal(err.Error())
+	errMsg := &wire.Transport{
+		Type:       wire.ErrorMessageType,
+		Identifier: o.data.ReqID,
+		Data:       errMsgEnc,
+	}
+
+	o.Broadcast(errMsg)
+	close(o.done)
 }
