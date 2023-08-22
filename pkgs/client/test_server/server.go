@@ -1,4 +1,4 @@
-package server
+package test_server
 
 import (
 	"crypto/rsa"
@@ -36,7 +36,7 @@ func (msg *KeySign) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
 }
 
-func RegisterRoutes(s *Server) {
+func RegisterRoutes(s *Server, eve bool) {
 	s.Router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 		s.Logger.Info("Received init msg")
 		rawdata, _ := io.ReadAll(request.Body)
@@ -75,7 +75,7 @@ func RegisterRoutes(s *Server) {
 		s.Logger.Info("Received a dkg protocol message")
 
 		rawdata, err := io.ReadAll(request.Body)
-		b, err := s.State.ProcessMessage(rawdata)
+		b, err := s.State.ProcessMessage(rawdata, eve)
 		if err != nil {
 			writer.WriteHeader(http.StatusBadRequest)
 			writer.Write(wire.MakeErr(err))
@@ -86,7 +86,7 @@ func RegisterRoutes(s *Server) {
 	})
 }
 
-func New(key *rsa.PrivateKey) *Server {
+func New(key *rsa.PrivateKey, eve bool) *Server {
 	r := chi.NewRouter()
 	swtch := NewSwitch(key)
 	lg := logrus.New()
@@ -96,7 +96,7 @@ func New(key *rsa.PrivateKey) *Server {
 		Router: r,
 		State:  swtch,
 	}
-	RegisterRoutes(s)
+	RegisterRoutes(s, eve)
 	return s
 }
 

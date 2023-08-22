@@ -304,7 +304,10 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 }
 
 func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner [20]byte, nonce uint64, saveResult bool) error {
-
+	// threshold cant be more than number of operators
+	if threshold == 0 || threshold > uint64(len(ids)) {
+		return fmt.Errorf("wrong threshold")
+	}
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
 		op, ok := c.Operators[id]
