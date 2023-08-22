@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
@@ -16,6 +17,13 @@ var StartDKGServer = &cobra.Command{
 	Use:   "start-dkg-server",
 	Short: "Starts an instance of DKG",
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(`
+		██████╗ ██╗  ██╗ ██████╗      ██████╗ ██████╗ ███████╗██████╗  █████╗ ████████╗ ██████╗ ██████╗ 
+		██╔══██╗██║ ██╔╝██╔════╝     ██╔═══██╗██╔══██╗██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+		██║  ██║█████╔╝ ██║  ███╗    ██║   ██║██████╔╝█████╗  ██████╔╝███████║   ██║   ██║   ██║██████╔╝
+		██║  ██║██╔═██╗ ██║   ██║    ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
+		██████╔╝██║  ██╗╚██████╔╝    ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
+		╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
 			log.Fatal(err)
 		}

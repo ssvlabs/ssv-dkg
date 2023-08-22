@@ -6,7 +6,7 @@ import (
 
 var (
 	// AppName is the application name
-	AppName = "SSV-DKG-Tool"
+	AppName = "SSV-DKG-CLI"
 
 	// Version is the app version
 	Version = "latest"

@@ -28,8 +28,15 @@ func init() {
 
 var StartDKG = &cobra.Command{
 	Use:   "init-dkg",
-	Short: "Inititates a DKG protocol to create new distributed key",
+	Short: "Initiates a DKG protocol to create new distributed key",
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(`
+		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
+		██╔══██╗██║ ██╔╝██╔════╝     ██║████╗  ██║██║╚══██╔══╝██║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+		██║  ██║█████╔╝ ██║  ███╗    ██║██╔██╗ ██║██║   ██║   ██║███████║   ██║   ██║   ██║██████╔╝
+		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
+		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
+		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
 			log.Fatal(err)
 		}
@@ -65,7 +72,7 @@ var StartDKG = &cobra.Command{
 		}
 		fork, forkName, err := flags.GetForkVersionFlagValue(cmd)
 		if err != nil {
-			logger.Fatal("failed to get fork versiion flag value", zap.Error(err))
+			logger.Fatal("failed to get fork version flag value", zap.Error(err))
 		}
 
 		owner, err := flags.GetOwnerAddressFlagValue(cmd)
@@ -87,7 +94,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
 
-		logger.Info("DKG protocol finished successfuly")
+		logger.Info("DKG protocol finished successfull")
 	},
 }
 

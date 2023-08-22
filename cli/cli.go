@@ -11,8 +11,8 @@ import (
 
 // RootCmd represents the root command of DKG-tool CLI
 var RootCmd = &cobra.Command{
-	Use:   "dkgtool",
-	Short: "DKG-tool is a CLI for running Distributed Key Generation protocol.",
+	Use:   "dkgcli",
+	Short: "CLI for running Distributed Key Generation protocol",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 	},
 }
