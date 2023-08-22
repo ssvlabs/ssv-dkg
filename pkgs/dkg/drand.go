@@ -165,13 +165,10 @@ func (o *LocalOwner) StartDKG() error {
 	if err != nil {
 		return err
 	}
-	// TODO: handle error
+
 	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
-		err := postF(&res)
-		if err != nil {
-			o.ErrorChan <- err
-		}
+		postF(&res)
 	}(p, o.PostDKG)
 	close(o.startedDKG)
 	return nil
@@ -205,10 +202,10 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 }
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
-	// TODO: Result consists of the Pivate Share of the distributed key
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
+		o.Logger.Error(res.Error)
 		o.broadcastError(res.Error)
 		return res.Error
 	}
@@ -323,7 +320,6 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 			}
 
 			// todo not loop with channels
-			// todo broadcast signs?
 			go func(trsp *wire.Transport) {
 				if err := o.Broadcast(trsp); err != nil {
 					o.Logger.Errorf("broadcasting failed %v", err)

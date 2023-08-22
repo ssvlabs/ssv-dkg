@@ -44,7 +44,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		dkgConfig,
 		config.Board,
 		phaser,
-		true,
+		false,
 	)
 	if err != nil {
 		return nil, err

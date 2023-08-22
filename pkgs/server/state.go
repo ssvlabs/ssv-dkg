@@ -235,14 +235,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	}
 	s.instances[reqID] = inst
 	s.mtx.Unlock()
-	go func([]byte) {
-		err = inst.ReadError()
-		if err != nil {
-			logger.Error(err)
-		}
-	}(resp)
 
-	// TODO: get some ret from inst
 	return resp, nil
 
 }

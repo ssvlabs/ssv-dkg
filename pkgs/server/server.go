@@ -37,7 +37,6 @@ func (msg *KeySign) Decode(data []byte) error {
 }
 
 func RegisterRoutes(s *Server) {
-	// TODO: timeouts for a response creation
 	s.router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 		s.logger.Info("Received init msg")
 		rawdata, _ := io.ReadAll(request.Body)
@@ -58,7 +57,6 @@ func RegisterRoutes(s *Server) {
 
 		reqid := tr.Identifier
 
-		// TODO: Consider validating message signature of the initiator
 		logger := s.logger.WithField("reqid", hex.EncodeToString(reqid[:]))
 		logger.Infof("Initiating instance with init data")
 		b, err := s.state.InitInstance(reqid, tr.Data)
@@ -75,7 +73,7 @@ func RegisterRoutes(s *Server) {
 
 	s.router.Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
 		s.logger.Info("Received a dkg protocol message")
-		// TODO: Consider validating signature from initiator
+
 		rawdata, err := io.ReadAll(request.Body)
 		b, err := s.state.ProcessMessage(rawdata)
 		if err != nil {
