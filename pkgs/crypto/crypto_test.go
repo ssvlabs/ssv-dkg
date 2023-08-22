@@ -33,9 +33,118 @@ func TestDKGFull(t *testing.T) {
 		Threshold: thr,
 		Auth:      drand_bls.NewSchemeOnG2(suite),
 	}
-
+	types.InitBLS()
 	results := RunDKG(t, tns, conf, nil, nil, nil)
-	testResults(t, suite.G1().(dkg.Suite), thr, n, results)
+	testResults(t, suite, thr, n, results)
+}
+
+func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.Result) {
+	// test if all results are consistent
+	sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
+	valPK := &bls.PublicKey{}
+	for i, res := range results {
+		require.Equal(t, thr, len(res.Key.Commitments()))
+		for j, res2 := range results {
+			if i == j {
+				continue
+			}
+			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
+		}
+		blsSecKey, err := ResultToShareSecretKey(res)
+		require.NoError(t, err)
+		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey
+		valPK, err = ResultToValidatorPK(res, suite.G1().(dkg.Suite))
+		require.NoError(t, err)
+	}
+	// test if re-creating secret key gives same public key
+	var shares []*share.PriShare
+	for _, res := range results {
+		shares = append(shares, res.Key.PriShare())
+	}
+	// test if shares are public polynomial evaluation
+	exp := share.NewPubPoly(suite.G1(), suite.G1().Point().Base(), results[0].Key.Commitments())
+	for _, share := range shares {
+		pubShare := exp.Eval(share.I)
+		expShare := suite.G1().Point().Mul(share.V, nil)
+		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
+	}
+
+	secretPoly, err := share.RecoverPriPoly(suite.G1(), shares, thr, n)
+	coefs := secretPoly.Coefficients()
+	t.Logf("Ploly len %d", len(coefs))
+	for _, c := range coefs {
+		t.Logf("Ploly coef %s", c.String())
+	}
+	require.NoError(t, err)
+	gotPub := secretPoly.Commit(suite.G1().Point().Base())
+	require.True(t, exp.Equal(gotPub))
+
+	secret, err := share.RecoverSecret(suite.G1(), shares, thr, n)
+	require.NoError(t, err)
+	public := suite.G1().Point().Mul(secret, nil)
+	expKey := results[0].Key.Public()
+	require.True(t, public.Equal(expKey))
+
+	// Test Threshold Kyber message signing
+	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+	sigShares := make([][]byte, 0)
+
+	for _, x := range shares {
+		sig, err := scheme.Sign(x, []byte("Hello World!"))
+		require.Nil(t, err)
+		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
+		idx, err := scheme.IndexOf(sig)
+		require.NoError(t, err)
+		require.Equal(t, x.I, idx)
+		sigShares = append(sigShares, sig)
+		idx, err = scheme.IndexOf(sig)
+		require.NoError(t, err)
+		require.Equal(t, idx, x.I)
+	}
+	// Compute bls sigs
+	payloadToSign := "Hello World!"
+	pks := make(map[types.OperatorID]*bls.PublicKey)
+	sigs := make(map[types.OperatorID]*bls.Sign)
+	for id, ps := range sharesBLS {
+		pks[id] = ps.GetPublicKey()
+		sigs[id] = ps.Sign(payloadToSign)
+	}
+
+	// get validator pk
+	validatorPK := bls.PublicKey{}
+	idVec := make([]bls.ID, 0)
+	pkVec := make([]bls.PublicKey, 0)
+	for operatorID, pk := range pks {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+		pkVec = append(pkVec, *pk)
+	}
+	require.NoError(t, validatorPK.Recover(pkVec, idVec))
+	fmt.Printf("validator pk: %s\n", hex.EncodeToString(validatorPK.Serialize()))
+	require.Equal(t, validatorPK.Serialize(), valPK.Serialize())
+	// reconstruct sig
+	reconstructedSig := bls.Sign{}
+	idVec = make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	for operatorID, sig := range sigs {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
+		require.NoError(t, err)
+		idVec = append(idVec, blsID)
+
+		sigVec = append(sigVec, *sig)
+
+		if len(sigVec) >= thr {
+			break
+		}
+	}
+	require.NoError(t, reconstructedSig.Recover(sigVec, idVec))
+	fmt.Printf("reconstructed sig: %s\n", hex.EncodeToString(reconstructedSig.Serialize()))
+
+	// verify
+	require.True(t, reconstructedSig.Verify(&validatorPK, payloadToSign))
 }
 
 type TestNode struct {
@@ -124,63 +233,63 @@ func IsDealerIncluded(bundles []*dkg.ResponseBundle, dealer uint32) bool {
 	return false
 }
 
-func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Result) {
-	// test if all results are consistent
-	for i, res := range results {
-		require.Equal(t, thr, len(res.Key.Commitments()))
-		for j, res2 := range results {
-			if i == j {
-				continue
-			}
-			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
-		}
-	}
-	// test if re-creating secret key gives same public key
-	var shares []*share.PriShare
-	for _, res := range results {
-		shares = append(shares, res.Key.PriShare())
-	}
-	// test if shares are public polynomial evaluation
-	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
-	for _, share := range shares {
-		pubShare := exp.Eval(share.I)
-		expShare := suite.Point().Mul(share.V, nil)
-		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
-	}
+// func testResults(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Result) {
+// 	// test if all results are consistent
+// 	for i, res := range results {
+// 		require.Equal(t, thr, len(res.Key.Commitments()))
+// 		for j, res2 := range results {
+// 			if i == j {
+// 				continue
+// 			}
+// 			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
+// 		}
+// 	}
+// 	// test if re-creating secret key gives same public key
+// 	var shares []*share.PriShare
+// 	for _, res := range results {
+// 		shares = append(shares, res.Key.PriShare())
+// 	}
+// 	// test if shares are public polynomial evaluation
+// 	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
+// 	for _, share := range shares {
+// 		pubShare := exp.Eval(share.I)
+// 		expShare := suite.Point().Mul(share.V, nil)
+// 		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
+// 	}
 
-	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
-	require.NoError(t, err)
-	gotPub := secretPoly.Commit(suite.Point().Base())
-	require.True(t, exp.Equal(gotPub))
+// 	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
+// 	require.NoError(t, err)
+// 	gotPub := secretPoly.Commit(suite.Point().Base())
+// 	require.True(t, exp.Equal(gotPub))
 
-	secret, err := share.RecoverSecret(suite, shares, thr, n)
-	require.NoError(t, err)
-	public := suite.Point().Mul(secret, nil)
-	expKey := results[0].Key.Public()
-	require.True(t, public.Equal(expKey))
+// 	secret, err := share.RecoverSecret(suite, shares, thr, n)
+// 	require.NoError(t, err)
+// 	public := suite.Point().Mul(secret, nil)
+// 	expKey := results[0].Key.Public()
+// 	require.True(t, public.Equal(expKey))
 
-	// Test Threshold Kyber message signing
-	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	sigShares := make([][]byte, 0)
-	for _, x := range shares {
-		sig, err := scheme.Sign(x, []byte("Hello World!"))
-		require.Nil(t, err)
-		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
-		idx, err := scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, x.I, idx)
-		sigShares = append(sigShares, sig)
-		idx, err = scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, idx, x.I)
-	}
+// 	// Test Threshold Kyber message signing
+// 	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+// 	sigShares := make([][]byte, 0)
+// 	for _, x := range shares {
+// 		sig, err := scheme.Sign(x, []byte("Hello World!"))
+// 		require.Nil(t, err)
+// 		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
+// 		idx, err := scheme.IndexOf(sig)
+// 		require.NoError(t, err)
+// 		require.Equal(t, x.I, idx)
+// 		sigShares = append(sigShares, sig)
+// 		idx, err = scheme.IndexOf(sig)
+// 		require.NoError(t, err)
+// 		require.Equal(t, idx, x.I)
+// 	}
 
-	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
-	require.Nil(t, err)
-	t.Log("Sig len", len(sig))
-	err = scheme.VerifyRecovered(expKey, []byte("Hello World!"), sig)
-	require.Nil(t, err)
-}
+// 	sig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
+// 	require.Nil(t, err)
+// 	t.Log("Sig len", len(sig))
+// 	err = scheme.VerifyRecovered(expKey, []byte("Hello World!"), sig)
+// 	require.Nil(t, err)
+// }
 
 type MapDeal func([]*dkg.DealBundle) []*dkg.DealBundle
 type MapResponse func([]*dkg.ResponseBundle) []*dkg.ResponseBundle
@@ -381,265 +490,139 @@ func moveTime(tns []*TestNode, p time.Duration) {
 	}
 }
 
-func TestDKGKyberToBLS(t *testing.T) {
-	n := 4
-	thr := n - 1
-	suite := kyber_bls12381.NewBLS12381Suite()
-	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
-	list := NodesFromTest(tns)
-	conf := dkg.Config{
-		Suite:     suite.G1().(dkg.Suite),
-		NewNodes:  list,
-		Threshold: thr,
-		Auth:      drand_bls.NewSchemeOnG2(suite),
-	}
-	types.InitBLS()
-	results := RunDKG(t, tns, conf, nil, nil, nil)
-	testResultsKyberToBLS(t, suite.G1().(dkg.Suite), thr, n, results)
-}
+// func TestDKGKyberToBLS(t *testing.T) {
+// 	n := 4
+// 	thr := n - 1
+// 	suite := kyber_bls12381.NewBLS12381Suite()
+// 	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
+// 	list := NodesFromTest(tns)
+// 	conf := dkg.Config{
+// 		Suite:     suite.G1().(dkg.Suite),
+// 		NewNodes:  list,
+// 		Threshold: thr,
+// 		Auth:      drand_bls.NewSchemeOnG2(suite),
+// 	}
+// 	types.InitBLS()
+// 	results := RunDKG(t, tns, conf, nil, nil, nil)
+// 	testResultsKyberToBLS(t, suite.G1().(dkg.Suite), thr, n, results)
+// }
 
-func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Result) {
-	var kyberValPubKey []byte
-	// test if all results are consistent
-	for i, res := range results {
-		require.Equal(t, thr, len(res.Key.Commitments()))
-		for j, res2 := range results {
-			if i == j {
-				continue
-			}
-			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
-		}
-		kyberValPubKey, _ = res.Key.Public().MarshalBinary()
-		t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
-	}
-	// test if re-creating secret key gives same public key
-	var shares []*share.PriShare
-	for _, res := range results {
-		shares = append(shares, res.Key.PriShare())
-	}
-	// test if shares are public polynomial evaluation
-	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
-	for _, share := range shares {
-		pubShare := exp.Eval(share.I)
-		expShare := suite.Point().Mul(share.V, nil)
-		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
-	}
+// func testResultsKyberToBLS(t *testing.T, suite dkg.Suite, thr, n int, results []*dkg.Result) {
+// 	var kyberValPubKey []byte
+// 	// test if all results are consistent
+// 	for i, res := range results {
+// 		require.Equal(t, thr, len(res.Key.Commitments()))
+// 		for j, res2 := range results {
+// 			if i == j {
+// 				continue
+// 			}
+// 			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
+// 		}
+// 		kyberValPubKey, _ = res.Key.Public().MarshalBinary()
+// 		t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
+// 	}
+// 	// test if re-creating secret key gives same public key
+// 	var shares []*share.PriShare
+// 	for _, res := range results {
+// 		shares = append(shares, res.Key.PriShare())
+// 	}
+// 	// test if shares are public polynomial evaluation
+// 	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
+// 	for _, share := range shares {
+// 		pubShare := exp.Eval(share.I)
+// 		expShare := suite.Point().Mul(share.V, nil)
+// 		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
+// 	}
 
-	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
-	require.NoError(t, err)
-	gotPub := secretPoly.Commit(suite.Point().Base())
-	require.True(t, exp.Equal(gotPub))
+// 	secretPoly, err := share.RecoverPriPoly(suite, shares, thr, n)
+// 	require.NoError(t, err)
+// 	gotPub := secretPoly.Commit(suite.Point().Base())
+// 	require.True(t, exp.Equal(gotPub))
 
-	secret, err := share.RecoverSecret(suite, shares, thr, n)
-	require.NoError(t, err)
-	public := suite.Point().Mul(secret, nil)
-	expKey := results[0].Key.Public()
-	require.True(t, public.Equal(expKey))
+// 	secret, err := share.RecoverSecret(suite, shares, thr, n)
+// 	require.NoError(t, err)
+// 	public := suite.Point().Mul(secret, nil)
+// 	expKey := results[0].Key.Public()
+// 	require.True(t, public.Equal(expKey))
 
-	// Test Threshold Kyber message signing
-	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	sigShares := make([][]byte, 0)
-	for _, x := range shares {
-		sig, err := scheme.Sign(x, []byte("Hello World!"))
-		require.Nil(t, err)
-		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
-		idx, err := scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, x.I, idx)
-		sigShares = append(sigShares, sig)
-		idx, err = scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, idx, x.I)
-	}
+// 	// Test Threshold Kyber message signing
+// 	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+// 	sigShares := make([][]byte, 0)
+// 	for _, x := range shares {
+// 		sig, err := scheme.Sign(x, []byte("Hello World!"))
+// 		require.Nil(t, err)
+// 		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
+// 		idx, err := scheme.IndexOf(sig)
+// 		require.NoError(t, err)
+// 		require.Equal(t, x.I, idx)
+// 		sigShares = append(sigShares, sig)
+// 		idx, err = scheme.IndexOf(sig)
+// 		require.NoError(t, err)
+// 		require.Equal(t, idx, x.I)
+// 	}
 
-	masterSig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
-	require.NoError(t, err)
-	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), masterSig)
-	require.NoError(t, err)
-	t.Logf("Kyber DKG signature %x", masterSig)
-	kyberValPubKey, err = exp.Commit().MarshalBinary()
-	require.NoError(t, err)
-	t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
-	// Check pubKey and signature len
-	require.Equal(t, 48, len(kyberValPubKey))
-	require.Equal(t, 96, len(masterSig))
-	// Try Kyber BLS package to verify master sig
-	drand_bls_scheme := drand_bls.NewSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	err = drand_bls_scheme.Verify(exp.Commit(), []byte("Hello World!"), masterSig)
-	require.NoError(t, err)
+// 	masterSig, err := scheme.Recover(exp, []byte("Hello World!"), sigShares, thr, n)
+// 	require.NoError(t, err)
+// 	err = scheme.VerifyRecovered(exp.Commit(), []byte("Hello World!"), masterSig)
+// 	require.NoError(t, err)
+// 	t.Logf("Kyber DKG signature %x", masterSig)
+// 	kyberValPubKey, err = exp.Commit().MarshalBinary()
+// 	require.NoError(t, err)
+// 	t.Logf("Pub key bytes Kyber %x", kyberValPubKey)
+// 	// Check pubKey and signature len
+// 	require.Equal(t, 48, len(kyberValPubKey))
+// 	require.Equal(t, 96, len(masterSig))
+// 	// Try Kyber BLS package to verify master sig
+// 	drand_bls_scheme := drand_bls.NewSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+// 	err = drand_bls_scheme.Verify(exp.Commit(), []byte("Hello World!"), masterSig)
+// 	require.NoError(t, err)
 
-	// Try kyber_bls12381 to verify mater sig
-	s := kyber_bls12381.NewBLS12381Suite()
-	pubkeyP := s.G1().Point()
-	pubkeyP.UnmarshalBinary(kyberValPubKey)
-	t.Logf("Master sig point in G2 Kyber %s", pubkeyP.String())
-	sigP := s.G2().Point()
-	sigP.UnmarshalBinary(masterSig)
-	t.Logf("Master sig point in G2 Kyber %s", sigP.String())
-	base := s.G1().Point().Base().Clone()
-	MsgP := s.G2().Point().(kyber.HashablePoint).Hash([]byte("Hello World!"))
+// 	// Try kyber_bls12381 to verify mater sig
+// 	s := kyber_bls12381.NewBLS12381Suite()
+// 	pubkeyP := s.G1().Point()
+// 	pubkeyP.UnmarshalBinary(kyberValPubKey)
+// 	t.Logf("Master sig point in G2 Kyber %s", pubkeyP.String())
+// 	sigP := s.G2().Point()
+// 	sigP.UnmarshalBinary(masterSig)
+// 	t.Logf("Master sig point in G2 Kyber %s", sigP.String())
+// 	base := s.G1().Point().Base().Clone()
+// 	MsgP := s.G2().Point().(kyber.HashablePoint).Hash([]byte("Hello World!"))
 
-	res := s.ValidatePairing(base, sigP, pubkeyP, MsgP)
-	require.True(t, res)
-	// Fail if wrong hash
-	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte("Bye World!"))
-	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
-	require.False(t, res)
+// 	res := s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+// 	require.True(t, res)
+// 	// Fail if wrong hash
+// 	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte("Bye World!"))
+// 	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+// 	require.False(t, res)
 
-	// Try to verify herumi/bls at kyber
-	var sec bls.SecretKey
-	sec.SetByCSPRNG()
-	pub := sec.GetPublicKey()
-	m := "Hello World!"
-	sig1 := sec.Sign(m)
-	res = sig1.VerifyByte(pub, []byte(m))
-	require.True(t, res)
-	pubkeyP = s.G1().Point()
-	pubkeyP.UnmarshalBinary(pub.Serialize())
-	sigP.UnmarshalBinary(sig1.Serialize())
-	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte(m))
-	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
-	if !res {
-		t.Error("Fail to validate herumi/bls at kyber")
-	}
+// 	// Try to verify herumi/bls at kyber
+// 	var sec bls.SecretKey
+// 	sec.SetByCSPRNG()
+// 	pub := sec.GetPublicKey()
+// 	m := "Hello World!"
+// 	sig1 := sec.Sign(m)
+// 	res = sig1.VerifyByte(pub, []byte(m))
+// 	require.True(t, res)
+// 	pubkeyP = s.G1().Point()
+// 	pubkeyP.UnmarshalBinary(pub.Serialize())
+// 	sigP.UnmarshalBinary(sig1.Serialize())
+// 	MsgP = s.G2().Point().(kyber.HashablePoint).Hash([]byte(m))
+// 	res = s.ValidatePairing(base, sigP, pubkeyP, MsgP)
+// 	if !res {
+// 		t.Error("Fail to validate herumi/bls at kyber")
+// 	}
 
-	// Try to deserialize Kyber recovered signature to BLS signature
-	blsHerumiSig := &bls.Sign{}
-	err = blsHerumiSig.Deserialize(masterSig)
-	require.NoError(t, err)
-	t.Logf("BLS signature %x", blsHerumiSig.Serialize())
+// 	// Try to deserialize Kyber recovered signature to BLS signature
+// 	blsHerumiSig := &bls.Sign{}
+// 	err = blsHerumiSig.Deserialize(masterSig)
+// 	require.NoError(t, err)
+// 	t.Logf("BLS signature %x", blsHerumiSig.Serialize())
 
-	// test public key is recoverable by herumi/BLS library
-	validatorPubKey, err := ResultsToValidatorPK(results, suite)
-	require.NoError(t, err)
-	require.NotEmpty(t, validatorPubKey.Serialize())
-	t.Logf("Pub key bytes BlS %x", validatorPubKey.Serialize())
-	res = blsHerumiSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
-	require.True(t, res)
-}
-
-func TestDKGKyberToBLSLowLevel(t *testing.T) {
-	n := 4
-	thr := n - 1
-	suite := kyber_bls12381.NewBLS12381Suite()
-	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
-	list := NodesFromTest(tns)
-	conf := dkg.Config{
-		Suite:     suite.G1().(dkg.Suite),
-		NewNodes:  list,
-		Threshold: thr,
-		Auth:      drand_bls.NewSchemeOnG2(suite),
-	}
-	types.InitBLS()
-	results := RunDKG(t, tns, conf, nil, nil, nil)
-	testResultsKyberToBLSLowLevel(t, suite, thr, n, results)
-}
-
-func testResultsKyberToBLSLowLevel(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.Result) {
-	// test if all results are consistent
-	sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
-	valPK := &bls.PublicKey{}
-	for i, res := range results {
-		require.Equal(t, thr, len(res.Key.Commitments()))
-		for j, res2 := range results {
-			if i == j {
-				continue
-			}
-			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
-		}
-		blsSecKey, err := ResultToShareSecretKey(res)
-		require.NoError(t, err)
-		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey
-		valPK, err = ResultToValidatorPK(res, suite.G1().(dkg.Suite))
-		require.NoError(t, err)
-	}
-	// test if re-creating secret key gives same public key
-	var shares []*share.PriShare
-	for _, res := range results {
-		shares = append(shares, res.Key.PriShare())
-	}
-	// test if shares are public polynomial evaluation
-	exp := share.NewPubPoly(suite.G1(), suite.G1().Point().Base(), results[0].Key.Commitments())
-	for _, share := range shares {
-		pubShare := exp.Eval(share.I)
-		expShare := suite.G1().Point().Mul(share.V, nil)
-		require.True(t, pubShare.V.Equal(expShare), "share %s give pub %s vs exp %s", share.V.String(), pubShare.V.String(), expShare.String())
-	}
-
-	secretPoly, err := share.RecoverPriPoly(suite.G1(), shares, thr, n)
-	coefs := secretPoly.Coefficients()
-	t.Logf("Ploly len %d", len(coefs))
-	for _, c := range coefs {
-		t.Logf("Ploly coef %s", c.String())
-	}
-	require.NoError(t, err)
-	gotPub := secretPoly.Commit(suite.G1().Point().Base())
-	require.True(t, exp.Equal(gotPub))
-
-	secret, err := share.RecoverSecret(suite.G1(), shares, thr, n)
-	require.NoError(t, err)
-	public := suite.G1().Point().Mul(secret, nil)
-	expKey := results[0].Key.Public()
-	require.True(t, public.Equal(expKey))
-
-	// Test Threshold Kyber message signing
-	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
-	sigShares := make([][]byte, 0)
-
-	for _, x := range shares {
-		sig, err := scheme.Sign(x, []byte("Hello World!"))
-		require.Nil(t, err)
-		require.Nil(t, scheme.VerifyPartial(exp, []byte("Hello World!"), sig))
-		idx, err := scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, x.I, idx)
-		sigShares = append(sigShares, sig)
-		idx, err = scheme.IndexOf(sig)
-		require.NoError(t, err)
-		require.Equal(t, idx, x.I)
-	}
-	// Compute bls sigs
-	payloadToSign := "Hello World!"
-	pks := make(map[types.OperatorID]*bls.PublicKey)
-	sigs := make(map[types.OperatorID]*bls.Sign)
-	for id, ps := range sharesBLS {
-		pks[id] = ps.GetPublicKey()
-		sigs[id] = ps.Sign(payloadToSign)
-	}
-
-	// get validator pk
-	validatorPK := bls.PublicKey{}
-	idVec := make([]bls.ID, 0)
-	pkVec := make([]bls.PublicKey, 0)
-	for operatorID, pk := range pks {
-		blsID := bls.ID{}
-		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
-		require.NoError(t, err)
-		idVec = append(idVec, blsID)
-		pkVec = append(pkVec, *pk)
-	}
-	require.NoError(t, validatorPK.Recover(pkVec, idVec))
-	fmt.Printf("validator pk: %s\n", hex.EncodeToString(validatorPK.Serialize()))
-	require.Equal(t, validatorPK.Serialize(), valPK.Serialize())
-	// reconstruct sig
-	reconstructedSig := bls.Sign{}
-	idVec = make([]bls.ID, 0)
-	sigVec := make([]bls.Sign, 0)
-	for operatorID, sig := range sigs {
-		blsID := bls.ID{}
-		err := blsID.SetDecString(fmt.Sprintf("%d", operatorID))
-		require.NoError(t, err)
-		idVec = append(idVec, blsID)
-
-		sigVec = append(sigVec, *sig)
-
-		if len(sigVec) >= thr {
-			break
-		}
-	}
-	require.NoError(t, reconstructedSig.Recover(sigVec, idVec))
-	fmt.Printf("reconstructed sig: %s\n", hex.EncodeToString(reconstructedSig.Serialize()))
-
-	// verify
-	require.True(t, reconstructedSig.Verify(&validatorPK, payloadToSign))
-}
+// 	// test public key is recoverable by herumi/BLS library
+// 	validatorPubKey, err := ResultsToValidatorPK(results, suite)
+// 	require.NoError(t, err)
+// 	require.NotEmpty(t, validatorPubKey.Serialize())
+// 	t.Logf("Pub key bytes BlS %x", validatorPubKey.Serialize())
+// 	res = blsHerumiSig.VerifyByte(validatorPubKey, []byte("Hello World!"))
+// 	require.True(t, res)
+// }

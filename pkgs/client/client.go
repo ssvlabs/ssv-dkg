@@ -86,6 +86,12 @@ type Operator struct {
 	PubKey *rsa.PublicKey
 }
 
+type OperatorDataJson struct {
+	Addr   string `json:"ip"`
+	ID     uint64 `json:"id"`
+	PubKey string `json:"public_key"`
+}
+
 type Operators map[uint64]Operator
 
 type Client struct {
@@ -297,7 +303,7 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner [20]byte, nonce uint64) error {
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner [20]byte, nonce uint64, saveResult bool) error {
 
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
@@ -331,67 +337,22 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		Nonce:                 nonce,
 	}
 
-	sszinit, err := init.MarshalSSZ()
-	if err != nil {
-		return fmt.Errorf("failed marshiling init msg to ssz %v", err)
-	}
-
-	// id := wire.NewIdentifier([]byte("1234567894561234567894561321231"), 1)
-	var id [24]byte
-	copy(id[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
-	b := uuid.New() // random ID for each new DKG initiation
-	copy(id[8:], b[:])
-
-	ts := &wire.Transport{
-		Type:       wire.InitMessageType,
-		Identifier: id,
-		Data:       sszinit,
-	}
-
-	tsssz, err := ts.MarshalSSZ()
-	if err != nil {
-		return fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
-	}
-	c.Logger.Info("Round 1. Sending init message to operators")
-	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
-	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
-	if err != nil {
-		return fmt.Errorf("error at processing init messages  %v", err)
-	}
-
-	c.Logger.Info("Round 1. Exchange round received from all operators, creating combined message and verifying signatures")
-	mltpl, err := c.makeMultiple(id, results)
+	id := c.NewID()
+	results, err := c.SendInitMsg(init, id)
 	if err != nil {
 		return err
 	}
-	mltplbyts, err := mltpl.MarshalSSZ()
+	results, err = c.SendExchangeMsgs(results, id)
 	if err != nil {
 		return err
 	}
-	c.Logger.Info("Round 1. Send exchange response combined message to operators / receive kyber deal messages")
-	results, err = c.SendToAll(consts.API_DKG_URL, mltplbyts)
-	if err != nil {
-		return fmt.Errorf("error at processing exchange messages  %v", err)
-	}
-
-	mltpl2, err := c.makeMultiple(id, results)
+	dkgResult, err := c.SendKyberMsgs(results, id)
 	if err != nil {
 		return err
 	}
-
-	mltpl2byts, err := mltpl2.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	c.Logger.Infof("Round 2. Exchange phase finished, sending kyber deal messages")
-	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
-	if err != nil {
-		return fmt.Errorf("error at processing kyber deal messages  %v", err)
-	}
-
 	c.Logger.Infof("Round 2. Finished successfuly. Got DKG results")
 
-	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(responseResult)
+	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(dkgResult)
 	if err != nil {
 		return err
 	}
@@ -402,30 +363,20 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	c.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 
 	shareRoot, err := DepositDataRoot(init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
-
+	if err != nil {
+		return err
+	}
 	// Verify partial signatures and recovered threshold signature
-	for _, resShare := range dkgResults {
-		if !sigDepositShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], shareRoot) {
-			return fmt.Errorf("error verifying partial deposit signature %s, sig %x, root %x", err.Error(), sigDepositShares[resShare.DepositPartialSignatureIndex].Serialize(), shareRoot)
-		}
+	err = c.VerifyPartialSigs(dkgResults, sigDepositShares, sharePks, shareRoot)
+	if err != nil {
+		return err
 	}
 
 	// Recover and verify Master Signature
-
 	// 1. Recover validator pub key
-	validatorRecoveredPK := bls.PublicKey{}
-	idVec := make([]bls.ID, 0)
-	pkVec := make([]bls.PublicKey, 0)
-	for operatorID, pk := range sharePks {
-		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
-			return err
-		}
-		idVec = append(idVec, blsID)
-		pkVec = append(pkVec, *pk)
-	}
-	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
-		return fmt.Errorf("error recovering validator pub key from shares")
+	validatorRecoveredPK, err := c.RecoverValidatorPublicKey(sharePks)
+	if err != nil {
+		return err
 	}
 
 	if !bytes.Equal(validatorPubKey.Serialize(), validatorRecoveredPK.Serialize()) {
@@ -433,23 +384,9 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig := bls.Sign{}
-	idVec = make([]bls.ID, 0)
-	sigVec := make([]bls.Sign, 0)
-	for operatorID, sig := range sigDepositShares {
-		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
-			return err
-		}
-		idVec = append(idVec, blsID)
-		sigVec = append(sigVec, *sig)
-
-		if len(sigVec) >= int(init.T) {
-			break
-		}
-	}
-	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
-		return fmt.Errorf("deposit root signature recovered from shares is invalid")
+	reconstructedDepositMasterSig, err := c.RecoverMasterSig(sigDepositShares, init.T)
+	if err != nil {
+		return err
 	}
 	if !reconstructedDepositMasterSig.VerifyByte(validatorPubKey, shareRoot) {
 		return fmt.Errorf("deposit root signature recovered from shares is invalid")
@@ -495,40 +432,28 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		DepositCliVersion:     "2.5.0",
 	}
 	// Save deposit file
-	filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
-	c.Logger.Infof("DKG finished. All data is validated. Writing deposit data json to file %s\n", filepath)
-	err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
-	if err != nil {
-		return err
+	if saveResult {
+		filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
+		c.Logger.Infof("DKG finished. All data is validated. Writing deposit data json to file %s\n", filepath)
+		err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
+		if err != nil {
+			return err
+		}
 	}
+
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
 	data := []byte(fmt.Sprintf("%s:%d", init.Owner, init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	c.Logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
 	c.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 
-	for _, resShare := range dkgResults {
-		if !ssvContractOwnerNonceSigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], hash) {
-			return fmt.Errorf("error verifying partial deposit signature %s, sig %x, root %x", err.Error(), ssvContractOwnerNonceSigShares[resShare.DepositPartialSignatureIndex].Serialize(), shareRoot)
-		}
+	err = c.VerifyPartialSigs(dkgResults, ssvContractOwnerNonceSigShares, sharePks, hash)
+	if err != nil {
+		return err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig := bls.Sign{}
-	idVec = make([]bls.ID, 0)
-	sigOwnerNonceVec := make([]bls.Sign, 0)
-	for operatorID, sig := range ssvContractOwnerNonceSigShares {
-		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
-			return err
-		}
-		idVec = append(idVec, blsID)
-		sigOwnerNonceVec = append(sigOwnerNonceVec, *sig)
-
-		if len(sigOwnerNonceVec) >= int(init.T) {
-			break
-		}
-	}
-	if err := reconstructedOwnerNonceMasterSig.Recover(sigOwnerNonceVec, idVec); err != nil {
+	reconstructedOwnerNonceMasterSig, err := c.RecoverMasterSig(ssvContractOwnerNonceSigShares, init.T)
+	if err != nil {
 		return err
 	}
 	if !reconstructedOwnerNonceMasterSig.VerifyByte(validatorPubKey, hash) {
@@ -539,10 +464,16 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if err := keyshares.GeneratePayloadV4(dkgResults, reconstructedOwnerNonceMasterSig.GetHexString()); err != nil {
 		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
+	if saveResult {
+		filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
+		c.Logger.Infof("DKG finished. All data is validated. Writing keyshares to file: %s\n", filename)
+		err = utils.WriteJSON(filename, keyshares)
+		if err != nil {
+			return err
+		}
+	}
 
-	filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
-	c.Logger.Infof("DKG finished. All data is validated. Writing keyshares to file: %s\n", filename)
-	return utils.WriteJSON(filename, keyshares)
+	return nil
 }
 
 type KeySign struct {
@@ -809,4 +740,121 @@ func (c *Client) processDKGResultResponse(responseResult [][]byte) ([]dkg.Result
 		c.Logger.Debugf("Result of DKG from an operator %v", result)
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
+}
+
+func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
+	sszinit, err := init.MarshalSSZ()
+	if err != nil {
+		return nil, fmt.Errorf("failed marshiling init msg to ssz %v", err)
+	}
+
+	ts := &wire.Transport{
+		Type:       wire.InitMessageType,
+		Identifier: id,
+		Data:       sszinit,
+	}
+
+	tsssz, err := ts.MarshalSSZ()
+	if err != nil {
+		return nil, fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
+	}
+	c.Logger.Info("Round 1. Sending init message to operators")
+	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
+	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
+	if err != nil {
+		return nil, fmt.Errorf("error at processing init messages  %v", err)
+	}
+	return results, nil
+}
+
+func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
+	c.Logger.Info("Round 1. Exchange round received from all operators, creating combined message and verifying signatures")
+	mltpl, err := c.makeMultiple(id, exchangeMsgs)
+	if err != nil {
+		return nil, err
+	}
+	mltplbyts, err := mltpl.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Info("Round 1. Send exchange response combined message to operators / receive kyber deal messages")
+	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts)
+	if err != nil {
+		return nil, fmt.Errorf("error at processing exchange messages  %v", err)
+	}
+	return results, nil
+}
+
+func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
+	mltpl2, err := c.makeMultiple(id, kyberDeals)
+	if err != nil {
+		return nil, err
+	}
+
+	mltpl2byts, err := mltpl2.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Infof("Round 2. Exchange phase finished, sending kyber deal messages")
+	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
+	if err != nil {
+		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)
+	}
+	return responseResult, nil
+}
+
+func (c *Client) NewID() [24]byte {
+	var id [24]byte
+	copy(id[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+	b := uuid.New() // random ID for each new DKG initiation
+	copy(id[8:], b[:])
+	return id
+}
+
+func (c *Client) VerifyPartialSigs(dkgResults []dkg.Result, sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
+	for _, resShare := range dkgResults {
+		if !sigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], data) {
+			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[resShare.DepositPartialSignatureIndex].Serialize(), data)
+		}
+	}
+	return nil
+}
+
+func (c *Client) RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicKey, error) {
+	validatorRecoveredPK := bls.PublicKey{}
+	idVec := make([]bls.ID, 0)
+	pkVec := make([]bls.PublicKey, 0)
+	for operatorID, pk := range sharePks {
+		blsID := bls.ID{}
+		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
+			return nil, err
+		}
+		idVec = append(idVec, blsID)
+		pkVec = append(pkVec, *pk)
+	}
+	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
+		return nil, fmt.Errorf("error recovering validator pub key from shares")
+	}
+	return &validatorRecoveredPK, nil
+}
+func (c *Client) RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign, threshold uint64) (*bls.Sign, error) {
+	reconstructedDepositMasterSig := bls.Sign{}
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	for operatorID, sig := range sigDepositShares {
+		blsID := bls.ID{}
+		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
+			return nil, err
+		}
+		idVec = append(idVec, blsID)
+		sigVec = append(sigVec, *sig)
+
+		if len(sigVec) >= int(threshold) {
+			break
+		}
+	}
+	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
+		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
+	}
+	return &reconstructedDepositMasterSig, nil
 }

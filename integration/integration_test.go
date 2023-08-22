@@ -58,7 +58,7 @@ func TestEverything(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, true)
 
 	require.NoError(t, err)
 
