@@ -3,9 +3,11 @@ package client_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,21 +44,21 @@ const exmaplePath = "../../examples/"
 func CreateTestServer(t *testing.T, id uint64) *test_server.Server {
 	pk, err := load.PrivateKey(exmaplePath + "server" + fmt.Sprintf("%v", id) + "/key")
 	require.NoError(t, err)
-	srv := test_server.New(pk, false)
+	srv := test_server.New(pk, nil)
 	return srv
 }
 
 func CreateTestServerRandomKey(t *testing.T, id uint64) *test_server.Server {
 	priv, _, err := crypto.GenerateKeys()
 	require.NoError(t, err)
-	srv := test_server.New(priv, false)
+	srv := test_server.New(priv, nil)
 	return srv
 }
 
-func CreateEveTestServer(t *testing.T, id uint64) *test_server.Server {
+func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_server.Server {
 	pk, err := load.PrivateKey(exmaplePath + "server" + fmt.Sprintf("%v", id) + "/key")
 	require.NoError(t, err)
-	srv := test_server.New(pk, true)
+	srv := test_server.New(pk, eveCase)
 	return srv
 }
 
@@ -144,7 +146,99 @@ func TestWrongPartialSignatures(t *testing.T) {
 
 	logger.Infof("Starting intg test")
 
-	srv1 := CreateEveTestServer(t, 1)
+	eveMsg := dkg.EveTest{
+		WrongPartialSig: "0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4",
+	}
+
+	srv1 := CreateEveTestServer(t, 1, &eveMsg)
+	srv2 := CreateTestServer(t, 2)
+	srv3 := CreateTestServer(t, 3)
+	srv4 := CreateTestServer(t, 4)
+
+	logger.Infof("Servers created")
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		return srv1.Start(3030)
+	})
+	eg.Go(func() error {
+		return srv2.Start(3031)
+	})
+	eg.Go(func() error {
+		return srv3.Start(3032)
+	})
+	eg.Go(func() error {
+		return srv4.Start(3033)
+	})
+
+	logger.Infof("Servers Started")
+
+	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+	require.NoError(t, err)
+
+	clnt := client.New(opmap)
+
+	logger.Infof("Client created")
+	logger.Infof("Client Starting dkg")
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	require.Error(t, err)
+	t.Log(err)
+}
+
+func TestWrongID(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
+
+	logger.Infof("Starting intg test")
+
+	eveMsg := dkg.EveTest{
+		WrongID: "0x0000000000000000630ab8af69364a6db7b6d7d59bb60f23",
+	}
+
+	srv1 := CreateEveTestServer(t, 1, &eveMsg)
+	srv2 := CreateTestServer(t, 2)
+	srv3 := CreateTestServer(t, 3)
+	srv4 := CreateTestServer(t, 4)
+
+	logger.Infof("Servers created")
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		return srv1.Start(3030)
+	})
+	eg.Go(func() error {
+		return srv2.Start(3031)
+	})
+	eg.Go(func() error {
+		return srv3.Start(3032)
+	})
+	eg.Go(func() error {
+		return srv4.Start(3033)
+	})
+
+	logger.Infof("Servers Started")
+
+	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+	require.NoError(t, err)
+
+	clnt := client.New(opmap)
+
+	logger.Infof("Client created")
+	logger.Infof("Client Starting dkg")
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	require.Error(t, err)
+	t.Log(err)
+}
+
+func TestOperatorTimeout(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
+
+	logger.Infof("Starting intg test")
+
+	eveMsg := dkg.EveTest{
+		Timeout: time.Second * 30,
+	}
+
+	srv1 := CreateEveTestServer(t, 1, &eveMsg)
 	srv2 := CreateTestServer(t, 2)
 	srv3 := CreateTestServer(t, 3)
 	srv4 := CreateTestServer(t, 4)

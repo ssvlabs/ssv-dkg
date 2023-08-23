@@ -23,7 +23,7 @@ var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
 type Instance interface {
-	Process(uint64, *wire.SignedTransport, bool) error // maybe return resp, threadsafe
+	Process(uint64, *wire.SignedTransport, *dkg.EveTest) error // maybe return resp, threadsafe
 	ReadResponse() []byte
 	ReadError() error
 }
@@ -252,7 +252,7 @@ func (s *Switch) cleanInstances() int {
 	return count
 }
 
-func (s *Switch) ProcessMessage(dkgMsg []byte, eve bool) ([]byte, error) {
+func (s *Switch) ProcessMessage(dkgMsg []byte, eve *dkg.EveTest) ([]byte, error) {
 	// get instanceID
 	st := &wire.MultipleSignedTransports{}
 	err := st.UnmarshalSSZ(dkgMsg)

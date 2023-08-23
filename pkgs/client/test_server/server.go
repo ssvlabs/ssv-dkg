@@ -11,6 +11,7 @@ import (
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +37,7 @@ func (msg *KeySign) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
 }
 
-func RegisterRoutes(s *Server, eve bool) {
+func RegisterRoutes(s *Server, eve *dkg.EveTest) {
 	s.Router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 		s.Logger.Info("Received init msg")
 		rawdata, _ := io.ReadAll(request.Body)
@@ -86,7 +87,7 @@ func RegisterRoutes(s *Server, eve bool) {
 	})
 }
 
-func New(key *rsa.PrivateKey, eve bool) *Server {
+func New(key *rsa.PrivateKey, eve *dkg.EveTest) *Server {
 	r := chi.NewRouter()
 	swtch := NewSwitch(key)
 	lg := logrus.New()

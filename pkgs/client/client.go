@@ -355,7 +355,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 	c.Logger.Infof("Round 2. Finished successfuly. Got DKG results")
 
-	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(dkgResult)
+	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(dkgResult, id)
 	if err != nil {
 		return err
 	}
@@ -692,7 +692,7 @@ func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager
 	return sig.Verify(signingRoot[:], pubkey), nil
 }
 
-func (c *Client) processDKGResultResponse(responseResult [][]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
+func (c *Client) processDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
 	dkgResults := make([]dkg.Result, 0)
 	validatorPubKey := bls.PublicKey{}
 	sharePks := make(map[ssvspec_types.OperatorID]*bls.PublicKey)
@@ -719,6 +719,10 @@ func (c *Client) processDKGResultResponse(responseResult [][]byte) ([]dkg.Result
 		result := &dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
 			return nil, nil, nil, nil, nil, err
+		}
+		// If incoming result is with wrong ID, bail
+		if !bytes.Equal(result.RequestID[:], id[:]) {
+			return nil, nil, nil, nil, nil, fmt.Errorf("DKG result has wrong ID")
 		}
 		dkgResults = append(dkgResults, *result)
 		if err := validatorPubKey.Deserialize(result.ValidatorPubKey); err != nil {

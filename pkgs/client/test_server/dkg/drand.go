@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
@@ -13,6 +14,7 @@ import (
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
@@ -24,6 +26,12 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
+
+type EveTest struct {
+	WrongPartialSig string
+	Timeout         time.Duration
+	WrongID         string
+}
 
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
@@ -136,7 +144,7 @@ func New(opts OwnerOpts) *LocalOwner {
 	return owner
 }
 
-func (o *LocalOwner) StartDKG(eve bool) error {
+func (o *LocalOwner) StartDKG(eve *EveTest) error {
 	o.Logger.Infof("Starting DKG")
 	nodes := make([]dkg.Node, 0)
 	for id, e := range o.Exchanges {
@@ -166,7 +174,7 @@ func (o *LocalOwner) StartDKG(eve bool) error {
 		return err
 	}
 
-	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult, eve bool) error, eve bool) {
+	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult, eve *EveTest) error, eve *EveTest) {
 		res := <-p.WaitEnd()
 		postF(&res, eve)
 	}(p, o.PostDKG, eve)
@@ -201,7 +209,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	return o.BroadcastF(final)
 }
 
-func (o *LocalOwner) PostDKG(res *dkg.OptionResult, eve bool) error {
+func (o *LocalOwner) PostDKG(res *dkg.OptionResult, eve *EveTest) error {
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
 	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
@@ -267,8 +275,16 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult, eve bool) error {
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
-	if eve {
-		depositRootSig.SetHexString("0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4")
+	if eve != nil {
+		switch {
+		case eve.WrongPartialSig != "":
+			depositRootSig.SetHexString(eve.WrongPartialSig)
+		case eve.Timeout != 0:
+			time.Sleep(eve.Timeout)
+		case eve.WrongID != "":
+			copy(o.data.ReqID[:], hexutil.MustDecode(eve.WrongID))
+		}
+
 	}
 	out := Result{
 		RequestID:                    o.data.ReqID,
@@ -389,7 +405,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	return nil
 }
 
-func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport, eve bool) error {
+func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport, eve *EveTest) error {
 
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
