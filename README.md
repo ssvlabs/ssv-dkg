@@ -9,7 +9,7 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 ### Build
 
 ```sh
-go build cmd/dkgtool/dkgtool.go
+ go build cmd/dkgcli/dkgcli.go
 ```
 
 ### Server
@@ -21,7 +21,7 @@ Whenever the server receives a message it directs it to the right instance by th
 Start a DKG server
 
 ```sh
-./dkgtool start-dkg-server --privKey ./examples/server1/key  --port 3030
+./dkgcli start-dkg-server --privKey ./examples/server1/key  --port 3030
 
 ### where
 --privKey ./examples/server1/key # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
@@ -33,7 +33,7 @@ Start a DKG server
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
 
 ```sh
-./dkgtool init-dkg \
+./dkgcli init-dkg \
           --operatorIDs 1,2,3,4 \
           --operatorsInfoPath ./examples/operators_integration.csv \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
