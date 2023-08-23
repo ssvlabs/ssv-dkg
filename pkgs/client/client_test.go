@@ -97,7 +97,7 @@ func TestHappyFlow(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.NoError(t, err)
 
 }
@@ -137,7 +137,7 @@ func TestWrongServerKey(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.Error(t, err)
 }
 
@@ -180,7 +180,7 @@ func TestWrongPartialSignatures(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.Error(t, err)
 	t.Log(err)
 }
@@ -224,7 +224,7 @@ func TestWrongID(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.Error(t, err)
 	t.Log(err)
 }
@@ -268,7 +268,7 @@ func TestOperatorTimeout(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.Error(t, err)
 }
 
@@ -276,6 +276,6 @@ func TestWrongThreshold(t *testing.T) {
 	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 	require.NoError(t, err)
 	clnt := client.New(opmap)
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", [20]byte(common.HexToAddress("0x0000000000000000000000000000000000000007").Bytes()), 0, false)
+	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
 	require.Error(t, err)
 }

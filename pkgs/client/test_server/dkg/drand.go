@@ -14,6 +14,7 @@ import (
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -108,7 +109,7 @@ type LocalOwner struct {
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
 
-	Owner [20]byte
+	Owner common.Address
 	Nonce uint64
 	done  chan struct{}
 }
@@ -259,7 +260,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult, eve *EveTest) error {
 		return fmt.Errorf("partial deposit root signature isnt valid %x", depositRootSig.Serialize())
 	}
 	// Sign SSV owner + nonce
-	data := []byte(fmt.Sprintf("%s:%d", o.Owner, o.Nonce))
+	data := []byte(fmt.Sprintf("%s:%d", o.Owner.String(), o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	o.Logger.Debugf("Owner, Nonce  %x, %d", o.Owner, o.Nonce)
 	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)

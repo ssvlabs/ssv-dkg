@@ -15,6 +15,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -303,7 +304,7 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner [20]byte, nonce uint64, saveResult bool) error {
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64, saveResult bool) error {
 	// threshold cant be more than number of operators
 	if threshold == 0 || threshold > uint64(len(ids)) {
 		return fmt.Errorf("wrong threshold")
@@ -445,7 +446,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
-	data := []byte(fmt.Sprintf("%s:%d", init.Owner, init.Nonce))
+	data := []byte(fmt.Sprintf("%s:%d", init.Owner.String(), init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	c.Logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
 	c.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
@@ -462,7 +463,10 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if !reconstructedOwnerNonceMasterSig.VerifyByte(validatorPubKey, hash) {
 		return fmt.Errorf("owner + nonce signature recovered from shares is invalid")
 	}
-
+	err = crypto.VerifyOwnerNoceSignature(reconstructedOwnerNonceMasterSig.Serialize(), init.Owner, validatorPubKey.Serialize(), uint16(init.Nonce))
+	if err != nil {
+		return err
+	}
 	keyshares := &KeyShares{}
 	if err := keyshares.GeneratePayloadV4(dkgResults, reconstructedOwnerNonceMasterSig.GetHexString()); err != nil {
 		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)

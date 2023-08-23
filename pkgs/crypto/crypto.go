@@ -8,10 +8,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 
 	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
+	"github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 )
@@ -117,4 +120,25 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	)
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
+}
+
+func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
+	data := fmt.Sprintf("%s:%d", owner.String(), nonce)
+	hash := eth_crypto.Keccak256([]byte(data))
+
+	sign := &bls.Sign{}
+	if err := sign.Deserialize(sig); err != nil {
+		return fmt.Errorf("failed to deserialize signature: %w", err)
+	}
+
+	pk := &bls.PublicKey{}
+	if err := pk.Deserialize(pubKey); err != nil {
+		return fmt.Errorf("failed to deserialize public key: %w", err)
+	}
+
+	if res := sign.VerifyByte(pk, hash); !res {
+		return errors.New("failed to verify signature")
+	}
+
+	return nil
 }

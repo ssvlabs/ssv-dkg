@@ -88,7 +88,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		err = dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, [20]byte(common.HexToAddress(owner).Bytes()), nonce, true)
+		err = dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, common.HexToAddress(owner), nonce, true)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
