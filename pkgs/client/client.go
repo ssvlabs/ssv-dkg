@@ -116,19 +116,20 @@ type DepositDataJson struct {
 
 type KeyShares struct {
 	Version   string           `json:"version"`
-	Data      KeySharesData    `json:"data"`
+	Data      Data             `json:"data"`
 	Payload   KeySharesPayload `json:"payload"`
 	CreatedAt time.Time        `json:"createdAt"`
 }
 
-type KeySharesData struct {
+type Data struct {
 	PublicKey string         `json:"publicKey"`
 	Operators []OperatorData `json:"operators"`
+	Shares    KeySharesKeys  `json:"shares"`
 }
 
 type OperatorData struct {
-	ID          uint32 `json:"id"`
-	OperatorKey string `json:"operatorKey"`
+	ID        uint32 `json:"id"`
+	PublicKey string `json:"publicKey"`
 }
 
 type KeySharesKeys struct {
@@ -138,6 +139,7 @@ type KeySharesKeys struct {
 
 type KeySharesPayload struct {
 	Readable ReadablePayload `json:"readable"`
+	Raw      string          `json:"raw"`
 }
 
 type ReadablePayload struct {
@@ -148,7 +150,7 @@ type ReadablePayload struct {
 	Cluster     string   `json:"cluster"`
 }
 
-func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) error {
+func (ks *KeyShares) GeneratePayload(result []dkg.Result, ownerPrefix string) error {
 	shares := KeySharesKeys{
 		PublicKeys:    make([]string, 0),
 		EncryptedKeys: make([]string, 0),
@@ -156,9 +158,13 @@ func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) 
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint32, 0)
 	for _, operatorResult := range result {
+		encPubKey, err := crypto.EncodePublicKey(operatorResult.PubKeyRSA)
+		if err != nil {
+			return err
+		}
 		operatorData = append(operatorData, OperatorData{
-			ID:          operatorResult.OperatorID,
-			OperatorKey: operatorResult.PubKeyRSA.N.String(),
+			ID:        operatorResult.OperatorID,
+			PublicKey: string(encPubKey),
 		})
 		operatorIds = append(operatorIds, operatorResult.OperatorID)
 		shares.PublicKeys = append(shares.PublicKeys, "0x"+hex.EncodeToString(operatorResult.SharePubKey))
@@ -173,9 +179,10 @@ func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) 
 		return operatorData[i].ID < operatorData[j].ID
 	})
 
-	data := KeySharesData{
+	data := Data{
 		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		Operators: operatorData,
+		Shares:    shares,
 	}
 
 	payload := KeySharesPayload{
@@ -188,7 +195,7 @@ func (ks *KeyShares) GeneratePayloadV4(result []dkg.Result, ownerPrefix string) 
 		},
 	}
 
-	ks.Version = "v4"
+	ks.Version = "v3"
 	ks.Data = data
 	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
@@ -468,7 +475,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return err
 	}
 	keyshares := &KeyShares{}
-	if err := keyshares.GeneratePayloadV4(dkgResults, reconstructedOwnerNonceMasterSig.GetHexString()); err != nil {
+	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.SerializeToHexStr()); err != nil {
 		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
 	if saveResult {
