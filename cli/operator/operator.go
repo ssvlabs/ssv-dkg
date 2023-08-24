@@ -10,8 +10,16 @@ import (
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
+
+func init() {
+	flags.OperatorPrivateKeyFlag(StartDKGServer)
+	flags.OperatorPortFlag(StartDKGServer)
+	viper.BindPFlag("privKey", StartDKGServer.PersistentFlags().Lookup("privKey"))
+	viper.BindPFlag("port", StartDKGServer.PersistentFlags().Lookup("port"))
+}
 
 var StartDKGServer = &cobra.Command{
 	Use:   "start-dkg-server",
@@ -28,8 +36,16 @@ var StartDKGServer = &cobra.Command{
 			log.Fatal(err)
 		}
 		logger := zap.L().Named(cmd.Short)
-		privKeyPath, err := flags.GetOperatorPrivateKeyFlagValue(cmd)
+
+		viper.SetConfigName("operator")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath("./config")
+		err := viper.ReadInConfig()
 		if err != nil {
+			logger.Fatal("fatal error config file")
+		}
+		privKeyPath := viper.GetString("privKey")
+		if privKeyPath == "" {
 			logger.Fatal("failed to get operator private key flag value", zap.Error(err))
 		}
 		// Load and decode the private key
@@ -41,8 +57,8 @@ var StartDKGServer = &cobra.Command{
 
 		srv := server.New(privateKey)
 
-		port, err := flags.GetOperatorPortFlagValue(cmd)
-		if err != nil {
+		port := viper.GetUint64("port")
+		if port == 0 {
 			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
 		}
 		logger.Info("Starting DKG instance at", zap.Uint64("port", port))
@@ -50,9 +66,4 @@ var StartDKGServer = &cobra.Command{
 			log.Fatalf("Error in server %v", err)
 		}
 	},
-}
-
-func init() {
-	flags.OperatorPrivateKeyFlag(StartDKGServer)
-	flags.OperatorPortFlag(StartDKGServer)
 }

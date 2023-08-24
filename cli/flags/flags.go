@@ -8,20 +8,20 @@ import (
 
 // Flag names.
 const (
-	threshold         = "threshold"
-	withdrawPublicKey = "withdrawPublicKey"
-	operatorIDs       = "operatorIDs"
-	operatorsInfo     = "operatorsInfoPath"
-	operatorPrivKey   = "privKey"
-	operatorPort      = "port"
-	owner             = "owner"
-	nonce             = "nonce"
-	fork              = "fork"
+	threshold       = "threshold"
+	withdrawAddress = "withdrawAddress"
+	operatorIDs     = "operatorIDs"
+	operatorsInfo   = "operatorsInfoPath"
+	operatorPrivKey = "privKey"
+	operatorPort    = "port"
+	owner           = "owner"
+	nonce           = "nonce"
+	fork            = "fork"
 )
 
 // ThresholdFlag adds threshold flag to the command
 func ThresholdFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, threshold, 3, "Threshold for distributed signature", true)
+	AddPersistentIntFlag(c, threshold, 0, "Threshold for distributed signature", false)
 }
 
 // GetThresholdFlagValue gets threshold flag from the command
@@ -31,17 +31,17 @@ func GetThresholdFlagValue(c *cobra.Command) (uint64, error) {
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, withdrawPublicKey, "", "Withdrawal public key", true)
+	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", false)
 }
 
 // GetWithdrawAddressFlagValue gets withdraw address flag from the command
 func GetWithdrawAddressFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(withdrawPublicKey)
+	return c.Flags().GetString(withdrawAddress)
 }
 
 // operatorIDsFlag adds operators IDs flag to the command
 func OperatorIDsFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, operatorIDs, []string{"1", "2", "3"}, "Operator IDs", true)
+	AddPersistentStringSliceFlag(c, operatorIDs, []string{"1", "2", "3"}, "Operator IDs", false)
 }
 
 // GetThresholdFlagValue gets operators IDs flag from the command
@@ -51,7 +51,7 @@ func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", true)
+	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", false)
 }
 
 // GetOperatorsInfoFlagValue gets path to operators' ifo file flag from the command
@@ -61,7 +61,7 @@ func GetOperatorsInfoFlagValue(c *cobra.Command) (string, error) {
 
 // OwnerAddressFlag  adds owner address flag to the command
 func OwnerAddressFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, owner, "", "Owner address", true)
+	AddPersistentStringFlag(c, owner, "", "Owner address", false)
 }
 
 // GetOwnerAddressFlagValue gets owner address flag from the command
@@ -71,7 +71,7 @@ func GetOwnerAddressFlagValue(c *cobra.Command) (string, error) {
 
 // NonceFlag  owner nonce flag to the command
 func NonceFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", true)
+	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", false)
 }
 
 // GetNonceFlagValue gets owner nonce flag from the command
@@ -81,7 +81,7 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 
 // ForkVersionFlag  adds the fork version of the network flag to the command
 func ForkVersionFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, fork, "", "Fork version", true)
+	AddPersistentStringFlag(c, fork, "", "Fork version", false)
 }
 
 // GetForkVersionFlagValue gets the fork version of the network flag from the command
