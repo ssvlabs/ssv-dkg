@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
@@ -231,12 +233,25 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
 	secretKeyBLSindex := res.Result.Key.Share.I + 1
 	// Encrypt BLS share for SSV contract
-	encryptedShare, err := crypto.Encrypt(&o.OpPrivKey.PublicKey, []byte("0x"+secretKeyBLS.GetHexString()))
+	rawshare := secretKeyBLS.SerializeToHexStr()
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(rawshare))
+	if err != nil {
+		o.broadcastError(err)
+		return errors.New("cant encrypt share")
+	}
+	// check that we encrypt right
+	shareSecret := &bls.SecretKey{}
+	decryptedSharePrivateKey, err := rsaencryption.DecodeKey(o.OpPrivKey, ciphertext)
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debugf("Encrypted share %x", encryptedShare)
+	if err = shareSecret.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+		o.broadcastError(err)
+		return err
+	}
+
+	o.Logger.Debugf("Encrypted share %x", ciphertext)
 	o.Logger.Debugf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
 	o.Logger.Debugf("Fork Version %x", o.data.init.Fork)
 	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
@@ -269,7 +284,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
 	out := Result{
 		RequestID:                    o.data.ReqID,
-		EncryptedShare:               encryptedShare,
+		EncryptedShare:               ciphertext,
 		SharePubKey:                  secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:              validatorPubKey.Serialize(),
 		DepositPartialSignature:      depositRootSig.Serialize(),

@@ -31,6 +31,9 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
 
+// b64 encrypted key length is 256
+const encryptedKeyLength = 256
+
 // Client will send messages to DKG servers, collect responses and redirects messages to them.
 
 /*
@@ -150,14 +153,20 @@ type ReadablePayload struct {
 	Cluster     string   `json:"cluster"`
 }
 
-func (ks *KeyShares) GeneratePayload(result []dkg.Result, ownerPrefix string) error {
+func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) error {
 	shares := KeySharesKeys{
 		PublicKeys:    make([]string, 0),
 		EncryptedKeys: make([]string, 0),
 	}
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint32, 0)
+	var pubkeys []byte
+	var encryptedShares []byte
 	for _, operatorResult := range result {
+		// Data for forming share string
+		pubkeys = append(pubkeys, operatorResult.SharePubKey...)
+		encryptedShares = append(encryptedShares, operatorResult.EncryptedShare...)
+
 		encPubKey, err := crypto.EncodePublicKey(operatorResult.PubKeyRSA)
 		if err != nil {
 			return err
@@ -184,12 +193,24 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, ownerPrefix string) er
 		Operators: operatorData,
 		Shares:    shares,
 	}
+	// Create share string for ssv contract
+	sharesData := append(pubkeys, encryptedShares...)
+	sharesDataSigned := append(sigOwnerNonce, sharesData...)
+
+	operatorCount := len(result)
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
+	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+
+	if sharesExpectedLength != len(sharesDataSigned) {
+		return fmt.Errorf("malformed ssv share data")
+	}
 
 	payload := KeySharesPayload{
 		Readable: ReadablePayload{
 			PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 			OperatorIDs: operatorIds,
-			Shares:      sharesToBytes(shares.PublicKeys, shares.EncryptedKeys, ownerPrefix),
+			Shares:      "0x" + hex.EncodeToString(sharesDataSigned),
 			Amount:      "Amount of SSV tokens to be deposited to your validator's cluster balance (mandatory only for 1st validator in a cluster)",
 			Cluster:     "The latest cluster snapshot data, obtained using the cluster-scanner tool. If this is the cluster's 1st validator then use - {0,0,0,0,0,false}",
 		},
@@ -475,7 +496,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return err
 	}
 	keyshares := &KeyShares{}
-	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.SerializeToHexStr()); err != nil {
+	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize()); err != nil {
 		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
 	if saveResult {
