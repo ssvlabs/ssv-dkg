@@ -72,7 +72,8 @@ var StartDKGServer = &cobra.Command{
 		if port == 0 {
 			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
 		}
-		logger.Info("Starting DKG instance at", zap.Uint64("port", port))
+		pubKey, err := crypto.EncodePublicKey(&privateKey.PublicKey)
+		logger.Info("Starting DKG instance at ", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
 		if err := srv.Start(uint16(port)); err != nil {
 			log.Fatalf("Error in server %v", err)
 		}

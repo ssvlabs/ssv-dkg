@@ -1,0 +1,3 @@
+privKey: ./encrypted_private_key.json
+password: 12345678
+port: 3031
