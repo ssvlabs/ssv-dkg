@@ -7,7 +7,23 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 )
+
+func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	privateKey, err := crypto.ConvertEncryptedPemToPrivateKey(data, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey, nil
+}
 
 func PrivateKey(path string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)

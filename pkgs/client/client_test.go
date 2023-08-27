@@ -16,25 +16,27 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// TODO: use mocks instead of servers
+
 const operatorsMetaData = `[
 	{
 	  "id": 1,
-	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBMUFNUGUxaDd0UzJXUU1nTUVHKysKOEVVS3Z0NTFkd1E1bnlkNGd5TlEvampsZDRvRjRyS25nZTExQTNOcmVLT1hSR0dobmpueWpSU2JhM3AraDNMVwpWZHJzS2FJd051bU5yNzNiN01iZjVSL0IxOWo0MnZvZFJMeEFpcXE0My9XTXhYWjdVL3ZuQ1RRMUVTckVyOC9sCmpNMm9qY2lXb3F0WG55SENNYVRqQ1dHRWFBelRTditMOTVIOS9nZmVBcEtJa1NUbUNxUXdUQ2FzTnB4d3g3SU8KUnZuUFkrYWFMcjFVNi83M1BtTU9MVE0ySkpveEEwQTdJNSt4enExYjZwb2R3bCtpZ1FkQ2hKNTJYVWZaVkJreApQM2owc1lhU243c1JoT0VZRk1CWHJjRTh4bnpvc0Zmc0xBeCtjQTRsbEgzU3dad2p4azRaenVCOHJoQUw2enJ3Cm5RSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
+	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdkFXRFppc1d4TUV5MGNwdjhoanAKQThDMWNYZ3VseHkyK0tDNldpWGo3NThuMjl4b1NsNHV1SjgwQ2NqQXJqbGQrWkNEWmxvSlhtMk51L0FFOFRaMgpQRW1UZFcxcGp5TmV1N2RDUWtGTHF3b3JGZ1AzVWdxczdQSEpqSE1mOUtTb1Y0eUxlbkxwYlR0L2tEczJ1Y1c3CnUrY3hvZFJ4d01RZHZiN29mT0FhbVhxR1haZ0NhNHNvdHZmSW9RS1dDaW9MczcvUkM3dHJrUGJONW4rbHQyZWEKd1J1SFRTTlNZcEdmbi9ud0FROHVDaW55SnNQV0Q0NUhldG9GekNKSlBnNjYzVzE1K1VsWU9tQVJCcWtaSVBISAp5V25ORjZTS2tRalI2MDJwQ3RXTkZRMi9wUVFqblJXbUkrU2FjMHhXRVQ3UUlsVmYxSGZ2NWRnWE9OT05hTTlFClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 	  "ip": "http://localhost:3030"
 	},
 	{
 	  "id": 2,
-	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdThmeS9Ia2VwZW5kYmVYRzl6c0sKUk9XRG9ZUnY0MFBmdHc2TnhCQ1phYzlsRGxHcFpmdHoxMjM1Q3BKc0RsUjYwNWpGTmFCdzZQN1JBNjhJZVhhbApqU2ZwcTFkQU1CZXpoNG93NmcwYkIrcVpJc1JMdHhUUnV2SGM5clUwLzBVQmJSYVhwc0poZHYwL2syU0RzeHRmCm9ZMEJ1Q2RQK2pYc1RCWlh0TUl6NVl0MmZYU3lWSG1zZElzeEFkN04zR0xWcVR0NmVCUXFiOHRXMnVqU0h0MGwKeENyQkw1eFp1bkZpWFJmVElGVGN5bjU2L0llSU50OVdyQXZXdmdKd2F5VUtLVnpycWJxVVp2SUVPdG9DMUVuRgplMVJRdXhVR1BYN21vMnc0QlZvYWRqcTJPVzFBYWxlQ1ppV2hERU8xT2ZwUXV0cDYrL0dqZHR2eGFSdEdjUFgwClZ3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
+	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdnRVRWFlallqY3pBUWhnSTQ0S3cKcGZYZjhCNk1ZUjhOMzFmRVFLRGRDVmo5dUNPcHVybzYzSDdxWXNzMzVGaVdxNmRwMjR3M0dCRTAzR1llU1BSZgowTEVBVEJkYlhCVkY3WGR6ei9sV2UrblJNRG1Xdm1DTUZjRlRPRU5FYmhuTXVjOEQ1K3ZFTmo5cTQzbE4vejhqCmE2T2M4S2tEL2E4SW02Nm54ZkRhMjFyMzNaSW9GL1g5d0g2K25EN3Jockx5bzJub1lxaVJpT1NTTkp2R25UY08KazBmckk4b2xFNjR1clhxWXFLN2ZicXNaN082NnphN2ROTmc3MW1EWHlpdDlSTUlyR3lSME5xN0FUSkxwbytoTApEcldoY0h4M0NWb1dQZzNuR2phN0duVFhXU2FWb1JPSnBRVU9oYXgxNVJnZ2FBOHpodGgyOUorNnNNY2R6ZitQCkZ3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 	  "ip": "http://localhost:3031"
 	},
 	{
 	  "id": 3,
-	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFlkU1B5b1ZwaVlCaytKaTd5TGYKdTlqcHRITWpqOEIxV2tqUjM4eFpZUTRPQXhWOEY0aSt0YTlGQ1JWK1p4QklGU2tPTWJZRTJ4QkJ3dkEwTVMzZQpQblBHWElqS2lxVlYzT1B5QWF3UC9Ia2FoSktwNmltRldlVGh1aXJoMnpEYnRsblpRY0lNUUhEeEhJTnhmVVFqCndjMVY5aHpsYWZkVUgvanAzQTVNaUFFSHlEcWRUeUZzc2tKRHdoaXNlZ0lCVnhpU0xqS2YvVXA2QytnWjhjYzUKTjdkbllmMGpHRnNDR2xQUVlvZHZzTGlvbDFvSzVZTXlOUVhLbFhSY1hSR1UzYlNVWDdGMGtDS2U2RFNwQkRDRwp1UW9Qck16UmJBRGpUY0lKTHVxOWlvOXJXQXdxQVhMNTd5YnpkRk9mUkpYMkZ3bzk1RWJObVhzblFHeHk4ZWpLCjN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
+	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdlFhZlo0ODJQYXRsYnRrOVdIb2MKZDBWdWNWWDk4QUlzenAvazlFTlYyQU82SVhQUXVqU1BtdUZrQTlibThsSllnWTJPb0lQU0RmK1JHWGNMc2R0VApzdEJhQ2JPL0pMOFlSejk4NURKejhBRlhDU0J3bW5mbzROSFptUjJGMVdMTE5CS2wzdVQ5Q1VLbC9RUnpKRFF1CjNNYVJ6eE5FVmdONWtvU1Nid0NxVDNDSCtjam5QU0pIeGhiaTNTaldOSnJFb3ZRUmN3ZUlpYXRrZEdVNWJOUkoKUW1LVldhYzhzVklYN2NDNE54V2RDNG1VM1RPK2Vlei90N2xVcnhSNjdnb21TbGdwaU5weFJ1M2dFajRkSWpINwpsZDlTYW1ObEJPeHV5N0lFMEJpdm5nSUdIKzVwcXZVTXhoM0N5WkVtMjFHd3JTRFhqcVpwWG92OEUwQkQ5eGY4ClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 	  "ip": "http://localhost:3032"
 	},
 	{
 	  "id": 4,
-	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBd0FJcEdQTUwvdGtoOWZmTWsrYk0KdlN6NVUvUWpRNjJJOEpKSGlYR0dEcGYveEZoaEt0UTQ0a1JrNGpjQURZb1IyWm96ZE13S0ExYjljeEdVRlRTMQpCL1Y0NzRBQnU0UW1xUUtXWVdid2VwakxmQml3dGZGQm9KWFBTWEZ0VGdaWnVTNFRXM0JodzJHbzRrRGNEQVlCCjZNdEl2RjFkcXJ0NjE2K2xDUlhkRzlCNVRTcmRyanBqNWx3QmxUam0rMEdUdDA0K210WVlFZlVrcmtnbGJxM1EKZ3ZoYTB3eVhnb2Q3c2xsMkJ5ZU8ydVlnTG5KbE9CK0Fxd3M3dThtcGdTa01TQk9DNGRKSUJXdmJ1SDZtUGVDRgo3Z0tGNFRqUm4yWEZFVFpDQVdCRENWSmRVMnV4ZVpvamMvd0dZUkxSanVCdnBveFF2Yjl3bjFLL3IvMzFSNWowCnNRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
+	  "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeFRWM2I5OHU4NmtzcEhQcWgrS2QKKzRHd0lSeEhwRHpEZjVlc3hjZytxaTlvbDRERmplUXMrbGloeUp5cGdOMXJwdTlQVnR5cXp2K3k5cEVNa0VXTgovYjBUQmdRMEp5TzdmNGliY1d5UUcrNGhVUS9XY3h1ZW5aUDA3S0VwTjh4Tk8xN3BzbmhRMXRqQVhybDNGN1lYCmlZdXl5Z0Rta2w0YjYrUDR6MjNhR01VSEtnTnJ5aFlZTFV4dWdycDVRTnJTV3lXNXFtb2EvYnJDenQ2RFJYb1UKU25JSkpSUVpPS2NnckdKMHVBYjJDRmtsL0xuaElxT2RZZ21aUG9oRmprVEorRnZNdkZsMjAwZ1BHbVpxUS9MMgpsM2ZBdmhZYlZRMlRVeUtmU2orYXZ1WUFZZnhKeG5OcWlmdkNkVGNmQzc3c0N0eFFERWVjY0pTVnVDbGZWeTFZCll3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 	  "ip": "http://localhost:3033"
 	}
   ]`
@@ -42,7 +44,7 @@ const operatorsMetaData = `[
 const exmaplePath = "../../examples/"
 
 func CreateTestServer(t *testing.T, id uint64) *test_server.Server {
-	pk, err := load.PrivateKey(exmaplePath + "server" + fmt.Sprintf("%v", id) + "/key")
+	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	srv := test_server.New(pk, nil)
 	return srv
@@ -56,7 +58,7 @@ func CreateTestServerRandomKey(t *testing.T, id uint64) *test_server.Server {
 }
 
 func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_server.Server {
-	pk, err := load.PrivateKey(exmaplePath + "server" + fmt.Sprintf("%v", id) + "/key")
+	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	srv := test_server.New(pk, eveCase)
 	return srv
@@ -76,16 +78,24 @@ func TestHappyFlow(t *testing.T) {
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {
-		return srv1.Start(3030)
+		err := srv1.Start(3030)
+		require.NoError(t, err)
+		return err
 	})
 	eg.Go(func() error {
-		return srv2.Start(3031)
+		err := srv2.Start(3031)
+		require.NoError(t, err)
+		return err
 	})
 	eg.Go(func() error {
-		return srv3.Start(3032)
+		err := srv3.Start(3032)
+		require.NoError(t, err)
+		return err
 	})
 	eg.Go(func() error {
-		return srv4.Start(3033)
+		err := srv4.Start(3033)
+		require.NoError(t, err)
+		return err
 	})
 
 	logger.Infof("Servers Started")
@@ -97,7 +107,7 @@ func TestHappyFlow(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.NoError(t, err)
 
 }
@@ -137,7 +147,7 @@ func TestWrongServerKey(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
 }
 
@@ -180,7 +190,7 @@ func TestWrongPartialSignatures(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
 	t.Log(err)
 }
@@ -224,7 +234,7 @@ func TestWrongID(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
 	t.Log(err)
 }
@@ -268,7 +278,7 @@ func TestOperatorTimeout(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
 }
 
@@ -276,6 +286,6 @@ func TestWrongThreshold(t *testing.T) {
 	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 	require.NoError(t, err)
 	clnt := client.New(opmap)
-	err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0, false)
+	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
 }

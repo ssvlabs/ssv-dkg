@@ -31,7 +31,6 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
 
@@ -164,6 +163,12 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 	}
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint64, 0)
+
+	// order the results by operatorID
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].OperatorID < result[j].OperatorID
+	})
+
 	var pubkeys []byte
 	var encryptedShares []byte
 	for _, operatorResult := range result {
@@ -183,14 +188,6 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 		shares.PublicKeys = append(shares.PublicKeys, "0x"+hex.EncodeToString(operatorResult.SharePubKey))
 		shares.EncryptedKeys = append(shares.EncryptedKeys, base64.StdEncoding.EncodeToString(operatorResult.EncryptedShare))
 	}
-
-	sort.SliceStable(operatorIds, func(i, j int) bool {
-		return operatorIds[i] < operatorIds[j]
-	})
-
-	sort.SliceStable(operatorData, func(i, j int) bool {
-		return operatorData[i].ID < operatorData[j].ID
-	})
 
 	data := Data{
 		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
@@ -301,6 +298,16 @@ func (c *Client) SendToAll(method string, msg []byte) ([][]byte, error) {
 	return final, finalerr
 }
 
+func parseAsError(msg []byte) (error, error) {
+	sszerr := &wire.ErrSSZ{}
+	err := sszerr.UnmarshalSSZ(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return errors.New(string(sszerr.Error)), nil
+}
+
 func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
 	// todo should we do any validation here? validate the number of msgs?
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
@@ -314,6 +321,11 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 		tsp := &wire.SignedTransport{}
 		// Unmarshalling should include sig validation
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
+			// try parsing an error
+			errmsg, parseErr := parseAsError(msg)
+			if parseErr == nil {
+				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
+			}
 			return nil, err
 		}
 		signedBytes, err := tsp.Message.MarshalSSZ()
@@ -336,20 +348,20 @@ func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64, saveResult bool) error {
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 	// threshold cant be more than number of operators
 	if threshold == 0 || threshold > uint64(len(ids)) {
-		return fmt.Errorf("wrong threshold")
+		return nil, nil, fmt.Errorf("wrong threshold")
 	}
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
 		op, ok := c.Operators[id]
 		if !ok {
-			return errors.New("op is not in list")
+			return nil, nil, errors.New("op is not in list")
 		}
 		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		parts = append(parts, &wire.Operator{
 			ID:     op.ID,
@@ -359,7 +371,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	// Add messages verification coming form operators
 	verify, err := c.CreateVerifyFunc(parts)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	c.VerifyFunc = verify
 
@@ -376,21 +388,21 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	id := c.NewID()
 	results, err := c.SendInitMsg(init, id)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	results, err = c.SendExchangeMsgs(results, id)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	dkgResult, err := c.SendKyberMsgs(results, id)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	c.Logger.Infof("Round 2. Finished successfuly. Got DKG results")
 
 	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(dkgResult, id)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
@@ -400,45 +412,45 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 
 	shareRoot, err := DepositDataRoot(init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	// Verify partial signatures and recovered threshold signature
 	err = c.VerifyPartialSigs(dkgResults, sigDepositShares, sharePks, shareRoot)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
 	validatorRecoveredPK, err := c.RecoverValidatorPublicKey(sharePks)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	if !bytes.Equal(validatorPubKey.Serialize(), validatorRecoveredPK.Serialize()) {
-		return fmt.Errorf("incoming validator pub key isnt equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
+		return nil, nil, fmt.Errorf("incoming validator pub key isnt equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
 
 	// 2. Recover master signature from shares
 	reconstructedDepositMasterSig, err := c.RecoverMasterSig(sigDepositShares, init.T)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if !reconstructedDepositMasterSig.VerifyByte(validatorPubKey, shareRoot) {
-		return fmt.Errorf("deposit root signature recovered from shares is invalid")
+		return nil, nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 
 	depositData, root, err := DepositData(reconstructedDepositMasterSig.Serialize(), init.WithdrawalCredentials, validatorPubKey.Serialize(), getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	// Verify deposit data
 	depositVerRes, err := VerifyDepositData(depositData, getNetworkByFork(init.Fork))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if !depositVerRes {
-		return fmt.Errorf("deposit data is invalid")
+		return nil, nil, fmt.Errorf("deposit data is invalid")
 	}
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
@@ -448,15 +460,15 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	depositMsgRoot, _ := depositMsg.HashTreeRoot()
 	// Final checks of prepared deposit data
 	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
-		return fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
+		return nil, nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
 	}
 	if !bytes.Equal(depositData.WithdrawalCredentials, withdrawalCredentialsHash(init.WithdrawalCredentials)) {
-		return fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
+		return nil, nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
 	}
 	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
-		return fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
+		return nil, nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
-	depositDataJson := DepositDataJson{
+	depositDataJson := &DepositDataJson{
 		PubKey:                hex.EncodeToString(validatorPubKey.Serialize()),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
 		Amount:                MaxEffectiveBalanceInGwei,
@@ -467,15 +479,6 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		NetworkName:           forkName,
 		DepositCliVersion:     "2.5.0",
 	}
-	// Save deposit file
-	if saveResult {
-		filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
-		c.Logger.Infof("DKG finished. All data is validated. Writing deposit data json to file %s\n", filepath)
-		err = utils.WriteJSON(filepath, []DepositDataJson{depositDataJson})
-		if err != nil {
-			return err
-		}
-	}
 
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
 	data := []byte(fmt.Sprintf("%s:%d", init.Owner.String(), init.Nonce))
@@ -485,23 +488,23 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 
 	err = c.VerifyPartialSigs(dkgResults, ssvContractOwnerNonceSigShares, sharePks, hash)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
 	reconstructedOwnerNonceMasterSig, err := c.RecoverMasterSig(ssvContractOwnerNonceSigShares, init.T)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if !reconstructedOwnerNonceMasterSig.VerifyByte(validatorPubKey, hash) {
-		return fmt.Errorf("owner + nonce signature recovered from shares is invalid")
+		return nil, nil, fmt.Errorf("owner + nonce signature recovered from shares is invalid")
 	}
 	err = crypto.VerifyOwnerNoceSignature(reconstructedOwnerNonceMasterSig.Serialize(), init.Owner, validatorPubKey.Serialize(), uint16(init.Nonce))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	keyshares := &KeyShares{}
 	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize()); err != nil {
-		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
+		return nil, nil, fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
 	// key1, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdkFXRFppc1d4TUV5MGNwdjhoanBBOEMxY1hndWx4eTIrS0M2V2lYajc1OG4yOXhvClNsNHV1SjgwQ2NqQXJqbGQrWkNEWmxvSlhtMk51L0FFOFRaMlBFbVRkVzFwanlOZXU3ZENRa0ZMcXdvckZnUDMKVWdxczdQSEpqSE1mOUtTb1Y0eUxlbkxwYlR0L2tEczJ1Y1c3dStjeG9kUnh3TVFkdmI3b2ZPQWFtWHFHWFpnQwphNHNvdHZmSW9RS1dDaW9MczcvUkM3dHJrUGJONW4rbHQyZWF3UnVIVFNOU1lwR2ZuL253QVE4dUNpbnlKc1BXCkQ0NUhldG9GekNKSlBnNjYzVzE1K1VsWU9tQVJCcWtaSVBISHlXbk5GNlNLa1FqUjYwMnBDdFdORlEyL3BRUWoKblJXbUkrU2FjMHhXRVQ3UUlsVmYxSGZ2NWRnWE9OT05hTTlFU3dJREFRQUJBb0lCQURsYVdTMldJVGpkVWZvcQpqU0ZGTmZiZUZyckpGVFVsSGk4VElDVVZmOFQ5UUhSUmRFS1RIaDlVK05Pdk9BOHRFcHhvMTV3bUJNdVlFVzd0CmxTUmJINC9lUmF2Qk56emhaaWxPaWxpWmdGSnBKS0Z2amthcFdQeGgrTC90OGlaMi81N05FVkxGc0t5UVJLWWoKV2RzckZNd0podHM5YVlHS2tTUHJFeEhjYm1DNE4zVzJPMEd1cngrMUlZZUFYNW9LTzNCNFNnc0FmWG1tK0NGTwp3ZTVxc3BRQy96NU1JSnpkS2VaV3dPRjNhREpnTUlFcmpkYXU0NTVxRFVTRFY4UU5KNjhKR01jNjlFcG1ha0VRCk13MU55MlBVNXVpeTRmU2hVdnZBME5hUURZc0Z4elhCbU9mQUxUMmQ3ZDd6SUgybU8rK0RzNHZWYmZFZVJTRzMKcTA2WDVta0NnWUVBOXJCM0hVUE9kTG9yN1BZMXV0ZmIxckZrVlJ2UlZoVUkvRitzamtqNTVGalNpV3hKVG1sbApCZStQRlBoWi9JVHRuZGlONWF6Qk93YVNzZVpMT3BKaXhnWjg5OWxWMGNPOGNDOW03Q25zSTk5eFBzcEtCaXlpCjMxL3VnWjZnVTNHSEVITW5KR01lN1BjcFBaT3NMMU1rMmt5TFZkZW1kc2NqdHZibWc3YVliQjhDZ1lFQXd4NHgKekpVQ2E0Mldld29qN3lFNWlFMDhjdjY1VFBnNmxEalFOUWs2dUZUNnZzZlRET0xoMnl2ZWtNOGFrWE9CN2grcwpmcUVhd0FuUTA4Z2ZkUi9jQWN2dDZUN1VVdUNWdzVvMUpwVEtmcEIzdTdRbDZsN21wbm9wejNmRjNXa2orWHlxCkNNejVEZGxkTy9PVHRoZlpBOGludUFMVEVGeWVKRm95QmE5QTRsVUNnWUF1VkMzS25UVmt6cUg1T3JRVWh2Mk8KY0hvN1VhSWEzSkIzZFRCZStHMlY2T2lCVG9qbDVQMUlCQm1IQXExRHMyTTh4YkxBYzVWR2xKRndQNlBaT0N5OApxL05FU05qSk1FMXZkRGVNR3NOeWFVQkhYbzVRWW9ta0Vjd2xJN2xRY24yL0pTRXd3RHpLbkJCdXRCRWVRaXNsCnBFSjJ1SzFXbVVlbjBPNnh4ZFVTV1FLQmdGVURzL2tLdCtvNjMrVXVUdWZqVnhqL1ppWkl2RjVBRGU0Rkx4cmMKc1p3ZFVyK0xlM2F5Nkd2Qm1wRUgyL0NpSG11dG0wLzFUQjErYVdITllYOTc2VFZUTUk4ZlZBM2tVdnpPRlBpQgpmaFZWUndZZkFTSTBSVlVtQjAraFJUSXFuSVVZLzFFa1ZpUGxvSXo5blUrSzVvQ1NqaGxNQ2NDb1NqTldwVkw2CndFK2RBb0dCQUtmS1k1aGM2MjRlZWxIcXU2QTFoV2s3VkdoM0x6U0RsQ0ZEYWFWSGM5amJDSUlTRnRSN0VNa2oKMWkwVHBYYmJpR2ZwOEt2QVE3MDVXOTJGbXQvMGRzaUtOWFhVN3dMd0hKVGlPQTdQT2hNMWRjdTBCdW9xeS9XagpQOVZGZ253azVESzVlUFFaMzg5akZVRDlib01tTE0rTUJPaStZTHhHMnZEbWRLOVI5U2pJCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==")
 	// key2, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBdnRVRWFlallqY3pBUWhnSTQ0S3dwZlhmOEI2TVlSOE4zMWZFUUtEZENWajl1Q09wCnVybzYzSDdxWXNzMzVGaVdxNmRwMjR3M0dCRTAzR1llU1BSZjBMRUFUQmRiWEJWRjdYZHp6L2xXZStuUk1EbVcKdm1DTUZjRlRPRU5FYmhuTXVjOEQ1K3ZFTmo5cTQzbE4vejhqYTZPYzhLa0QvYThJbTY2bnhmRGEyMXIzM1pJbwpGL1g5d0g2K25EN3Jockx5bzJub1lxaVJpT1NTTkp2R25UY09rMGZySThvbEU2NHVyWHFZcUs3ZmJxc1o3TzY2CnphN2ROTmc3MW1EWHlpdDlSTUlyR3lSME5xN0FUSkxwbytoTERyV2hjSHgzQ1ZvV1BnM25HamE3R25UWFdTYVYKb1JPSnBRVU9oYXgxNVJnZ2FBOHpodGgyOUorNnNNY2R6ZitQRndJREFRQUJBb0lCQUQ5dVh3RTFQSVlsd09JMwpTdjBVdTlMdVgzbFpMaUE2U2tvcXlqa1JQMmVVQlFIb0dNclFqREF1bjRvbk1uVGNYWGpCTlJhZEROTWJKUTc5CmdxT05WeXZ2S2NJaElXVUNUVFFadUkwd3UrYUVXZHhGeUMyUHVnQ2hPaUJCZThWOUhlZkZQKzhmRnlGUkF4NkoKZTd1VUtSbm1VSXhPSWQxNUNNdDJ5cDJvNlpadm0yUzQ1L0JueCtWdFVUWWlKc1QrREpkcWU5VDE2azB6ekdRMAo2bDl1alJRSU9IZFRiYXplUy9MTFVoUWs5Y1R5SXY4OFlaSXEwZmZNZnVibjBNTk5BRGVvbTVLVUpWUjlsNTdnCkVWOFFIUmN1OThPMWFEMVM3dUVoQkdOWGN3cnd4ME4ycW1GSDc3T0k2ZHNDVXZ0Mnh0eEd0RWU0TTVKRnZ6UnEKdi9uM2VjRUNnWUVBNDNJT0RLZUgvM3lmSmRqbjEzekRqUTdvSkFpMzdESDZGTlJBcnJ6dEpuWk90Q3dZeFh3Qgp3Sk9KcndsZlMwNFJ0RytNZ1BVeDRpcXBkN2JOSHFHMFRXZ0x5alhYaElJUWdoSnF5dHYzY3hkNVMzdDdCMHMrCmFVNHhRMGRTOVdoYTNydVBaak5yTHV5MlU3ZmxjUERBMXQzRmEzRTNwdmUrdHN1S2oxeGhCNHNDZ1lFQTFzbzcKU1IxVEdnZzFFa2hVazRnanBtS3d2RjNlT2xDanJiTVNvQTBmWEFDRTNkai9vTld0RkIzK0JHd3R0Z3RDVnhicQpjVlM1R2RoM3BHYVNtVmhBUGRERFVILzA4THR5WWw2N1Y5dVNmN0htVTBzUHhqUU83eXRIcUREejNoeDY5N2c0CmlkN1N2ajFza0JOTWN1SDgwWXJoZzNrSzBrOGdMTnd3TUYvYmFDVUNnWUJnNmRkc3N2SHkvaEgrR1hkb1RXUXgKdGJsYXFWQmRWMG85RjlmYjNPcWI2ZXROUUVEcDNSWU9EWStzUXEwVk5GVzg4WThIMy9KNmNUMDJvbkN5YmFxYgpGUXQ1QlFvcER4YWpwZDlWUXZja1Zrczd5NGkzcWVzVkNkbFoxb2xWd2pwK0Q2TmhvK1UyNEd3c0xmNlk2aXp4CklSd2UxT1ltd2dmRWNlUS9nOWhnVXdLQmdFU0IxaXo0ekhPbUlIOUhVS3FKcG8xQU53eXRoOTdqcjRFTWQ2bFMKNWlpckJiWFlxNWY1N3kxV2I1bXJnMXpuOUczZ29rQXBmS3h3cmFCakV1a1VDOUZyajVCU2I2YUVzdlFMTVFmUgp3Y1UyMGJiSlh5dWhtUTNScVJaTkhzcytIRDU4cEpQYzNTek9YSjBMZXJ1OXRxeUM5bkMvbjZMNmw5R1hIVXVnCmwxTjlBb0dBWkhHQm1RbXkvTTgrZ0ZLWHdXUWgxb2krMmJsODdvMjF2SlVxYituSHF2enVhMUZMNDJPZ2ZQWXQKOGlmaUVzVzZ4RlVZNUJ0MlJvaTY4QW9QSk5HREZnZlNrTS9ER2RUbFdGRzhFempRajRKczZIazZuMGwyV21ydgp2QjJ1YnVVcDk0NVNZSTNIZ215THVna1kxNTZYMEs4NXhwRHFncWNFVUxyZnNBV1d6a009Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==")
@@ -516,21 +519,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	// }
 	// opPrivKeys := []*rsa.PrivateKey{k1, k2, k3, k4}
 
-	// err = validateKeyShares(keyshares, init.Owner, uint16(init.Nonce), opPrivKeys)
-	// if err != nil {
-	// 	return err
-	// }
-
-	if saveResult {
-		filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
-		c.Logger.Infof("DKG finished. All data is validated. Writing keyshares to file: %s\n", filename)
-		err = utils.WriteJSON(filename, keyshares)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return depositDataJson, keyshares, nil
 }
 
 type KeySign struct {
@@ -829,11 +818,12 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 }
 
 func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
-	c.Logger.Info("Round 1. Exchange round received from all operators, creating combined message and verifying signatures")
+	c.Logger.Info("Round 1. Parsing init responses")
 	mltpl, err := c.makeMultiple(id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
+	c.Logger.Info("Round 1. Exchange round received from all operators, verified signatures\")")
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
 		return nil, err

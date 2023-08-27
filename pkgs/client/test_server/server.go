@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 )

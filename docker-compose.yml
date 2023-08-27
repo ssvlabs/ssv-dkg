@@ -5,9 +5,9 @@ services:
     networks:
       - shared_network
     ports:
-      - 3031:3030
-    entrypoint: /app/server
-    command: [ "--port 3030", "--private-key /app/data/server1/key", "--operators /app/data/operators.csv" ]
+      - "3030:3030"
+    entrypoint: /app
+    command: ["start-dkg-server", "--privKey", "/data/server1/key"]
     volumes:
       - ./examples:/data
 
@@ -16,9 +16,9 @@ services:
     networks:
       - shared_network
     ports:
-      - 3032:3030
-    entrypoint: /app/server
-    command: [ "--port 3030", "--private-key /app/data/server2/key", "--operators /app/data/operators.csv" ]
+      - "3031:3030"
+    entrypoint: /app
+    command: ["start-dkg-server", "--privKey", "/data/server2/key"]
     volumes:
       - ./examples:/data
 
@@ -27,9 +27,9 @@ services:
     networks:
       - shared_network
     ports:
-      - 3033:3030
-    entrypoint: /app/server
-    command: [ "--port 3030", "--private-key /app/data/server3/key", "--operators /app/data/operators.csv" ]
+      - "3032:3030"
+    entrypoint: /app
+    command: ["start-dkg-server", "--privKey", "/data/server3/key"]
     volumes:
       - ./examples:/data
 
@@ -38,9 +38,9 @@ services:
     networks:
       - shared_network
     ports:
-      - 3034:3030
-    entrypoint: /app/server
-    command: [ "--port 3030", "--private-key /app/data/server4/key", "--operators /app/data/operators.csv" ]
+      - "3033:3030"
+    entrypoint: /app
+    command: ["start-dkg-server", "--privKey", "/data/server4/key" ]
     volumes:
       - ./examples:/data
 
@@ -53,8 +53,15 @@ services:
       - server4
     networks:
       - shared_network
-    entrypoint: /app/client
-    command: [ "--operators /app/data/operators.csv" ]
+    entrypoint: /app
+    command: [ "init-dkg",
+               "--operatorIDs", "1,2,3,4",
+               "--operatorsInfoPath", "./data/operators.csv",
+               "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+               "--nonce",  "1",
+               "--threshold",  "3",
+               "--withdrawAddress", "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
+               "--fork", "'prater'"]
     volumes:
       - ./examples:/data
 

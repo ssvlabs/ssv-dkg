@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
+
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/bloxapp/ssv/logging"
@@ -118,10 +121,25 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		err = dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, common.HexToAddress(owner), nonce, true)
+		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, common.HexToAddress(owner), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
+		}
+		// todo: @pavel add output param
+		// Save deposit file
+		filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
+		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", filepath))
+		err = utils.WriteJSON(filepath, []client.DepositDataJson{*depositData})
+		if err != nil {
+			logger.Warn("Failed writing deposit data file", zap.Error(err))
+		}
+
+		filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
+		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", filepath))
+		err = utils.WriteJSON(filename, keyShares)
+		if err != nil {
+			logger.Warn("Failed writing keyshares file", zap.Error(err))
 		}
 
 		logger.Info("DKG protocol finished successfull")
