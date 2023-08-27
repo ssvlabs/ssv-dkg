@@ -56,7 +56,7 @@ type DKGData struct {
 // Result is the last message in every DKG which marks a specific node's end of process
 type Result struct {
 	// Operator ID
-	OperatorID uint32
+	OperatorID uint64
 	// Operator RSA pubkey
 	PubKeyRSA *rsa.PublicKey
 	// RequestID for the DKG instance (not used for signing)
@@ -290,7 +290,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		DepositPartialSignature:      depositRootSig.Serialize(),
 		DepositPartialSignatureIndex: uint64(secretKeyBLSindex),
 		PubKeyRSA:                    &o.OpPrivKey.PublicKey,
-		OperatorID:                   uint32(o.ID),
+		OperatorID:                   o.ID,
 		OwnerNoncePartialSignature:   sigOwnerNonce.Serialize(),
 	}
 

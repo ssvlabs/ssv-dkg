@@ -178,3 +178,32 @@ func ConvertEncryptedPemToPrivateKey(pemData []byte, password string) (*rsa.Priv
 
 	return rsaKey, nil
 }
+
+// ExtractPrivateKey gets private key and returns base64 encoded private key
+func ExtractPrivateKey(sk *rsa.PrivateKey) string {
+	pemByte := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(sk),
+		},
+	)
+	return base64.StdEncoding.EncodeToString(pemByte)
+}
+
+// ConvertPemToPrivateKey return rsa private key from secret key
+func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(skPem))
+	if block == nil {
+		return nil, errors.New("decode PEM block")
+	}
+	b := block.Bytes
+	return parsePrivateKey(b)
+}
+
+func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
+	parsedSk, err := x509.ParsePKCS1PrivateKey(derBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse private key")
+	}
+	return parsedSk, nil
+}

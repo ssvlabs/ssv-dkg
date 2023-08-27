@@ -9,12 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"sort"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	spectypes "github.com/bloxapp/ssv-spec/types"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
@@ -131,7 +135,7 @@ type Data struct {
 }
 
 type OperatorData struct {
-	ID        uint32 `json:"id"`
+	ID        uint64 `json:"id"`
 	PublicKey string `json:"publicKey"`
 }
 
@@ -147,7 +151,7 @@ type KeySharesPayload struct {
 
 type ReadablePayload struct {
 	PublicKey   string   `json:"publicKey"`
-	OperatorIDs []uint32 `json:"operatorIds"`
+	OperatorIDs []uint64 `json:"operatorIds"`
 	Shares      string   `json:"shares"`
 	Amount      string   `json:"amount"`
 	Cluster     string   `json:"cluster"`
@@ -159,7 +163,7 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 		EncryptedKeys: make([]string, 0),
 	}
 	operatorData := make([]OperatorData, 0)
-	operatorIds := make([]uint32, 0)
+	operatorIds := make([]uint64, 0)
 	var pubkeys []byte
 	var encryptedShares []byte
 	for _, operatorResult := range result {
@@ -499,6 +503,24 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize()); err != nil {
 		return fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
 	}
+	// key1, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdkFXRFppc1d4TUV5MGNwdjhoanBBOEMxY1hndWx4eTIrS0M2V2lYajc1OG4yOXhvClNsNHV1SjgwQ2NqQXJqbGQrWkNEWmxvSlhtMk51L0FFOFRaMlBFbVRkVzFwanlOZXU3ZENRa0ZMcXdvckZnUDMKVWdxczdQSEpqSE1mOUtTb1Y0eUxlbkxwYlR0L2tEczJ1Y1c3dStjeG9kUnh3TVFkdmI3b2ZPQWFtWHFHWFpnQwphNHNvdHZmSW9RS1dDaW9MczcvUkM3dHJrUGJONW4rbHQyZWF3UnVIVFNOU1lwR2ZuL253QVE4dUNpbnlKc1BXCkQ0NUhldG9GekNKSlBnNjYzVzE1K1VsWU9tQVJCcWtaSVBISHlXbk5GNlNLa1FqUjYwMnBDdFdORlEyL3BRUWoKblJXbUkrU2FjMHhXRVQ3UUlsVmYxSGZ2NWRnWE9OT05hTTlFU3dJREFRQUJBb0lCQURsYVdTMldJVGpkVWZvcQpqU0ZGTmZiZUZyckpGVFVsSGk4VElDVVZmOFQ5UUhSUmRFS1RIaDlVK05Pdk9BOHRFcHhvMTV3bUJNdVlFVzd0CmxTUmJINC9lUmF2Qk56emhaaWxPaWxpWmdGSnBKS0Z2amthcFdQeGgrTC90OGlaMi81N05FVkxGc0t5UVJLWWoKV2RzckZNd0podHM5YVlHS2tTUHJFeEhjYm1DNE4zVzJPMEd1cngrMUlZZUFYNW9LTzNCNFNnc0FmWG1tK0NGTwp3ZTVxc3BRQy96NU1JSnpkS2VaV3dPRjNhREpnTUlFcmpkYXU0NTVxRFVTRFY4UU5KNjhKR01jNjlFcG1ha0VRCk13MU55MlBVNXVpeTRmU2hVdnZBME5hUURZc0Z4elhCbU9mQUxUMmQ3ZDd6SUgybU8rK0RzNHZWYmZFZVJTRzMKcTA2WDVta0NnWUVBOXJCM0hVUE9kTG9yN1BZMXV0ZmIxckZrVlJ2UlZoVUkvRitzamtqNTVGalNpV3hKVG1sbApCZStQRlBoWi9JVHRuZGlONWF6Qk93YVNzZVpMT3BKaXhnWjg5OWxWMGNPOGNDOW03Q25zSTk5eFBzcEtCaXlpCjMxL3VnWjZnVTNHSEVITW5KR01lN1BjcFBaT3NMMU1rMmt5TFZkZW1kc2NqdHZibWc3YVliQjhDZ1lFQXd4NHgKekpVQ2E0Mldld29qN3lFNWlFMDhjdjY1VFBnNmxEalFOUWs2dUZUNnZzZlRET0xoMnl2ZWtNOGFrWE9CN2grcwpmcUVhd0FuUTA4Z2ZkUi9jQWN2dDZUN1VVdUNWdzVvMUpwVEtmcEIzdTdRbDZsN21wbm9wejNmRjNXa2orWHlxCkNNejVEZGxkTy9PVHRoZlpBOGludUFMVEVGeWVKRm95QmE5QTRsVUNnWUF1VkMzS25UVmt6cUg1T3JRVWh2Mk8KY0hvN1VhSWEzSkIzZFRCZStHMlY2T2lCVG9qbDVQMUlCQm1IQXExRHMyTTh4YkxBYzVWR2xKRndQNlBaT0N5OApxL05FU05qSk1FMXZkRGVNR3NOeWFVQkhYbzVRWW9ta0Vjd2xJN2xRY24yL0pTRXd3RHpLbkJCdXRCRWVRaXNsCnBFSjJ1SzFXbVVlbjBPNnh4ZFVTV1FLQmdGVURzL2tLdCtvNjMrVXVUdWZqVnhqL1ppWkl2RjVBRGU0Rkx4cmMKc1p3ZFVyK0xlM2F5Nkd2Qm1wRUgyL0NpSG11dG0wLzFUQjErYVdITllYOTc2VFZUTUk4ZlZBM2tVdnpPRlBpQgpmaFZWUndZZkFTSTBSVlVtQjAraFJUSXFuSVVZLzFFa1ZpUGxvSXo5blUrSzVvQ1NqaGxNQ2NDb1NqTldwVkw2CndFK2RBb0dCQUtmS1k1aGM2MjRlZWxIcXU2QTFoV2s3VkdoM0x6U0RsQ0ZEYWFWSGM5amJDSUlTRnRSN0VNa2oKMWkwVHBYYmJpR2ZwOEt2QVE3MDVXOTJGbXQvMGRzaUtOWFhVN3dMd0hKVGlPQTdQT2hNMWRjdTBCdW9xeS9XagpQOVZGZ253azVESzVlUFFaMzg5akZVRDlib01tTE0rTUJPaStZTHhHMnZEbWRLOVI5U2pJCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==")
+	// key2, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBdnRVRWFlallqY3pBUWhnSTQ0S3dwZlhmOEI2TVlSOE4zMWZFUUtEZENWajl1Q09wCnVybzYzSDdxWXNzMzVGaVdxNmRwMjR3M0dCRTAzR1llU1BSZjBMRUFUQmRiWEJWRjdYZHp6L2xXZStuUk1EbVcKdm1DTUZjRlRPRU5FYmhuTXVjOEQ1K3ZFTmo5cTQzbE4vejhqYTZPYzhLa0QvYThJbTY2bnhmRGEyMXIzM1pJbwpGL1g5d0g2K25EN3Jockx5bzJub1lxaVJpT1NTTkp2R25UY09rMGZySThvbEU2NHVyWHFZcUs3ZmJxc1o3TzY2CnphN2ROTmc3MW1EWHlpdDlSTUlyR3lSME5xN0FUSkxwbytoTERyV2hjSHgzQ1ZvV1BnM25HamE3R25UWFdTYVYKb1JPSnBRVU9oYXgxNVJnZ2FBOHpodGgyOUorNnNNY2R6ZitQRndJREFRQUJBb0lCQUQ5dVh3RTFQSVlsd09JMwpTdjBVdTlMdVgzbFpMaUE2U2tvcXlqa1JQMmVVQlFIb0dNclFqREF1bjRvbk1uVGNYWGpCTlJhZEROTWJKUTc5CmdxT05WeXZ2S2NJaElXVUNUVFFadUkwd3UrYUVXZHhGeUMyUHVnQ2hPaUJCZThWOUhlZkZQKzhmRnlGUkF4NkoKZTd1VUtSbm1VSXhPSWQxNUNNdDJ5cDJvNlpadm0yUzQ1L0JueCtWdFVUWWlKc1QrREpkcWU5VDE2azB6ekdRMAo2bDl1alJRSU9IZFRiYXplUy9MTFVoUWs5Y1R5SXY4OFlaSXEwZmZNZnVibjBNTk5BRGVvbTVLVUpWUjlsNTdnCkVWOFFIUmN1OThPMWFEMVM3dUVoQkdOWGN3cnd4ME4ycW1GSDc3T0k2ZHNDVXZ0Mnh0eEd0RWU0TTVKRnZ6UnEKdi9uM2VjRUNnWUVBNDNJT0RLZUgvM3lmSmRqbjEzekRqUTdvSkFpMzdESDZGTlJBcnJ6dEpuWk90Q3dZeFh3Qgp3Sk9KcndsZlMwNFJ0RytNZ1BVeDRpcXBkN2JOSHFHMFRXZ0x5alhYaElJUWdoSnF5dHYzY3hkNVMzdDdCMHMrCmFVNHhRMGRTOVdoYTNydVBaak5yTHV5MlU3ZmxjUERBMXQzRmEzRTNwdmUrdHN1S2oxeGhCNHNDZ1lFQTFzbzcKU1IxVEdnZzFFa2hVazRnanBtS3d2RjNlT2xDanJiTVNvQTBmWEFDRTNkai9vTld0RkIzK0JHd3R0Z3RDVnhicQpjVlM1R2RoM3BHYVNtVmhBUGRERFVILzA4THR5WWw2N1Y5dVNmN0htVTBzUHhqUU83eXRIcUREejNoeDY5N2c0CmlkN1N2ajFza0JOTWN1SDgwWXJoZzNrSzBrOGdMTnd3TUYvYmFDVUNnWUJnNmRkc3N2SHkvaEgrR1hkb1RXUXgKdGJsYXFWQmRWMG85RjlmYjNPcWI2ZXROUUVEcDNSWU9EWStzUXEwVk5GVzg4WThIMy9KNmNUMDJvbkN5YmFxYgpGUXQ1QlFvcER4YWpwZDlWUXZja1Zrczd5NGkzcWVzVkNkbFoxb2xWd2pwK0Q2TmhvK1UyNEd3c0xmNlk2aXp4CklSd2UxT1ltd2dmRWNlUS9nOWhnVXdLQmdFU0IxaXo0ekhPbUlIOUhVS3FKcG8xQU53eXRoOTdqcjRFTWQ2bFMKNWlpckJiWFlxNWY1N3kxV2I1bXJnMXpuOUczZ29rQXBmS3h3cmFCakV1a1VDOUZyajVCU2I2YUVzdlFMTVFmUgp3Y1UyMGJiSlh5dWhtUTNScVJaTkhzcytIRDU4cEpQYzNTek9YSjBMZXJ1OXRxeUM5bkMvbjZMNmw5R1hIVXVnCmwxTjlBb0dBWkhHQm1RbXkvTTgrZ0ZLWHdXUWgxb2krMmJsODdvMjF2SlVxYituSHF2enVhMUZMNDJPZ2ZQWXQKOGlmaUVzVzZ4RlVZNUJ0MlJvaTY4QW9QSk5HREZnZlNrTS9ER2RUbFdGRzhFempRajRKczZIazZuMGwyV21ydgp2QjJ1YnVVcDk0NVNZSTNIZ215THVna1kxNTZYMEs4NXhwRHFncWNFVUxyZnNBV1d6a009Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==")
+	// key3, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBdlFhZlo0ODJQYXRsYnRrOVdIb2NkMFZ1Y1ZYOThBSXN6cC9rOUVOVjJBTzZJWFBRCnVqU1BtdUZrQTlibThsSllnWTJPb0lQU0RmK1JHWGNMc2R0VHN0QmFDYk8vSkw4WVJ6OTg1REp6OEFGWENTQncKbW5mbzROSFptUjJGMVdMTE5CS2wzdVQ5Q1VLbC9RUnpKRFF1M01hUnp4TkVWZ041a29TU2J3Q3FUM0NIK2NqbgpQU0pIeGhiaTNTaldOSnJFb3ZRUmN3ZUlpYXRrZEdVNWJOUkpRbUtWV2FjOHNWSVg3Y0M0TnhXZEM0bVUzVE8rCmVlei90N2xVcnhSNjdnb21TbGdwaU5weFJ1M2dFajRkSWpIN2xkOVNhbU5sQk94dXk3SUUwQml2bmdJR0grNXAKcXZVTXhoM0N5WkVtMjFHd3JTRFhqcVpwWG92OEUwQkQ5eGY4U3dJREFRQUJBb0lCQUYrVTRMZnA5OEI1VWFJYQpvV1dDNGJBQjROWFlhTDZiS3ZNVWNSNStpZ0xmNTVlUXk2UE1maTBQK1pYamJnWnNVeXEzWEw2WHlYaWdtVXRxCklmUytkZlUrVzdqNk5oWXJ0dWdZRjF3QWt4VnlhQU5LYndYOHlqb2NnczVrMms3TFZQc3d6c1VGdjFtV1pQNnEKNkZvUE5QOFlQWlNiSm52ajUrNkpzTTRHWlJnamJERXhuWU05OFRYYTc1eUJvS2pqc1dwTjJkblB1VjFLWGRjcgowK3lRZzloTUUzZVhHa0U3QTJrb0NCNnF6aW1uRXBxVHZMNjZ2dHM5NXV0LzRUcTAvSGR1aVpwUWdxRHFuV3JIClJydGhoV0ZkeXQvZkhrdEhzYjFRQmUzTytZSTljNFVKVkh5VW9oTWV2Q2NzekpaZ3RBenJEWlJjODVXWUpWdmoKZDNYcmMzRUNnWUVBOU1hekFwK1oyMDh5K2FoZWRYcDJMdzRmUE40ZjYwYVFzNnVaSE9XNG0yWFB4SyswTnpPbwpJZVdSMVVaMFQ1dk5QOCtsMTlXS2RDdFBiVEhpTkYvajFZbXJkc3l6YUNRN3BWVkNwRXd6MlRucExQUmpOMjNnCnZ1ek5MYUdsdzBwN2JBTm5DcEFkaUdQVnpaYUtrWGNDLzk1NHBqUEZHUjVtSWNseXRJdm1YbE1DZ1lFQXhiRi8KNEFVak9PTEszdG5yU1FQV1IrM29IbDI0YWJoM0VNZDhrdDlQSjlkbCtSdGxFVDd0UTZ6TTNud2xFOVhHSERNSwprS3FsYW80Umx5TkpSbTlUT2pzZHpOakQ0S2N0d0EzSjM1TG1HSUs3YlN6UVVmak1ZVktNR2VkbEQ5NFZGWjJWCm5NaEFxRlNXQ0Z1czIrMkNiL2RhQ09WUkFLSFRSN2FTcFhwN2V5a0NnWUVBOFk2QkxBNmJCRDJWWGFGVmpuUEsKMjhjQTlzMXlESG8zNU1kc000TlVlaTZ3S2pjSER3N3dWbnM2UHBIbnlJUkZ1anBPUE1Ca2dSNFlwUGI4ZDVsRgp1djdBY2wyeWt3eG12Rk4yajdNUDI4aDFuMEtTQXlweEI1bWpKZXdITE1GOUtXdjJMUXRweWFaVVlTMjJFN1d5CkJSWGtWSWgwY3NSNEg5R3dYQkpQeGpjQ2dZQkR4YVRqNUg3OXFtb0gyY2NhUWRGODJTZEErYm9WckNKTlEwWUcKaDcxNEdCU2lRR3oyYTQ4bEt5RVVpSlNoWnlEQ1hCRWNKUlFPSW1RUFh3NW9zaE5qSEE4TVFhZHM1WUwrbXZ1QQp4TGhTNE1abUYvM1dqQ2RzbWNManduclg1TGR2c0pVd3FVblpLeDVBQVVXU0k2c2F2VDVGWEcvWGVxS1dyQlU3CjIzQm5lUUtCZ1FEMFZhSXRtY3BnYTBOQnhLSEEwOWU3UXZ3V1FKL1Q0RkQyV2VmblI4cmN4QWVja0YraXdnSTkKQ0MvNzNYejNzVmlWZG9wMmRQRUpCWGtVOTFSanBJanpVUkVwT0RURjBham1XWlAxR2JZeWo0V0VpTWRBMnZZbgpHaUFDS3ZzajdCRzlOVVZ4d1V1d1pKdENKNmQzc1NIN0N1L2hqdGFTZmFKaGZNdDIvUXFWWXc9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=")
+	// key4, _ := base64.StdEncoding.DecodeString("LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBeFRWM2I5OHU4NmtzcEhQcWgrS2QrNEd3SVJ4SHBEekRmNWVzeGNnK3FpOW9sNERGCmplUXMrbGloeUp5cGdOMXJwdTlQVnR5cXp2K3k5cEVNa0VXTi9iMFRCZ1EwSnlPN2Y0aWJjV3lRRys0aFVRL1cKY3h1ZW5aUDA3S0VwTjh4Tk8xN3BzbmhRMXRqQVhybDNGN1lYaVl1eXlnRG1rbDRiNitQNHoyM2FHTVVIS2dOcgp5aFlZTFV4dWdycDVRTnJTV3lXNXFtb2EvYnJDenQ2RFJYb1VTbklKSlJRWk9LY2dyR0owdUFiMkNGa2wvTG5oCklxT2RZZ21aUG9oRmprVEorRnZNdkZsMjAwZ1BHbVpxUS9MMmwzZkF2aFliVlEyVFV5S2ZTaithdnVZQVlmeEoKeG5OcWlmdkNkVGNmQzc3c0N0eFFERWVjY0pTVnVDbGZWeTFZWXdJREFRQUJBb0lCQUZ1UzJFTTZmN0xsZTdWaApuaVk3Tk9EMDk3Um9UVndXV3pHRVhOWDZoaDdBcFBDMCt3ZElUUnB5emEwNkVmdWsxYmhPcDZqT0R3TFArV3BGCk1IQk4zQUZYS3Q1QVZYZFhRRm1ZTlpZVnMxVkUzbk9seHc3c1pGc0h1Vk9vQWx2R29wWlBISFdqS09hYS83ajgKcGpCOGZiR0JEU1NBQnBFdzRnWkhkZUhjUU1uKzRoMDNoS0FpYTZucE5CM2ExNFBpVXNEeVRwNFR2dGlKNFVaNAppVEs0U0NKQzRkZWhzRnZNNXJTSnhLREFYTzNrQnEvQXk1S1RTRFFHK2hqemJYcUZiQXVqV283UllMOVpYK2hNCmE1NlNwYkNRd0dyTENnb1c3bDNzamdrRTFYd1JLUGpwNVovZVpVOENvWVg4VFVHeU4rdUxjWGdVYlZ0bnVjdmEKQ1FNTkZ3RUNnWUVBekk2R291cjF6c1BNTytZaXBqNlNtY1pkL3NVTGNDYWZPVE5lVFhvZEduaXVYUjZ2UjRycAp2WTR4NStQU0FNV1ZYc2w3WjF6QS93RmhxcUJtdjV0T2pFRlM0S1BaSERDQnVmMjFSOFFsRmpGa0Qvdi90dE1qCnBIcnU0MXF5dXVzM3pZU2VqZnRwdVFaa1ZLcnljSFFBR2JaRnZPMkY2MmNpSmF5OW1vTTROVDBDZ1lFQTlzM2gKTFZtTVp1dFlHdDBTcWhwS3VQVWJsaVgwb2RxSW5KVVhvZW9KMXQ3Y3JCSTFYOVVRaThEcFJheVlDaU5DN3ByUgp3eGxZQjVIS1JRZEZSWDdJSjM5enZScU44Nm9Yb2xzS1ZxRXl5WDJUcnFSaFVrdENqMkF2bUgyR0tEdERTYWxBCjhVZWpvSEU0US80OWhXeHBBT3RPZFBEeDFMUytjSy8vcGVWRTNoOENnWUVBb0xXbFg2QWJxT3U1cktHOVBVRlIKNmxDb0RuNSs0d2prOVlxL0h6MitXY3JRcXNadHpWWjlGM2o5Q29PNXZQTit6QzZkcm5KNENxRHFPNlN6dFB2dQp0VkNwTFdadEw3R0lhampDMFBSd2NzUXhLa0hCQU1GWGNtVkhCQWFBLzB2SDFzYkh6eUxrU0FLV2x0S0xrUUFDCkNERmxEdTdKMVUxOHpYNnVwQk5OK0wwQ2dZRUE3TEZkOXlRZVpzWGw1VDJIbk9OQ0xrZkRnU2c5aU13UW9Eck0KUTFnMHY0RlVtU0dOVnE3OEEwdXJiRXF1TldyRDBobGdlbjlmMFVLY2ZiOFBUQ3Jld2lLVldSS1NlTkR6Z1oxVwpPT2EzMGsxQXlRaVUzVnVZSmZEVk5LV05lQi85MURNaU9VTy9SU3ZRRGtWUnN4ZlpUQ3hmUGYrbHJaejUxeEN6CldPS2NQWGtDZ1lFQXd1U2ZkRmlqWEdIK0F0Um9YMFZrRDVCbCt1SElGRWpNaFhhMXZqc2ZjY2pyN2RobXVMS3oKd1FINW1heVRJTXlmbFRKb1ZPWnAxZnovN0ZQT0ZhaFNpWjA0dnFUYTVYbGpUSzlac3FGMFo0ZUhOdm1BazQvWAppUVZwVVQ2SE5EMit5aDU0T1BrdWVmbEJNd1FwUTVpdmdqenlPaUhKcTRwcjZ2WW9mM3JjcGdrPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=")
+	// k1, err := crypto.ConvertPemToPrivateKey(string(key1))
+	// k2, err := crypto.ConvertPemToPrivateKey(string(key2))
+	// k3, err := crypto.ConvertPemToPrivateKey(string(key3))
+	// k4, err := crypto.ConvertPemToPrivateKey(string(key4))
+	// if err != nil {
+	// 	return err
+	// }
+	// opPrivKeys := []*rsa.PrivateKey{k1, k2, k3, k4}
+
+	// err = validateKeyShares(keyshares, init.Owner, uint16(init.Nonce), opPrivKeys)
+	// if err != nil {
+	// 	return err
+	// }
+
 	if saveResult {
 		filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
 		c.Logger.Infof("DKG finished. All data is validated. Writing keyshares to file: %s\n", filename)
@@ -896,4 +918,135 @@ func (c *Client) RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign, thresho
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 	return &reconstructedDepositMasterSig, nil
+}
+
+func validateKeyShares(keyshares *KeyShares, owner common.Address, nonce uint16, operatorPrivateKeys []*rsa.PrivateKey) error {
+	valPubKey, err := hex.DecodeString(keyshares.Payload.Readable.PublicKey)
+	if err != nil {
+		return err
+	}
+	shares, err := hex.DecodeString(keyshares.Payload.Readable.Shares)
+	if err != nil {
+		return err
+	}
+	ev := ContractValidatorAdded{
+		Owner:       owner,
+		OperatorIds: keyshares.Payload.Readable.OperatorIDs,
+		PublicKey:   valPubKey,
+		Shares:      shares,
+	}
+
+	operatorCount := len(ev.OperatorIds)
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
+	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+
+	if sharesExpectedLength != len(ev.Shares) {
+		return &MalformedEventError{Err: fmt.Errorf("shares length is not correct")}
+	}
+
+	signature := ev.Shares[:signatureOffset]
+	sharePublicKeys := splitBytes(ev.Shares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := splitBytes(ev.Shares[pubKeysOffset:], len(ev.Shares[pubKeysOffset:])/operatorCount)
+	// verify sig
+	err = crypto.VerifyOwnerNoceSignature(signature, ev.Owner, ev.PublicKey, nonce)
+	if err != nil {
+		return err
+	}
+	err = validatorAddedEventToShare(ev, sharePublicKeys, encryptedKeys, operatorPrivateKeys)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatorAddedEventToShare(
+	event ContractValidatorAdded,
+	sharePublicKeys [][]byte,
+	encryptedKeys [][]byte,
+	operatorPrivateKeys []*rsa.PrivateKey,
+) error {
+	pk := bls.PublicKey{}
+	if err := pk.Deserialize(event.PublicKey); err != nil {
+		return &MalformedEventError{
+			Err: fmt.Errorf("failed to deserialize validator public key: %w", err),
+		}
+	}
+
+	var shareSecret *bls.SecretKey
+
+	committee := make([]*spectypes.Operator, 0)
+	for i := range event.OperatorIds {
+		operatorID := event.OperatorIds[i]
+		committee = append(committee, &spectypes.Operator{
+			OperatorID: operatorID,
+			PubKey:     sharePublicKeys[i],
+		})
+
+		shareSecret = &bls.SecretKey{}
+		decryptedSharePrivateKey, err := rsaencryption.DecodeKey(operatorPrivateKeys[i], encryptedKeys[i])
+		if err != nil {
+			return &MalformedEventError{
+				Err: fmt.Errorf("could not decrypt share private key: %w", err),
+			}
+		}
+		if err = shareSecret.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+			return &MalformedEventError{
+				Err: fmt.Errorf("could not set decrypted share private key: %w", err),
+			}
+		}
+		if !bytes.Equal(shareSecret.GetPublicKey().Serialize(), sharePublicKeys[i]) {
+			return &MalformedEventError{
+				Err: errors.New("share private key does not match public key"),
+			}
+		}
+	}
+
+	return nil
+}
+
+// MalformedEventError is returned when event is malformed
+type MalformedEventError struct {
+	Err error
+}
+
+func (e *MalformedEventError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *MalformedEventError) Unwrap() error {
+	return e.Err
+}
+
+// ContractValidatorAdded represents a ValidatorAdded event raised by the Contract contract.
+type ContractValidatorAdded struct {
+	Owner       common.Address
+	OperatorIds []uint64
+	PublicKey   []byte
+	Shares      []byte
+	Cluster     ISSVNetworkCoreCluster
+}
+
+// ISSVNetworkCoreCluster is an auto generated low-level Go binding around an user-defined struct.
+type ISSVNetworkCoreCluster struct {
+	ValidatorCount  uint32
+	NetworkFeeIndex uint64
+	Index           uint64
+	Active          bool
+	Balance         *big.Int
+}
+
+type ShareEncryptionKeyProvider = func() (*rsa.PrivateKey, bool, error)
+
+func splitBytes(buf []byte, lim int) [][]byte {
+	var chunk []byte
+	chunks := make([][]byte, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
 }

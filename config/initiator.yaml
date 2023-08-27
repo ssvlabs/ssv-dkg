@@ -3,5 +3,5 @@ operatorIDs: [1, 2, 3, 4]
 withdrawAddress: "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
-fork: "0x00000000"
+fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.csv

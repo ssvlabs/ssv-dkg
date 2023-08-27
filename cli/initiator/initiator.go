@@ -85,20 +85,29 @@ var StartDKG = &cobra.Command{
 		if threshold < 1 {
 			logger.Fatal("failed to get threshold flag value", zap.Error(err))
 		}
-		forkName := viper.GetString("fork")
-		if forkName == "" {
+		forkHex := viper.GetString("fork")
+		if forkHex == "" {
+			logger.Fatal("failed to get fork version flag value", zap.Error(err))
+		}
+		if err != nil {
+			logger.Fatal("failed to get fork version flag value", zap.Error(err))
+		}
+		forkBytes, err := hex.DecodeString(forkHex)
+		if err != nil {
 			logger.Fatal("failed to get fork version flag value", zap.Error(err))
 		}
 		var fork [4]byte
-		switch forkName {
-		case "prater":
-			fork = [4]byte{0x00, 0x00, 0x10, 0x20}
-		case "mainnet":
-			fork = [4]byte{0, 0, 0, 0}
-		case "now_test_network":
-			fork = [4]byte{0x99, 0x99, 0x99, 0x99}
+		copy(fork[:], forkBytes)
+		var forkName string
+		switch fork {
+		case [4]byte{0x00, 0x00, 0x10, 0x20}:
+			forkName = "prater"
+		case [4]byte{0, 0, 0, 0}:
+			forkName = "mainnet"
+		case [4]byte{0x99, 0x99, 0x99, 0x99}:
+			forkName = "now_test_network"
 		default:
-			fork = [4]byte{0, 0, 0, 0}
+			forkName = "mainnet"
 		}
 		owner := viper.GetString("owner")
 		if owner == "" {
