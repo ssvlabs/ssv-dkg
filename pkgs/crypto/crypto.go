@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"strings"
 
 	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber/share"
@@ -17,6 +19,7 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
+	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 )
 
 func init() {
@@ -141,4 +144,37 @@ func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, n
 	}
 
 	return nil
+}
+
+// ConvertEncryptedPemToPrivateKey return rsa private key from secret key
+func ConvertEncryptedPemToPrivateKey(pemData []byte, password string) (*rsa.PrivateKey, error) {
+	if strings.TrimSpace(password) == "" {
+		return nil, errors.New("Password required for encrypted PEM block")
+	}
+
+	// Unmarshal the JSON-encoded data
+	var data map[string]interface{}
+	if err := json.Unmarshal(pemData, &data); err != nil {
+		return nil, fmt.Errorf("parse JSON data: %w", err)
+	}
+
+	// Decrypt the private key using keystorev4
+	decryptedBytes, err := keystorev4.New().Decrypt(data, password)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt private key: %w", err)
+	}
+
+	// Parse the decrypted PEM data
+	block, _ := pem.Decode(decryptedBytes)
+	if block == nil {
+		return nil, errors.New("parse PEM block")
+	}
+
+	// Parse the RSA private key
+	rsaKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse RSA private key: %w", err)
+	}
+
+	return rsaKey, nil
 }

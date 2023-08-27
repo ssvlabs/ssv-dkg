@@ -9,13 +9,13 @@ require (
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/ferranbt/fastssz v0.1.3
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/herumi/bls-eth-go-binary v1.29.1
+	github.com/herumi/bls-eth-go-binary v1.31.0
 	github.com/imroc/req/v3 v3.37.2
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
-	github.com/wealdtech/go-eth2-types/v2 v2.8.0
+	github.com/wealdtech/go-eth2-types/v2 v2.8.2
 	github.com/wealdtech/go-eth2-util v1.6.3
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.3.0
@@ -64,7 +64,7 @@ require (
 	github.com/jonboulle/clockwork v0.4.0
 	github.com/kilic/bls12-381 v0.1.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.10.0 // indirect
@@ -76,11 +76,12 @@ require (
 	github.com/refraction-networking/utls v1.3.2 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/spf13/viper v1.16.0
+	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.4.1
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

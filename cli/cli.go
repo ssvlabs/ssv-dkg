@@ -9,6 +9,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func init() {
+	RootCmd.AddCommand(initiator.StartDKG)
+	RootCmd.AddCommand(operator.StartDKGServer)
+	RootCmd.AddCommand(operator.GenerateOperatorKeysCmd)
+	RootCmd.AddCommand(operator.ExportKeysCmd)
+}
+
 // RootCmd represents the root command of DKG-tool CLI
 var RootCmd = &cobra.Command{
 	Use:   "dkgcli",
@@ -25,9 +32,4 @@ func Execute(appName, version string) {
 	if err := RootCmd.Execute(); err != nil {
 		log.Fatal("failed to execute root command", zap.Error(err))
 	}
-}
-
-func init() {
-	RootCmd.AddCommand(initiator.StartDKG)
-	RootCmd.AddCommand(operator.StartDKGServer)
 }

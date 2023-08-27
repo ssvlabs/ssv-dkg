@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,10 @@ const (
 	owner           = "owner"
 	nonce           = "nonce"
 	fork            = "fork"
+	mnemonicFlag    = "mnemonic"
+	indexFlag       = "index"
+	networkFlag     = "network"
+	password        = "password"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -81,22 +86,28 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 
 // ForkVersionFlag  adds the fork version of the network flag to the command
 func ForkVersionFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, fork, "", "Fork version", false)
+	AddPersistentStringFlag(c, fork, "", "Fork version 4 bytes in HEX, i.e. 0x0000000000", false)
 }
 
 // GetForkVersionFlagValue gets the fork version of the network flag from the command
 func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, string, error) {
-	fork, err := c.Flags().GetString(fork)
+	forkHex, err := c.Flags().GetString(fork)
 	if err != nil {
 		return [4]byte{}, "", err
 	}
+	forkBytes, err := hex.DecodeString(forkHex)
+	if err != nil {
+		return [4]byte{}, "", err
+	}
+	var fork [4]byte
+	copy(fork[:], forkBytes)
 	switch fork {
-	case "prater":
-		return [4]byte{0x00, 0x00, 0x10, 0x20}, "prater", nil
-	case "mainnet":
-		return [4]byte{0, 0, 0, 0}, "mainnet", nil
-	case "now_test_network":
-		return [4]byte{0x99, 0x99, 0x99, 0x99}, "now_test_network", nil
+	case [4]byte{0x00, 0x00, 0x10, 0x20}:
+		return fork, "prater", nil
+	case [4]byte{0, 0, 0, 0}:
+		return fork, "mainnet", nil
+	case [4]byte{0x99, 0x99, 0x99, 0x99}:
+		return fork, "now_test_network", nil
 	default:
 		return [4]byte{0, 0, 0, 0}, "mainnet", nil
 	}
@@ -110,6 +121,16 @@ func OperatorPrivateKeyFlag(c *cobra.Command) {
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetOperatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(operatorPrivKey)
+}
+
+// OperatorPrivateKeyPassFlag  adds private key flag to the command
+func OperatorPrivateKeyPassFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, password, "", "Password to decrypt operator Private Key file", false)
+}
+
+// GetOperatorPrivateKeyFlagValue gets private key flag from the command
+func GetOperatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(password)
 }
 
 // OperatorPortFlag  adds operator listening port flag to the command
@@ -176,4 +197,34 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)
 	}
+}
+
+// AddMnemonicFlag adds the mnemonic key flag to the command
+func AddMnemonicFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, mnemonicFlag, "", "24 letter mnemonic phrase", true)
+}
+
+// GetMnemonicFlagValue gets the mnemonic key flag from the command
+func GetMnemonicFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(mnemonicFlag)
+}
+
+// AddKeyIndexFlag adds the key index flag to the command
+func AddKeyIndexFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, indexFlag, 0, "Index of the key to export from mnemonic", false)
+}
+
+// GetKeyIndexFlagValue gets the key index flag to the command
+func GetKeyIndexFlagValue(c *cobra.Command) (uint64, error) {
+	return c.Flags().GetUint64(indexFlag)
+}
+
+// AddNetworkFlag adds the network key flag to the command
+func AddNetworkFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, networkFlag, "now_test_network", "network", false)
+}
+
+// GetNetworkFlag gets the network key flag from the command
+func GetNetworkFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(networkFlag)
 }
