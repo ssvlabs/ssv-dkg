@@ -21,14 +21,25 @@ Whenever the server receives a message it directs it to the right instance by th
 Start a DKG server
 
 ```sh
-./dkgcli start-dkg-server --privKey ./examples/server1/key  --port 3030
+./dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678
 
 ### where
 --privKey ./examples/server1/key # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
 --port 3030 # port for listening messages
+--paseord 12345678 # password for encrypted keys
 ```
 
-### CLI Client
+Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+
+Example:
+
+```yaml
+privKey: ./examples/server1/encrypted_private_key.json
+password: 12345678
+port: 3030
+```
+
+### Initiator of DKG key generation
 
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
 
@@ -40,15 +51,39 @@ The initiator uses `ssv-dkg-init` to create the initial details needed to run DK
           --nonce 1 \
           --threshold 3 \
           --withdrawPublicKey 0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7  \
-          --fork "prater"
+          --fork 00000000
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
 --operatorsInfoPath ./examples/operators_integration.csv # path to info about operators - ID,base64(RSA pub key),
 --threshold 3 # threshold set for a master signature - if T out on N signatures provided the master signature will be recovered
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 1 # owner nonce for the SSV contract
---fork "prater" # network
+--fork "00000000" # fork id bytes in HEX
 ```
+
+Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+
+Example:
+
+```yaml
+threshold: 4
+operatorIDs: [1, 2, 3, 4]
+withdrawAddress: "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"
+owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
+nonce: 4
+fork: "00000000"
+operatorsInfoPath: ./examples/operators_integration.csv
+```
+
+### Generate RSA operator key
+
+```sh
+./dkgcli generate-operator-keys --password 12345678
+```
+
+---
+
+### Schema
 
 ![flow](./imgs/DKGinit.drawio.png)
 
