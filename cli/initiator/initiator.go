@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
-	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
@@ -28,6 +28,8 @@ func init() {
 	flags.OwnerAddressFlag(StartDKG)
 	flags.NonceFlag(StartDKG)
 	flags.ForkVersionFlag(StartDKG)
+	flags.AddDepositResultStorePathFlag(StartDKG)
+	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
 	viper.BindPFlag("threshold", StartDKG.PersistentFlags().Lookup("threshold"))
 	viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress"))
 	viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs"))
@@ -35,6 +37,8 @@ func init() {
 	viper.BindPFlag("owner", StartDKG.PersistentFlags().Lookup("owner"))
 	viper.BindPFlag("nonce", StartDKG.PersistentFlags().Lookup("nonce"))
 	viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork"))
+	viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath"))
+	viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath"))
 }
 
 var StartDKG = &cobra.Command{
@@ -60,7 +64,24 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("fatal error config file")
 		}
-
+		// Check paths for results
+		depositResultsPath := viper.GetString("depositResultsPath")
+		if depositResultsPath == "" {
+			logger.Fatal("failed to get deposit result path flag value", zap.Error(err))
+		}
+		_, err = os.Stat(depositResultsPath)
+		if !os.IsNotExist(err) {
+			logger.Fatal("Deposit file at provided path already exist", zap.Error(err))
+		}
+		// Check paths for results
+		ssvPayloadResultsPath := viper.GetString("ssvPayloadResultsPath")
+		if ssvPayloadResultsPath == "" {
+			logger.Fatal("failed to get ssv payload path flag value", zap.Error(err))
+		}
+		_, err = os.Stat(ssvPayloadResultsPath)
+		if !os.IsNotExist(err) {
+			logger.Fatal("SSV payload file at provided path already exist", zap.Error(err))
+		}
 		// Load operators TODO: add more sources.
 		operatorFile := viper.GetString("operatorsInfoPath")
 		if operatorFile == "" {
@@ -68,7 +89,7 @@ var StartDKG = &cobra.Command{
 		}
 		opMap, err := load.Operators(operatorFile)
 		if err != nil {
-			log.Fatalf("Failed to load operators: %v", err)
+			logger.Fatal("Failed to load operators: ", zap.Error(err))
 		}
 		participants := viper.GetStringSlice("operatorIDs")
 		if participants == nil {
@@ -76,7 +97,7 @@ var StartDKG = &cobra.Command{
 		}
 		parts, err := loadParticipants(participants)
 		if err != nil {
-			log.Fatalf("failed: %v", err)
+			logger.Fatal("failed: ", zap.Error(err))
 		}
 		dkgClient := client.New(opMap)
 
@@ -128,16 +149,14 @@ var StartDKG = &cobra.Command{
 		}
 		// todo: @pavel add output param
 		// Save deposit file
-		filepath := fmt.Sprintf("deposit-data_%d.json", time.Now().UTC().Unix())
-		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", filepath))
-		err = utils.WriteJSON(filepath, []client.DepositDataJson{*depositData})
+		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
+		err = utils.WriteJSON(depositResultsPath, []client.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file", zap.Error(err))
 		}
 
-		filename := fmt.Sprintf("keyshares-%d.json", time.Now().Unix())
-		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", filepath))
-		err = utils.WriteJSON(filename, keyShares)
+		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", ssvPayloadResultsPath))
+		err = utils.WriteJSON(ssvPayloadResultsPath, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file", zap.Error(err))
 		}

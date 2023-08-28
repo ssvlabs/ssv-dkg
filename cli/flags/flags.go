@@ -9,19 +9,21 @@ import (
 
 // Flag names.
 const (
-	threshold       = "threshold"
-	withdrawAddress = "withdrawAddress"
-	operatorIDs     = "operatorIDs"
-	operatorsInfo   = "operatorsInfoPath"
-	operatorPrivKey = "privKey"
-	operatorPort    = "port"
-	owner           = "owner"
-	nonce           = "nonce"
-	fork            = "fork"
-	mnemonicFlag    = "mnemonic"
-	indexFlag       = "index"
-	networkFlag     = "network"
-	password        = "password"
+	threshold             = "threshold"
+	withdrawAddress       = "withdrawAddress"
+	operatorIDs           = "operatorIDs"
+	operatorsInfo         = "operatorsInfoPath"
+	operatorPrivKey       = "privKey"
+	operatorPort          = "port"
+	owner                 = "owner"
+	nonce                 = "nonce"
+	fork                  = "fork"
+	mnemonicFlag          = "mnemonic"
+	indexFlag             = "index"
+	networkFlag           = "network"
+	password              = "password"
+	depositResultsPath    = "depositResultsPath"
+	ssvPayloadResultsPath = "ssvPayloadResultsPath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -227,4 +229,20 @@ func AddNetworkFlag(c *cobra.Command) {
 // GetNetworkFlag gets the network key flag from the command
 func GetNetworkFlag(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(networkFlag)
+}
+
+func AddDepositResultStorePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, depositResultsPath, "", "Path to store deposit result file json", false)
+}
+
+func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(depositResultsPath)
+}
+
+func AddSSVPayloadResultStorePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, ssvPayloadResultsPath, "", "Path to store ssv contract payload file json", false)
+}
+
+func GetSSVPayloadResultStorePathFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(ssvPayloadResultsPath)
 }

@@ -5,3 +5,5 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.csv
+depositResultsPath: ./deposit.json
+ssvPayloadResultsPath: ./payload.json
