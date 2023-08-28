@@ -147,7 +147,6 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
-		// todo: @pavel add output param
 		// Save deposit file
 		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
 		err = utils.WriteJSON(depositResultsPath, []client.DepositDataJson{*depositData})

@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,6 +41,16 @@ func (msg *KeySign) Decode(data []byte) error {
 
 func RegisterRoutes(s *Server) {
 	s.Router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
+		// s.Router.Use(httprate.Limit(
+		// 	5,
+		// 	10*time.Minute,
+		// 	httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+		// 		w.Header().Set("Content-Type", "application/json")
+		// 		w.WriteHeader(http.StatusTooManyRequests)
+		// 		w.Write([]byte(`{"error": "Too many requests"}`))
+		// 	}),
+		// ))
+
 		s.Logger.Info("Received init msg")
 		rawdata, _ := io.ReadAll(request.Body)
 		tr := &wire.Transport{}
@@ -97,6 +109,11 @@ func New(key *rsa.PrivateKey) *Server {
 		Router: r,
 		State:  swtch,
 	}
+	// Add rate limiter
+	r.Use(httprate.LimitAll(
+		10,            // requests
+		1*time.Minute, // per duration),
+	))
 	RegisterRoutes(s)
 	return s
 }

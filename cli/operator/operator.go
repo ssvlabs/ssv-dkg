@@ -1,12 +1,14 @@
 package operator
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
 
 	"github.com/bloxapp/ssv/logging"
@@ -52,18 +54,23 @@ var StartDKGServer = &cobra.Command{
 		if privKeyPath == "" {
 			logger.Fatal("failed to get operator private key flag value", zap.Error(err))
 		}
+		var privateKey *rsa.PrivateKey
 		pass := viper.GetString("password")
-		if pass == "" {
-			logger.Fatal("failed to get operator password flag value", zap.Error(err))
-		}
-		encryptedJSON, err := os.ReadFile(privKeyPath)
-		if err != nil {
-			logger.Fatal(err.Error())
-		}
+		if pass != "" {
+			encryptedJSON, err := os.ReadFile(privKeyPath)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 
-		privateKey, err := crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, pass)
-		if err != nil {
-			logger.Fatal(err.Error())
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, pass)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
+		} else {
+			privateKey, err = load.PrivateKey(privKeyPath)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 		}
 
 		srv := server.New(privateKey)
