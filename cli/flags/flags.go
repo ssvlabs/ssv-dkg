@@ -24,6 +24,7 @@ const (
 	password              = "password"
 	depositResultsPath    = "depositResultsPath"
 	ssvPayloadResultsPath = "ssvPayloadResultsPath"
+	storeShare            = "storeShare"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -201,6 +202,20 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	}
 }
 
+// AddPersistentIntFlag adds a int flag to the command
+func AddPersistentBoolFlag(c *cobra.Command, flag string, value bool, description string, isRequired bool) {
+	req := ""
+	if isRequired {
+		req = " (required)"
+	}
+
+	c.PersistentFlags().Bool(flag, value, fmt.Sprintf("%s%s", description, req))
+
+	if isRequired {
+		_ = c.MarkPersistentFlagRequired(flag)
+	}
+}
+
 // AddMnemonicFlag adds the mnemonic key flag to the command
 func AddMnemonicFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, mnemonicFlag, "", "24 letter mnemonic phrase", true)
@@ -245,4 +260,12 @@ func AddSSVPayloadResultStorePathFlag(c *cobra.Command) {
 
 func GetSSVPayloadResultStorePathFlag(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(ssvPayloadResultsPath)
+}
+
+func AddStoreShareFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, storeShare, false, "Store BLS share as json", false)
+}
+
+func GetStoreShareFlag(c *cobra.Command) (bool, error) {
+	return c.Flags().GetBool(storeShare)
 }

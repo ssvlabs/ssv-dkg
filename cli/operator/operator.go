@@ -21,10 +21,11 @@ func init() {
 	flags.OperatorPrivateKeyFlag(StartDKGServer)
 	flags.OperatorPrivateKeyPassFlag(StartDKGServer)
 	flags.OperatorPortFlag(StartDKGServer)
+	flags.AddStoreShareFlag(StartDKGServer)
 	viper.BindPFlag("privKey", StartDKGServer.PersistentFlags().Lookup("privKey"))
-	viper.BindPFlag("port", StartDKGServer.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("port", StartDKGServer.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("password", StartDKGServer.PersistentFlags().Lookup("password"))
+	viper.BindPFlag("port", StartDKGServer.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("storeShare", StartDKGServer.PersistentFlags().Lookup("storeShare"))
 }
 
 var StartDKGServer = &cobra.Command{

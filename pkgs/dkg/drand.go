@@ -20,11 +20,13 @@ import (
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	types "github.com/wealdtech/go-eth2-types/v2"
 	util "github.com/wealdtech/go-eth2-util"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 )
 
@@ -232,6 +234,22 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
 	secretKeyBLSindex := res.Result.Key.Share.I + 1
+	// Store secret if requested
+	if viper.GetBool("storeShare") {
+		type shareStorage struct {
+			Index  int    `json:"index"`
+			Secret string `json:"secret"`
+		}
+		data := shareStorage{
+			Index:  res.Result.Key.Share.I,
+			Secret: secretKeyBLS.SerializeToHexStr(),
+		}
+		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
+		if err != nil {
+			o.Logger.Errorf("%v", err)
+		}
+	}
+
 	// Encrypt BLS share for SSV contract
 	rawshare := secretKeyBLS.SerializeToHexStr()
 	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(rawshare))
