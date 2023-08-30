@@ -86,7 +86,7 @@ type Init struct {
 	// T is the threshold for signing
 	T uint64
 	// WithdrawalCredentials for deposit data
-	WithdrawalCredentials []byte `ssz-max:"256"` // 2^23
+	WithdrawalCredentials []byte `ssz-max:"32"` // 2^23
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
 	// Owner address

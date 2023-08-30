@@ -21,8 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	types "github.com/wealdtech/go-eth2-types/v2"
-	util "github.com/wealdtech/go-eth2-util"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
@@ -275,7 +273,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 
 	// Sign root
-	depositRootSig, signRoot, err := SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debugf("Root %x", signRoot)
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -491,62 +489,7 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 	}
 }
 
-func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network eth2_key_manager_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
-	if !IsSupportedDepositNetwork(network) {
-		return nil, nil, errors.Errorf("Network %s is not supported", network)
-	}
-
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: withdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], validatorPublicKey.Serialize())
-
-	objRoot, err := depositMessage.HashTreeRoot()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to determine the root hash of deposit data")
-	}
-
-	// Compute domain
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to calculate domain")
-	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
-	}
-	copy(signingData.Domain[:], domain[:])
-
-	root, err := signingData.HashTreeRoot()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to determine the root hash of signing container")
-	}
-
-	// Sign
-	sig := validationKey.SignByte(root[:])
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign the root")
-	}
-	return sig, root[:], nil
-}
-
-// withdrawalCredentialsHash forms a 32 byte hash of the withdrawal public
-// address.
-//
-// The specification is as follows:
-//
-//	withdrawal_credentials[:1] == BLS_WITHDRAWAL_PREFIX_BYTE
-//	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
-//
-// where withdrawal_credentials is of type bytes32.
-func withdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
-	h := util.SHA256(withdrawalPubKey)
-	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
-}
-
-func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
+func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	switch fork {
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
 		return eth2_key_manager_core.PraterNetwork
@@ -567,4 +510,13 @@ func (o *LocalOwner) broadcastError(err error) {
 
 	o.Broadcast(errMsg)
 	close(o.done)
+}
+
+func VerifyPartialSigs(dkgResults []Result, sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
+	for _, resShare := range dkgResults {
+		if !sigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], data) {
+			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[resShare.DepositPartialSignatureIndex].Serialize(), data)
+		}
+	}
+	return nil
 }

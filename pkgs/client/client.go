@@ -25,8 +25,6 @@ import (
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
-	types "github.com/wealdtech/go-eth2-types/v2"
-	util "github.com/wealdtech/go-eth2-util"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
@@ -77,9 +75,6 @@ func IDtoOperator(id uint64) Operator {
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
 	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
-
-	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
-	BLSWithdrawalPrefixByte = byte(0)
 )
 
 // IsSupportedDepositNetwork returns true if the given network is supported
@@ -309,7 +304,6 @@ func parseAsError(msg []byte) (error, error) {
 }
 
 func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
-	// todo should we do any validation here? validate the number of msgs?
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
@@ -410,19 +404,19 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	c.Logger.Debugf("Fork Version %x", init.Fork)
 	c.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
 
-	shareRoot, err := DepositDataRoot(init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
+	shareRoot, err := crypto.DepositDataRoot(init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Verify partial signatures and recovered threshold signature
-	err = c.VerifyPartialSigs(dkgResults, sigDepositShares, sharePks, shareRoot)
+	err = dkg.VerifyPartialSigs(dkgResults, sigDepositShares, sharePks, shareRoot)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
-	validatorRecoveredPK, err := c.RecoverValidatorPublicKey(sharePks)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(sharePks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -432,7 +426,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig, err := c.RecoverMasterSig(sigDepositShares, init.T)
+	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(sigDepositShares, init.T)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -440,12 +434,12 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return nil, nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 
-	depositData, root, err := DepositData(reconstructedDepositMasterSig.Serialize(), init.WithdrawalCredentials, validatorPubKey.Serialize(), getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
+	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), init.WithdrawalCredentials, validatorPubKey.Serialize(), getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Verify deposit data
-	depositVerRes, err := VerifyDepositData(depositData, getNetworkByFork(init.Fork))
+	depositVerRes, err := crypto.VerifyDepositData(depositData, getNetworkByFork(init.Fork))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -462,7 +456,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
 		return nil, nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
 	}
-	if !bytes.Equal(depositData.WithdrawalCredentials, withdrawalCredentialsHash(init.WithdrawalCredentials)) {
+	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.WithdrawalCredentialsHash(init.WithdrawalCredentials)) {
 		return nil, nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
 	}
 	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
@@ -486,12 +480,12 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	c.Logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
 	c.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 
-	err = c.VerifyPartialSigs(dkgResults, ssvContractOwnerNonceSigShares, sharePks, hash)
+	err = dkg.VerifyPartialSigs(dkgResults, ssvContractOwnerNonceSigShares, sharePks, hash)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig, err := c.RecoverMasterSig(ssvContractOwnerNonceSigShares, init.T)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ssvContractOwnerNonceSigShares, init.T)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -587,99 +581,6 @@ func (c *Client) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 	}, nil
 }
 
-func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network eth2_key_manager_core.Network, amount phase0.Gwei) ([]byte, error) {
-	if !IsSupportedDepositNetwork(network) {
-		return nil, fmt.Errorf("network %s is not supported", network)
-	}
-
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: withdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], publicKey.Serialize())
-
-	objRoot, err := depositMessage.HashTreeRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-
-	// Compute domain
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate domain: %s", err)
-	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
-	}
-	copy(signingData.Domain[:], domain[:])
-
-	root, err := signingData.HashTreeRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine the root hash of signing container: %s", err)
-	}
-
-	return root[:], nil
-}
-
-func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key_manager_core.Network, amount phase0.Gwei) (*phase0.DepositData, [32]byte, error) {
-	if !IsSupportedDepositNetwork(network) {
-		return nil, [32]byte{}, fmt.Errorf("network %s is not supported", network)
-	}
-
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: withdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], publicKey)
-
-	objRoot, err := depositMessage.HashTreeRoot()
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-
-	// Compute domain
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to calculate domain: %s", err)
-	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
-	}
-	copy(signingData.Domain[:], domain[:])
-
-	signedDepositData := &phase0.DepositData{
-		Amount:                amount,
-		WithdrawalCredentials: depositMessage.WithdrawalCredentials,
-	}
-	copy(signedDepositData.PublicKey[:], publicKey)
-	copy(signedDepositData.Signature[:], masterSig)
-
-	depositDataRoot, err := signedDepositData.HashTreeRoot()
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-
-	return signedDepositData, depositDataRoot, nil
-}
-
-// withdrawalCredentialsHash forms a 32 byte hash of the withdrawal public
-// address.
-//
-// The specification is as follows:
-//
-//	withdrawal_credentials[:1] == BLS_WITHDRAWAL_PREFIX_BYTE
-//	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
-//
-// where withdrawal_credentials is of type bytes32.
-func withdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
-	h := util.SHA256(withdrawalPubKey)
-	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
-}
-
 func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	switch fork {
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
@@ -689,50 +590,6 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	default:
 		return eth2_key_manager_core.MainNetwork
 	}
-}
-
-func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager_core.Network) (bool, error) {
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                depositData.Amount,
-	}
-	copy(depositMessage.PublicKey[:], depositData.PublicKey[:])
-
-	depositMsgRoot, err := depositMessage.HashTreeRoot()
-	if err != nil {
-		return false, err
-	}
-
-	sigBytes := make([]byte, len(depositData.Signature))
-	copy(sigBytes, depositData.Signature[:])
-	sig, err := types.BLSSignatureFromBytes(sigBytes)
-	if err != nil {
-		return false, err
-	}
-
-	container := &phase0.SigningData{
-		ObjectRoot: depositMsgRoot,
-	}
-
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return false, err
-	}
-	copy(container.Domain[:], domain[:])
-	signingRoot, err := container.HashTreeRoot()
-	if err != nil {
-		return false, err
-	}
-
-	var pubkeyBytes [48]byte
-	copy(pubkeyBytes[:], depositData.PublicKey[:])
-
-	pubkey, err := types.BLSPublicKeyFromBytes(pubkeyBytes[:])
-	if err != nil {
-		return false, err
-	}
-	return sig.Verify(signingRoot[:], pubkey), nil
 }
 
 func (c *Client) processDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
@@ -860,54 +717,6 @@ func (c *Client) NewID() [24]byte {
 	b := uuid.New() // random ID for each new DKG initiation
 	copy(id[8:], b[:])
 	return id
-}
-
-func (c *Client) VerifyPartialSigs(dkgResults []dkg.Result, sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
-	for _, resShare := range dkgResults {
-		if !sigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], data) {
-			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[resShare.DepositPartialSignatureIndex].Serialize(), data)
-		}
-	}
-	return nil
-}
-
-func (c *Client) RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicKey, error) {
-	validatorRecoveredPK := bls.PublicKey{}
-	idVec := make([]bls.ID, 0)
-	pkVec := make([]bls.PublicKey, 0)
-	for operatorID, pk := range sharePks {
-		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
-			return nil, err
-		}
-		idVec = append(idVec, blsID)
-		pkVec = append(pkVec, *pk)
-	}
-	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
-		return nil, fmt.Errorf("error recovering validator pub key from shares")
-	}
-	return &validatorRecoveredPK, nil
-}
-func (c *Client) RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign, threshold uint64) (*bls.Sign, error) {
-	reconstructedDepositMasterSig := bls.Sign{}
-	idVec := make([]bls.ID, 0)
-	sigVec := make([]bls.Sign, 0)
-	for operatorID, sig := range sigDepositShares {
-		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
-			return nil, err
-		}
-		idVec = append(idVec, blsID)
-		sigVec = append(sigVec, *sig)
-
-		if len(sigVec) >= int(threshold) {
-			break
-		}
-	}
-	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
-		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
-	}
-	return &reconstructedDepositMasterSig, nil
 }
 
 func validateKeyShares(keyshares *KeyShares, owner common.Address, nonce uint16, operatorPrivateKeys []*rsa.PrivateKey) error {

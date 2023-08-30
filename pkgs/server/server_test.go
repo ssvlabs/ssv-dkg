@@ -28,49 +28,10 @@ func TestGeneralRateLimit(t *testing.T) {
 		return srv.Start(3030)
 	})
 
-	ops := make(map[uint64]client.Operator)
-	ops[1] = client.Operator{"http://localhost:3030", 1, &srv.State.privateKey.PublicKey}
-
-	parts := make([]*wire.Operator, 0, 0)
-	for _, id := range []uint64{1} {
-		op, ok := ops[id]
-		if !ok {
-			t.Fatalf("no op")
-		}
-		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
-		if err != nil {
-			require.NoError(t, err)
-		}
-		parts = append(parts, &wire.Operator{
-			ID:     op.ID,
-			PubKey: pkBytes,
-		})
-	}
-
-	init := &wire.Init{
-		Operators:             parts,
-		T:                     3,
-		WithdrawalCredentials: []byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"),
-		Fork:                  [4]byte{0, 0, 0, 0},
-		Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
-		Nonce:                 0,
-	}
-	sszinit, err := init.MarshalSSZ()
-	require.NoError(t, err)
-
-	ts := &wire.Transport{
-		Type:       wire.InitMessageType,
-		Identifier: [24]byte{},
-		Data:       sszinit,
-	}
-
-	tsssz, err := ts.MarshalSSZ()
-	require.NoError(t, err)
-
 	client := req.C()
 	r := client.R()
 
-	r.SetBodyBytes(tsssz)
+	r.SetBodyBytes([]byte{})
 
 	// Send requests
 	errChan := make(chan []byte)

@@ -1,21 +1,29 @@
 package integration
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/hex"
+	"net/http"
+	"testing"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	ourcrypto "github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
+	"github.com/herumi/bls-eth-go-binary/bls"
+
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"net/http"
-	"testing"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	ourcrypto "github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
 )
 
 const encryptedKeyLength = 256
@@ -42,7 +50,7 @@ func CreateServer(t *testing.T, id uint64) *testServer {
 	}
 }
 
-func TestEverything(t *testing.T) {
+func TestHappyFlow4(t *testing.T) {
 	logger := logrus.NewEntry(logrus.New())
 	ops := make(map[uint64]client.Operator)
 	logger.Infof("Starting intg test")
@@ -81,7 +89,8 @@ func TestEverything(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 
-	_, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 	require.NoError(t, err)
 
@@ -90,8 +99,7 @@ func TestEverything(t *testing.T) {
 
 	testSharesData(t, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
 
-	// todo: @pavel verify depositdata
-
+	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	srv1.srv.Stop()
 	srv2.srv.Stop()
 	srv3.srv.Stop()
@@ -121,7 +129,7 @@ func testSharesData(t *testing.T, keys []*rsa.PrivateKey, sharesData []byte, val
 	}
 }
 func newEthAddress(t *testing.T) common.Address {
-	privateKey, err := crypto.GenerateKey()
+	privateKey, err := eth_crypto.GenerateKey()
 	require.NoError(t, err)
 
 	//privateKeyBytes := crypto.FromECDSA(privateKey)
@@ -132,7 +140,7 @@ func newEthAddress(t *testing.T) common.Address {
 
 	//publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
 
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+	address := eth_crypto.PubkeyToAddress(*publicKeyECDSA)
 
 	return address
 }
@@ -148,4 +156,32 @@ func splitBytes(buf []byte, lim int) [][]byte {
 		chunks = append(chunks, buf[:])
 	}
 	return chunks
+}
+
+func testDepositData(t *testing.T, depsitDataJson *client.DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
+	require.True(t, bytes.Equal(crypto.WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
+	masterSig := &bls.Sign{}
+	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
+	valdatorPubKey := &bls.PublicKey{}
+	require.NoError(t, valdatorPubKey.DeserializeHexStr(depsitDataJson.PubKey))
+
+	// Check root
+	var fork [4]byte
+	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
+	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, dkg.GetNetworkByFork(fork), client.MaxEffectiveBalanceInGwei)
+	require.NoError(t, err)
+	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
+	require.True(t, res)
+	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), dkg.GetNetworkByFork(fork), client.MaxEffectiveBalanceInGwei)
+	require.NoError(t, err)
+	res, err = crypto.VerifyDepositData(depositData, dkg.GetNetworkByFork(fork))
+	require.NoError(t, err)
+	require.True(t, res)
+	depositMsg := &phase0.DepositMessage{
+		WithdrawalCredentials: depositData.WithdrawalCredentials,
+		Amount:                client.MaxEffectiveBalanceInGwei,
+	}
+	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
+	depositMsgRoot, _ := depositMsg.HashTreeRoot()
+	require.True(t, bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)))
 }
