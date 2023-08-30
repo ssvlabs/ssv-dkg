@@ -107,8 +107,84 @@ func TestHappyFlow4(t *testing.T) {
 
 	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 }
+
+func TestHappyFlow7(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
+	ops := make(map[uint64]client.Operator)
+	logger.Infof("Starting intg test")
+
+	srv1 := CreateServer(t, 1)
+	ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+	srv2 := CreateServer(t, 2)
+	ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+	srv3 := CreateServer(t, 3)
+	ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+	srv4 := CreateServer(t, 4)
+	ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+	srv5 := CreateServer(t, 5)
+	ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
+	srv6 := CreateServer(t, 6)
+	ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
+	srv7 := CreateServer(t, 7)
+	ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
+
+	logger.Infof("Servers created")
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		return srv1.srv.Start(3030)
+	})
+	eg.Go(func() error {
+		return srv2.srv.Start(3031)
+	})
+	eg.Go(func() error {
+		return srv3.srv.Start(3032)
+	})
+	eg.Go(func() error {
+		return srv4.srv.Start(3033)
+	})
+	eg.Go(func() error {
+		return srv5.srv.Start(3034)
+	})
+	eg.Go(func() error {
+		return srv6.srv.Start(3035)
+	})
+	eg.Go(func() error {
+		return srv7.srv.Start(3036)
+	})
+	logger.Infof("Servers Started")
+	clnt := client.New(ops)
+
+	logger.Infof("Client created")
+	logger.Infof("Client Starting dkg")
+
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+
+	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, 6, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+	require.NoError(t, err)
+	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+	require.NoError(t, err)
+
+	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+	require.NoError(t, err)
+
+	testSharesData(t, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+
+	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+	srv1.srv.Stop()
+	srv2.srv.Stop()
+	srv3.srv.Stop()
+	srv4.srv.Stop()
+	srv5.srv.Stop()
+	srv6.srv.Stop()
+	srv7.srv.Stop()
+
+	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+}
+
 func testSharesData(t *testing.T, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
-	operatorCount := 4
+	operatorCount := len(keys)
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
