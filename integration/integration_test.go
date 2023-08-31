@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/hex"
+	"fmt"
+	"github.com/pkg/errors"
 	"net/http"
 	"testing"
 
@@ -300,17 +302,75 @@ func testSharesData(t *testing.T, keys []*rsa.PrivateKey, sharesData []byte, val
 
 	signature := sharesData[:signatureOffset]
 
+	msg := []byte("Hello")
+
 	require.NoError(t, ourcrypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce))
 
 	_ = splitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	encryptedKeys := splitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
 
+	sigs2 := make(map[uint64][]byte)
+
 	for i, enck := range encryptedKeys {
 		priv := keys[i]
-		_, err := rsaencryption.DecodeKey(priv, enck)
+		share, err := rsaencryption.DecodeKey(priv, enck)
 		require.NoError(t, err)
+		secret := &bls.SecretKey{}
+		require.NoError(t, secret.SetHexString(string(share)))
+
+		sig := secret.SignByte(msg)
+		sigs2[uint64(i+1)] = sig.Serialize()
 	}
+
+	recon, err := ReconstructSignatures(sigs2)
+	require.NoError(t, err)
+
+	require.NoError(t, VerifyReconstructedSignature(recon, validatorPublicKey, msg))
+
 }
+
+// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
+// It then reconstructs the original threshold signature using lagrange interpolation
+func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
+	reconstructedSig := bls.Sign{}
+
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+
+	for index, signature := range signatures {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", index))
+		if err != nil {
+			return nil, err
+		}
+
+		idVec = append(idVec, blsID)
+		blsSig := bls.Sign{}
+
+		err = blsSig.Deserialize(signature)
+		if err != nil {
+			return nil, err
+		}
+
+		sigVec = append(sigVec, blsSig)
+	}
+	err := reconstructedSig.Recover(sigVec, idVec)
+	return &reconstructedSig, err
+}
+
+func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
+	pk := &bls.PublicKey{}
+	if err := pk.Deserialize(validatorPubKey); err != nil {
+		return errors.Wrap(err, "could not deserialize validator pk")
+	}
+
+	// verify reconstructed sig
+	if res := sig.VerifyByte(pk, msg); !res {
+		return errors.New("could not reconstruct a valid signature")
+	}
+	return nil
+}
+
 func newEthAddress(t *testing.T) common.Address {
 	privateKey, err := eth_crypto.GenerateKey()
 	require.NoError(t, err)
