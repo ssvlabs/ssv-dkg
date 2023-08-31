@@ -1,7 +1,5 @@
 package wire
 
-import "github.com/ethereum/go-ethereum/common"
-
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
@@ -72,7 +70,7 @@ type SignedTransport struct {
 
 type KyberMessage struct {
 	Type TransportType
-	Data []byte `ssz-max:"2048"`
+	Data []byte `ssz-max:"4096"`
 }
 
 type Operator struct {
@@ -90,7 +88,7 @@ type Init struct {
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
 	// Owner address
-	Owner common.Address `ssz-size:"20"`
+	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
 }
@@ -101,8 +99,8 @@ type Exchange struct {
 }
 
 type Output struct {
-	EncryptedShare              []byte `ssz-max:"2048"`
-	SharePK                     []byte `ssz-max:"2048"`
+	EncryptedShare              []byte `ssz-max:"4096"`
+	SharePK                     []byte `ssz-max:"4096"`
 	ValidatorPK                 []byte `ssz-size:"48"`
 	DepositDataPartialSignature []byte `ssz-size:"96"`
 }
