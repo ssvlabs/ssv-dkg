@@ -6,13 +6,17 @@ import (
 	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/mocks"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -62,6 +66,57 @@ func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_se
 	require.NoError(t, err)
 	srv := test_server.New(pk, eveCase)
 	return srv
+}
+func TestHappyFlowMock(t *testing.T) {
+	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+	require.NoError(t, err)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockClient := mocks.NewMockDKGClient(mockCtrl)
+
+	client := req.C()
+	// Set timeout for operator responses
+	client.SetTimeout(30 * time.Second)
+	c := &Client{
+		Logger:    logrus.NewEntry(logrus.New()),
+		Client:    client,
+		Operators: opmap,
+	}
+
+	parts := make([]*wire.Operator, 0, 0)
+	for _, id := range []uint64{1, 2, 3, 4} {
+		op, ok := c.Operators[id]
+		if !ok {
+			t.FailNow()
+		}
+		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+		require.NoError(t, err)
+		parts = append(parts, &wire.Operator{
+			ID:     op.ID,
+			PubKey: pkBytes,
+		})
+	}
+	// Add messages verification coming form operators
+	verify, err := c.CreateVerifyFunc(parts)
+	require.NoError(t, err)
+	c.VerifyFunc = verify
+
+	// make init message
+	init := &wire.Init{
+		Operators:             parts,
+		T:                     3,
+		WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
+		Fork:                  [4]byte{0, 0, 0, 0},
+		Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
+		Nonce:                 0,
+	}
+
+	id := c.NewID()
+	results, err := c.SendInitMsg(init, id)
+	mockClient.EXPECT().SendInitMsg(123, "Hello GoMock").Return(nil).Times(1)
+
+	require.NoError(t, err)
 }
 
 func TestHappyFlow(t *testing.T) {

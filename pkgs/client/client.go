@@ -96,11 +96,24 @@ type OperatorDataJson struct {
 
 type Operators map[uint64]Operator
 
+type DKGClient interface {
+	SendAndCollect(op Operator, method string, data []byte) ([]byte, error)
+	SendToAll(method string, msg []byte) ([][]byte, error)
+	PakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error)
+	StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error)
+	CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error)
+	ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error)
+	SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error)
+	SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error)
+	SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error)
+}
+
 type Client struct {
 	Logger     *logrus.Entry
 	Client     *req.Client
 	Operators  Operators
 	VerifyFunc func(id uint64, msg, sig []byte) error
+	DKGClient  DKGClient
 }
 
 type DepositDataJson struct {
@@ -303,7 +316,7 @@ func parseAsError(msg []byte) (error, error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
-func (c *Client) makeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
+func (c *Client) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
@@ -394,7 +407,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 	c.Logger.Infof("Round 2. Finished successfuly. Got DKG results")
 
-	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.processDKGResultResponse(dkgResult, id)
+	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -592,7 +605,7 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	}
 }
 
-func (c *Client) processDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
+func (c *Client) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
 	dkgResults := make([]dkg.Result, 0)
 	validatorPubKey := bls.PublicKey{}
 	sharePks := make(map[ssvspec_types.OperatorID]*bls.PublicKey)
@@ -676,7 +689,7 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 
 func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
 	c.Logger.Info("Round 1. Parsing init responses")
-	mltpl, err := c.makeMultiple(id, exchangeMsgs)
+	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +707,7 @@ func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte,
 }
 
 func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
-	mltpl2, err := c.makeMultiple(id, kyberDeals)
+	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
 		return nil, err
 	}

@@ -45,6 +45,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/wealdtech/go-bytesutil v1.1.1 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/mock v0.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

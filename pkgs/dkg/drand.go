@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
@@ -256,13 +257,18 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return errors.New("cant encrypt share")
 	}
 	// check that we encrypt right
-	shareSecret := &bls.SecretKey{}
+	shareSecretDecrypted := &bls.SecretKey{}
 	decryptedSharePrivateKey, err := rsaencryption.DecodeKey(o.OpPrivKey, ciphertext)
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-	if err = shareSecret.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+	if err = shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+		o.broadcastError(err)
+		return err
+	}
+
+	if !bytes.Equal(shareSecretDecrypted.Serialize(), secretKeyBLS.Serialize()) {
 		o.broadcastError(err)
 		return err
 	}
