@@ -96,7 +96,7 @@ type OperatorDataJson struct {
 
 type Operators map[uint64]Operator
 
-type DKGClient interface {
+type MockClient interface {
 	SendAndCollect(op Operator, method string, data []byte) ([]byte, error)
 	SendToAll(method string, msg []byte) ([][]byte, error)
 	PakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error)
@@ -113,7 +113,6 @@ type Client struct {
 	Client     *req.Client
 	Operators  Operators
 	VerifyFunc func(id uint64, msg, sig []byte) error
-	DKGClient  DKGClient
 }
 
 type DepositDataJson struct {

@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -68,6 +70,41 @@ func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_se
 	return srv
 }
 func TestHappyFlowMock(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
+
+	logger.Infof("Starting intg test")
+
+	srv1 := CreateTestServer(t, 1)
+	srv2 := CreateTestServer(t, 2)
+	srv3 := CreateTestServer(t, 3)
+	srv4 := CreateTestServer(t, 4)
+
+	logger.Infof("Servers created")
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		err := srv1.Start(3030)
+		require.NoError(t, err)
+		return err
+	})
+	eg.Go(func() error {
+		err := srv2.Start(3031)
+		require.NoError(t, err)
+		return err
+	})
+	eg.Go(func() error {
+		err := srv3.Start(3032)
+		require.NoError(t, err)
+		return err
+	})
+	eg.Go(func() error {
+		err := srv4.Start(3033)
+		require.NoError(t, err)
+		return err
+	})
+
+	logger.Infof("Servers Started")
+
 	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 	require.NoError(t, err)
 
@@ -75,18 +112,18 @@ func TestHappyFlowMock(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockClient := mocks.NewMockDKGClient(mockCtrl)
 
-	client := req.C()
+	c := req.C()
 	// Set timeout for operator responses
-	client.SetTimeout(30 * time.Second)
-	c := &Client{
+	c.SetTimeout(30 * time.Second)
+	client := &client.Client{
 		Logger:    logrus.NewEntry(logrus.New()),
-		Client:    client,
+		Client:    c,
 		Operators: opmap,
 	}
 
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range []uint64{1, 2, 3, 4} {
-		op, ok := c.Operators[id]
+		op, ok := client.Operators[id]
 		if !ok {
 			t.FailNow()
 		}
@@ -98,9 +135,9 @@ func TestHappyFlowMock(t *testing.T) {
 		})
 	}
 	// Add messages verification coming form operators
-	verify, err := c.CreateVerifyFunc(parts)
+	verify, err := client.CreateVerifyFunc(parts)
 	require.NoError(t, err)
-	c.VerifyFunc = verify
+	client.VerifyFunc = verify
 
 	// make init message
 	init := &wire.Init{
@@ -112,10 +149,9 @@ func TestHappyFlowMock(t *testing.T) {
 		Nonce:                 0,
 	}
 
-	id := c.NewID()
-	results, err := c.SendInitMsg(init, id)
-	mockClient.EXPECT().SendInitMsg(123, "Hello GoMock").Return(nil).Times(1)
-
+	id := client.NewID()
+	mockClient.EXPECT().SendInitMsg(init, id).Return(nil, fmt.Errorf("Test err")).Times(1)
+	_, _, err = client.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.NoError(t, err)
 }
 
@@ -162,7 +198,11 @@ func TestHappyFlow(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+
+	_, _, err = clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 	require.NoError(t, err)
 
 }
@@ -248,7 +288,6 @@ func TestWrongPartialSignatures(t *testing.T) {
 	logger.Infof("Client Starting dkg")
 	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
-	t.Log(err)
 }
 
 func TestWrongID(t *testing.T) {
@@ -344,4 +383,21 @@ func TestWrongThreshold(t *testing.T) {
 	clnt := client.New(opmap)
 	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.Error(t, err)
+}
+
+func newEthAddress(t *testing.T) common.Address {
+	privateKey, err := eth_crypto.GenerateKey()
+	require.NoError(t, err)
+
+	//privateKeyBytes := crypto.FromECDSA(privateKey)
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	require.True(t, ok)
+
+	//publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+
+	address := eth_crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	return address
 }
