@@ -11,7 +11,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	bls "github.com/drand/kyber-bls12381"
+	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
 )
 
@@ -79,7 +79,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		BroadcastF: broadcast,
 		SignFunc:   s.Sign,
 		VerifyFunc: verify,
-		Suite:      bls.NewBLS12381Suite(),
+		Suite:      bls3.NewBLS12381Suite(),
 		ID:         serverID,
 		OpPrivKey:  s.privateKey,
 		Owner:      init.Owner,

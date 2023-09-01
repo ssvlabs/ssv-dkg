@@ -6,9 +6,10 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/pkg/errors"
 	"net/http"
 	"testing"
+
+	"github.com/pkg/errors"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -63,8 +64,8 @@ func TestHappyFlow4(t *testing.T) {
 	ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
 	srv3 := CreateServer(t, 3)
 	ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
-	srv4 := CreateServer(t, 4)
-	ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+	srv4 := CreateServer(t, 7)
+	ops[101] = client.Operator{"http://localhost:3033", 101, &srv4.privKey.PublicKey}
 
 	logger.Infof("Servers created")
 
@@ -91,7 +92,7 @@ func TestHappyFlow4(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 
-	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestHappyFlow4(t *testing.T) {
 	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 	require.NoError(t, err)
 
-	testSharesData(t, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
 
 	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	srv1.srv.Stop()
@@ -171,7 +172,7 @@ func TestHappyFlow7(t *testing.T) {
 	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 	require.NoError(t, err)
 
-	testSharesData(t, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
 
 	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 
@@ -272,7 +273,7 @@ func TestHappyFlow12(t *testing.T) {
 	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 	require.NoError(t, err)
 
-	testSharesData(t, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
 
 	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 
@@ -292,7 +293,7 @@ func TestHappyFlow12(t *testing.T) {
 	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 }
 
-func testSharesData(t *testing.T, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
+func testSharesData(t *testing.T, ops map[uint64]client.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
 	operatorCount := len(keys)
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
@@ -317,9 +318,15 @@ func testSharesData(t *testing.T, keys []*rsa.PrivateKey, sharesData []byte, val
 		require.NoError(t, err)
 		secret := &bls.SecretKey{}
 		require.NoError(t, secret.SetHexString(string(share)))
-
+		// Find operator ID by PubKey
+		var operatorID uint64
+		for id, op := range ops {
+			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
+				operatorID = id
+			}
+		}
 		sig := secret.SignByte(msg)
-		sigs2[uint64(i+1)] = sig.Serialize()
+		sigs2[operatorID+1] = sig.Serialize()
 	}
 
 	recon, err := ReconstructSignatures(sigs2)

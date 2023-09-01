@@ -4,19 +4,20 @@ go 1.20
 
 require (
 	github.com/attestantio/go-eth2-client v0.16.3
-	github.com/drand/kyber v1.2.0
-	github.com/drand/kyber-bls12381 v0.2.5
+	github.com/drand/kyber v1.1.17
+	github.com/drand/kyber-bls12381 v0.2.4
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/ferranbt/fastssz v0.1.3
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/herumi/bls-eth-go-binary v1.31.0
+	github.com/herumi/bls-eth-go-binary v1.28.1
 	github.com/imroc/req/v3 v3.37.2
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
-	github.com/wealdtech/go-eth2-types/v2 v2.8.2
+	github.com/wealdtech/go-eth2-types/v2 v2.8.0
 	github.com/wealdtech/go-eth2-util v1.6.3
+	go.uber.org/mock v0.2.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.3.0
 )
@@ -45,7 +46,6 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/wealdtech/go-bytesutil v1.1.1 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/mock v0.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -55,7 +55,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/bloxapp/eth2-key-manager v1.3.1
 	github.com/bloxapp/ssv v0.5.4
-	github.com/bloxapp/ssv-spec v0.3.1
+	github.com/bloxapp/ssv-spec v0.3.1-0.20230322125847-21e97ea2ad3d
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
@@ -79,7 +79,7 @@ require (
 	github.com/refraction-networking/utls v1.3.2 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/spf13/viper v1.16.0
-	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.4.1
+	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.3.0
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/mod v0.11.0 // indirect

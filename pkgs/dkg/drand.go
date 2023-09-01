@@ -70,8 +70,6 @@ type Result struct {
 	ValidatorPubKey []byte
 	// Partial Operator Signature of Deposit Data
 	DepositPartialSignature []byte
-	// DepositPartialSignature index
-	DepositPartialSignatureIndex uint64
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte
 }
@@ -154,6 +152,7 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
+	o.Logger.Infof("Staring DKG with nodes", nodes)
 
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
@@ -207,7 +206,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Infof("<<<< ---- DKG Result ---- >>>>")
-	o.Logger.Debugf("DKG PROTOCOL RESULT %v", res.Result)
+	o.Logger.Infof("DKG PROTOCOL RESULT %v", res.Result)
 	if res.Error != nil {
 		o.Logger.Error(res.Error)
 		o.broadcastError(res.Error)
@@ -231,8 +230,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	// Get BLS partial secret key index. We add 1 because DKG share index starts from 0 but BLS aggregation expects it from 1
-	secretKeyBLSindex := res.Result.Key.Share.I + 1
 	// Store secret if requested
 	if viper.GetBool("storeShare") {
 		type shareStorage struct {
@@ -305,15 +302,14 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
 	out := Result{
-		RequestID:                    o.data.ReqID,
-		EncryptedShare:               ciphertext,
-		SharePubKey:                  secretKeyBLS.GetPublicKey().Serialize(),
-		ValidatorPubKey:              validatorPubKey.Serialize(),
-		DepositPartialSignature:      depositRootSig.Serialize(),
-		DepositPartialSignatureIndex: uint64(secretKeyBLSindex),
-		PubKeyRSA:                    &o.OpPrivKey.PublicKey,
-		OperatorID:                   o.ID,
-		OwnerNoncePartialSignature:   sigOwnerNonce.Serialize(),
+		RequestID:                  o.data.ReqID,
+		EncryptedShare:             ciphertext,
+		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
+		ValidatorPubKey:            validatorPubKey.Serialize(),
+		DepositPartialSignature:    depositRootSig.Serialize(),
+		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
+		OperatorID:                 o.ID,
+		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
 	}
 
 	encodedOutput, err := out.Encode()
@@ -516,13 +512,4 @@ func (o *LocalOwner) broadcastError(err error) {
 
 	o.Broadcast(errMsg)
 	close(o.done)
-}
-
-func VerifyPartialSigs(dkgResults []Result, sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
-	for _, resShare := range dkgResults {
-		if !sigShares[resShare.DepositPartialSignatureIndex].VerifyByte(sharePks[resShare.DepositPartialSignatureIndex], data) {
-			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[resShare.DepositPartialSignatureIndex].Serialize(), data)
-		}
-	}
-	return nil
 }

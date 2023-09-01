@@ -220,9 +220,9 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
 	pkVec := make([]bls.PublicKey, 0)
-	for operatorID, pk := range sharePks {
+	for index, pk := range sharePks {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", index+1)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
@@ -233,21 +233,17 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 	}
 	return &validatorRecoveredPK, nil
 }
-func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign, threshold uint64) (*bls.Sign, error) {
+func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) {
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for operatorID, sig := range sigDepositShares {
+	for index, sig := range sigDepositShares {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", operatorID)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", index+1)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
 		sigVec = append(sigVec, *sig)
-
-		if len(sigVec) >= int(threshold) {
-			break
-		}
 	}
 	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
@@ -436,4 +432,13 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 		return nil, nil, errors.Wrap(err, "failed to sign the root")
 	}
 	return sig, root[:], nil
+}
+
+func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
+	for index, pub := range sharePks {
+		if !sigShares[index].VerifyByte(pub, data) {
+			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[index].Serialize(), data)
+		}
+	}
+	return nil
 }

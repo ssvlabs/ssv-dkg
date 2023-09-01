@@ -31,7 +31,7 @@ func TestDKGFull(t *testing.T) {
 		Suite:     suite.G1().(dkg.Suite),
 		NewNodes:  list,
 		Threshold: thr,
-		Auth:      drand_bls.NewSchemeOnG2(suite),
+		Auth:      drand_bls.NewSchemeOnG1(suite),
 	}
 	types.InitBLS()
 	results := RunDKG(t, tns, conf, nil, nil, nil)

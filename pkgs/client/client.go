@@ -422,7 +422,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 		return nil, nil, err
 	}
 	// Verify partial signatures and recovered threshold signature
-	err = dkg.VerifyPartialSigs(dkgResults, sigDepositShares, sharePks, shareRoot)
+	err = crypto.VerifyPartialSigs(sigDepositShares, sharePks, shareRoot)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -439,7 +439,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	}
 
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(sigDepositShares, init.T)
+	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(sigDepositShares)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -493,12 +493,12 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	c.Logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
 	c.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
 
-	err = dkg.VerifyPartialSigs(dkgResults, ssvContractOwnerNonceSigShares, sharePks, hash)
+	err = crypto.VerifyPartialSigs(ssvContractOwnerNonceSigShares, sharePks, hash)
 	if err != nil {
 		return nil, nil, err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ssvContractOwnerNonceSigShares, init.T)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ssvContractOwnerNonceSigShares)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -646,17 +646,17 @@ func (c *Client) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) 
 		if err := sharePubKey.Deserialize(result.SharePubKey); err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
-		sharePks[result.DepositPartialSignatureIndex] = sharePubKey
+		sharePks[result.OperatorID] = sharePubKey
 		depositShareSig := &bls.Sign{}
 		if err := depositShareSig.Deserialize(result.DepositPartialSignature); err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
-		sigDepositShares[result.DepositPartialSignatureIndex] = depositShareSig
+		sigDepositShares[result.OperatorID] = depositShareSig
 		ownerNonceShareSig := &bls.Sign{}
 		if err := ownerNonceShareSig.Deserialize(result.OwnerNoncePartialSignature); err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
-		ssvContractOwnerNonceSigShares[result.DepositPartialSignatureIndex] = ownerNonceShareSig
+		ssvContractOwnerNonceSigShares[result.OperatorID] = ownerNonceShareSig
 		c.Logger.Debugf("Result of DKG from an operator %v", result)
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
