@@ -326,7 +326,7 @@ func testSharesData(t *testing.T, ops map[uint64]client.Operator, keys []*rsa.Pr
 			}
 		}
 		sig := secret.SignByte(msg)
-		sigs2[operatorID+1] = sig.Serialize()
+		sigs2[operatorID] = sig.Serialize()
 	}
 
 	recon, err := ReconstructSignatures(sigs2)

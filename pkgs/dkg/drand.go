@@ -148,7 +148,7 @@ func (o *LocalOwner) StartDKG() error {
 		}
 
 		nodes = append(nodes, dkg.Node{
-			Index:  dkg.Index(id),
+			Index:  dkg.Index(id - 1),
 			Public: p,
 		})
 	}

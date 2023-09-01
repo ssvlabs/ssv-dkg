@@ -222,7 +222,7 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 	pkVec := make([]bls.PublicKey, 0)
 	for index, pk := range sharePks {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", index+1)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
@@ -239,7 +239,7 @@ func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) 
 	sigVec := make([]bls.Sign, 0)
 	for index, sig := range sigDepositShares {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", index+1)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
