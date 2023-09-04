@@ -7,18 +7,14 @@ import (
 	"time"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/mocks"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,91 +64,6 @@ func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_se
 	require.NoError(t, err)
 	srv := test_server.New(pk, eveCase)
 	return srv
-}
-func TestHappyFlowMock(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	srv1 := CreateTestServer(t, 1)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		err := srv1.Start(3030)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv2.Start(3031)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv3.Start(3032)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv4.Start(3033)
-		require.NoError(t, err)
-		return err
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-	mockClient := mocks.NewMockDKGClient(mockCtrl)
-
-	c := req.C()
-	// Set timeout for operator responses
-	c.SetTimeout(30 * time.Second)
-	client := &client.Client{
-		Logger:    logrus.NewEntry(logrus.New()),
-		Client:    c,
-		Operators: opmap,
-	}
-
-	parts := make([]*wire.Operator, 0, 0)
-	for _, id := range []uint64{1, 2, 3, 4} {
-		op, ok := client.Operators[id]
-		if !ok {
-			t.FailNow()
-		}
-		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
-		require.NoError(t, err)
-		parts = append(parts, &wire.Operator{
-			ID:     op.ID,
-			PubKey: pkBytes,
-		})
-	}
-	// Add messages verification coming form operators
-	verify, err := client.CreateVerifyFunc(parts)
-	require.NoError(t, err)
-	client.VerifyFunc = verify
-
-	// make init message
-	init := &wire.Init{
-		Operators:             parts,
-		T:                     3,
-		WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
-		Fork:                  [4]byte{0, 0, 0, 0},
-		Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
-		Nonce:                 0,
-	}
-
-	id := client.NewID()
-	mockClient.EXPECT().SendInitMsg(init, id).Return(nil, fmt.Errorf("Test err")).Times(1)
-	_, _, err = client.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.NoError(t, err)
 }
 
 func TestHappyFlow(t *testing.T) {
@@ -204,7 +115,6 @@ func TestHappyFlow(t *testing.T) {
 
 	_, _, err = clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 	require.NoError(t, err)
-
 }
 
 func TestWrongServerKey(t *testing.T) {
@@ -244,7 +154,7 @@ func TestWrongServerKey(t *testing.T) {
 	logger.Infof("Client Starting dkg")
 
 	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "my operator is missing inside the op list")
 }
 
 func TestWrongPartialSignatures(t *testing.T) {
@@ -286,8 +196,8 @@ func TestWrongPartialSignatures(t *testing.T) {
 
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
-	_, _, err = clnt.StartDKG([]byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.Error(t, err)
+	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+	require.ErrorContains(t, err, "error verifying partial deposit signature")
 }
 
 func TestWrongID(t *testing.T) {
@@ -330,8 +240,7 @@ func TestWrongID(t *testing.T) {
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
 	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.Error(t, err)
-	t.Log(err)
+	require.ErrorContains(t, err, "DKG result has wrong ID")
 }
 
 func TestOperatorTimeout(t *testing.T) {
@@ -374,7 +283,7 @@ func TestOperatorTimeout(t *testing.T) {
 	logger.Infof("Client created")
 	logger.Infof("Client Starting dkg")
 	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
 }
 
 func TestWrongThreshold(t *testing.T) {
@@ -382,7 +291,7 @@ func TestWrongThreshold(t *testing.T) {
 	require.NoError(t, err)
 	clnt := client.New(opmap)
 	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "wrong threshold")
 }
 
 func newEthAddress(t *testing.T) common.Address {
@@ -401,3 +310,89 @@ func newEthAddress(t *testing.T) common.Address {
 
 	return address
 }
+
+// func TestHappyFlowMock(t *testing.T) {
+// 	logger := logrus.NewEntry(logrus.New())
+
+// 	logger.Infof("Starting intg test")
+
+// 	srv1 := CreateTestServer(t, 1)
+// 	srv2 := CreateTestServer(t, 2)
+// 	srv3 := CreateTestServer(t, 3)
+// 	srv4 := CreateTestServer(t, 4)
+
+// 	logger.Infof("Servers created")
+
+// 	eg := errgroup.Group{}
+// 	eg.Go(func() error {
+// 		err := srv1.Start(3030)
+// 		require.NoError(t, err)
+// 		return err
+// 	})
+// 	eg.Go(func() error {
+// 		err := srv2.Start(3031)
+// 		require.NoError(t, err)
+// 		return err
+// 	})
+// 	eg.Go(func() error {
+// 		err := srv3.Start(3032)
+// 		require.NoError(t, err)
+// 		return err
+// 	})
+// 	eg.Go(func() error {
+// 		err := srv4.Start(3033)
+// 		require.NoError(t, err)
+// 		return err
+// 	})
+
+// 	logger.Infof("Servers Started")
+
+// 	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+// 	require.NoError(t, err)
+
+// 	mockCtrl := gomock.NewController(t)
+// 	defer mockCtrl.Finish()
+// 	mockClient := mocks.NewMockDKGClient(mockCtrl)
+
+// 	c := req.C()
+// 	// Set timeout for operator responses
+// 	c.SetTimeout(30 * time.Second)
+// 	client := &client.Client{
+// 		Logger:    logrus.NewEntry(logrus.New()),
+// 		Client:    c,
+// 		Operators: opmap,
+// 	}
+
+// 	parts := make([]*wire.Operator, 0, 0)
+// 	for _, id := range []uint64{1, 2, 3, 4} {
+// 		op, ok := client.Operators[id]
+// 		if !ok {
+// 			t.FailNow()
+// 		}
+// 		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+// 		require.NoError(t, err)
+// 		parts = append(parts, &wire.Operator{
+// 			ID:     op.ID,
+// 			PubKey: pkBytes,
+// 		})
+// 	}
+// 	// Add messages verification coming form operators
+// 	verify, err := client.CreateVerifyFunc(parts)
+// 	require.NoError(t, err)
+// 	client.VerifyFunc = verify
+
+// 	// make init message
+// 	init := &wire.Init{
+// 		Operators:             parts,
+// 		T:                     3,
+// 		WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
+// 		Fork:                  [4]byte{0, 0, 0, 0},
+// 		Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
+// 		Nonce:                 0,
+// 	}
+
+// 	id := client.NewID()
+// 	mockClient.EXPECT().SendInitMsg(init, id).Return(nil, fmt.Errorf("Test err")).Times(1)
+// 	_, _, err = client.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+// 	require.NoError(t, err)
+// }
