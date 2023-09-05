@@ -18,6 +18,7 @@ import (
 
 type Server struct {
 	Logger *logrus.Entry
+	HttpServer *http.Server
 	Router chi.Router
 	State  *Switch
 }
@@ -102,5 +103,12 @@ func New(key *rsa.PrivateKey, eve *dkg.EveTest) *Server {
 }
 
 func (s *Server) Start(port uint16) error {
-	return http.ListenAndServe(fmt.Sprintf(":%v", port), s.Router)
+	s.Logger.Infof("Server listening for incoming requests on port %d", port)
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
+	s.HttpServer = srv
+	return s.HttpServer.ListenAndServe()
+}
+
+func (s *Server) Stop() error {
+	return s.HttpServer.Close()
 }

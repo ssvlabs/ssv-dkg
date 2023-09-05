@@ -3,6 +3,7 @@ package client_test
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -45,6 +46,169 @@ const operatorsMetaData = `[
 
 const exmaplePath = "../../examples/"
 
+
+func TestHappyFlow(t *testing.T) {
+	t.Run("test wrong server key", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		logger.Infof("Starting intg test")
+		srv1 := CreateTestServerRandomKey(t, 1)
+		srv2 := CreateTestServer(t, 2)
+		srv3 := CreateTestServer(t, 3)
+		srv4 := CreateTestServer(t, 4)
+		logger.Infof("Servers created")
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.Start(3033)
+		})
+		logger.Infof("Servers Started")
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "my operator is missing inside the op list")
+		srv1.Stop()
+		srv2.Stop()
+		srv3.Stop()
+		srv4.Stop()
+
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	})
+
+	t.Run("test wrong partial deposit signature", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		logger.Infof("Starting intg test")
+		eveMsg := dkg.EveTest{
+			WrongPartialSig: "0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4",
+		}
+
+		srv1 := CreateEveTestServer(t, 1, &eveMsg)
+		srv2 := CreateTestServer(t, 2)
+		srv3 := CreateTestServer(t, 3)
+		srv4 := CreateTestServer(t, 4)
+		logger.Infof("Servers created")
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.Start(3033)
+		})
+		logger.Infof("Servers Started")
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "error verifying partial deposit signature")
+		srv1.Stop()
+		srv2.Stop()
+		srv3.Stop()
+		srv4.Stop()
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	})
+
+	t.Run("test wrong request ID", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		logger.Infof("Starting intg test")
+		eveMsg := dkg.EveTest{
+			WrongID: "0x0000000000000000630ab8af69364a6db7b6d7d59bb60f23",
+		}
+		srv1 := CreateEveTestServer(t, 1, &eveMsg)
+		srv2 := CreateTestServer(t, 2)
+		srv3 := CreateTestServer(t, 3)
+		srv4 := CreateTestServer(t, 4)
+		logger.Infof("Servers created")
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.Start(3033)
+		})
+		logger.Infof("Servers Started")
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "DKG result has wrong ID")
+		srv1.Stop()
+		srv2.Stop()
+		srv3.Stop()
+		srv4.Stop()
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	})
+	t.Run("test operator timeout", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		logger.Infof("Starting intg test")
+		eveMsg := dkg.EveTest{
+			Timeout: time.Second * 30,
+		}
+		srv1 := CreateEveTestServer(t, 1, &eveMsg)
+		srv2 := CreateTestServer(t, 2)
+		srv3 := CreateTestServer(t, 3)
+		srv4 := CreateTestServer(t, 4)
+		logger.Infof("Servers created")
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.Start(3033)
+		})
+		logger.Infof("Servers Started")
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
+		srv1.Stop()
+		srv2.Stop()
+		srv3.Stop()
+		srv4.Stop()
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	})
+	t.Run("test wrong threshold", func(t *testing.T) {
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "wrong threshold")
+	})
+}
 func CreateTestServer(t *testing.T, id uint64) *test_server.Server {
 	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
@@ -64,234 +228,6 @@ func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_se
 	require.NoError(t, err)
 	srv := test_server.New(pk, eveCase)
 	return srv
-}
-
-func TestHappyFlow(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	srv1 := CreateTestServer(t, 1)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		err := srv1.Start(3030)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv2.Start(3031)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv3.Start(3032)
-		require.NoError(t, err)
-		return err
-	})
-	eg.Go(func() error {
-		err := srv4.Start(3033)
-		require.NoError(t, err)
-		return err
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	clnt := client.New(opmap)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-
-	_, _, err = clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	require.NoError(t, err)
-}
-
-func TestWrongServerKey(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	srv1 := CreateTestServerRandomKey(t, 1)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	clnt := client.New(opmap)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.ErrorContains(t, err, "my operator is missing inside the op list")
-}
-
-func TestWrongPartialSignatures(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	eveMsg := dkg.EveTest{
-		WrongPartialSig: "0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4",
-	}
-
-	srv1 := CreateEveTestServer(t, 1, &eveMsg)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	clnt := client.New(opmap)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.ErrorContains(t, err, "error verifying partial deposit signature")
-}
-
-func TestWrongID(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	eveMsg := dkg.EveTest{
-		WrongID: "0x0000000000000000630ab8af69364a6db7b6d7d59bb60f23",
-	}
-
-	srv1 := CreateEveTestServer(t, 1, &eveMsg)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	clnt := client.New(opmap)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.ErrorContains(t, err, "DKG result has wrong ID")
-}
-
-func TestOperatorTimeout(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-
-	logger.Infof("Starting intg test")
-
-	eveMsg := dkg.EveTest{
-		Timeout: time.Second * 30,
-	}
-
-	srv1 := CreateEveTestServer(t, 1, &eveMsg)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-
-	logger.Infof("Servers Started")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-
-	clnt := client.New(opmap)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
-}
-
-func TestWrongThreshold(t *testing.T) {
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-	clnt := client.New(opmap)
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-	require.ErrorContains(t, err, "wrong threshold")
 }
 
 func newEthAddress(t *testing.T) common.Address {

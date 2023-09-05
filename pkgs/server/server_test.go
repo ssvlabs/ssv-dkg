@@ -93,7 +93,7 @@ func TestInitRateLimit(t *testing.T) {
 	init := &wire.Init{
 		Operators:             parts,
 		T:                     3,
-		WithdrawalCredentials: []byte("0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"),
+		WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
 		Fork:                  [4]byte{0, 0, 0, 0},
 		Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 		Nonce:                 0,

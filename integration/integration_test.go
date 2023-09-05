@@ -30,9 +30,6 @@ import (
 )
 
 const encryptedKeyLength = 256
-
-const exmaplePath = "../examples/"
-
 type testServer struct {
 	id      uint64
 	privKey *rsa.PrivateKey
@@ -53,244 +50,244 @@ func CreateServer(t *testing.T, id uint64) *testServer {
 	}
 }
 
-func TestHappyFlow4(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-	ops := make(map[uint64]client.Operator)
-	logger.Infof("Starting intg test")
+func TestHappyFlow(t *testing.T) {
+	t.Run("test 4 operators happy flow", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		ops := make(map[uint64]client.Operator)
+		logger.Infof("Starting intg test")
 
-	srv1 := CreateServer(t, 1)
-	ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
-	srv2 := CreateServer(t, 2)
-	ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
-	srv3 := CreateServer(t, 3)
-	ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
-	srv4 := CreateServer(t, 7)
-	ops[101] = client.Operator{"http://localhost:3033", 101, &srv4.privKey.PublicKey}
+		srv1 := CreateServer(t, 1)
+		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		srv2 := CreateServer(t, 2)
+		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		srv3 := CreateServer(t, 3)
+		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		srv4 := CreateServer(t, 7)
+		ops[101] = client.Operator{"http://localhost:3033", 101, &srv4.privKey.PublicKey}
 
-	logger.Infof("Servers created")
+		logger.Infof("Servers created")
 
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.srv.Start(3030)
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.srv.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.srv.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.srv.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.srv.Start(3033)
+		})
+
+		logger.Infof("Servers Started")
+		clnt := client.New(ops)
+
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+
+		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+
+		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		srv1.srv.Stop()
+		srv2.srv.Stop()
+		srv3.srv.Stop()
+		srv4.srv.Stop()
+
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 	})
-	eg.Go(func() error {
-		return srv2.srv.Start(3031)
+	t.Run("test 7 operators happy flow", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		ops := make(map[uint64]client.Operator)
+		logger.Infof("Starting intg test")
+
+		srv1 := CreateServer(t, 1)
+		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		srv2 := CreateServer(t, 2)
+		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		srv3 := CreateServer(t, 3)
+		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		srv4 := CreateServer(t, 4)
+		ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+		srv5 := CreateServer(t, 5)
+		ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
+		srv6 := CreateServer(t, 6)
+		ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
+		srv7 := CreateServer(t, 7)
+		ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
+
+		logger.Infof("Servers created")
+
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.srv.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.srv.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.srv.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.srv.Start(3033)
+		})
+		eg.Go(func() error {
+			return srv5.srv.Start(3034)
+		})
+		eg.Go(func() error {
+			return srv6.srv.Start(3035)
+		})
+		eg.Go(func() error {
+			return srv7.srv.Start(3036)
+		})
+		logger.Infof("Servers Started")
+		clnt := client.New(ops)
+
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, 6, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+
+		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+
+		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+
+		srv1.srv.Stop()
+		srv2.srv.Stop()
+		srv3.srv.Stop()
+		srv4.srv.Stop()
+		srv5.srv.Stop()
+		srv6.srv.Stop()
+		srv7.srv.Stop()
+
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 	})
-	eg.Go(func() error {
-		return srv3.srv.Start(3032)
+	t.Run("test 12 operators happy flow", func(t *testing.T) {
+		logger := logrus.NewEntry(logrus.New())
+		ops := make(map[uint64]client.Operator)
+		logger.Infof("Starting intg test")
+
+		srv1 := CreateServer(t, 1)
+		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		srv2 := CreateServer(t, 2)
+		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		srv3 := CreateServer(t, 3)
+		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		srv4 := CreateServer(t, 4)
+		ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+		srv5 := CreateServer(t, 5)
+		ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
+		srv6 := CreateServer(t, 6)
+		ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
+		srv7 := CreateServer(t, 7)
+		ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
+		srv8 := CreateServer(t, 8)
+		ops[8] = client.Operator{"http://localhost:3037", 8, &srv8.privKey.PublicKey}
+		srv9 := CreateServer(t, 9)
+		ops[9] = client.Operator{"http://localhost:3038", 9, &srv9.privKey.PublicKey}
+		srv10 := CreateServer(t, 10)
+		ops[10] = client.Operator{"http://localhost:3039", 10, &srv10.privKey.PublicKey}
+		srv11 := CreateServer(t, 11)
+		ops[11] = client.Operator{"http://localhost:30310", 11, &srv11.privKey.PublicKey}
+		srv12 := CreateServer(t, 12)
+		ops[12] = client.Operator{"http://localhost:30311", 12, &srv12.privKey.PublicKey}
+
+		logger.Infof("Servers created")
+
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return srv1.srv.Start(3030)
+		})
+		eg.Go(func() error {
+			return srv2.srv.Start(3031)
+		})
+		eg.Go(func() error {
+			return srv3.srv.Start(3032)
+		})
+		eg.Go(func() error {
+			return srv4.srv.Start(3033)
+		})
+		eg.Go(func() error {
+			return srv5.srv.Start(3034)
+		})
+		eg.Go(func() error {
+			return srv6.srv.Start(3035)
+		})
+		eg.Go(func() error {
+			return srv7.srv.Start(3036)
+		})
+		eg.Go(func() error {
+			return srv8.srv.Start(3037)
+		})
+		eg.Go(func() error {
+			return srv9.srv.Start(3038)
+		})
+		eg.Go(func() error {
+			return srv10.srv.Start(3039)
+		})
+		eg.Go(func() error {
+			return srv11.srv.Start(30310)
+		})
+		eg.Go(func() error {
+			return srv12.srv.Start(30311)
+		})
+		logger.Infof("Servers Started")
+		clnt := client.New(ops)
+
+		logger.Infof("Client created")
+		logger.Infof("Client Starting dkg")
+
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, 9, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+
+		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+
+		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+
+		srv1.srv.Stop()
+		srv2.srv.Stop()
+		srv3.srv.Stop()
+		srv4.srv.Stop()
+		srv5.srv.Stop()
+		srv6.srv.Stop()
+		srv7.srv.Stop()
+		srv8.srv.Stop()
+		srv9.srv.Stop()
+		srv10.srv.Stop()
+		srv11.srv.Stop()
+		srv12.srv.Stop()
+
+		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 	})
-	eg.Go(func() error {
-		return srv4.srv.Start(3033)
-	})
-
-	logger.Infof("Servers Started")
-	clnt := client.New(ops)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-
-	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	require.NoError(t, err)
-	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
-	require.NoError(t, err)
-
-	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-	require.NoError(t, err)
-
-	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
-	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-	srv1.srv.Stop()
-	srv2.srv.Stop()
-	srv3.srv.Stop()
-	srv4.srv.Stop()
-
-	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
-}
-
-func TestHappyFlow7(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-	ops := make(map[uint64]client.Operator)
-	logger.Infof("Starting intg test")
-
-	srv1 := CreateServer(t, 1)
-	ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
-	srv2 := CreateServer(t, 2)
-	ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
-	srv3 := CreateServer(t, 3)
-	ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
-	srv4 := CreateServer(t, 4)
-	ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
-	srv5 := CreateServer(t, 5)
-	ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
-	srv6 := CreateServer(t, 6)
-	ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
-	srv7 := CreateServer(t, 7)
-	ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.srv.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.srv.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.srv.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.srv.Start(3033)
-	})
-	eg.Go(func() error {
-		return srv5.srv.Start(3034)
-	})
-	eg.Go(func() error {
-		return srv6.srv.Start(3035)
-	})
-	eg.Go(func() error {
-		return srv7.srv.Start(3036)
-	})
-	logger.Infof("Servers Started")
-	clnt := client.New(ops)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-
-	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, 6, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	require.NoError(t, err)
-	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
-	require.NoError(t, err)
-
-	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-	require.NoError(t, err)
-
-	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
-	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-
-	srv1.srv.Stop()
-	srv2.srv.Stop()
-	srv3.srv.Stop()
-	srv4.srv.Stop()
-	srv5.srv.Stop()
-	srv6.srv.Stop()
-	srv7.srv.Stop()
-
-	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
-}
-
-func TestHappyFlow12(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-	ops := make(map[uint64]client.Operator)
-	logger.Infof("Starting intg test")
-
-	srv1 := CreateServer(t, 1)
-	ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
-	srv2 := CreateServer(t, 2)
-	ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
-	srv3 := CreateServer(t, 3)
-	ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
-	srv4 := CreateServer(t, 4)
-	ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
-	srv5 := CreateServer(t, 5)
-	ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
-	srv6 := CreateServer(t, 6)
-	ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
-	srv7 := CreateServer(t, 7)
-	ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
-	srv8 := CreateServer(t, 8)
-	ops[8] = client.Operator{"http://localhost:3037", 8, &srv8.privKey.PublicKey}
-	srv9 := CreateServer(t, 9)
-	ops[9] = client.Operator{"http://localhost:3038", 9, &srv9.privKey.PublicKey}
-	srv10 := CreateServer(t, 10)
-	ops[10] = client.Operator{"http://localhost:3039", 10, &srv10.privKey.PublicKey}
-	srv11 := CreateServer(t, 11)
-	ops[11] = client.Operator{"http://localhost:30310", 11, &srv11.privKey.PublicKey}
-	srv12 := CreateServer(t, 12)
-	ops[12] = client.Operator{"http://localhost:30311", 12, &srv12.privKey.PublicKey}
-
-	logger.Infof("Servers created")
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return srv1.srv.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.srv.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.srv.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.srv.Start(3033)
-	})
-	eg.Go(func() error {
-		return srv5.srv.Start(3034)
-	})
-	eg.Go(func() error {
-		return srv6.srv.Start(3035)
-	})
-	eg.Go(func() error {
-		return srv7.srv.Start(3036)
-	})
-	eg.Go(func() error {
-		return srv8.srv.Start(3037)
-	})
-	eg.Go(func() error {
-		return srv9.srv.Start(3038)
-	})
-	eg.Go(func() error {
-		return srv10.srv.Start(3039)
-	})
-	eg.Go(func() error {
-		return srv11.srv.Start(30310)
-	})
-	eg.Go(func() error {
-		return srv12.srv.Start(30311)
-	})
-	logger.Infof("Servers Started")
-	clnt := client.New(ops)
-
-	logger.Infof("Client created")
-	logger.Infof("Client Starting dkg")
-
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-
-	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, 9, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	require.NoError(t, err)
-	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
-	require.NoError(t, err)
-
-	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-	require.NoError(t, err)
-
-	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
-	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-
-	srv1.srv.Stop()
-	srv2.srv.Stop()
-	srv3.srv.Stop()
-	srv4.srv.Stop()
-	srv5.srv.Stop()
-	srv6.srv.Stop()
-	srv7.srv.Stop()
-	srv8.srv.Stop()
-	srv9.srv.Stop()
-	srv10.srv.Stop()
-	srv11.srv.Stop()
-	srv12.srv.Stop()
-
-	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
 }
 
 func testSharesData(t *testing.T, ops map[uint64]client.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
