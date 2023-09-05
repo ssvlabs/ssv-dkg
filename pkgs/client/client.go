@@ -17,7 +17,6 @@ import (
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"

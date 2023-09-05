@@ -6,9 +6,10 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
-	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -20,7 +21,6 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
@@ -30,10 +30,11 @@ import (
 )
 
 const encryptedKeyLength = 256
+
 type testServer struct {
 	id      uint64
 	privKey *rsa.PrivateKey
-	srv     *server.Server
+	srv     *httptest.Server
 }
 
 func CreateServer(t *testing.T, id uint64) *testServer {
@@ -41,252 +42,135 @@ func CreateServer(t *testing.T, id uint64) *testServer {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	srv := server.New(priv)
-
+	r := chi.NewRouter()
+	swtch := server.NewSwitch(priv)
+	lg := logrus.New()
+	lg.SetLevel(logrus.DebugLevel)
+	s := &server.Server{
+		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Router: r,
+		State:  swtch,
+	}
+	server.RegisterRoutes(s)
+	sTest := httptest.NewServer(s.Router)
 	return &testServer{
 		id:      id,
 		privKey: priv,
-		srv:     srv,
+		srv:     sTest,
 	}
 }
 
 func TestHappyFlow(t *testing.T) {
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
-		logger := logrus.NewEntry(logrus.New())
 		ops := make(map[uint64]client.Operator)
-		logger.Infof("Starting intg test")
-
 		srv1 := CreateServer(t, 1)
-		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
 		srv2 := CreateServer(t, 2)
-		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
 		srv3 := CreateServer(t, 3)
-		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
 		srv4 := CreateServer(t, 7)
-		ops[101] = client.Operator{"http://localhost:3033", 101, &srv4.privKey.PublicKey}
-
-		logger.Infof("Servers created")
-
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			return srv1.srv.Start(3030)
-		})
-		eg.Go(func() error {
-			return srv2.srv.Start(3031)
-		})
-		eg.Go(func() error {
-			return srv3.srv.Start(3032)
-		})
-		eg.Go(func() error {
-			return srv4.srv.Start(3033)
-		})
-
-		logger.Infof("Servers Started")
+		ops[101] = client.Operator{srv4.srv.URL, 101, &srv4.privKey.PublicKey}
 		clnt := client.New(ops)
-
-		logger.Infof("Client created")
-		logger.Infof("Client Starting dkg")
-
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 		require.NoError(t, err)
-
 		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
-
 		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-		srv1.srv.Stop()
-		srv2.srv.Stop()
-		srv3.srv.Stop()
-		srv4.srv.Stop()
-
-		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
-		logger := logrus.NewEntry(logrus.New())
 		ops := make(map[uint64]client.Operator)
-		logger.Infof("Starting intg test")
-
 		srv1 := CreateServer(t, 1)
-		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
 		srv2 := CreateServer(t, 2)
-		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
 		srv3 := CreateServer(t, 3)
-		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
 		srv4 := CreateServer(t, 4)
-		ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+		ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
 		srv5 := CreateServer(t, 5)
-		ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
+		ops[5] = client.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
 		srv6 := CreateServer(t, 6)
-		ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
+		ops[6] = client.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
 		srv7 := CreateServer(t, 7)
-		ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
-
-		logger.Infof("Servers created")
-
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			return srv1.srv.Start(3030)
-		})
-		eg.Go(func() error {
-			return srv2.srv.Start(3031)
-		})
-		eg.Go(func() error {
-			return srv3.srv.Start(3032)
-		})
-		eg.Go(func() error {
-			return srv4.srv.Start(3033)
-		})
-		eg.Go(func() error {
-			return srv5.srv.Start(3034)
-		})
-		eg.Go(func() error {
-			return srv6.srv.Start(3035)
-		})
-		eg.Go(func() error {
-			return srv7.srv.Start(3036)
-		})
-		logger.Infof("Servers Started")
+		ops[7] = client.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
 		clnt := client.New(ops)
-
-		logger.Infof("Client created")
-		logger.Infof("Client Starting dkg")
-
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, 6, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 		require.NoError(t, err)
-
 		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
-
 		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-
-		srv1.srv.Stop()
-		srv2.srv.Stop()
-		srv3.srv.Stop()
-		srv4.srv.Stop()
-		srv5.srv.Stop()
-		srv6.srv.Stop()
-		srv7.srv.Stop()
-
-		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
+		srv5.srv.Close()
+		srv6.srv.Close()
+		srv7.srv.Close()
 	})
 	t.Run("test 12 operators happy flow", func(t *testing.T) {
-		logger := logrus.NewEntry(logrus.New())
 		ops := make(map[uint64]client.Operator)
-		logger.Infof("Starting intg test")
-
 		srv1 := CreateServer(t, 1)
-		ops[1] = client.Operator{"http://localhost:3030", 1, &srv1.privKey.PublicKey}
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
 		srv2 := CreateServer(t, 2)
-		ops[2] = client.Operator{"http://localhost:3031", 2, &srv2.privKey.PublicKey}
+		ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
 		srv3 := CreateServer(t, 3)
-		ops[3] = client.Operator{"http://localhost:3032", 3, &srv3.privKey.PublicKey}
+		ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
 		srv4 := CreateServer(t, 4)
-		ops[4] = client.Operator{"http://localhost:3033", 4, &srv4.privKey.PublicKey}
+		ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
 		srv5 := CreateServer(t, 5)
-		ops[5] = client.Operator{"http://localhost:3034", 5, &srv5.privKey.PublicKey}
+		ops[5] = client.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
 		srv6 := CreateServer(t, 6)
-		ops[6] = client.Operator{"http://localhost:3035", 6, &srv6.privKey.PublicKey}
+		ops[6] = client.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
 		srv7 := CreateServer(t, 7)
-		ops[7] = client.Operator{"http://localhost:3036", 7, &srv7.privKey.PublicKey}
+		ops[7] = client.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
 		srv8 := CreateServer(t, 8)
-		ops[8] = client.Operator{"http://localhost:3037", 8, &srv8.privKey.PublicKey}
+		ops[8] = client.Operator{srv8.srv.URL, 8, &srv8.privKey.PublicKey}
 		srv9 := CreateServer(t, 9)
-		ops[9] = client.Operator{"http://localhost:3038", 9, &srv9.privKey.PublicKey}
+		ops[9] = client.Operator{srv9.srv.URL, 9, &srv9.privKey.PublicKey}
 		srv10 := CreateServer(t, 10)
-		ops[10] = client.Operator{"http://localhost:3039", 10, &srv10.privKey.PublicKey}
+		ops[10] = client.Operator{srv10.srv.URL, 10, &srv10.privKey.PublicKey}
 		srv11 := CreateServer(t, 11)
-		ops[11] = client.Operator{"http://localhost:30310", 11, &srv11.privKey.PublicKey}
+		ops[11] = client.Operator{srv11.srv.URL, 11, &srv11.privKey.PublicKey}
 		srv12 := CreateServer(t, 12)
-		ops[12] = client.Operator{"http://localhost:30311", 12, &srv12.privKey.PublicKey}
-
-		logger.Infof("Servers created")
-
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			return srv1.srv.Start(3030)
-		})
-		eg.Go(func() error {
-			return srv2.srv.Start(3031)
-		})
-		eg.Go(func() error {
-			return srv3.srv.Start(3032)
-		})
-		eg.Go(func() error {
-			return srv4.srv.Start(3033)
-		})
-		eg.Go(func() error {
-			return srv5.srv.Start(3034)
-		})
-		eg.Go(func() error {
-			return srv6.srv.Start(3035)
-		})
-		eg.Go(func() error {
-			return srv7.srv.Start(3036)
-		})
-		eg.Go(func() error {
-			return srv8.srv.Start(3037)
-		})
-		eg.Go(func() error {
-			return srv9.srv.Start(3038)
-		})
-		eg.Go(func() error {
-			return srv10.srv.Start(3039)
-		})
-		eg.Go(func() error {
-			return srv11.srv.Start(30310)
-		})
-		eg.Go(func() error {
-			return srv12.srv.Start(30311)
-		})
-		logger.Infof("Servers Started")
+		ops[12] = client.Operator{srv12.srv.URL, 12, &srv12.privKey.PublicKey}
 		clnt := client.New(ops)
-
-		logger.Infof("Client created")
-		logger.Infof("Client Starting dkg")
-
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, 9, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 		require.NoError(t, err)
-
 		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
-
 		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-
-		srv1.srv.Stop()
-		srv2.srv.Stop()
-		srv3.srv.Stop()
-		srv4.srv.Stop()
-		srv5.srv.Stop()
-		srv6.srv.Stop()
-		srv7.srv.Stop()
-		srv8.srv.Stop()
-		srv9.srv.Stop()
-		srv10.srv.Stop()
-		srv11.srv.Stop()
-		srv12.srv.Stop()
-
-		require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
+		srv5.srv.Close()
+		srv6.srv.Close()
+		srv7.srv.Close()
+		srv8.srv.Close()
+		srv9.srv.Close()
+		srv10.srv.Close()
+		srv11.srv.Close()
+		srv12.srv.Close()
 	})
 }
 
@@ -295,20 +179,13 @@ func testSharesData(t *testing.T, ops map[uint64]client.Operator, keys []*rsa.Pr
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
-
 	require.Len(t, sharesData, sharesExpectedLength)
-
 	signature := sharesData[:signatureOffset]
-
 	msg := []byte("Hello")
-
 	require.NoError(t, ourcrypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce))
-
 	_ = splitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	encryptedKeys := splitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
-
 	sigs2 := make(map[uint64][]byte)
-
 	for i, enck := range encryptedKeys {
 		priv := keys[i]
 		share, err := rsaencryption.DecodeKey(priv, enck)
@@ -325,29 +202,23 @@ func testSharesData(t *testing.T, ops map[uint64]client.Operator, keys []*rsa.Pr
 		sig := secret.SignByte(msg)
 		sigs2[operatorID] = sig.Serialize()
 	}
-
 	recon, err := ReconstructSignatures(sigs2)
 	require.NoError(t, err)
-
 	require.NoError(t, VerifyReconstructedSignature(recon, validatorPublicKey, msg))
-
 }
 
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
 // It then reconstructs the original threshold signature using lagrange interpolation
 func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 	reconstructedSig := bls.Sign{}
-
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-
 	for index, signature := range signatures {
 		blsID := bls.ID{}
 		err := blsID.SetDecString(fmt.Sprintf("%d", index))
 		if err != nil {
 			return nil, err
 		}
-
 		idVec = append(idVec, blsID)
 		blsSig := bls.Sign{}
 
@@ -355,7 +226,6 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		sigVec = append(sigVec, blsSig)
 	}
 	err := reconstructedSig.Recover(sigVec, idVec)
@@ -367,7 +237,6 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []b
 	if err := pk.Deserialize(validatorPubKey); err != nil {
 		return errors.Wrap(err, "could not deserialize validator pk")
 	}
-
 	// verify reconstructed sig
 	if res := sig.VerifyByte(pk, msg); !res {
 		return errors.New("could not reconstruct a valid signature")
@@ -378,17 +247,10 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []b
 func newEthAddress(t *testing.T) common.Address {
 	privateKey, err := eth_crypto.GenerateKey()
 	require.NoError(t, err)
-
-	//privateKeyBytes := crypto.FromECDSA(privateKey)
-
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	require.True(t, ok)
-
-	//publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
-
 	address := eth_crypto.PubkeyToAddress(*publicKeyECDSA)
-
 	return address
 }
 

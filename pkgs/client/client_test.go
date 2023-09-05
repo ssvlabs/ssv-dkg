@@ -2,24 +2,32 @@ package client_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/rsa"
 	"fmt"
-	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/go-chi/chi/v5"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
 )
 
 // TODO: use mocks instead of servers
+type testServer struct {
+	id      uint64
+	privKey *rsa.PrivateKey
+	srv     *httptest.Server
+}
 
 const operatorsMetaData = `[
 	{
@@ -46,33 +54,21 @@ const operatorsMetaData = `[
 
 const exmaplePath = "../../examples/"
 
-func TestClientAtOperatorMisbehave(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-	eg := errgroup.Group{}
+func TestOperatorMisbehave(t *testing.T) {
+	ops := make(map[uint64]client.Operator)
 	srv2 := CreateTestServer(t, 2)
 	srv3 := CreateTestServer(t, 3)
 	srv4 := CreateTestServer(t, 4)
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-	logger.Infof("Servers created")
+	ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
 	t.Run("test wrong server key", func(t *testing.T) {
 		srv1 := CreateTestServerRandomKey(t, 1)
-		eg.Go(func() error {
-			return srv1.Start(3030)
-		})
-		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-		require.NoError(t, err)
-		clnt := client.New(opmap)
-		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv2.privKey.PublicKey}
+		clnt := client.New(ops)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "my operator is missing inside the op list")
-		srv1.Stop()
+		srv1.srv.Close()
 	})
 
 	t.Run("test wrong partial deposit signature", func(t *testing.T) {
@@ -80,16 +76,11 @@ func TestClientAtOperatorMisbehave(t *testing.T) {
 			WrongPartialSig: "0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4",
 		}
 		srv1 := CreateEveTestServer(t, 1, &eveMsg)
-		eg.Go(func() error {
-			return srv1.Start(3030)
-		})
-
-		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-		require.NoError(t, err)
-		clnt := client.New(opmap)
-		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		clnt := client.New(ops)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "error verifying partial deposit signature")
-		srv1.Stop()
+		srv1.srv.Close()
 	})
 
 	t.Run("test wrong request ID", func(t *testing.T) {
@@ -97,19 +88,11 @@ func TestClientAtOperatorMisbehave(t *testing.T) {
 			WrongID: "0x0000000000000000630ab8af69364a6db7b6d7d59bb60f23",
 		}
 		srv1 := CreateEveTestServer(t, 1, &eveMsg)
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			return srv1.Start(3030)
-		})
-		logger.Infof("Servers Started")
-		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-		require.NoError(t, err)
-		clnt := client.New(opmap)
-		logger.Infof("Client created")
-		logger.Infof("Client Starting dkg")
-		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		clnt := client.New(ops)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "DKG result has wrong ID")
-		srv1.Stop()
+		srv1.srv.Close()
 	})
 	t.Run("test wrong threshold", func(t *testing.T) {
 		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
@@ -118,68 +101,93 @@ func TestClientAtOperatorMisbehave(t *testing.T) {
 		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "wrong threshold")
 	})
-	srv2.Stop()
-	srv3.Stop()
-	srv4.Stop()
-	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	srv2.srv.Close()
+	srv3.srv.Close()
+	srv4.srv.Close()
 }
 
 func TestTimeout(t *testing.T) {
+	ops := make(map[uint64]client.Operator)
 	eveMsg := dkg.EveTest{
 		Timeout: time.Second * 30,
 	}
-
-	logger := logrus.NewEntry(logrus.New())
-	eg := errgroup.Group{}
 	srv1 := CreateEveTestServer(t, 1, &eveMsg)
 	srv2 := CreateTestServer(t, 2)
 	srv3 := CreateTestServer(t, 3)
 	srv4 := CreateTestServer(t, 4)
-
-	eg.Go(func() error {
-		return srv1.Start(3030)
-	})
-	eg.Go(func() error {
-		return srv2.Start(3031)
-	})
-	eg.Go(func() error {
-		return srv3.Start(3032)
-	})
-	eg.Go(func() error {
-		return srv4.Start(3033)
-	})
-	logger.Infof("Servers created")
-
-	opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-	require.NoError(t, err)
-	clnt := client.New(opmap)
-	_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+	ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+	ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+	clnt := client.New(ops)
+	_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
-	srv1.Stop()
-	srv2.Stop()
-	srv3.Stop()
-	srv4.Stop()
-	require.ErrorIs(t, http.ErrServerClosed, eg.Wait())
+	srv1.srv.Close()
+	srv2.srv.Close()
+	srv3.srv.Close()
+	srv4.srv.Close()
 }
-func CreateTestServer(t *testing.T, id uint64) *test_server.Server {
-	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
+func CreateTestServer(t *testing.T, id uint64) *testServer {
+	priv, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
-	srv := test_server.New(pk, nil)
-	return srv
+	r := chi.NewRouter()
+	swtch := server.NewSwitch(priv)
+	lg := logrus.New()
+	lg.SetLevel(logrus.DebugLevel)
+	s := &server.Server{
+		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Router: r,
+		State:  swtch,
+	}
+	server.RegisterRoutes(s)
+	sTest := httptest.NewServer(s.Router)
+	return &testServer{
+		id:      id,
+		privKey: priv,
+		srv:     sTest,
+	}
 }
 
-func CreateTestServerRandomKey(t *testing.T, id uint64) *test_server.Server {
+func CreateTestServerRandomKey(t *testing.T, id uint64) *testServer {
 	priv, _, err := crypto.GenerateKeys()
 	require.NoError(t, err)
-	srv := test_server.New(priv, nil)
-	return srv
+	r := chi.NewRouter()
+	swtch := server.NewSwitch(priv)
+	lg := logrus.New()
+	lg.SetLevel(logrus.DebugLevel)
+	s := &server.Server{
+		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Router: r,
+		State:  swtch,
+	}
+	server.RegisterRoutes(s)
+	sTest := httptest.NewServer(s.Router)
+	return &testServer{
+		id:      id,
+		privKey: priv,
+		srv:     sTest,
+	}
 }
 
-func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *test_server.Server {
-	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
+func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *testServer {
+	priv, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
-	srv := test_server.New(pk, eveCase)
-	return srv
+	r := chi.NewRouter()
+	swtch := test_server.NewSwitch(priv)
+	lg := logrus.New()
+	lg.SetLevel(logrus.DebugLevel)
+	s := &test_server.Server{
+		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Router: r,
+		State:  swtch,
+	}
+	test_server.RegisterRoutes(s, eveCase)
+	sTest := httptest.NewServer(s.Router)
+	return &testServer{
+		id:      id,
+		privKey: priv,
+		srv:     sTest,
+	}
 }
 
 func newEthAddress(t *testing.T) common.Address {
