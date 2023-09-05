@@ -152,7 +152,7 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
-	o.Logger.Infof("Staring DKG with nodes", nodes)
+	o.Logger.Infof("Staring DKG with nodes %v", nodes)
 
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
