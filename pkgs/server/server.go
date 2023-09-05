@@ -3,72 +3,111 @@ package server
 import (
 	"crypto/rsa"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
+	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	logger *logrus.Entry
-	router chi.Router
-	state  *Switch
+	Logger     *logrus.Entry
+	HttpServer *http.Server
+	Router     chi.Router
+	State      *Switch
+}
+
+type KeySign struct {
+	ValidatorPK ssvspec_types.ValidatorPK
+	SigningRoot []byte
+}
+
+// Encode returns a msg encoded bytes or error
+func (msg *KeySign) Encode() ([]byte, error) {
+	return json.Marshal(msg)
+}
+
+// Decode returns error if decoding failed
+func (msg *KeySign) Decode(data []byte) error {
+	return json.Unmarshal(data, msg)
 }
 
 func RegisterRoutes(s *Server) {
+	// Add general rate limiter
+	s.Router.Use(httprate.Limit(
+		500,
+		1*time.Minute,
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error": "Too many requests to operator"}`))
+		}),
+	))
+	s.Router.Route("/init", func(r chi.Router) {
+		r.Use(httprate.Limit(
+			5,
+			time.Minute,
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte(`{"error": "Too many requests to initiate DKG"}`))
+			}),
+		))
+		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+			s.Logger.Info("Received init msg")
+			rawdata, _ := io.ReadAll(request.Body)
+			tr := &wire.Transport{}
+			if err := tr.UnmarshalSSZ(rawdata); err != nil {
+				s.Logger.Errorf("parsing failed, err %v", err)
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(wire.MakeErr(err))
+				return
+			}
+			// Validate that incoming message is an init message
+			if tr.Type != wire.InitMessageType {
+				s.Logger.Errorf("non init message send to init route")
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
+				return
+			}
 
-	// todo do we want any middleware?
-	s.router.Post("/init", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Debug("Got init msg")
-		rawdata, _ := io.ReadAll(request.Body)
-		s.logger.Debug("parsing init msg")
-		tr := &wire.Transport{}
-		if err := tr.UnmarshalSSZ(rawdata); err != nil {
-			s.logger.Debug("parsing failed, err %v", err)
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(err))
-			return
-		}
+			reqid := tr.Identifier
 
-		if tr.Type != wire.InitMessageType {
-			s.logger.Debug("non init message send to init route")
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(errors.New("not init message to init route")))
-			return
-		}
+			logger := s.Logger.WithField("reqid", hex.EncodeToString(reqid[:]))
+			logger.Infof("Initiating instance with init data")
+			b, err := s.State.InitInstance(reqid, tr.Data)
+			if err != nil {
+				logger.Errorf("failed to initiate instance err:%v", err)
 
-		reqid := tr.Identifier
-		logger := s.logger.WithField("reqid", hex.EncodeToString(reqid[:]))
-
-		logger.Infof("Initiating instance with init data")
-
-		b, err := s.state.InitInstance(reqid, tr.Data)
-		if err != nil {
-			logger.Infof("failed to initiate instance err:%v", err)
-
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(err))
-			return
-		}
-		writer.WriteHeader(http.StatusOK)
-		writer.Write(b)
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(wire.MakeErr(err))
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+			writer.Write(b)
+		})
 	})
+	s.Router.Route("/dkg", func(r chi.Router) {
+		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+			s.Logger.Info("Received a dkg protocol message")
 
-	s.router.Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Infof("Got dkg message")
-		rawdata, _ := io.ReadAll(request.Body)
-
-		b, err := s.state.ProcessMessage(rawdata)
-		if err != nil {
-			writer.WriteHeader(http.StatusBadRequest)
-			writer.Write(wire.MakeErr(err))
-			return
-		}
-		writer.WriteHeader(http.StatusOK)
-		writer.Write(b)
+			rawdata, err := io.ReadAll(request.Body)
+			b, err := s.State.ProcessMessage(rawdata)
+			if err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(wire.MakeErr(err))
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+			writer.Write(b)
+		})
 	})
 }
 
@@ -78,14 +117,21 @@ func New(key *rsa.PrivateKey) *Server {
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
 	s := &Server{
-		logger: logrus.NewEntry(lg).WithField("comp", "server"),
-		router: r,
-		state:  swtch,
+		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Router: r,
+		State:  swtch,
 	}
 	RegisterRoutes(s)
 	return s
 }
 
 func (s *Server) Start(port uint16) error {
-	return http.ListenAndServe(fmt.Sprintf(":%v", port), s.router)
+	s.Logger.Infof("Server listening for incoming requests on port %d", port)
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
+	s.HttpServer = srv
+	return s.HttpServer.ListenAndServe()
+}
+
+func (s *Server) Stop() error {
+	return s.HttpServer.Close()
 }

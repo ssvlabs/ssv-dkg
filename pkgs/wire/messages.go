@@ -1,9 +1,5 @@
 package wire
 
-import (
-	"encoding/binary"
-)
-
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
@@ -11,16 +7,6 @@ type MultipleSignedTransports struct {
 
 type ErrSSZ struct {
 	Error []byte `ssz-max:"512"`
-}
-
-func NewIdentifier(address []byte, nonce uint64) [24]byte {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(nonce))
-
-	ret := [24]byte{}
-	copy(ret[:], address[:20])
-	copy(ret[20:], b[:])
-	return ret
 }
 
 type TransportType uint64
@@ -34,6 +20,8 @@ const (
 	KyberDealBundleMessageType
 	KyberResponseBundleMessageType
 	KyberJustificationBundleMessageType
+	BlsSignRequestType
+	ErrorMessageType
 )
 
 func (t TransportType) String() string {
@@ -45,13 +33,17 @@ func (t TransportType) String() string {
 	case ExchangeMessageType:
 		return "ExchangeMessageType"
 	case OutputMessageType:
-		return "OutputMessageTypeca"
+		return "OutputMessageType"
 	case KyberDealBundleMessageType:
 		return "KyberDealBundleMessageType"
 	case KyberResponseBundleMessageType:
 		return "KyberResponseBundleMessageType"
 	case KyberJustificationBundleMessageType:
 		return "KyberJustificationBundleMessageType"
+	case BlsSignRequestType:
+		return "BlsSignRequestType"
+	case ErrorMessageType:
+		return "ErrorMessageType"
 	default:
 		return "no type impl"
 	}
@@ -59,7 +51,7 @@ func (t TransportType) String() string {
 
 type Transport struct {
 	Type       TransportType
-	Identifier [24]byte `ssz-size:"24"`     // | -- 20 bytes address --- | --- 4 bytes nonce --- |
+	Identifier [24]byte `ssz-size:"24"`
 	Data       []byte   `ssz-max:"8388608"` // 2^23
 }
 
@@ -78,12 +70,12 @@ type SignedTransport struct {
 
 type KyberMessage struct {
 	Type TransportType
-	Data []byte `ssz-max:"2048"`
+	Data []byte `ssz-max:"4096"`
 }
 
 type Operator struct {
 	ID     uint64
-	Pubkey []byte `ssz-max:"2048"`
+	PubKey []byte `ssz-max:"2048"`
 }
 
 type Init struct {
@@ -92,9 +84,13 @@ type Init struct {
 	// T is the threshold for signing
 	T uint64
 	// WithdrawalCredentials for deposit data
-	WithdrawalCredentials []byte `ssz-max:"256"` // 2^23
+	WithdrawalCredentials []byte `ssz-max:"32"` // 2^23
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
+	// Owner address
+	Owner [20]byte `ssz-size:"20"`
+	// Owner nonce
+	Nonce uint64
 }
 
 // Exchange contains the session auth/ encryption key for each node
@@ -103,8 +99,8 @@ type Exchange struct {
 }
 
 type Output struct {
-	EncryptedShare              []byte `ssz-max:"2048"`
-	SharePK                     []byte `ssz-max:"2048"`
+	EncryptedShare              []byte `ssz-max:"4096"`
+	SharePK                     []byte `ssz-max:"4096"`
 	ValidatorPK                 []byte `ssz-size:"48"`
 	DepositDataPartialSignature []byte `ssz-size:"96"`
 }

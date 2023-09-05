@@ -2,12 +2,13 @@ package wire
 
 import (
 	"crypto/sha256"
+	"time"
+
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign/bls"
+	bls2 "github.com/drand/kyber/sign/bls"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 // NonceLength is the length of the nonce
@@ -33,7 +34,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		NewNodes:  config.Nodes,
 		OldNodes:  config.Nodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
 		Threshold: config.T,
-		Auth:      bls.NewSchemeOnG2(config.Suite),
+		Auth:      bls2.NewSchemeOnG2(config.Suite),
 
 		Log: config.Logger,
 	}
@@ -44,7 +45,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		dkgConfig,
 		config.Board,
 		phaser,
-		true,
+		false,
 	)
 	if err != nil {
 		return nil, err

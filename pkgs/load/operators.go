@@ -6,12 +6,14 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/csv"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"os"
 	"strconv"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 )
 
 func Operators(path string) (client.Operators, error) {
@@ -39,8 +41,8 @@ func Operators(path string) (client.Operators, error) {
 		if err != nil {
 			return nil, err
 		}
-		pemblock, _ := pem.Decode(operatorKeyByte)
-		pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
+		pemBlock, _ := pem.Decode(operatorKeyByte)
+		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +51,34 @@ func Operators(path string) (client.Operators, error) {
 		opmap[id] = client.Operator{
 			Addr:   ip,
 			ID:     id,
-			Pubkey: pbkey.(*rsa.PublicKey),
+			PubKey: pbKey.(*rsa.PublicKey),
+		}
+	}
+	return opmap, nil
+}
+
+func LoadOperatorsJson(operatorsMetaData []byte) (client.Operators, error) {
+	opmap := make(map[uint64]client.Operator)
+	var operators []client.OperatorDataJson
+	err := json.Unmarshal([]byte(operatorsMetaData), &operators)
+	if err != nil {
+		return nil, err
+	}
+	for _, opdata := range operators {
+		operatorKeyByte, err := base64.StdEncoding.DecodeString(opdata.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		pemBlock, _ := pem.Decode(operatorKeyByte)
+		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		opmap[opdata.ID] = client.Operator{
+			Addr:   opdata.Addr,
+			ID:     opdata.ID,
+			PubKey: pbKey.(*rsa.PublicKey),
 		}
 	}
 	return opmap, nil

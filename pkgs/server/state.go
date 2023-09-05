@@ -5,13 +5,14 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	bls "github.com/drand/kyber-bls12381"
+	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 const MaxInstances = 1024
@@ -24,15 +25,20 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
 	ReadResponse() []byte
+	ReadError() error
 }
 
 type instWrapper struct {
 	*dkg.LocalOwner
 	respChan chan []byte
+	errChan  chan error
 }
 
 func (iw *instWrapper) ReadResponse() []byte {
 	return <-iw.respChan
+}
+func (iw *instWrapper) ReadError() error {
+	return <-iw.errChan
 }
 
 type InstanceID [24]byte
@@ -44,20 +50,20 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		return nil, nil, err
 	}
 
-	myID := uint64(0)
-	mypubkey := s.privateKey.Public().(*rsa.PublicKey)
-	pkbytes, err := crypto.EncodePublicKey(mypubkey)
+	serverID := uint64(0)
+	serverPubKey := s.privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(serverPubKey)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, op := range init.Operators {
-		if bytes.Equal(op.Pubkey, pkbytes) {
-			myID = op.ID
+		if bytes.Equal(op.PubKey, pkBytes) {
+			serverID = op.ID
 			break
 		}
 	}
 
-	if myID == 0 {
+	if serverID == 0 {
 		return nil, nil, errors.New("my operator is missing inside the op list")
 	}
 
@@ -73,21 +79,24 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		BroadcastF: broadcast,
 		SignFunc:   s.Sign,
 		VerifyFunc: verify,
-		Suite:      bls.NewBLS12381Suite(),
-		ID:         myID,
-		//Init:       init,
+		Suite:      bls3.NewBLS12381Suite(),
+		ID:         serverID,
+		OpPrivKey:  s.privateKey,
+		Owner:      init.Owner,
+		Nonce:      init.Nonce,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
 	resp, err := owner.Init(reqID, init)
+	if err != nil {
+		return nil, nil, err
+	}
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
 	s.logger.Infof("Waiting for owner response to init")
-
 	res := <-bchan
-
-	return &instWrapper{owner, bchan}, res, nil
+	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
@@ -98,7 +107,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
-		pk, err := crypto.ParseRSAPubkey(op.Pubkey)
+		pk, err := crypto.ParseRSAPubkey(op.PubKey)
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +236,6 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	s.instances[reqID] = inst
 	s.mtx.Unlock()
 
-	// TODO: get some ret from inst
 	return resp, nil
 
 }
@@ -246,7 +254,6 @@ func (s *Switch) cleanInstances() int {
 
 func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	// get instanceID
-
 	st := &wire.MultipleSignedTransports{}
 	err := st.UnmarshalSSZ(dkgMsg)
 	if err != nil {
@@ -264,12 +271,10 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	}
 
 	for _, ts := range st.Messages {
-
 		err = inst.Process(ts.Signer, ts)
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	resp := inst.ReadResponse()
 
