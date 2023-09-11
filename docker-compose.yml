@@ -58,10 +58,9 @@ services:
                "--operatorIDs", "1,2,3,4",
                "--operatorsInfoPath", "./data/docker_operators.json",
                "--depositResultsPath", "./data/deposit.json",
-               "--ssvPayloadResultsPath", "./data/deposit.json",
+               "--ssvPayloadResultsPath", "./data/payload.json",
                "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
                "--nonce",  "1",
-               "--threshold",  "3",
                "--withdrawAddress", "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
                ]
     volumes:
