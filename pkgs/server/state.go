@@ -204,7 +204,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	l := len(s.instances)
 	if l >= MaxInstances {
 		cleaned := s.cleanInstances() // not thread safe
-		if l-cleaned <= MaxInstances {
+		if l-cleaned >= MaxInstances {
 			s.mtx.Unlock()
 			return nil, ErrMaxInstances
 		}
@@ -232,6 +232,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 		return nil, ErrAlreadyExists // created before us?
 	}
 	s.instances[reqID] = inst
+	s.instanceInitTime[reqID] = time.Now()
 	s.mtx.Unlock()
 
 	return resp, nil
