@@ -62,11 +62,32 @@ func TestOperatorMisbehave(t *testing.T) {
 	ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
 	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
 	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
+	})
+	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
+	})
+	t.Run("test opeators not unique", func(t *testing.T) {
+		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
+		require.NoError(t, err)
+		clnt := client.New(opmap)
+		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		require.ErrorContains(t, err, "operators ids should be unique in the list")
+	})
 	t.Run("test wrong server key", func(t *testing.T) {
 		srv1 := CreateTestServerRandomKey(t, 1)
 		ops[1] = client.Operator{srv1.srv.URL, 1, &srv2.privKey.PublicKey}
 		clnt := client.New(ops)
-		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "my operator is missing inside the op list")
 		srv1.srv.Close()
 	})
@@ -78,7 +99,7 @@ func TestOperatorMisbehave(t *testing.T) {
 		srv1 := CreateEveTestServer(t, 1, &eveMsg)
 		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
 		clnt := client.New(ops)
-		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "error verifying partial deposit signature")
 		srv1.srv.Close()
 	})
@@ -90,16 +111,9 @@ func TestOperatorMisbehave(t *testing.T) {
 		srv1 := CreateEveTestServer(t, 1, &eveMsg)
 		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
 		clnt := client.New(ops)
-		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "DKG result has wrong ID")
 		srv1.srv.Close()
-	})
-	t.Run("test wrong threshold", func(t *testing.T) {
-		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
-		require.NoError(t, err)
-		clnt := client.New(opmap)
-		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 10, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
-		require.ErrorContains(t, err, "wrong threshold")
 	})
 	srv2.srv.Close()
 	srv3.srv.Close()
@@ -120,7 +134,7 @@ func TestTimeout(t *testing.T) {
 	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
 	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
 	clnt := client.New(ops)
-	_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, 3, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
+	_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
 	srv1.srv.Close()
 	srv2.srv.Close()

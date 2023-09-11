@@ -353,11 +353,20 @@ func (c *Client) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
-	// threshold cant be more than number of operators
-	if threshold == 0 || threshold > uint64(len(ids)) {
-		return nil, nil, fmt.Errorf("wrong threshold")
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+	if len(ids) < 4 {
+		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
+	// limit amount of operators
+	if len(ids) > 13 {
+		return nil, nil, fmt.Errorf("maximum supported amount of operators is 13")
+	}
+	// check that operator ids are unique
+	if err := c.validateOpIDs(ids); err != nil {
+		return nil, nil, err
+	}
+	// compute threshold (3f+1)
+	threshold := len(ids) - ((len(ids) - 1) / 3)
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
 		op, ok := c.Operators[id]
@@ -383,7 +392,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	// make init message
 	init := &wire.Init{
 		Operators:             parts,
-		T:                     threshold,
+		T:                     uint64(threshold),
 		WithdrawalCredentials: withdraw,
 		Fork:                  fork,
 		Owner:                 owner,
@@ -859,4 +868,15 @@ func splitBytes(buf []byte, lim int) [][]byte {
 		chunks = append(chunks, buf[:])
 	}
 	return chunks
+}
+
+func (c *Client) validateOpIDs(ids []uint64) error {
+	opMap := make(map[uint64]bool)
+	for _, id := range ids {
+		if opMap[id] {
+			return fmt.Errorf("operators ids should be unique in the list")
+		}
+		opMap[id] = true
+	}
+	return nil
 }

@@ -9,7 +9,7 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 ### Build
 
 ```sh
- go build cmd/dkgcli/dkgcli.go
+make install
 ```
 
 ### Server
@@ -21,12 +21,13 @@ Whenever the server receives a message it directs it to the right instance by th
 Start a DKG server
 
 ```sh
-./dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678
+dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
 
 ### where
---privKey ./examples/server1/key # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
+--privKey ./encrypted_private_key.json # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
 --port 3030 # port for listening messages
---paseord 12345678 # password for encrypted keys
+--password: 12345678 # password for encrypted keys
+--storeShare # store created bls key share to a file for later reuse
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
@@ -34,31 +35,40 @@ Its also possible to use yaml configuration file `./config/operator.yaml` for pa
 Example:
 
 ```yaml
-privKey: ./examples/server1/encrypted_private_key.json
+privKey: ./encrypted_private_key.json
 password: 12345678
 port: 3030
+storeShare: true
+```
+
+When using configuration file, run:
+
+```sh
+dkgcli start-dkg-server
 ```
 
 ### Initiator of DKG key generation
 
-The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
+The initiator uses `init-dkg` to create the initial details needed to run DKG between all operators.
 
 ```sh
-./dkgcli init-dkg \
+dkgcli init-dkg \
           --operatorIDs 1,2,3,4 \
-          --operatorsInfoPath ./examples/operators_integration.csv \
+          --operatorsInfoPath ./examples/operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
-          --nonce 1 \
-          --threshold 3 \
-          --withdrawPublicKey 0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7  \
+          --nonce 4 \
+          --withdrawAddress 0000000000000000000000000000000000000009  \
           --fork 00000000
+          --depositResultsPath deposit.json
+          --ssvPayloadResultsPath payload.json
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./examples/operators_integration.csv # path to info about operators - ID,base64(RSA pub key),
---threshold 3 # threshold set for a master signature - if T out on N signatures provided the master signature will be recovered
+--operatorsInfoPath ./examples/operators_integration.json # path to info about operators - ID,base64(RSA pub key),
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
---nonce 1 # owner nonce for the SSV contract
+--nonce 4 # owner nonce for the SSV contract
 --fork "00000000" # fork id bytes in HEX
+--depositResultsPath # path to store the result file
+--ssvPayloadResultsPath # path to store ssv contract payload file
 ```
 
 Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
@@ -66,14 +76,23 @@ Its also possible to use yaml configuration file `./config/initiator.yaml` for p
 Example:
 
 ```yaml
-threshold: 4
 operatorIDs: [1, 2, 3, 4]
-withdrawAddress: "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7"
+withdrawAddress: "0000000000000000000000000000000000000009"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
-operatorsInfoPath: ./examples/operators_integration.csv
+operatorsInfoPath: ./examples/operators_integration.json
+depositResultsPath: ./deposit.json
+ssvPayloadResultsPath: ./payload.json
 ```
+
+When using configuration file, run:
+
+```sh
+dkgcli init-dkg
+```
+
+**_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
 
 ### Generate RSA operator key
 
@@ -199,70 +218,57 @@ The DKG server can handle multiple DKG instances, it saves up to MaxInstances(10
 - [x] output - signed ssv deposit data + encrypted shares for SSV contract
 - [x] verification of ssv deposit data and encrypted shares
 - [ ] existing validator public key resharing
-- [ ] private key recreation from shares (in case of switch to a standard ETH validator)
-- [ ] CLI for initiator and operators
-- [ ] storage for initiator and keystore for operators
-- [ ] more testing
-- [ ] logging
+- [x] CLI for initiator and operators
+- [x] keystore for operators
+- [x] more testing
+- [x] logging
 
 ### Additional:
 
-- [ ] get existing pub key share by ID from operators
-- [ ] limit max of operators (T-threshold min/max)
+- [x] limit max of operators (T-threshold min/max)
 - [x] secure the communication between initiator and operators
 
 ### Flow TODO Brakedown
 
 ---
 
-- [~70%] New key generation
+- [~100%] New key generation
 
 #### Round 1
 
 - [x] CLI for initiator
 - [x] CLI for operator
-- [ ] RSA secret storage for both initiator and operator
-- [ ] Init message:
+- [x] RSA secret storage for operator
+- [x] Init message:
   - [x] Message sig validation
   - [x] Init message owner + nonce fields. ID is random UUID
-  - [ ] Timeouts
-  - [ ] Error handling
-- [ ] Exchange message:
+  - [x] Timeouts
+  - [x] Error handling
+- [x] Exchange message:
   - [x] Message sig validation
-  - [ ] Secret RSA key storage
-  - [ ] Timeouts
-  - [ ] Error handling
-- [ ] Code refactoring
-- [ ] Unit tests
-- [ ] integration tests
+  - [x] Timeouts
+  - [x] Error handling
+- [x] Code refactoring
+- [x] Unit tests
+- [x] integration tests
 
 #### Round 2
 
 - [x] Deal message:
 - [x] Result message:
-  - [ ] Secure storage for key shares and DKG result (keystore + db) + recover option
+  - [x] Storage for key shares and DKG result
   - [x] Validate signature shares + validator pub key + pub and encrypted shares at initiator
-- [ ] Timeouts
-- [ ] Code refactoring
-- [ ] Error handling
-- [ ] Unit tests
+- [x] Timeouts
+- [x] Code refactoring
+- [x] Error handling
+- [x] Unit tests
 
 ---
 
-- [0%] Key resharing (new operator keys but same validator pub key) - implemented 0%
+- [50%] Key resharing (new operator keys but same validator pub key) - implemented 0%
 
-- [ ] CLI command and message to initiate resharing protocol
-- [ ] Handlers of DKG key resharing messages exchange
+- [x] CLI command and message to initiate resharing protocol
+- [x] Handlers of DKG key resharing messages exchange
 - [ ] Store new keys, update storage at operators
-- [ ] Error handling
-- [ ] Unit tests
-
----
-
-- [0%] Private key recreation from shares at initiator - implemented 0%
-- [ ] CLI command and message to initiate reconstruction of the key from shares
-- [ ] Handlers to send encrypted with RSA pub key shares to initiator
-- [ ] DKG private key recovery from shares
-- [ ] Keystore storage of validator priv key
 - [ ] Error handling
 - [ ] Unit tests
