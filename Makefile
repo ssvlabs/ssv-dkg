@@ -39,4 +39,4 @@ docker-build:
 
 docker-demo:
 	@echo "Running docker compose demo"
-	docker-compose up
+	docker-compose up --build
