@@ -47,7 +47,7 @@ func RegisterRoutes(s *Server) {
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error": "Too many requests to operator"}`))
+			w.Write([]byte(`{"error": "too many requests to operator"}`))
 		}),
 	))
 	s.Router.Route("/init", func(r chi.Router) {
@@ -61,7 +61,7 @@ func RegisterRoutes(s *Server) {
 			}),
 		))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-			s.Logger.Info("Received init msg")
+			s.Logger.Debug("incoming INIT msg")
 			rawdata, _ := io.ReadAll(request.Body)
 			tr := &wire.Transport{}
 			if err := tr.UnmarshalSSZ(rawdata); err != nil {
@@ -72,7 +72,7 @@ func RegisterRoutes(s *Server) {
 			}
 			// Validate that incoming message is an init message
 			if tr.Type != wire.InitMessageType {
-				s.Logger.Errorf("non init message send to init route")
+				s.Logger.Errorf("recieved bad msg non init message send to init route")
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
 				return
@@ -81,7 +81,7 @@ func RegisterRoutes(s *Server) {
 			reqid := tr.Identifier
 
 			logger := s.Logger.WithField("reqid", hex.EncodeToString(reqid[:]))
-			logger.Infof("Initiating instance with init data")
+			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstance(reqid, tr.Data)
 			if err != nil {
 				logger.Errorf("failed to initiate instance err:%v", err)
@@ -90,13 +90,15 @@ func RegisterRoutes(s *Server) {
 				writer.Write(wire.MakeErr(err))
 				return
 			}
+			logger.Info("instance started successfully")
+
 			writer.WriteHeader(http.StatusOK)
 			writer.Write(b)
 		})
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-			s.Logger.Info("Received a dkg protocol message")
+			s.Logger.Debug("received a dkg protocol message")
 
 			rawdata, err := io.ReadAll(request.Body)
 			b, err := s.State.ProcessMessage(rawdata)
@@ -126,7 +128,7 @@ func New(key *rsa.PrivateKey) *Server {
 }
 
 func (s *Server) Start(port uint16) error {
-	s.Logger.Infof("Server listening for incoming requests on port %d", port)
+	s.Logger.Infof("server listening for incoming requests on port %d", port)
 	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
 	s.HttpServer = srv
 	return s.HttpServer.ListenAndServe()

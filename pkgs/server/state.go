@@ -192,13 +192,13 @@ func NewSwitch(pv *rsa.PrivateKey) *Switch {
 
 func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	logger := s.logger.WithField("reqid", hex.EncodeToString(reqID[:]))
-	logger.Infof("Got an init message")
+	logger.Infof("initializing DKG instance")
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initmsg); err != nil {
 		return nil, err
 	}
 
-	s.logger.Infof("decoded init message")
+	s.logger.Debug("decoded init message")
 
 	s.mtx.Lock()
 	l := len(s.instances)
@@ -221,8 +221,6 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	}
 	s.mtx.Unlock()
 	inst, resp, err := s.CreateInstance(reqID, init) // long action? if not maybe put inside mutex to reduce lock complexity?
-
-	logger.Infof("Created instance")
 
 	if err != nil {
 		return nil, err
