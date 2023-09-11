@@ -9,7 +9,7 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 ### Build
 
 ```sh
- go build cmd/dkgcli/dkgcli.go
+make dkgcli
 ```
 
 ### Server
@@ -21,7 +21,7 @@ Whenever the server receives a message it directs it to the right instance by th
 Start a DKG server
 
 ```sh
-./dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678
+dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678
 
 ### where
 --privKey ./examples/server1/key # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
@@ -39,12 +39,18 @@ password: 12345678
 port: 3030
 ```
 
+When using configuration file, run:
+
+```sh
+dkgcli start-dkg-server
+```
+
 ### Initiator of DKG key generation
 
 The initiator uses `ssv-dkg-init` to create the initial details needed to run DKG between all operators.
 
 ```sh
-./dkgcli init-dkg \
+dkgcli init-dkg \
           --operatorIDs 1,2,3,4 \
           --operatorsInfoPath ./examples/operators_integration.csv \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
@@ -73,6 +79,12 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.csv
+```
+
+When using configuration file, run:
+
+```sh
+dkgcli init-dkg
 ```
 
 ### Generate RSA operator key
