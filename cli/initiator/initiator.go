@@ -21,7 +21,6 @@ import (
 )
 
 func init() {
-	flags.ThresholdFlag(StartDKG)
 	flags.WithdrawAddressFlag(StartDKG)
 	flags.OperatorsInfoFlag(StartDKG)
 	flags.OperatorIDsFlag(StartDKG)
@@ -30,7 +29,6 @@ func init() {
 	flags.ForkVersionFlag(StartDKG)
 	flags.AddDepositResultStorePathFlag(StartDKG)
 	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
-	viper.BindPFlag("threshold", StartDKG.PersistentFlags().Lookup("threshold"))
 	viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress"))
 	viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs"))
 	viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath"))
@@ -105,10 +103,6 @@ var StartDKG = &cobra.Command{
 		if withdrawAddr == "" {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
 		}
-		threshold := viper.GetUint64("threshold")
-		if threshold < 1 {
-			logger.Fatal("failed to get threshold flag value", zap.Error(err))
-		}
 		forkHex := viper.GetString("fork")
 		if forkHex == "" {
 			logger.Fatal("failed to get fork version flag value", zap.Error(err))
@@ -142,7 +136,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, common.HexToAddress(owner), nonce)
+		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, fork, forkName, common.HexToAddress(owner), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
