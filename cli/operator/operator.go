@@ -49,7 +49,7 @@ var StartDKGServer = &cobra.Command{
 		viper.AddConfigPath("./config")
 		err := viper.ReadInConfig()
 		if err != nil {
-			logger.Fatal("fatal error config file")
+			logger.Warn("couldn't find config file, its ok if you using, cli params")
 		}
 		privKeyPath := viper.GetString("privKey")
 		if privKeyPath == "" {
