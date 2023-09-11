@@ -21,7 +21,6 @@ import (
 )
 
 func init() {
-	flags.ThresholdFlag(StartDKG)
 	flags.WithdrawAddressFlag(StartDKG)
 	flags.OperatorsInfoFlag(StartDKG)
 	flags.OperatorIDsFlag(StartDKG)
@@ -30,7 +29,6 @@ func init() {
 	flags.ForkVersionFlag(StartDKG)
 	flags.AddDepositResultStorePathFlag(StartDKG)
 	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
-	viper.BindPFlag("threshold", StartDKG.PersistentFlags().Lookup("threshold"))
 	viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress"))
 	viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs"))
 	viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath"))
@@ -87,7 +85,13 @@ var StartDKG = &cobra.Command{
 		if operatorFile == "" {
 			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
 		}
-		opMap, err := load.Operators(operatorFile)
+
+		opsfile, err := os.ReadFile(operatorFile)
+		if err != nil {
+			logger.Fatal("failed to read operator info file", zap.Error(err))
+		}
+
+		opMap, err := load.LoadOperatorsJson(opsfile)
 		if err != nil {
 			logger.Fatal("Failed to load operators: ", zap.Error(err))
 		}
@@ -104,10 +108,6 @@ var StartDKG = &cobra.Command{
 		withdrawAddr := viper.GetString("withdrawAddress")
 		if withdrawAddr == "" {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
-		}
-		threshold := viper.GetUint64("threshold")
-		if threshold < 1 {
-			logger.Fatal("failed to get threshold flag value", zap.Error(err))
 		}
 		forkHex := viper.GetString("fork")
 		if forkHex == "" {
@@ -142,7 +142,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, threshold, fork, forkName, common.HexToAddress(owner), nonce)
+		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, fork, forkName, common.HexToAddress(owner), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
@@ -161,6 +161,22 @@ var StartDKG = &cobra.Command{
 		}
 
 		logger.Info("DKG protocol finished successfull")
+		fmt.Println(`
+		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
+		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
+		░██   █▌▒██▒░ ▓██▄   ▒▓█    ▄ ▒██░   ▒██  ▀█▄  ▒██▒▓██    ▓██░▒███   ▓██ ░▄█ ▒
+		░▓█▄   ▌░██░  ▒   ██▒▒▓▓▄ ▄██▒▒██░   ░██▄▄▄▄██ ░██░▒██    ▒██ ▒▓█  ▄ ▒██▀▀█▄  
+		░▒████▓ ░██░▒██████▒▒▒ ▓███▀ ░░██████▒▓█   ▓██▒░██░▒██▒   ░██▒░▒████▒░██▓ ▒██▒
+		 ▒▒▓  ▒ ░▓  ▒ ▒▓▒ ▒ ░░ ░▒ ▒  ░░ ▒░▓  ░▒▒   ▓▒█░░▓  ░ ▒░   ░  ░░░ ▒░ ░░ ▒▓ ░▒▓░
+		 ░ ▒  ▒  ▒ ░░ ░▒  ░ ░  ░  ▒   ░ ░ ▒  ░ ▒   ▒▒ ░ ▒ ░░  ░      ░ ░ ░  ░  ░▒ ░ ▒░
+		 ░ ░  ░  ▒ ░░  ░  ░  ░          ░ ░    ░   ▒    ▒ ░░      ░      ░     ░░   ░ 
+		   ░     ░        ░  ░ ░          ░  ░     ░  ░ ░         ░      ░  ░   ░     
+		 ░                   ░                                                        
+		 
+		 This tool was not audited.
+		 When using distributed key generation you understand all the risks involved with
+		 experimental cryptography.  
+		 `)
 	},
 }
 

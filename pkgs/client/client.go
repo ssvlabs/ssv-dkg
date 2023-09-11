@@ -353,11 +353,20 @@ func (c *Client) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
-	// threshold cant be more than number of operators
-	if threshold == 0 || threshold > uint64(len(ids)) {
-		return nil, nil, fmt.Errorf("wrong threshold")
+func (c *Client) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+	if len(ids) < 4 {
+		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
+	// limit amount of operators
+	if len(ids) > 13 {
+		return nil, nil, fmt.Errorf("maximum supported amount of operators is 13")
+	}
+	// check that operator ids are unique
+	if err := c.validateOpIDs(ids); err != nil {
+		return nil, nil, err
+	}
+	// compute threshold (3f+1)
+	threshold := len(ids) - ((len(ids) - 1) / 3)
 	parts := make([]*wire.Operator, 0, 0)
 	for _, id := range ids {
 		op, ok := c.Operators[id]
@@ -383,7 +392,7 @@ func (c *Client) StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork 
 	// make init message
 	init := &wire.Init{
 		Operators:             parts,
-		T:                     threshold,
+		T:                     uint64(threshold),
 		WithdrawalCredentials: withdraw,
 		Fork:                  fork,
 		Owner:                 owner,
@@ -676,7 +685,7 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
 	}
-	c.Logger.Info("Round 1. Sending init message to operators")
+	c.Logger.Info("round 1. Sending init message to operators")
 	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
 	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
 	if err != nil {
@@ -686,17 +695,17 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 }
 
 func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
-	c.Logger.Info("Round 1. Parsing init responses")
+	c.Logger.Info("round 1. Parsing init responses")
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("Round 1. Exchange round received from all operators, verified signatures\")")
+	c.Logger.Info("round 1. Exchange round received from all operators, verified signatures\")")
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("Round 1. Send exchange response combined message to operators / receive kyber deal messages")
+	c.Logger.Info("round 1. Send exchange response combined message to operators / receive kyber deal messages")
 	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing exchange messages  %v", err)
@@ -714,7 +723,7 @@ func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Infof("Round 2. Exchange phase finished, sending kyber deal messages")
+	c.Logger.Infof("round 2. Exchange phase finished, sending kyber deal messages")
 	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)
@@ -859,4 +868,15 @@ func splitBytes(buf []byte, lim int) [][]byte {
 		chunks = append(chunks, buf[:])
 	}
 	return chunks
+}
+
+func (c *Client) validateOpIDs(ids []uint64) error {
+	opMap := make(map[uint64]bool)
+	for _, id := range ids {
+		if opMap[id] {
+			return fmt.Errorf("operators ids should be unique in the list")
+		}
+		opMap[id] = true
+	}
+	return nil
 }

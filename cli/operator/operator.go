@@ -42,7 +42,7 @@ var StartDKGServer = &cobra.Command{
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
 			log.Fatal(err)
 		}
-		logger := zap.L().Named(cmd.Short)
+		logger := zap.L().Named("dkg-server")
 
 		viper.SetConfigName("operator")
 		viper.SetConfigType("yaml")
@@ -84,7 +84,7 @@ var StartDKGServer = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
-		logger.Info("Starting DKG instance at ", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
+		logger.Info("starting DKG server", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
 		if err := srv.Start(uint16(port)); err != nil {
 			log.Fatalf("Error in server %v", err)
 		}

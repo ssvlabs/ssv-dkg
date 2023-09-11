@@ -17,10 +17,10 @@ import (
 )
 
 type Server struct {
-	Logger *logrus.Entry
+	Logger     *logrus.Entry
 	HttpServer *http.Server
-	Router chi.Router
-	State  *Switch
+	Router     chi.Router
+	State      *Switch
 }
 
 type KeySign struct {
