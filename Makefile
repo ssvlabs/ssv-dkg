@@ -37,6 +37,10 @@ docker-build:
 	@echo "Building Docker image..."
 	docker build -t $(DOCKER_IMAGE) .
 
-docker-demo:
-	@echo "Running docker compose demo"
-	docker-compose up --build
+docker-servers:
+	@echo "Running servers in docker demo"
+	docker-compose up --build server1 server2 server3 server4
+
+docker-client:
+	@echo "Running client in docker demo"
+	docker-compose up --build client
