@@ -39,6 +39,10 @@ func (msg *KeySign) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
 }
 
+// TODO: either do all json or all SSZ
+const ErrTooManyOperatorRequests = `{"error": "too many requests to operator"}`
+const ErrTooManyDKGRequests = `{"error": "too many requests to initiate DKG"}`
+
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
@@ -47,7 +51,7 @@ func RegisterRoutes(s *Server) {
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error": "too many requests to operator"}`))
+			w.Write([]byte(ErrTooManyOperatorRequests))
 		}),
 	))
 	s.Router.Route("/init", func(r chi.Router) {
@@ -57,7 +61,7 @@ func RegisterRoutes(s *Server) {
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"error": "Too many requests to initiate DKG"}`))
+				w.Write([]byte(ErrTooManyDKGRequests))
 			}),
 		))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {

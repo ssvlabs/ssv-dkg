@@ -92,7 +92,7 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, "{\"error\": \"Too many requests to initiate DKG\"}", string(errResp))
+			require.Equal(t, ErrTooManyDKGRequests, string(errResp))
 		}
 		wg.Wait()
 	})
@@ -122,7 +122,7 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, "{\"error\": \"Too many requests to operator\"}", string(errResp))
+			require.Equal(t, ErrTooManyOperatorRequests, string(errResp))
 		}
 		wg.Wait()
 	})
