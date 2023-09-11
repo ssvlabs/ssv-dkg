@@ -60,7 +60,7 @@ func Operators(path string) (client.Operators, error) {
 func LoadOperatorsJson(operatorsMetaData []byte) (client.Operators, error) {
 	opmap := make(map[uint64]client.Operator)
 	var operators []client.OperatorDataJson
-	err := json.Unmarshal([]byte(operatorsMetaData), &operators)
+	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
 	if err != nil {
 		return nil, err
 	}

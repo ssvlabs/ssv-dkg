@@ -85,7 +85,13 @@ var StartDKG = &cobra.Command{
 		if operatorFile == "" {
 			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
 		}
-		opMap, err := load.Operators(operatorFile)
+
+		opsfile, err := os.ReadFile(operatorFile)
+		if err != nil {
+			logger.Fatal("failed to read operator info file", zap.Error(err))
+		}
+
+		opMap, err := load.LoadOperatorsJson(opsfile)
 		if err != nil {
 			logger.Fatal("Failed to load operators: ", zap.Error(err))
 		}

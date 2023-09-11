@@ -685,7 +685,7 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
 	}
-	c.Logger.Info("Round 1. Sending init message to operators")
+	c.Logger.Info("round 1. Sending init message to operators")
 	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
 	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
 	if err != nil {
@@ -695,17 +695,17 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 }
 
 func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
-	c.Logger.Info("Round 1. Parsing init responses")
+	c.Logger.Info("round 1. Parsing init responses")
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("Round 1. Exchange round received from all operators, verified signatures\")")
+	c.Logger.Info("round 1. Exchange round received from all operators, verified signatures\")")
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("Round 1. Send exchange response combined message to operators / receive kyber deal messages")
+	c.Logger.Info("round 1. Send exchange response combined message to operators / receive kyber deal messages")
 	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing exchange messages  %v", err)
@@ -723,7 +723,7 @@ func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Infof("Round 2. Exchange phase finished, sending kyber deal messages")
+	c.Logger.Infof("round 2. Exchange phase finished, sending kyber deal messages")
 	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)

@@ -7,7 +7,7 @@ services:
     ports:
       - "3030:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server1/key"]
+    command: ["start-dkg-server", "--privKey", "/data/server1/encrypted_private_key.json", "--password", "12345678"]
     volumes:
       - ./examples:/data
 
@@ -18,7 +18,7 @@ services:
     ports:
       - "3031:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server2/key"]
+    command: ["start-dkg-server", "--privKey", "/data/server2/encrypted_private_key.json", "--password", "12345678"]
     volumes:
       - ./examples:/data
 
@@ -29,7 +29,7 @@ services:
     ports:
       - "3032:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server3/key"]
+    command: ["start-dkg-server", "--privKey", "/data/server3/encrypted_private_key.json", "--password", "12345678"]
     volumes:
       - ./examples:/data
 
@@ -40,7 +40,7 @@ services:
     ports:
       - "3033:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server4/key" ]
+    command: ["start-dkg-server", "--privKey", "/data/server4/encrypted_private_key.json", "--password", "12345678"]
     volumes:
       - ./examples:/data
 
@@ -56,12 +56,14 @@ services:
     entrypoint: /app
     command: [ "init-dkg",
                "--operatorIDs", "1,2,3,4",
-               "--operatorsInfoPath", "./data/operators.csv",
+               "--operatorsInfoPath", "./data/docker_operators.json",
+               "--depositResultsPath", "./data/deposit.json",
+               "--ssvPayloadResultsPath", "./data/deposit.json",
                "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
                "--nonce",  "1",
                "--threshold",  "3",
                "--withdrawAddress", "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
-               "--fork", "'prater'"]
+               ]
     volumes:
       - ./examples:/data
 

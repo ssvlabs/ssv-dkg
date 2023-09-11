@@ -201,6 +201,10 @@ Initial message fields:
  Nonce int
 ```
 
+### `Switch` instance management
+
+The DKG server can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
+
 ### TODO:
 
 - [x] Complete design with flows and structure
