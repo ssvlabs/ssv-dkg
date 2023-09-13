@@ -76,7 +76,7 @@ dkgcli init-dkg \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
-          --fork 00000000
+          --fork "mainnet"
           --depositResultsPath deposit.json
           --ssvPayloadResultsPath payload.json
 #### where
@@ -85,7 +85,7 @@ dkgcli init-dkg \
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
---fork "00000000" # fork id bytes in HEX
+--fork "mainnet" # fork name: mainnet, prater, or now_test_network
 --depositResultsPath # path and filename to store the staking deposit file
 --ssvPayloadResultsPath # path and filename to store ssv contract payload file
 ```

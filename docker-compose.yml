@@ -99,6 +99,8 @@ services:
         "1",
         "--withdrawAddress",
         "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
+        "--fork",
+        "mainnet",
       ]
     volumes:
       - ./examples:/data

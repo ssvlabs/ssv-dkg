@@ -109,29 +109,20 @@ var StartDKG = &cobra.Command{
 		if withdrawAddr == "" {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
 		}
-		forkHex := viper.GetString("fork")
-		if forkHex == "" {
+		fork := viper.GetString("fork")
+		if fork == "" {
 			logger.Fatal("failed to get fork version flag value", zap.Error(err))
 		}
-		if err != nil {
-			logger.Fatal("failed to get fork version flag value", zap.Error(err))
-		}
-		forkBytes, err := hex.DecodeString(forkHex)
-		if err != nil {
-			logger.Fatal("failed to get fork version flag value", zap.Error(err))
-		}
-		var fork [4]byte
-		copy(fork[:], forkBytes)
-		var forkName string
+		var forkHEX [4]byte
 		switch fork {
-		case [4]byte{0x00, 0x00, 0x10, 0x20}:
-			forkName = "prater"
-		case [4]byte{0, 0, 0, 0}:
-			forkName = "mainnet"
-		case [4]byte{0x99, 0x99, 0x99, 0x99}:
-			forkName = "now_test_network"
+		case "prater":
+			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20} 
+		case "mainnet" :
+			forkHEX = [4]byte{0, 0, 0, 0}
+		case "now_test_network":
+			forkHEX =  [4]byte{0x99, 0x99, 0x99, 0x99}
 		default:
-			forkName = "mainnet"
+			logger.Fatal("please provide a valid fork name: mainnet, prater, or now_test_network")
 		}
 		owner := viper.GetString("owner")
 		if owner == "" {
@@ -142,7 +133,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		depositData, keyShares, err := dkgInitiator.StartDKG(withdrawPubKey, parts, fork, forkName, common.HexToAddress(owner), nonce)
+		depositData, keyShares, err := dkgInitiator.StartDKG(withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))

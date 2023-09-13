@@ -413,7 +413,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if err != nil {
 		return nil, nil, err
 	}
-	c.Logger.Infof("Round 2. Finished successfuly. Got DKG results")
+	c.Logger.Infof("Round 2. Finished successfully. Got DKG results")
 
 	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
 	if err != nil {
@@ -434,7 +434,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if err != nil {
 		return nil, nil, err
 	}
-
+	c.Logger.Info("Round 2. Post verification. Successfully verified partial signatures of deposit data from operator DKG results")
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
 	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(sharePks)
@@ -445,7 +445,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if !bytes.Equal(validatorPubKey.Serialize(), validatorRecoveredPK.Serialize()) {
 		return nil, nil, fmt.Errorf("incoming validator pub key isnt equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
-
+	c.Logger.Infof("Round 2. Post verification. Successfully recovered validator public key from shares %x", validatorRecoveredPK.Serialize())
 	// 2. Recover master signature from shares
 	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(sigDepositShares)
 	if err != nil {
@@ -454,7 +454,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if !reconstructedDepositMasterSig.VerifyByte(validatorPubKey, shareRoot) {
 		return nil, nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
-
+	c.Logger.Info("Round 2. Post verification. Successfully recovered master signature from shares")
 	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), init.WithdrawalCredentials, validatorPubKey.Serialize(), getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, nil, err
@@ -505,6 +505,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if err != nil {
 		return nil, nil, err
 	}
+	c.Logger.Info("Round 2. Post verification. Successfully verified partial signatures for ssv contract data")
 	// Recover and verify Master Signature for SSV contract owner+nonce
 	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ssvContractOwnerNonceSigShares)
 	if err != nil {
@@ -513,10 +514,12 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if !reconstructedOwnerNonceMasterSig.VerifyByte(validatorPubKey, hash) {
 		return nil, nil, fmt.Errorf("owner + nonce signature recovered from shares is invalid")
 	}
+	c.Logger.Info("Round 2. Post verification. Successfully reconstructed master signature for ssv contract data")
 	err = crypto.VerifyOwnerNoceSignature(reconstructedOwnerNonceMasterSig.Serialize(), init.Owner, validatorPubKey.Serialize(), uint16(init.Nonce))
 	if err != nil {
 		return nil, nil, err
 	}
+	c.Logger.Info("Round 2. Post verification. Successfully verified master signature for ssv contract data")
 	keyshares := &KeyShares{}
 	if err := keyshares.GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize()); err != nil {
 		return nil, nil, fmt.Errorf("handleGetKeyShares: failed to parse keyshare from dkg results: %w", err)
