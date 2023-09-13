@@ -428,11 +428,9 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	if err := o.VerifyFunc(st.Signer, msgbts, st.Signature); err != nil {
 		return err
 	}
-
 	t := st.Message
-
 	o.Logger.Debugf("operator: got msg from type %s, at: %d", t.Type.String(), o.ID)
-
+	o.Logger.Infof("Successfully verified incoming DKG message type %s: from %d", t.Type.String(), st.Signer)
 	switch t.Type {
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}

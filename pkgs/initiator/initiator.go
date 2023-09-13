@@ -345,6 +345,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
 			return nil, err
 		}
+		c.Logger.Infof("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(),  tsp.Signer)
 		c.Logger.Debugf("Operator messages are valid. Continue.")
 
 		final.Messages[i] = tsp
