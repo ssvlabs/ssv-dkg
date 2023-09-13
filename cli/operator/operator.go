@@ -58,12 +58,19 @@ var StartDKGOperator = &cobra.Command{
 		var privateKey *rsa.PrivateKey
 		pass := viper.GetString("password")
 		if pass != "" {
+			// check if a password string a valid path, then read password from the file
+			if _, err := os.Stat(pass); err != nil {
+				logger.Fatal("Cant read password file", zap.Error(err))
+			}
+			keyStorePassword, err := os.ReadFile(pass)
+			if err != nil {
+				logger.Fatal("Error reading Password file", zap.Error(err))
+			}
 			encryptedJSON, err := os.ReadFile(privKeyPath)
 			if err != nil {
-				logger.Fatal(err.Error())
+				logger.Fatal("cant read operator`s key file", zap.Error(err))
 			}
-
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, pass)
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
 			if err != nil {
 				logger.Fatal(err.Error())
 			}

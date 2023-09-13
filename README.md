@@ -39,12 +39,12 @@ NOTE: dkgcli tool is using an ssv operator private key file. Encrypted and plint
 #### Start a DKG-operator
 
 ```sh
-dkgcli start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
+dkgcli start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
---password: 12345678 # password to decrypt the key
+--password: ./password # path to password file to decrypt the key
 --storeShare # store created bls key share to a file for later reuse if needed
 ```
 
@@ -54,7 +54,7 @@ Example:
 
 ```yaml
 privKey: ./encrypted_private_key.json
-password: 12345678
+password: ./password
 port: 3030
 storeShare: true
 ```

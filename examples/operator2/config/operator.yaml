@@ -1,4 +1,4 @@
 privKey: ./encrypted_private_key.json
-password: 12345678
+password: ./password
 port: 3031
 storeShare: true

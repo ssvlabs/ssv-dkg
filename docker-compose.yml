@@ -13,7 +13,7 @@ services:
         "--privKey",
         "/data/operator1/encrypted_private_key.json",
         "--password",
-        "12345678",
+        "/data/operator1/password",
       ]
     volumes:
       - ./examples:/data
@@ -31,7 +31,7 @@ services:
         "--privKey",
         "/data/operator2/encrypted_private_key.json",
         "--password",
-        "12345678",
+        "/data/operator2/password",
       ]
     volumes:
       - ./examples:/data
@@ -49,7 +49,7 @@ services:
         "--privKey",
         "/data/operator3/encrypted_private_key.json",
         "--password",
-        "12345678",
+        "/data/operator3/password",
       ]
     volumes:
       - ./examples:/data
@@ -67,7 +67,7 @@ services:
         "--privKey",
         "/data/operator4/encrypted_private_key.json",
         "--password",
-        "12345678",
+        "/data/operator4/password",
       ]
     volumes:
       - ./examples:/data
