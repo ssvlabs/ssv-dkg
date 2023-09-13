@@ -1,36 +1,54 @@
 # ssv-dkg-tool
 
-## Architecture
-
-### Operators data
-
-The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
-
 ### Build
 
 ```sh
 make install
 ```
 
+### Operators data
+
+The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
+
+Information about operators can be collected at `json` file and supplied to initiator to use for a key generation.
+
+Operators info file example (`./examples/operators_integration.json`):
+
+```json
+[
+  {
+    "id": 1,
+    "public_key": "LS0tLS1CRUdJTiBSU0....",
+    "ip": "http://localhost:3030"
+  },
+  {
+    "id": 2,
+    "public_key": "LS0tLS1CRUdJTiB....",
+    "ip": "http://localhost:3031"
+  }
+]
+```
+
 ### Operator
 
 The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
-The operator is able to participate in multiple instances in parallel.
-Whenever the operator receives a message it directs it to the right instance by the identifier, and respond with an answer.
+The operator is able to participate in multiple DKG ceremonies in parallel.
 
-Start a DKG-operator
+NOTE: dkgcli tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the dkgcli tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+
+#### Start a DKG-operator
 
 ```sh
 dkgcli start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
 
 ### where
---privKey ./encrypted_private_key.json # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
+--privKey ./encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
---password: 12345678 # password for encrypted keys
---storeShare # store created bls key share to a file for later reuse
+--password: 12345678 # password to decrypt the key
+--storeShare # store created bls key share to a file for later reuse if needed
 ```
 
-Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for the config file at `./config/` folder.
 
 Example:
 
@@ -63,12 +81,13 @@ dkgcli init-dkg \
           --ssvPayloadResultsPath payload.json
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./examples/operators_integration.json # path to info about operators - ID,base64(RSA pub key),
+--operatorsInfoPath ./examples/operators_integration.json # path to operators info ID,base64(RSA pub key),
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
+--withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "00000000" # fork id bytes in HEX
---depositResultsPath # path to store the result file
---ssvPayloadResultsPath # path to store ssv contract payload file
+--depositResultsPath # path and filename to store the staking deposit file
+--ssvPayloadResultsPath # path and filename to store ssv contract payload file
 ```
 
 Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
@@ -94,7 +113,7 @@ dkgcli init-dkg
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
 
-### Generate RSA operator key
+### OPTIONAL: Generate RSA operator key
 
 ```sh
 ./dkgcli generate-operator-keys --password 12345678
@@ -102,7 +121,7 @@ dkgcli init-dkg
 
 ---
 
-### Schema
+### Architecture
 
 ![flow](./imgs/DKGinit.drawio.png)
 
