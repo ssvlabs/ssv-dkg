@@ -1,4 +1,4 @@
-package server
+package operator
 
 import (
 	"crypto/rand"

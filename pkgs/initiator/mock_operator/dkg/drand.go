@@ -366,7 +366,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Infof("Server: Recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
+	o.Logger.Infof("operator: Recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
@@ -375,11 +375,11 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("Server: received deal bundle from %d", from)
+		o.Logger.Infof("operator: received deal bundle from %d", from)
 
 		o.b.DealC <- *b
 
-		o.Logger.Infof("Server: gone through deal sending %d", from)
+		o.Logger.Infof("operator: gone through deal sending %d", from)
 
 	case wire.KyberResponseBundleMessageType:
 
@@ -388,7 +388,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("Server: received response bundle from %d", from)
+		o.Logger.Infof("operator: received response bundle from %d", from)
 
 		o.b.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
@@ -397,7 +397,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Infof("Server: received justification bundle from %d", from)
+		o.Logger.Infof("operator: received justification bundle from %d", from)
 
 		o.b.JustificationC <- *b
 	default:
@@ -419,7 +419,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport, eve *EveTest
 
 	t := st.Message
 
-	o.Logger.Infof("Server: got msg from type %s, at: %d", t.Type.String(), o.ID)
+	o.Logger.Infof("operator: got msg from type %s, at: %d", t.Type.String(), o.ID)
 
 	switch t.Type {
 	case wire.ExchangeMessageType:

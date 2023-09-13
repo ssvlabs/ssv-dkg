@@ -12,16 +12,16 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 make install
 ```
 
-### Server
+### Operator
 
-The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement.
-The server is able to participate in multiple instances in parallel.
-Whenever the server receives a message it directs it to the right instance by the identifier, and respond with an answer.
+The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
+The operator is able to participate in multiple instances in parallel.
+Whenever the operator receives a message it directs it to the right instance by the identifier, and respond with an answer.
 
-Start a DKG server
+Start a DKG-operator
 
 ```sh
-dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
+dkgcli start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
 
 ### where
 --privKey ./encrypted_private_key.json # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
@@ -44,10 +44,10 @@ storeShare: true
 When using configuration file, run:
 
 ```sh
-dkgcli start-dkg-server
+dkgcli start-dkg-operator
 ```
 
-### Initiator of DKG key generation
+### Initiator
 
 The initiator uses `init-dkg` to create the initial details needed to run DKG between all operators.
 
@@ -210,7 +210,7 @@ Initial message fields:
 
 ### `Switch` instance management
 
-The DKG server can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
+The DKG-operator can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
 
 ### TODO:
 

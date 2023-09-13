@@ -7,7 +7,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	client "github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	client "github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
 	dkg "github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
 	wire "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	types "github.com/bloxapp/ssv-spec/types"

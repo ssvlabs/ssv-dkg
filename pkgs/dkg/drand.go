@@ -152,7 +152,7 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
-	o.Logger.Infof("Staring DKG with nodes %v", nodes)
+	o.Logger.Debugf("Staring DKG with nodes %v", nodes)
 
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
@@ -205,12 +205,12 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 }
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
-	o.Logger.Infof("DKG process finished")
 	if res.Error != nil {
 		o.Logger.Error(res.Error)
 		o.broadcastError(res.Error)
 		return res.Error
 	}
+	o.Logger.Infof("DKG ceremony finished successfully")
 	// Store result share a instance
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
@@ -378,7 +378,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Debugf("server: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
+	o.Logger.Debugf("operator: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
@@ -387,11 +387,11 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("server: received deal bundle from %d", from)
+		o.Logger.Debugf("operator: received deal bundle from %d", from)
 
 		o.b.DealC <- *b
 
-		o.Logger.Debugf("server: gone through deal sending %d", from)
+		o.Logger.Debugf("operator: gone through deal sending %d", from)
 
 	case wire.KyberResponseBundleMessageType:
 
@@ -400,7 +400,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("server: received response bundle from %d", from)
+		o.Logger.Debugf("operator: received response bundle from %d", from)
 
 		o.b.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
@@ -409,7 +409,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("server: received justification bundle from %d", from)
+		o.Logger.Debugf("operator: received justification bundle from %d", from)
 
 		o.b.JustificationC <- *b
 	default:
@@ -431,7 +431,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 	t := st.Message
 
-	o.Logger.Debugf("server: got msg from type %s, at: %d", t.Type.String(), o.ID)
+	o.Logger.Debugf("operator: got msg from type %s, at: %d", t.Type.String(), o.ID)
 
 	switch t.Type {
 	case wire.ExchangeMessageType:

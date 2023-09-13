@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
 
@@ -103,7 +103,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed: ", zap.Error(err))
 		}
-		dkgClient := client.New(opMap)
+		dkgInitiator := initiator.New(opMap)
 
 		withdrawAddr := viper.GetString("withdrawAddress")
 		if withdrawAddr == "" {
@@ -142,14 +142,14 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		depositData, keyShares, err := dkgClient.StartDKG(withdrawPubKey, parts, fork, forkName, common.HexToAddress(owner), nonce)
+		depositData, keyShares, err := dkgInitiator.StartDKG(withdrawPubKey, parts, fork, forkName, common.HexToAddress(owner), nonce)
 
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
 		// Save deposit file
 		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
-		err = utils.WriteJSON(depositResultsPath, []client.DepositDataJson{*depositData})
+		err = utils.WriteJSON(depositResultsPath, []initiator.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file", zap.Error(err))
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/operator"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
@@ -18,19 +18,19 @@ import (
 )
 
 func init() {
-	flags.OperatorPrivateKeyFlag(StartDKGServer)
-	flags.OperatorPrivateKeyPassFlag(StartDKGServer)
-	flags.OperatorPortFlag(StartDKGServer)
-	flags.AddStoreShareFlag(StartDKGServer)
-	viper.BindPFlag("privKey", StartDKGServer.PersistentFlags().Lookup("privKey"))
-	viper.BindPFlag("password", StartDKGServer.PersistentFlags().Lookup("password"))
-	viper.BindPFlag("port", StartDKGServer.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("storeShare", StartDKGServer.PersistentFlags().Lookup("storeShare"))
+	flags.OperatorPrivateKeyFlag(StartDKGOperator)
+	flags.OperatorPrivateKeyPassFlag(StartDKGOperator)
+	flags.OperatorPortFlag(StartDKGOperator)
+	flags.AddStoreShareFlag(StartDKGOperator)
+	viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey"))
+	viper.BindPFlag("password", StartDKGOperator.PersistentFlags().Lookup("password"))
+	viper.BindPFlag("port", StartDKGOperator.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("storeShare", StartDKGOperator.PersistentFlags().Lookup("storeShare"))
 }
 
-var StartDKGServer = &cobra.Command{
-	Use:   "start-dkg-server",
-	Short: "Starts an instance of DKG",
+var StartDKGOperator = &cobra.Command{
+	Use:   "start-dkg-operator",
+	Short: "Starts an instance of DKG operator",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(`
 		██████╗ ██╗  ██╗ ██████╗      ██████╗ ██████╗ ███████╗██████╗  █████╗ ████████╗ ██████╗ ██████╗ 
@@ -42,7 +42,7 @@ var StartDKGServer = &cobra.Command{
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
 			log.Fatal(err)
 		}
-		logger := zap.L().Named("dkg-server")
+		logger := zap.L().Named("dkg-operator")
 
 		viper.SetConfigName("operator")
 		viper.SetConfigType("yaml")
@@ -73,9 +73,7 @@ var StartDKGServer = &cobra.Command{
 				logger.Fatal(err.Error())
 			}
 		}
-
-		srv := server.New(privateKey)
-
+		srv := operator.New(privateKey)
 		port := viper.GetUint64("port")
 		if port == 0 {
 			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
@@ -84,9 +82,9 @@ var StartDKGServer = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
-		logger.Info("starting DKG server", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
+		logger.Info("starting DKG operator", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
 		if err := srv.Start(uint16(port)); err != nil {
-			log.Fatalf("Error in server %v", err)
+			log.Fatalf("Error in operator %v", err)
 		}
 	},
 }

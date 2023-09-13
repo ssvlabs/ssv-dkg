@@ -1,4 +1,4 @@
-package server
+package operator
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,8 +28,8 @@ func TestRateLimit(t *testing.T) {
 		return srv.Start(3030)
 	})
 	t.Run("test init route rate limit", func(t *testing.T) {
-		ops := make(map[uint64]client.Operator)
-		ops[1] = client.Operator{"http://localhost:3030", 1, &srv.State.privateKey.PublicKey}
+		ops := make(map[uint64]initiator.Operator)
+		ops[1] = initiator.Operator{"http://localhost:3030", 1, &srv.State.privateKey.PublicKey}
 
 		parts := make([]*wire.Operator, 0, 0)
 		for _, id := range []uint64{1} {

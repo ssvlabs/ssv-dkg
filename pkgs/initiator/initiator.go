@@ -1,4 +1,4 @@
-package client
+package initiator
 
 import (
 	"bytes"
@@ -34,34 +34,34 @@ import (
 // b64 encrypted key length is 256
 const encryptedKeyLength = 256
 
-// Client will send messages to DKG servers, collect responses and redirects messages to them.
+// Initiator will send messages to DKG servers, collect responses and redirects messages to them.
 
 /*
 Step 1
-					<-->| Server 1
-Client -> (Init)	<-->| Server 2
-					<-->| Server 3
-					<-->| Server 4
+					<-->| operator 1
+Initiator -> (Init)	<-->| operator 2
+					<-->| operator 3
+					<-->| operator 4
 
 Step 2
 
-Client Collects responses
-Client creates combined message
+Initiator Collects responses
+Initiator creates combined message
 SignedMessages = {
 	Identifier
 	[]SignedMessage
 }
 
-						<-->| Server 1
-Client -> ([4]Exchange)	<-->| Server 2
-						<-->| Server 3
-						<-->| Server 4
+						<-->| operator 1
+Initiator -> ([4]Exchange)	<-->| operator 2
+						<-->| operator 3
+						<-->| operator 4
 
 
-							<-->| Server 1
-Client -> ([4]KyberMessage)	<-->| Server 2
-							<-->| Server 3
-							<-->| Server 4
+							<-->| operator 1
+Initiator -> ([4]KyberMessage)	<-->| operator 2
+							<-->| operator 3
+							<-->| operator 4
 
 */
 
@@ -95,7 +95,7 @@ type OperatorDataJson struct {
 
 type Operators map[uint64]Operator
 
-type MockClient interface {
+type MockInitiator interface {
 	SendAndCollect(op Operator, method string, data []byte) ([]byte, error)
 	SendToAll(method string, msg []byte) ([][]byte, error)
 	PakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error)
@@ -107,7 +107,7 @@ type MockClient interface {
 	SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error)
 }
 
-type Client struct {
+type Initiator struct {
 	Logger     *logrus.Entry
 	Client     *req.Client
 	Operators  Operators
@@ -230,11 +230,11 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 	return nil
 }
 
-func New(operatorMap Operators) *Client {
+func New(operatorMap Operators) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	c := &Client{
+	c := &Initiator{
 		Logger:    logrus.NewEntry(logrus.New()),
 		Client:    client,
 		Operators: operatorMap,
@@ -248,7 +248,7 @@ type opReqResult struct {
 	result     []byte
 }
 
-func (c *Client) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
+func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
 	// TODO: Consider signing a message
 	r.SetBodyBytes(data)
@@ -268,7 +268,7 @@ func (c *Client) SendAndCollect(op Operator, method string, data []byte) ([]byte
 	return resdata, nil
 }
 
-func (c *Client) SendToAll(method string, msg []byte) ([][]byte, error) {
+func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
 	resc := make(chan opReqResult, len(c.Operators))
 	for _, op := range c.Operators {
 		go func(operator Operator) {
@@ -314,7 +314,7 @@ func parseAsError(msg []byte) (error, error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
-func (c *Client) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
+func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
@@ -353,7 +353,7 @@ func (c *Client) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSign
 	return final, nil
 }
 
-func (c *Client) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 	if len(ids) < 4 {
 		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
@@ -583,7 +583,7 @@ func toArrayByteSlices(input []string) [][]byte {
 	return result
 }
 
-func (c *Client) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
+func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
 		pk, err := crypto.ParseRSAPubkey(op.PubKey)
@@ -612,7 +612,7 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	}
 }
 
-func (c *Client) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
+func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
 	dkgResults := make([]dkg.Result, 0)
 	validatorPubKey := bls.PublicKey{}
 	sharePks := make(map[ssvspec_types.OperatorID]*bls.PublicKey)
@@ -669,7 +669,7 @@ func (c *Client) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) 
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }
 
-func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 	sszinit, err := init.MarshalSSZ()
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init msg to ssz %v", err)
@@ -694,7 +694,7 @@ func (c *Client) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
 	return results, nil
 }
 
-func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
 	c.Logger.Info("round 1. Parsing init responses")
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
@@ -713,7 +713,7 @@ func (c *Client) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte,
 	return results, nil
 }
 
-func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
 	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
 		return nil, err
@@ -731,7 +731,7 @@ func (c *Client) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, erro
 	return responseResult, nil
 }
 
-func (c *Client) NewID() [24]byte {
+func (c *Initiator) NewID() [24]byte {
 	var id [24]byte
 	copy(id[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
 	b := uuid.New() // random ID for each new DKG initiation
@@ -870,7 +870,7 @@ func splitBytes(buf []byte, lim int) [][]byte {
 	return chunks
 }
 
-func (c *Client) validateOpIDs(ids []uint64) error {
+func (c *Initiator) validateOpIDs(ids []uint64) error {
 	opMap := make(map[uint64]bool)
 	for _, id := range ids {
 		if opMap[id] {

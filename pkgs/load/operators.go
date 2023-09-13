@@ -12,12 +12,12 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
 )
 
-func Operators(path string) (client.Operators, error) {
-	opmap := make(map[uint64]client.Operator)
+func Operators(path string) (initiator.Operators, error) {
+	opmap := make(map[uint64]initiator.Operator)
 
 	opsfile, err := os.ReadFile(path)
 	if err != nil {
@@ -48,7 +48,7 @@ func Operators(path string) (client.Operators, error) {
 		}
 		ip := opdata[2]
 
-		opmap[id] = client.Operator{
+		opmap[id] = initiator.Operator{
 			Addr:   ip,
 			ID:     id,
 			PubKey: pbKey.(*rsa.PublicKey),
@@ -57,9 +57,9 @@ func Operators(path string) (client.Operators, error) {
 	return opmap, nil
 }
 
-func LoadOperatorsJson(operatorsMetaData []byte) (client.Operators, error) {
-	opmap := make(map[uint64]client.Operator)
-	var operators []client.OperatorDataJson
+func LoadOperatorsJson(operatorsMetaData []byte) (initiator.Operators, error) {
+	opmap := make(map[uint64]initiator.Operator)
+	var operators []initiator.OperatorDataJson
 	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func LoadOperatorsJson(operatorsMetaData []byte) (client.Operators, error) {
 			return nil, err
 		}
 
-		opmap[opdata.ID] = client.Operator{
+		opmap[opdata.ID] = initiator.Operator{
 			Addr:   opdata.Addr,
 			ID:     opdata.ID,
 			PubKey: pbKey.(*rsa.PublicKey),

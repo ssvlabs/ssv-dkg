@@ -1,4 +1,4 @@
-package test_server
+package mock_operator
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"

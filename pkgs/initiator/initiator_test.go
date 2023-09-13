@@ -1,4 +1,4 @@
-package client_test
+package initiator_test
 
 import (
 	"crypto/ecdsa"
@@ -14,16 +14,16 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/client/test_server/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
+	mock_operator "github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator/dkg"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/server"
+	operator "github.com/bloxapp/ssv-dkg-tool/pkgs/operator"
 )
 
 // TODO: use mocks instead of servers
-type testServer struct {
+type testOperator struct {
 	id      uint64
 	privKey *rsa.PrivateKey
 	srv     *httptest.Server
@@ -55,38 +55,38 @@ const operatorsMetaData = `[
 const exmaplePath = "../../examples/"
 
 func TestOperatorMisbehave(t *testing.T) {
-	ops := make(map[uint64]client.Operator)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-	ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
-	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
-	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+	ops := make(map[uint64]initiator.Operator)
+	srv2 := CreateTestOperator(t, 2)
+	srv3 := CreateTestOperator(t, 3)
+	srv4 := CreateTestOperator(t, 4)
+	ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+	ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+	ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 		require.NoError(t, err)
-		clnt := client.New(opmap)
+		clnt := initiator.New(opmap)
 		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 		require.NoError(t, err)
-		clnt := client.New(opmap)
+		clnt := initiator.New(opmap)
 		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		opmap, err := load.LoadOperatorsJson([]byte(operatorsMetaData))
 		require.NoError(t, err)
-		clnt := client.New(opmap)
+		clnt := initiator.New(opmap)
 		_, _, err = clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
 	})
 	t.Run("test wrong server key", func(t *testing.T) {
-		srv1 := CreateTestServerRandomKey(t, 1)
-		ops[1] = client.Operator{srv1.srv.URL, 1, &srv2.privKey.PublicKey}
-		clnt := client.New(ops)
+		srv1 := CreateTestOperatorRandomKey(t, 1)
+		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv2.privKey.PublicKey}
+		clnt := initiator.New(ops)
 		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "my operator is missing inside the op list")
 		srv1.srv.Close()
@@ -96,9 +96,9 @@ func TestOperatorMisbehave(t *testing.T) {
 		eveMsg := dkg.EveTest{
 			WrongPartialSig: "0x87912f24669427628885cf0b70385b94694951626805ff565f4d2a0b74c433a45b279769ff23c23c8dd4ae3625fa06c20df368c0dc24931f3ebe133b3e1fed7d3477c51fa291e61052b0286c7fc453bb5e10346c43eadda9ef1bac8db14acda4",
 		}
-		srv1 := CreateEveTestServer(t, 1, &eveMsg)
-		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
-		clnt := client.New(ops)
+		srv1 := CreateEveTestOperator(t, 1, &eveMsg)
+		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		clnt := initiator.New(ops)
 		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "error verifying partial deposit signature")
 		srv1.srv.Close()
@@ -108,9 +108,9 @@ func TestOperatorMisbehave(t *testing.T) {
 		eveMsg := dkg.EveTest{
 			WrongID: "0x0000000000000000630ab8af69364a6db7b6d7d59bb60f23",
 		}
-		srv1 := CreateEveTestServer(t, 1, &eveMsg)
-		ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
-		clnt := client.New(ops)
+		srv1 := CreateEveTestOperator(t, 1, &eveMsg)
+		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		clnt := initiator.New(ops)
 		_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 		require.ErrorContains(t, err, "DKG result has wrong ID")
 		srv1.srv.Close()
@@ -121,19 +121,19 @@ func TestOperatorMisbehave(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	ops := make(map[uint64]client.Operator)
+	ops := make(map[uint64]initiator.Operator)
 	eveMsg := dkg.EveTest{
 		Timeout: time.Second * 30,
 	}
-	srv1 := CreateEveTestServer(t, 1, &eveMsg)
-	srv2 := CreateTestServer(t, 2)
-	srv3 := CreateTestServer(t, 3)
-	srv4 := CreateTestServer(t, 4)
-	ops[1] = client.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
-	ops[2] = client.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
-	ops[3] = client.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
-	ops[4] = client.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
-	clnt := client.New(ops)
+	srv1 := CreateEveTestOperator(t, 1, &eveMsg)
+	srv2 := CreateTestOperator(t, 2)
+	srv3 := CreateTestOperator(t, 3)
+	srv4 := CreateTestOperator(t, 4)
+	ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+	ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+	ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+	ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+	clnt := initiator.New(ops)
 	_, _, err := clnt.StartDKG(common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", common.HexToAddress("0x0000000000000000000000000000000000000007"), 0)
 	require.ErrorContains(t, err, "Client.Timeout exceeded while awaiting headers")
 	srv1.srv.Close()
@@ -141,63 +141,63 @@ func TestTimeout(t *testing.T) {
 	srv3.srv.Close()
 	srv4.srv.Close()
 }
-func CreateTestServer(t *testing.T, id uint64) *testServer {
+func CreateTestOperator(t *testing.T, id uint64) *testOperator {
 	priv, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := server.NewSwitch(priv)
+	swtch := operator.NewSwitch(priv)
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
-	s := &server.Server{
+	s := &operator.Server{
 		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
 		Router: r,
 		State:  swtch,
 	}
-	server.RegisterRoutes(s)
+	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
-	return &testServer{
+	return &testOperator{
 		id:      id,
 		privKey: priv,
 		srv:     sTest,
 	}
 }
 
-func CreateTestServerRandomKey(t *testing.T, id uint64) *testServer {
+func CreateTestOperatorRandomKey(t *testing.T, id uint64) *testOperator {
 	priv, _, err := crypto.GenerateKeys()
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := server.NewSwitch(priv)
+	swtch := operator.NewSwitch(priv)
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
-	s := &server.Server{
+	s := &operator.Server{
 		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
 		Router: r,
 		State:  swtch,
 	}
-	server.RegisterRoutes(s)
+	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
-	return &testServer{
+	return &testOperator{
 		id:      id,
 		privKey: priv,
 		srv:     sTest,
 	}
 }
 
-func CreateEveTestServer(t *testing.T, id uint64, eveCase *dkg.EveTest) *testServer {
+func CreateEveTestOperator(t *testing.T, id uint64, eveCase *dkg.EveTest) *testOperator {
 	priv, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := test_server.NewSwitch(priv)
+	swtch := mock_operator.NewSwitch(priv)
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
-	s := &test_server.Server{
+	s := &mock_operator.Server{
 		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
 		Router: r,
 		State:  swtch,
 	}
-	test_server.RegisterRoutes(s, eveCase)
+	mock_operator.RegisterRoutes(s, eveCase)
 	sTest := httptest.NewServer(s.Router)
-	return &testServer{
+	return &testOperator{
 		id:      id,
 		privKey: priv,
 		srv:     sTest,
@@ -219,10 +219,10 @@ func newEthAddress(t *testing.T) common.Address {
 
 // 	logger.Infof("Starting intg test")
 
-// 	srv1 := CreateTestServer(t, 1)
-// 	srv2 := CreateTestServer(t, 2)
-// 	srv3 := CreateTestServer(t, 3)
-// 	srv4 := CreateTestServer(t, 4)
+// 	srv1 := CreateTestOperator(t, 1)
+// 	srv2 := CreateTestOperator(t, 2)
+// 	srv3 := CreateTestOperator(t, 3)
+// 	srv4 := CreateTestOperator(t, 4)
 
 // 	logger.Infof("Servers created")
 

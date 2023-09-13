@@ -1,4 +1,4 @@
-package server
+package operator
 
 import (
 	"bytes"
@@ -50,20 +50,20 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		return nil, nil, err
 	}
 
-	serverID := uint64(0)
-	serverPubKey := s.privateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(serverPubKey)
+	operatorID := uint64(0)
+	operatorPubKey := s.privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, op := range init.Operators {
 		if bytes.Equal(op.PubKey, pkBytes) {
-			serverID = op.ID
+			operatorID = op.ID
 			break
 		}
 	}
 
-	if serverID == 0 {
+	if operatorID == 0 {
 		return nil, nil, errors.New("my operator is missing inside the op list")
 	}
 
@@ -80,7 +80,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 		SignFunc:   s.Sign,
 		VerifyFunc: verify,
 		Suite:      bls3.NewBLS12381Suite(),
-		ID:         serverID,
+		ID:         operatorID,
 		OpPrivKey:  s.privateKey,
 		Owner:      init.Owner,
 		Nonce:      init.Nonce,
