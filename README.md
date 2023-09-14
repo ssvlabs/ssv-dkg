@@ -135,6 +135,14 @@ dkgcli init-dkg
 
 ### Security notes
 
+Here we explain how we secure the communication between DKG ceremony initiator and operators
+
+1. Initiator is using RSA key (2048 bits) to sign init message sent to operators. Upon receiving operators verify the sig using pub key at init message. If the sig is valid, operators store this pub key for further verification of messages coming from the initiator(s).
+2. Operators are using RSA key (ssv operator key - 2048 bits) to sign every message sent back to initiator.
+3. Initiator verifies every message incoming from any operator using ID and Public Key provided by operators info file, then initiator creates a combined message and signs it.
+4. Operators verify each of the messages of other operators participating in the ceremony and verifies initiator signature of the message.
+5. During the DKG protocol execution, the BLS auth scheme is being used - G2 for its signature space and G1 for its public key
+
 ## Architecture
 
 ![flow](./imgs/DKGinit.drawio.png)
