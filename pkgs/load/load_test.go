@@ -1,9 +1,10 @@
 package load
 
 import (
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/stretchr/testify/require"
 )
 
 var jsonStr = []byte(`[

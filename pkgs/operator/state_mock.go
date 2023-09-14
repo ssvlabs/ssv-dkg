@@ -7,7 +7,7 @@ package operator
 import (
 	reflect "reflect"
 
-	wire "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	wire "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -1,4 +1,4 @@
-module github.com/bloxapp/ssv-dkg-tool
+module github.com/bloxapp/ssv-dkg
 
 go 1.20
 

@@ -10,12 +10,12 @@ GORUN = env GO111MODULE=on go run
 GOINSTALL = env GO111MODULE=on go install -v
 GOTEST = env GO111MODULE=on go test -v
 # Name of the Go binary output
-BINARY_NAME=./bin/dkgcli
+BINARY_NAME=./bin/ssv-dkg
 # Docker image name
-DOCKER_IMAGE=ssv-dkg-tool
+DOCKER_IMAGE=ssv-dkg
 
 install:
-	$(GOINSTALL) cmd/dkgcli/dkgcli.go
+	$(GOINSTALL) cmd/ssv-dkg/ssv-dkg.go
 	@echo "Done building."
 	@echo "Run dkgcli to launch the tool."
 
@@ -25,7 +25,7 @@ clean:
 # Recipe to compile the Go program
 build:
 	@echo "Building Go binary..."
-	go build -o $(BINARY_NAME) ./cmd/dkgcli/dkgcli.go
+	go build -o $(BINARY_NAME) ./cmd/ssv-dkg/ssv-dkg.go
 
 # Recipe to run tests
 test:

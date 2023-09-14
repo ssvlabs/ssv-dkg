@@ -1,7 +1,7 @@
 version: "3"
 services:
   operator1:
-    image: ssv-dkg-tool:latest
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
@@ -19,7 +19,7 @@ services:
       - ./examples:/data
 
   operator2:
-    image: ssv-dkg-tool:latest
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
@@ -37,7 +37,7 @@ services:
       - ./examples:/data
 
   operator3:
-    image: ssv-dkg-tool:latest
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
@@ -55,7 +55,7 @@ services:
       - ./examples:/data
 
   operator4:
-    image: ssv-dkg-tool:latest
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
@@ -73,7 +73,7 @@ services:
       - ./examples:/data
 
   initiator:
-    image: ssv-dkg-tool:latest
+    image: ssv-dkg:latest
     depends_on:
       - operator1
       - operator2

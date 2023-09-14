@@ -8,11 +8,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/cli/flags"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/load"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 

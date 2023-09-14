@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator/mock_operator/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
 )

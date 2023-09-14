@@ -12,8 +12,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 )
 
 func Operators(path string) (initiator.Operators, error) {

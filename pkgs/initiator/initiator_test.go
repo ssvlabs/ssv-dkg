@@ -14,12 +14,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
-	mock_operator "github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator/mock_operator/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	operator "github.com/bloxapp/ssv-dkg-tool/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	mock_operator "github.com/bloxapp/ssv-dkg/pkgs/initiator/mock_operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator/mock_operator/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/load"
+	operator "github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 

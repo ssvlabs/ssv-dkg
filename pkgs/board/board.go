@@ -1,7 +1,7 @@
 package board
 
 import (
-	wire2 "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	//"github.com/RockX-SG/frost-dkg-demo/internal/node/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/sirupsen/logrus"

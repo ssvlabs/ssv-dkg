@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/cli/flags"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/load"
+	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"

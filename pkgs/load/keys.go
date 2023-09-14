@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 )
 
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {

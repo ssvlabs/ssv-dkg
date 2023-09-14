@@ -24,10 +24,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/pkgs/board"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const (

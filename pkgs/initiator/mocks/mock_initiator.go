@@ -7,9 +7,9 @@ package mocks
 import (
 	reflect "reflect"
 
-	client "github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
-	dkg "github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
-	wire "github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	client "github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	dkg "github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	wire "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	types "github.com/bloxapp/ssv-spec/types"
 	common "github.com/ethereum/go-ethereum/common"
 	bls "github.com/herumi/bls-eth-go-binary/bls"

@@ -22,11 +22,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	ourcrypto "github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 )
 
 const encryptedKeyLength = 256

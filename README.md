@@ -34,12 +34,12 @@ Operators info file example (`./examples/operators_integration.json`):
 The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
 The operator is able to participate in multiple DKG ceremonies in parallel.
 
-NOTE: dkgcli tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the dkgcli tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the dkgcli tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
 
 #### Start a DKG-operator
 
 ```sh
-dkgcli start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
+ssv-dkg start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
@@ -62,7 +62,7 @@ storeShare: true
 When using configuration file, run:
 
 ```sh
-dkgcli start-dkg-operator
+ssv-dkg start-dkg-operator
 ```
 
 ### Initiator
@@ -72,7 +72,7 @@ The initiator uses `init-dkg` to create the initial details needed to run DKG be
 Generate initiator identity RSA key pair:
 
 ```sh
-./dkgcli generate-initiator-keys --password 12345678
+ssv-dkg generate-initiator-keys --password 12345678
 ```
 
 This will create `encrypted_private_key.json` with encrypted by password RSA key pair
@@ -81,7 +81,7 @@ Write down `password` in any text file, for example to `./password`
 Run:
 
 ```sh
-dkgcli init-dkg \
+ssv-dkg init-dkg \
           --operatorIDs 1,2,3,4 \
           --operatorsInfoPath ./operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
@@ -126,7 +126,7 @@ password: ./password
 When using configuration file, run:
 
 ```sh
-dkgcli init-dkg
+ssv-dkg init-dkg
 ```
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**

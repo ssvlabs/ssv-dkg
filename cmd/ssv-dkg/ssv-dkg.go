@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/bloxapp/ssv-dkg-tool/cli"
+	"github.com/bloxapp/ssv-dkg/cli"
 )
 
 var (
 	// AppName is the application name
-	AppName = "SSV-DKG-CLI"
+	AppName = "ssv-dkg"
 
 	// Version is the app version
 	Version = "latest"

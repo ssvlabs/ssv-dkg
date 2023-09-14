@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/sirupsen/logrus"
 )

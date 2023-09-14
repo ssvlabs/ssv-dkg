@@ -26,10 +26,10 @@ import (
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/consts"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/pkgs/consts"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 // b64 encrypted key length is 256
