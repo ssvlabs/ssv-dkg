@@ -67,26 +67,25 @@ func RegisterRoutes(s *Server) {
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming INIT msg")
 			rawdata, _ := io.ReadAll(request.Body)
-			tr := &wire.Transport{}
-			if err := tr.UnmarshalSSZ(rawdata); err != nil {
+			signedInitMsg := &wire.SignedTransport{}
+			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
 				s.Logger.Errorf("parsing failed, err %v", err)
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(err))
 				return
 			}
+
 			// Validate that incoming message is an init message
-			if tr.Type != wire.InitMessageType {
+			if signedInitMsg.Message.Type != wire.InitMessageType {
 				s.Logger.Errorf("recieved bad msg non init message send to init route")
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
 				return
 			}
-
-			reqid := tr.Identifier
-
+			reqid := signedInitMsg.Message.Identifier
 			logger := s.Logger.WithField("reqid", hex.EncodeToString(reqid[:]))
 			logger.Debug("initiating instance with init data")
-			b, err := s.State.InitInstance(reqid, tr.Data)
+			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
 			if err != nil {
 				logger.Errorf("failed to initiate instance err:%v", err)
 

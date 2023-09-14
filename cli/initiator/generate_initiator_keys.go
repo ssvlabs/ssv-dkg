@@ -1,4 +1,4 @@
-package operator
+package initiator
 
 import (
 	"encoding/base64"
@@ -15,13 +15,13 @@ import (
 )
 
 func init() {
-	GenerateOperatorKeysCmd.Flags().StringP("password", "p", "", "Password used to encrypt the private key")
+	GenerateInitiatorKeysCmd.Flags().StringP("password", "p", "", "Password used to encrypt the private key")
 }
 
 // GenerateOperatorKeysCmd is the command to generate operator private/public keys
-var GenerateOperatorKeysCmd = &cobra.Command{
-	Use:   "generate-operator-keys",
-	Short: "generates ssv operator keys",
+var GenerateInitiatorKeysCmd = &cobra.Command{
+	Use:   "generate-initiator-keys",
+	Short: "generates RSA initiator keys",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := zap.L().Named(cmd.Short)
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {

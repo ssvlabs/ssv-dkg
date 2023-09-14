@@ -4,12 +4,14 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -52,13 +54,21 @@ func TestCreateInstance(t *testing.T) {
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
+		_, pv, err := rsaencryption.GenerateKeys()
+		require.NoError(t, err)
+		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		require.NoError(t, err)
+		encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+		require.NoError(t, err)
+
 		init := &wire.Init{
-			Operators: ops,
-			Owner:     common.HexToAddress("0x0000000"),
-			Nonce:     1,
+			Operators:          ops,
+			Owner:              common.HexToAddress("0x0000000"),
+			Nonce:              1,
+			InitiatorPublicKey: encPubKey,
 		}
 
-		inst, resp, err := s.CreateInstance(reqID, init)
+		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, inst)
@@ -93,24 +103,40 @@ func TestInitInstance(t *testing.T) {
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+	require.NoError(t, err)
+
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
-		Operators: ops,
-		Owner:     common.HexToAddress("0x0000000"),
-		Nonce:     1,
+		Operators:          ops,
+		Owner:              common.HexToAddress("0x0000000"),
+		Nonce:              1,
+		InitiatorPublicKey: encPubKey,
 	}
 
 	initmsg, err := init.MarshalSSZ()
 	require.NoError(t, err)
-
-	resp, err := swtch.InitInstance(reqID, initmsg)
+	initMessage := &wire.Transport{
+		Type:       wire.InitMessageType,
+		Identifier: reqID,
+		Data:       initmsg,
+	}
+	tsssz, err := initMessage.MarshalSSZ()
+	require.NoError(t, err)
+	sig, err := crypto.SignRSA(priv, tsssz)
+	require.NoError(t, err)
+	resp, err := swtch.InitInstance(reqID, initMessage, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	require.Len(t, swtch.instances, 1)
 
-	resp2, err2 := swtch.InitInstance(reqID, initmsg)
+	resp2, err2 := swtch.InitInstance(reqID, initMessage, sig)
 	require.Equal(t, err2, ErrAlreadyExists)
 	require.Nil(t, resp2)
 
@@ -119,7 +145,7 @@ func TestInitInstance(t *testing.T) {
 	for i := 0; i < MaxInstances; i++ {
 		var reqIDx [24]byte
 		copy(reqIDx[:], fmt.Sprintf("testRequestID111111%v1", i)) // Just a sample value
-		respx, errx := swtch.InitInstance(reqIDx, initmsg)
+		respx, errx := swtch.InitInstance(reqIDx, initMessage, sig)
 		if i == MaxInstances-1 {
 			require.Equal(t, errx, ErrMaxInstances)
 			require.Nil(t, respx)
@@ -134,7 +160,7 @@ func TestInitInstance(t *testing.T) {
 
 	swtch.instanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
 
-	resp, err = swtch.InitInstance(reqID, initmsg)
+	resp, err = swtch.InitInstance(reqID, initMessage, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -147,18 +173,34 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+	require.NoError(t, err)
+
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
-		Operators: ops,
-		Owner:     common.HexToAddress("0x0000000"),
-		Nonce:     1,
+		Operators:          ops,
+		Owner:              common.HexToAddress("0x0000000"),
+		Nonce:              1,
+		InitiatorPublicKey: encPubKey,
 	}
 
 	initmsg, err := init.MarshalSSZ()
 	require.NoError(t, err)
-
-	resp, err := swtch.InitInstance(reqID, initmsg)
+	initMessage := &wire.Transport{
+		Type:       wire.InitMessageType,
+		Identifier: reqID,
+		Data:       initmsg,
+	}
+	tsssz, err := initMessage.MarshalSSZ()
+	require.NoError(t, err)
+	sig, err := crypto.SignRSA(priv, tsssz)
+	require.NoError(t, err)
+	resp, err := swtch.InitInstance(reqID, initMessage, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, swtch.cleanInstances(), 0)

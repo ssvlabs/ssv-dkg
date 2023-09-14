@@ -3,6 +3,7 @@ package wire
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
+	Signature  []byte             `ssz-max:"2048"`
 }
 
 type ErrSSZ struct {
@@ -91,6 +92,8 @@ type Init struct {
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

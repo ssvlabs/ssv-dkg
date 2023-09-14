@@ -3,8 +3,10 @@ package operator
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,6 +28,7 @@ type Instance interface {
 	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
 	ReadResponse() []byte
 	ReadError() error
+	VerifyInitiatorMessage(msg, sig []byte) error
 }
 
 type instWrapper struct {
@@ -43,7 +46,7 @@ func (iw *instWrapper) ReadError() error {
 
 type InstanceID [24]byte
 
-func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []byte, error) {
+func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
 
 	verify, err := s.CreateVerifyFunc(init.Operators)
 	if err != nil {
@@ -75,15 +78,16 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init) (Instance, []by
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:     s.logger.WithField("instance", hex.EncodeToString(reqID[:])),
-		BroadcastF: broadcast,
-		SignFunc:   s.Sign,
-		VerifyFunc: verify,
-		Suite:      bls3.NewBLS12381Suite(),
-		ID:         operatorID,
-		OpPrivKey:  s.privateKey,
-		Owner:      init.Owner,
-		Nonce:      init.Nonce,
+		Logger:             s.logger.WithField("instance", hex.EncodeToString(reqID[:])),
+		BroadcastF:         broadcast,
+		SignFunc:           s.Sign,
+		VerifyFunc:         verify,
+		Suite:              bls3.NewBLS12381Suite(),
+		ID:                 operatorID,
+		OpPrivKey:          s.privateKey,
+		Owner:              init.Owner,
+		Nonce:              init.Nonce,
+		InitiatorPublicKey: initiatorPublicKey,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -143,63 +147,28 @@ func NewSwitch(pv *rsa.PrivateKey) *Switch {
 	}
 }
 
-// TODO: does this improve anything over just locking everything?
-//func (s *Switch) InitInstance(reqID InstanceID, init []byte) ([]byte, error) {
-//
-//	s.mtx.RLock()
-//	l := len(s.instances)
-//	if l <= MaxInstances {
-//		s.mtx.Lock()
-//		cleaned := s.cleanInstances()
-//		if l-cleaned <= MaxInstances {
-//			s.mtx.RUnlock()
-//			s.mtx.Unlock()
-//			return nil, ErrMaxInstances
-//		}
-//	}
-//	_, ok := s.instances[init.ReqID]
-//	if ok {
-//		tm := s.instanceInitTime[init.ReqID]
-//		if !time.Now().After(tm.Add(MaxInstanceTime)) {
-//			s.mtx.RUnlock()
-//			return nil, ErrAlreadyExists
-//		}
-//		s.mtx.Lock()
-//		delete(s.instances, init.ReqID)
-//		delete(s.instanceInitTime, init.ReqID)
-//		s.mtx.Unlock()
-//		s.mtx.RUnlock()
-//	}
-//	inst, err := CreateInstance(init) // long action? if not maybe put inside mutex to reduce lock complexity?
-//	if err != nil {
-//		return nil, err
-//	}
-//	s.mtx.Lock()
-//	_, ok = s.instances[init.ReqID]
-//	if ok {
-//		s.mtx.RUnlock()
-//		s.mtx.Unlock()
-//		return nil, ErrAlreadyExists // created before us?
-//	}
-//	s.instances[init.ReqID] = inst
-//	s.mtx.RUnlock()
-//	s.mtx.Unlock()
-//
-//	// TODO: get some ret from inst
-//	return inst.Start()
-//
-//}
-
-func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
+func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
 	logger := s.logger.WithField("reqid", hex.EncodeToString(reqID[:]))
 	logger.Infof("initializing DKG instance")
 	init := &wire.Init{}
-	if err := init.UnmarshalSSZ(initmsg); err != nil {
+	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, err
 	}
-
 	s.logger.Debug("decoded init message")
-
+	// Check that incoming init message signature is valid
+	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	marshalledWireMsg, err := initMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	if err != nil {
+		return nil, fmt.Errorf("init message signature isn't valid: %s", err.Error())
+	}
+	s.logger.Infof("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes()))
 	s.mtx.Lock()
 	l := len(s.instances)
 	if l >= MaxInstances {
@@ -220,7 +189,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 		delete(s.instanceInitTime, reqID)
 	}
 	s.mtx.Unlock()
-	inst, resp, err := s.CreateInstance(reqID, init) // long action? if not maybe put inside mutex to reduce lock complexity?
+	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
 
 	if err != nil {
 		return nil, err
@@ -229,7 +198,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initmsg []byte) ([]byte, error) {
 	_, ok = s.instances[reqID]
 	if ok {
 		s.mtx.Unlock()
-		return nil, ErrAlreadyExists // created before us?
+		return nil, ErrAlreadyExists
 	}
 	s.instances[reqID] = inst
 	s.instanceInitTime[reqID] = time.Now()
@@ -268,7 +237,19 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if !ok {
 		return nil, ErrMissingInstance
 	}
-
+	var mltplMsgsBytes []byte
+	for _, ts := range st.Messages {
+		tsBytes, err := ts.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+		mltplMsgsBytes = append(mltplMsgsBytes, tsBytes...)
+	}
+	// Verify initiator signature
+	err = inst.VerifyInitiatorMessage(mltplMsgsBytes, st.Signature)
+	if err != nil {
+		return nil, err
+	}
 	for _, ts := range st.Messages {
 		err = inst.Process(ts.Signer, ts)
 		if err != nil {

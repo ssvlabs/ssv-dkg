@@ -1,6 +1,7 @@
 package initiator
 
 import (
+	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/bloxapp/ssv-dkg-tool/cli/flags"
+	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/load"
 	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
@@ -21,6 +23,8 @@ import (
 )
 
 func init() {
+	flags.InitiatorPrivateKeyFlag(StartDKG)
+	flags.InitiatorPrivateKeyPassFlag(StartDKG)
 	flags.WithdrawAddressFlag(StartDKG)
 	flags.OperatorsInfoFlag(StartDKG)
 	flags.OperatorIDsFlag(StartDKG)
@@ -37,11 +41,13 @@ func init() {
 	viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork"))
 	viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath"))
 	viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath"))
+	viper.BindPFlag("privKey", StartDKG.PersistentFlags().Lookup("privKey"))
+	viper.BindPFlag("password", StartDKG.PersistentFlags().Lookup("password"))
 }
 
 var StartDKG = &cobra.Command{
 	Use:   "init-dkg",
-	Short: "Initiates a DKG protocol to create new distributed key",
+	Short: "Initiates a DKG protocol",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(`
 		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
@@ -60,7 +66,7 @@ var StartDKG = &cobra.Command{
 		viper.AddConfigPath("./config/")
 		err := viper.ReadInConfig()
 		if err != nil {
-			logger.Fatal("fatal error config file")
+			logger.Warn("couldn't find config file, its ok if you using, cli params")
 		}
 		// Check paths for results
 		depositResultsPath := viper.GetString("depositResultsPath")
@@ -103,8 +109,37 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(opMap)
+		privKeyPath := viper.GetString("privKey")
+		if privKeyPath == "" {
+			logger.Fatal("failed to get initiator key flag value", zap.Error(err))
+		}
+		var privateKey *rsa.PrivateKey
+		pass := viper.GetString("password")
+		if pass != "" {
+			// check if a password string a valid path, then read password from the file
+			if _, err := os.Stat(pass); err != nil {
+				logger.Fatal("Cant read password file", zap.Error(err))
+			}
+			keyStorePassword, err := os.ReadFile(pass)
+			if err != nil {
+				logger.Fatal("Error reading Password file", zap.Error(err))
+			}
+			encryptedJSON, err := os.ReadFile(privKeyPath)
+			if err != nil {
+				logger.Fatal("cant read operator`s key file", zap.Error(err))
+			}
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
+		} else {
+			privateKey, err = load.PrivateKey(privKeyPath)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
+		}
 
+		dkgInitiator := initiator.New(privateKey, opMap)
 		withdrawAddr := viper.GetString("withdrawAddress")
 		if withdrawAddr == "" {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
@@ -116,11 +151,11 @@ var StartDKG = &cobra.Command{
 		var forkHEX [4]byte
 		switch fork {
 		case "prater":
-			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20} 
-		case "mainnet" :
+			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20}
+		case "mainnet":
 			forkHEX = [4]byte{0, 0, 0, 0}
 		case "now_test_network":
-			forkHEX =  [4]byte{0x99, 0x99, 0x99, 0x99}
+			forkHEX = [4]byte{0x99, 0x99, 0x99, 0x99}
 		default:
 			logger.Fatal("please provide a valid fork name: mainnet, prater, or now_test_network")
 		}

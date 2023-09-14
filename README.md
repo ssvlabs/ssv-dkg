@@ -69,28 +69,44 @@ dkgcli start-dkg-operator
 
 The initiator uses `init-dkg` to create the initial details needed to run DKG between all operators.
 
+Generate initiator identity RSA key pair:
+
+```sh
+./dkgcli generate-initiator-keys --password 12345678
+```
+
+This will create `encrypted_private_key.json` with encrypted by password RSA key pair
+Write down `password` in any text file, for example to `./password`
+
+Run:
+
 ```sh
 dkgcli init-dkg \
           --operatorIDs 1,2,3,4 \
-          --operatorsInfoPath ./examples/operators_integration.json \
+          --operatorsInfoPath ./operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
           --fork "mainnet"
           --depositResultsPath deposit.json
           --ssvPayloadResultsPath payload.json
+          --privKey ./encrypted_private_key.json
+          --password ./password
+
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./examples/operators_integration.json # path to operators info ID,base64(RSA pub key),
+--operatorsInfoPath ./operators_integration.json # path to operators info ID,base64(RSA pub key),
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
 --depositResultsPath # path and filename to store the staking deposit file
 --ssvPayloadResultsPath # path and filename to store ssv contract payload file
+--privKey ./encrypted_private_key.json # path to ssv initiators`s private key
+--password: ./password # path to password file to decrypt the key
 ```
 
-Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder at a same root as the binary.
 
 Example:
 
@@ -103,6 +119,8 @@ fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.json
 depositResultsPath: ./deposit.json
 ssvPayloadResultsPath: ./payload.json
+privKey: ./encrypted_private_key.json
+password: ./password
 ```
 
 When using configuration file, run:
@@ -113,15 +131,11 @@ dkgcli init-dkg
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
 
-### OPTIONAL: Generate RSA operator key
-
-```sh
-./dkgcli generate-operator-keys --password 12345678
-```
-
 ---
 
-### Architecture
+### Security notes
+
+## Architecture
 
 ![flow](./imgs/DKGinit.drawio.png)
 

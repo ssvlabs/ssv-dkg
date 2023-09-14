@@ -3,6 +3,8 @@ withdrawAddress: "0000000000000000000000000000000000000009"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "mainnet"
-operatorsInfoPath: ./examples/operators_integration.json
+operatorsInfoPath: ../operators_integration.json
 depositResultsPath: ./deposit.json
 ssvPayloadResultsPath: ./payload.json
+privKey: ./encrypted_private_key.json
+password: ./password

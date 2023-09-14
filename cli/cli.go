@@ -11,9 +11,8 @@ import (
 
 func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
+	RootCmd.AddCommand(initiator.GenerateInitiatorKeysCmd)
 	RootCmd.AddCommand(operator.StartDKGOperator)
-	RootCmd.AddCommand(operator.GenerateOperatorKeysCmd)
-	RootCmd.AddCommand(operator.ExportKeysCmd)
 }
 
 // RootCmd represents the root command of DKG-tool CLI

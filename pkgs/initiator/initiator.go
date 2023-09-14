@@ -3,6 +3,7 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -112,6 +113,7 @@ type Initiator struct {
 	Client     *req.Client
 	Operators  Operators
 	VerifyFunc func(id uint64, msg, sig []byte) error
+	PrivateKey *rsa.PrivateKey
 }
 
 type DepositDataJson struct {
@@ -230,14 +232,15 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 	return nil
 }
 
-func New(operatorMap Operators) *Initiator {
+func New(privKey *rsa.PrivateKey, operatorMap Operators) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	c := &Initiator{
-		Logger:    logrus.NewEntry(logrus.New()),
-		Client:    client,
-		Operators: operatorMap,
+		Logger:     logrus.NewEntry(logrus.New()),
+		Client:     client,
+		Operators:  operatorMap,
+		PrivateKey: privKey,
 	}
 	return c
 }
@@ -320,7 +323,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		Identifier: id,
 		Messages:   make([]*wire.SignedTransport, len(allmsgs)),
 	}
-
+	var allMsgsBytes []byte
 	for i := 0; i < len(allmsgs); i++ {
 		msg := allmsgs[i]
 		tsp := &wire.SignedTransport{}
@@ -345,12 +348,19 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
 			return nil, err
 		}
-		c.Logger.Infof("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(),  tsp.Signer)
+		c.Logger.Infof("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(), tsp.Signer)
 		c.Logger.Debugf("Operator messages are valid. Continue.")
 
 		final.Messages[i] = tsp
+		allMsgsBytes = append(allMsgsBytes, msg...)
 	}
-
+	// sign message by initiator
+	c.Logger.Infof("Signing combined messages from operators with initiator public key, ID: %x", sha256.Sum256(c.PrivateKey.N.Bytes()))
+	sig, err := crypto.SignRSA(c.PrivateKey, allMsgsBytes)
+	if err != nil {
+		return nil, err
+	}
+	final.Signature = sig
 	return final, nil
 }
 
@@ -389,7 +399,11 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 		return nil, nil, err
 	}
 	c.VerifyFunc = verify
-
+	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	c.Logger.Infof("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes()))
 	// make init message
 	init := &wire.Init{
 		Operators:             parts,
@@ -398,8 +412,8 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 		Fork:                  fork,
 		Owner:                 owner,
 		Nonce:                 nonce,
+		InitiatorPublicKey:    pkBytes,
 	}
-
 	id := c.NewID()
 	results, err := c.SendInitMsg(init, id)
 	if err != nil {
@@ -679,19 +693,33 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) 
 		return nil, fmt.Errorf("failed marshiling init msg to ssz %v", err)
 	}
 
-	ts := &wire.Transport{
+	initMessage := &wire.Transport{
 		Type:       wire.InitMessageType,
 		Identifier: id,
 		Data:       sszinit,
 	}
 
-	tsssz, err := ts.MarshalSSZ()
+	tsssz, err := initMessage.MarshalSSZ()
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init transport msg to ssz %v", err)
 	}
+	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
+	if err != nil {
+		return nil, fmt.Errorf("error at processing init messages  %v", err)
+	}
+	// Create signed init message
+	signedInitMsg := &wire.SignedTransport{
+		Message:   initMessage,
+		Signer:    0,
+		Signature: sig,
+	}
+	signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
+	if err != nil {
+		return nil, fmt.Errorf("error at processing init messages  %v", err)
+	}
 	c.Logger.Info("round 1. Sending init message to operators")
 	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
-	results, err := c.SendToAll(consts.API_INIT_URL, tsssz)
+	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
