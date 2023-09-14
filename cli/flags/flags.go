@@ -9,22 +9,24 @@ import (
 
 // Flag names.
 const (
-	threshold             = "threshold"
-	withdrawAddress       = "withdrawAddress"
-	operatorIDs           = "operatorIDs"
-	operatorsInfo         = "operatorsInfoPath"
-	operatorPrivKey       = "privKey"
-	operatorPort          = "port"
-	owner                 = "owner"
-	nonce                 = "nonce"
-	fork                  = "fork"
-	mnemonicFlag          = "mnemonic"
-	indexFlag             = "index"
-	networkFlag           = "network"
-	password              = "password"
-	depositResultsPath    = "depositResultsPath"
-	ssvPayloadResultsPath = "ssvPayloadResultsPath"
-	storeShare            = "storeShare"
+	threshold                = "threshold"
+	withdrawAddress          = "withdrawAddress"
+	operatorIDs              = "operatorIDs"
+	operatorsInfo            = "operatorsInfoPath"
+	operatorPrivKey          = "privKey"
+	initiatorPrivKey         = "initiatorPrivKey"
+	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
+	operatorPort             = "port"
+	owner                    = "owner"
+	nonce                    = "nonce"
+	fork                     = "fork"
+	mnemonicFlag             = "mnemonic"
+	indexFlag                = "index"
+	networkFlag              = "network"
+	password                 = "password"
+	depositResultsPath       = "depositResultsPath"
+	ssvPayloadResultsPath    = "ssvPayloadResultsPath"
+	storeShare               = "storeShare"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -118,22 +120,22 @@ func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, string, error) {
 
 // OperatorPrivateKeyFlag  adds private key flag to the command
 func InitiatorPrivateKeyFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorPrivKey, "", "Path to initiator Private Key file", false)
+	AddPersistentStringFlag(c, initiatorPrivKey, "", "Path to initiator Private Key file", false)
 }
 
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorPrivKey)
+	return c.Flags().GetString(initiatorPrivKey)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
 func InitiatorPrivateKeyPassFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, password, "", "Password to decrypt initiator Private Key file", false)
+	AddPersistentStringFlag(c, initiatorPrivKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
 }
 
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetInitiatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(password)
+	return c.Flags().GetString(initiatorPrivKeyPassword)
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command

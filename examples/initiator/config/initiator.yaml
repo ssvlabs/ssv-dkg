@@ -6,5 +6,5 @@ fork: "mainnet"
 operatorsInfoPath: ../operators_integration.json
 depositResultsPath: ./deposit.json
 ssvPayloadResultsPath: ./payload.json
-privKey: ./encrypted_private_key.json
-password: ./password
+initiatorPrivKey: ./encrypted_private_key.json
+initiatorPrivKeyPassword: ./password

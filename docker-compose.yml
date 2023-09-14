@@ -85,18 +85,14 @@ services:
     command:
       [
         "init-dkg",
-        "--privKey",
-        "./data/inititator/encrypted_private_key.json",
-        "--password",
-        "./data/inititator/password",
         "--operatorIDs",
         "1,2,3,4",
         "--operatorsInfoPath",
-        "./data/docker_operators.json",
+        "/data/docker_operators.json",
         "--depositResultsPath",
-        "./data/inititator/output/deposit.json",
+        "/data/initiator/output/deposit.json",
         "--ssvPayloadResultsPath",
-        "./data/inititator/output/payload.json",
+        "/data/initiator/output/payload.json",
         "--owner",
         "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
         "--nonce",
@@ -105,6 +101,10 @@ services:
         "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
         "--fork",
         "mainnet",
+        "--initiatorPrivKey",
+        "/data/initiator/encrypted_private_key.json",
+        "--initiatorPrivKeyPassword",
+        "/data/initiator/password",
       ]
     volumes:
       - ./examples:/data

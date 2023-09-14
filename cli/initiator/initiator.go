@@ -41,8 +41,8 @@ func init() {
 	viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork"))
 	viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath"))
 	viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath"))
-	viper.BindPFlag("privKey", StartDKG.PersistentFlags().Lookup("privKey"))
-	viper.BindPFlag("password", StartDKG.PersistentFlags().Lookup("password"))
+	viper.BindPFlag("initiatorPrivKey", StartDKG.PersistentFlags().Lookup("initiatorPrivKey"))
+	viper.BindPFlag("initiatorPrivKeyPassword", StartDKG.PersistentFlags().Lookup("initiatorPrivKeyPassword"))
 }
 
 var StartDKG = &cobra.Command{
@@ -109,12 +109,12 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed: ", zap.Error(err))
 		}
-		privKeyPath := viper.GetString("privKey")
+		privKeyPath := viper.GetString("initiatorPrivKey")
 		if privKeyPath == "" {
 			logger.Fatal("failed to get initiator key flag value", zap.Error(err))
 		}
 		var privateKey *rsa.PrivateKey
-		pass := viper.GetString("password")
+		pass := viper.GetString("initiatorPrivKeyPassword")
 		if pass != "" {
 			// check if a password string a valid path, then read password from the file
 			if _, err := os.Stat(pass); err != nil {
