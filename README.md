@@ -90,8 +90,8 @@ ssv-dkg init-dkg \
           --fork "mainnet"
           --depositResultsPath deposit.json
           --ssvPayloadResultsPath payload.json
-          --privKey ./encrypted_private_key.json
-          --password ./password
+          --initiatorPrivKey ./encrypted_private_key.json
+          --initiatorPrivKeyPassword ./password
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
@@ -102,8 +102,8 @@ ssv-dkg init-dkg \
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
 --depositResultsPath # path and filename to store the staking deposit file
 --ssvPayloadResultsPath # path and filename to store ssv contract payload file
---privKey ./encrypted_private_key.json # path to ssv initiators`s private key
---password: ./password # path to password file to decrypt the key
+--initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
+--initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
 ```
 
 Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder at a same root as the binary.
