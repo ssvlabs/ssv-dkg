@@ -54,7 +54,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	operatorID := uint64(0)
-	operatorPubKey := s.privateKey.Public().(*rsa.PublicKey)
+	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		return nil, nil, err
@@ -78,13 +78,13 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:             s.logger.WithField("instance", hex.EncodeToString(reqID[:])),
+		Logger:             s.Logger.WithField("instance", hex.EncodeToString(reqID[:])),
 		BroadcastF:         broadcast,
 		SignFunc:           s.Sign,
 		VerifyFunc:         verify,
 		Suite:              bls3.NewBLS12381Suite(),
 		ID:                 operatorID,
-		OpPrivKey:          s.privateKey,
+		OpPrivKey:          s.PrivateKey,
 		Owner:              init.Owner,
 		Nonce:              init.Nonce,
 		InitiatorPublicKey: initiatorPublicKey,
@@ -98,13 +98,13 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	s.logger.Infof("Waiting for owner response to init")
+	s.Logger.Infof("Waiting for owner response to init")
 	res := <-bchan
 	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
-	return crypto.SignRSA(s.privateKey, msg)
+	return crypto.SignRSA(s.PrivateKey, msg)
 }
 
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
@@ -127,34 +127,34 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 type Switch struct {
-	logger           *logrus.Entry
-	mtx              sync.RWMutex
-	instanceInitTime map[InstanceID]time.Time
-	instances        map[InstanceID]Instance
+	Logger           *logrus.Entry
+	Mtx              sync.RWMutex
+	InstanceInitTime map[InstanceID]time.Time
+	Instances        map[InstanceID]Instance
 
-	privateKey *rsa.PrivateKey
+	PrivateKey *rsa.PrivateKey
 
 	//broadcastF func([]byte) error
 }
 
 func NewSwitch(pv *rsa.PrivateKey) *Switch {
 	return &Switch{
-		logger:           logrus.NewEntry(logrus.New()),
-		mtx:              sync.RWMutex{},
-		instanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
-		instances:        make(map[InstanceID]Instance, MaxInstances),
-		privateKey:       pv,
+		Logger:           logrus.NewEntry(logrus.New()),
+		Mtx:              sync.RWMutex{},
+		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
+		Instances:        make(map[InstanceID]Instance, MaxInstances),
+		PrivateKey:       pv,
 	}
 }
 
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	logger := s.logger.WithField("reqid", hex.EncodeToString(reqID[:]))
+	logger := s.Logger.WithField("reqid", hex.EncodeToString(reqID[:]))
 	logger.Infof("initializing DKG instance")
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, err
 	}
-	s.logger.Debug("decoded init message")
+	s.Logger.Debug("decoded init message")
 	// Check that incoming init message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
 	if err != nil {
@@ -168,52 +168,52 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err != nil {
 		return nil, fmt.Errorf("init message signature isn't valid: %s", err.Error())
 	}
-	s.logger.Infof("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes()))
-	s.mtx.Lock()
-	l := len(s.instances)
+	s.Logger.Infof("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes()))
+	s.Mtx.Lock()
+	l := len(s.Instances)
 	if l >= MaxInstances {
-		cleaned := s.cleanInstances() // not thread safe
+		cleaned := s.CleanInstances() // not thread safe
 		if l-cleaned >= MaxInstances {
-			s.mtx.Unlock()
+			s.Mtx.Unlock()
 			return nil, ErrMaxInstances
 		}
 	}
-	_, ok := s.instances[reqID]
+	_, ok := s.Instances[reqID]
 	if ok {
-		tm := s.instanceInitTime[reqID]
+		tm := s.InstanceInitTime[reqID]
 		if !time.Now().After(tm.Add(MaxInstanceTime)) {
-			s.mtx.Unlock()
+			s.Mtx.Unlock()
 			return nil, ErrAlreadyExists
 		}
-		delete(s.instances, reqID)
-		delete(s.instanceInitTime, reqID)
+		delete(s.Instances, reqID)
+		delete(s.InstanceInitTime, reqID)
 	}
-	s.mtx.Unlock()
+	s.Mtx.Unlock()
 	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
 
 	if err != nil {
 		return nil, err
 	}
-	s.mtx.Lock()
-	_, ok = s.instances[reqID]
+	s.Mtx.Lock()
+	_, ok = s.Instances[reqID]
 	if ok {
-		s.mtx.Unlock()
+		s.Mtx.Unlock()
 		return nil, ErrAlreadyExists
 	}
-	s.instances[reqID] = inst
-	s.instanceInitTime[reqID] = time.Now()
-	s.mtx.Unlock()
+	s.Instances[reqID] = inst
+	s.InstanceInitTime[reqID] = time.Now()
+	s.Mtx.Unlock()
 
 	return resp, nil
 
 }
 
-func (s *Switch) cleanInstances() int {
+func (s *Switch) CleanInstances() int {
 	count := 0
-	for id, instime := range s.instanceInitTime {
+	for id, instime := range s.InstanceInitTime {
 		if time.Now().After(instime.Add(MaxInstanceTime)) {
-			delete(s.instances, id)
-			delete(s.instanceInitTime, id)
+			delete(s.Instances, id)
+			delete(s.InstanceInitTime, id)
 			count++
 		}
 	}
@@ -230,9 +230,9 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 
 	id := InstanceID(st.Identifier)
 
-	s.mtx.RLock()
-	inst, ok := s.instances[id]
-	s.mtx.RUnlock()
+	s.Mtx.RLock()
+	inst, ok := s.Instances[id]
+	s.Mtx.RUnlock()
 
 	if !ok {
 		return nil, ErrMissingInstance

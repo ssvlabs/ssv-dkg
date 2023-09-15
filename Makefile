@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: dkgcli test clean build docker-build
+.PHONY: install clean build test docker-build docker-operators docker-initiator mockgen-install
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -17,7 +17,7 @@ DOCKER_IMAGE=ssv-dkg
 install:
 	$(GOINSTALL) cmd/ssv-dkg/ssv-dkg.go
 	@echo "Done building."
-	@echo "Run dkgcli to launch the tool."
+	@echo "Run ssv-dkg to launch the tool."
 
 clean:
 	env GO111MODULE=on go clean -cache
@@ -30,7 +30,7 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go test -p 1 ./...
+	go test -v -p 1 ./...
 
 # Recipe to build the Docker image
 docker-build:
@@ -44,3 +44,7 @@ docker-operators:
 docker-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
+
+mockgen-install:
+	go install github.com/golang/mock/mockgen@v1.6.0
+	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"

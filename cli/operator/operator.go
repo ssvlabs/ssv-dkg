@@ -29,7 +29,7 @@ func init() {
 }
 
 var StartDKGOperator = &cobra.Command{
-	Use:   "start-dkg-operator",
+	Use:   "start-operator",
 	Short: "Starts an instance of DKG operator",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(`

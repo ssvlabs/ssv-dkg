@@ -92,99 +92,99 @@ func TestHappyFlow(t *testing.T) {
 		srv3.srv.Close()
 		srv4.srv.Close()
 	})
-	// t.Run("test 7 operators happy flow", func(t *testing.T) {
-	// 	ops := make(map[uint64]initiator.Operator)
-	// 	srv1 := CreateOperator(t, 1)
-	// 	ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
-	// 	srv2 := CreateOperator(t, 2)
-	// 	ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
-	// 	srv3 := CreateOperator(t, 3)
-	// 	ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
-	// 	srv4 := CreateOperator(t, 4)
-	// 	ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
-	// 	srv5 := CreateOperator(t, 5)
-	// 	ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
-	// 	srv6 := CreateOperator(t, 6)
-	// 	ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
-	// 	srv7 := CreateOperator(t, 7)
-	// 	ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
-	// 	// Initiator priv key
-	// 	_, pv, err := rsaencryption.GenerateKeys()
-	// 	require.NoError(t, err)
-	// 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-	// 	clnt := initiator.New(priv, ops)
-	// 	withdraw := newEthAddress(t)
-	// 	owner := newEthAddress(t)
-	// 	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	// 	require.NoError(t, err)
-	// 	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
-	// 	require.NoError(t, err)
-	// 	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-	// 	require.NoError(t, err)
-	// 	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-	// 	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-	// 	srv1.srv.Close()
-	// 	srv2.srv.Close()
-	// 	srv3.srv.Close()
-	// 	srv4.srv.Close()
-	// 	srv5.srv.Close()
-	// 	srv6.srv.Close()
-	// 	srv7.srv.Close()
-	// })
-	// t.Run("test 12 operators happy flow", func(t *testing.T) {
-	// 	ops := make(map[uint64]initiator.Operator)
-	// 	srv1 := CreateOperator(t, 1)
-	// 	ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
-	// 	srv2 := CreateOperator(t, 2)
-	// 	ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
-	// 	srv3 := CreateOperator(t, 3)
-	// 	ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
-	// 	srv4 := CreateOperator(t, 4)
-	// 	ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
-	// 	srv5 := CreateOperator(t, 5)
-	// 	ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
-	// 	srv6 := CreateOperator(t, 6)
-	// 	ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
-	// 	srv7 := CreateOperator(t, 7)
-	// 	ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
-	// 	srv8 := CreateOperator(t, 8)
-	// 	ops[8] = initiator.Operator{srv8.srv.URL, 8, &srv8.privKey.PublicKey}
-	// 	srv9 := CreateOperator(t, 9)
-	// 	ops[9] = initiator.Operator{srv9.srv.URL, 9, &srv9.privKey.PublicKey}
-	// 	srv10 := CreateOperator(t, 10)
-	// 	ops[10] = initiator.Operator{srv10.srv.URL, 10, &srv10.privKey.PublicKey}
-	// 	srv11 := CreateOperator(t, 11)
-	// 	ops[11] = initiator.Operator{srv11.srv.URL, 11, &srv11.privKey.PublicKey}
-	// 	srv12 := CreateOperator(t, 12)
-	// 	ops[12] = initiator.Operator{srv12.srv.URL, 12, &srv12.privKey.PublicKey}
-	// 	// Initiator priv key
-	// 	_, pv, err := rsaencryption.GenerateKeys()
-	// 	require.NoError(t, err)
-	// 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-	// 	clnt := initiator.New(priv, ops)
-	// 	withdraw := newEthAddress(t)
-	// 	owner := newEthAddress(t)
-	// 	depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-	// 	require.NoError(t, err)
-	// 	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
-	// 	require.NoError(t, err)
-	// 	pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-	// 	require.NoError(t, err)
-	// 	testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
-	// 	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-	// 	srv1.srv.Close()
-	// 	srv2.srv.Close()
-	// 	srv3.srv.Close()
-	// 	srv4.srv.Close()
-	// 	srv5.srv.Close()
-	// 	srv6.srv.Close()
-	// 	srv7.srv.Close()
-	// 	srv8.srv.Close()
-	// 	srv9.srv.Close()
-	// 	srv10.srv.Close()
-	// 	srv11.srv.Close()
-	// 	srv12.srv.Close()
-	// })
+	t.Run("test 7 operators happy flow", func(t *testing.T) {
+		ops := make(map[uint64]initiator.Operator)
+		srv1 := CreateOperator(t, 1)
+		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		srv2 := CreateOperator(t, 2)
+		ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+		srv3 := CreateOperator(t, 3)
+		ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+		srv4 := CreateOperator(t, 4)
+		ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+		srv5 := CreateOperator(t, 5)
+		ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
+		srv6 := CreateOperator(t, 6)
+		ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
+		srv7 := CreateOperator(t, 7)
+		ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
+		// Initiator priv key
+		_, pv, err := rsaencryption.GenerateKeys()
+		require.NoError(t, err)
+		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		clnt := initiator.New(priv, ops)
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
+		srv5.srv.Close()
+		srv6.srv.Close()
+		srv7.srv.Close()
+	})
+	t.Run("test 12 operators happy flow", func(t *testing.T) {
+		ops := make(map[uint64]initiator.Operator)
+		srv1 := CreateOperator(t, 1)
+		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		srv2 := CreateOperator(t, 2)
+		ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+		srv3 := CreateOperator(t, 3)
+		ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+		srv4 := CreateOperator(t, 4)
+		ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+		srv5 := CreateOperator(t, 5)
+		ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
+		srv6 := CreateOperator(t, 6)
+		ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
+		srv7 := CreateOperator(t, 7)
+		ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
+		srv8 := CreateOperator(t, 8)
+		ops[8] = initiator.Operator{srv8.srv.URL, 8, &srv8.privKey.PublicKey}
+		srv9 := CreateOperator(t, 9)
+		ops[9] = initiator.Operator{srv9.srv.URL, 9, &srv9.privKey.PublicKey}
+		srv10 := CreateOperator(t, 10)
+		ops[10] = initiator.Operator{srv10.srv.URL, 10, &srv10.privKey.PublicKey}
+		srv11 := CreateOperator(t, 11)
+		ops[11] = initiator.Operator{srv11.srv.URL, 11, &srv11.privKey.PublicKey}
+		srv12 := CreateOperator(t, 12)
+		ops[12] = initiator.Operator{srv12.srv.URL, 12, &srv12.privKey.PublicKey}
+		// Initiator priv key
+		_, pv, err := rsaencryption.GenerateKeys()
+		require.NoError(t, err)
+		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		clnt := initiator.New(priv, ops)
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey, srv5.privKey, srv6.privKey, srv7.privKey, srv8.privKey, srv9.privKey, srv10.privKey, srv11.privKey, srv12.privKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
+		srv5.srv.Close()
+		srv6.srv.Close()
+		srv7.srv.Close()
+		srv8.srv.Close()
+		srv9.srv.Close()
+		srv10.srv.Close()
+		srv11.srv.Close()
+		srv12.srv.Close()
+	})
 }
 
 func testSharesData(t *testing.T, ops map[uint64]initiator.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {

@@ -39,7 +39,7 @@ NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plin
 #### Start a DKG-operator
 
 ```sh
-ssv-dkg start-dkg-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
+ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
@@ -62,12 +62,12 @@ storeShare: true
 When using configuration file, run:
 
 ```sh
-ssv-dkg start-dkg-operator
+ssv-dkg start-operator
 ```
 
 ### Initiator
 
-The initiator uses `init-dkg` to create the initial details needed to run DKG between all operators.
+The initiator uses `init` to create the initial details needed to run DKG between all operators.
 
 Generate initiator identity RSA key pair:
 
@@ -81,7 +81,7 @@ Write down `password` in any text file, for example to `./password`
 Run:
 
 ```sh
-ssv-dkg init-dkg \
+ssv-dkg init \
           --operatorIDs 1,2,3,4 \
           --operatorsInfoPath ./operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
@@ -106,7 +106,7 @@ ssv-dkg init-dkg \
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
 ```
 
-Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder at a same root as the binary.
+Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `ssv-dkg` will be looking for this file at `./config/` folder at the same root as the binary.
 
 Example:
 
@@ -126,7 +126,7 @@ password: ./password
 When using configuration file, run:
 
 ```sh
-ssv-dkg init-dkg
+ssv-dkg init
 ```
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
@@ -140,8 +140,8 @@ Here we explain how we secure the communication between DKG ceremony initiator a
 1. Initiator is using RSA key (2048 bits) to sign init message sent to operators. Upon receiving operators verify the sig using pub key at init message. If the sig is valid, operators store this pub key for further verification of messages coming from the initiator(s).
 2. Operators are using RSA key (ssv operator key - 2048 bits) to sign every message sent back to initiator.
 3. Initiator verifies every message incoming from any operator using ID and Public Key provided by operators info file, then initiator creates a combined message and signs it.
-4. Operators verify each of the messages of other operators participating in the ceremony and verifies initiator signature of the message.
-5. During the DKG protocol execution, the BLS auth scheme is being used - G2 for its signature space and G1 for its public key
+4. Operators verify each of the messages of other operators participating in the ceremony and verifies initiator`s signature of the combined message.
+5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
 
 ## Architecture
 

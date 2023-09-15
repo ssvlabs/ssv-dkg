@@ -20,7 +20,7 @@ import (
 const exmaplePath = "../../examples/"
 
 func TestRateLimit(t *testing.T) {
-	pk, err := load.EncryptedPrivateKey(exmaplePath+"server"+fmt.Sprintf("%v", 1)+"/encrypted_private_key.json", "12345678")
+	pk, err := load.EncryptedPrivateKey(exmaplePath+"operator"+fmt.Sprintf("%v", 1)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	srv := New(pk)
 	eg := errgroup.Group{}
@@ -29,7 +29,7 @@ func TestRateLimit(t *testing.T) {
 	})
 	t.Run("test init route rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
-		ops[1] = initiator.Operator{"http://localhost:3030", 1, &srv.State.privateKey.PublicKey}
+		ops[1] = initiator.Operator{"http://localhost:3030", 1, &srv.State.PrivateKey.PublicKey}
 
 		parts := make([]*wire.Operator, 0, 0)
 		for _, id := range []uint64{1} {

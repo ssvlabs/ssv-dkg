@@ -134,7 +134,7 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	require.Len(t, swtch.instances, 1)
+	require.Len(t, swtch.Instances, 1)
 
 	resp2, err2 := swtch.InitInstance(reqID, initMessage, sig)
 	require.Equal(t, err2, ErrAlreadyExists)
@@ -158,7 +158,7 @@ func TestInitInstance(t *testing.T) {
 
 	require.True(t, tested)
 
-	swtch.instanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
+	swtch.InstanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
 
 	resp, err = swtch.InitInstance(reqID, initMessage, sig)
 	require.NoError(t, err)
@@ -203,13 +203,13 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	resp, err := swtch.InitInstance(reqID, initMessage, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Equal(t, swtch.cleanInstances(), 0)
+	require.Equal(t, swtch.CleanInstances(), 0)
 
-	require.Len(t, swtch.instances, 1)
-	swtch.instanceInitTime[reqID] = time.Now().Add(-time.Minute * 6)
+	require.Len(t, swtch.Instances, 1)
+	swtch.InstanceInitTime[reqID] = time.Now().Add(-time.Minute * 6)
 
-	require.Equal(t, swtch.cleanInstances(), 1)
-	require.Len(t, swtch.instances, 0)
+	require.Equal(t, swtch.CleanInstances(), 1)
+	require.Len(t, swtch.Instances, 0)
 
 }
 

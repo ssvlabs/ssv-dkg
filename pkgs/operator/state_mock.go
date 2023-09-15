@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	wire "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	gomock "go.uber.org/mock/gomock"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockInstance is a mock of Instance interface.
@@ -74,4 +74,18 @@ func (m *MockInstance) ReadResponse() []byte {
 func (mr *MockInstanceMockRecorder) ReadResponse() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadResponse", reflect.TypeOf((*MockInstance)(nil).ReadResponse))
+}
+
+// VerifyInitiatorMessage mocks base method.
+func (m *MockInstance) VerifyInitiatorMessage(msg, sig []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyInitiatorMessage", msg, sig)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifyInitiatorMessage indicates an expected call of VerifyInitiatorMessage.
+func (mr *MockInstanceMockRecorder) VerifyInitiatorMessage(msg, sig interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyInitiatorMessage", reflect.TypeOf((*MockInstance)(nil).VerifyInitiatorMessage), msg, sig)
 }

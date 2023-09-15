@@ -9,7 +9,7 @@ services:
     entrypoint: /app
     command:
       [
-        "start-dkg-operator",
+        "start-operator",
         "--privKey",
         "/data/operator1/encrypted_private_key.json",
         "--password",
@@ -27,7 +27,7 @@ services:
     entrypoint: /app
     command:
       [
-        "start-dkg-operator",
+        "start-operator",
         "--privKey",
         "/data/operator2/encrypted_private_key.json",
         "--password",
@@ -45,7 +45,7 @@ services:
     entrypoint: /app
     command:
       [
-        "start-dkg-operator",
+        "start-operator",
         "--privKey",
         "/data/operator3/encrypted_private_key.json",
         "--password",
@@ -63,7 +63,7 @@ services:
     entrypoint: /app
     command:
       [
-        "start-dkg-operator",
+        "start-operator",
         "--privKey",
         "/data/operator4/encrypted_private_key.json",
         "--password",
@@ -84,7 +84,7 @@ services:
     entrypoint: /app
     command:
       [
-        "init-dkg",
+        "init",
         "--operatorIDs",
         "1,2,3,4",
         "--operatorsInfoPath",

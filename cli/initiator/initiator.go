@@ -46,7 +46,7 @@ func init() {
 }
 
 var StartDKG = &cobra.Command{
-	Use:   "init-dkg",
+	Use:   "init",
 	Short: "Initiates a DKG protocol",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(`
