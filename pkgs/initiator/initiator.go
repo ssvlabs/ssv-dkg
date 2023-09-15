@@ -718,7 +718,6 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) 
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
 	c.Logger.Info("round 1. Sending init message to operators")
-	// TODO: we need top check authenticity of the initiator. Consider to add pubkey and signature of the initiator to the init message.
 	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
