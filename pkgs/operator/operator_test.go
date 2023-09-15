@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -191,8 +192,21 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		id := c.NewID()
 		results, err := c.SendInitMsg(init, id)
 		require.NoError(t, err)
-		_, err = c.SendExchangeMsgs(results, id)
-		require.ErrorContains(t, err, "init message signature isn't valid")
+		var errs []error
+		for i := 0; i < len(results); i++ {
+			msg := results[i]
+			tsp := &wire.SignedTransport{}
+			if err := tsp.UnmarshalSSZ(msg); err != nil {
+				// try parsing an error
+				errmsg, parseErr := parseAsError(msg)
+				require.NoError(t, parseErr)
+				errs = append(errs, errmsg)
+			}
+		}
+		require.Equal(t, 4, len(errs))
+		for _, err := range errs {
+			require.ErrorContains(t, err, "init message signature isn't valid")
+		}
 	})
 	t.Run("test wrong signature of init message", func(t *testing.T) {
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -253,8 +267,21 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
 		require.NoError(t, err)
-		_, err = c.SendExchangeMsgs(results, id)
-		require.ErrorContains(t, err, "init message signature isn't valid")
+		var errs []error
+		for i := 0; i < len(results); i++ {
+			msg := results[i]
+			tsp := &wire.SignedTransport{}
+			if err := tsp.UnmarshalSSZ(msg); err != nil {
+				// try parsing an error
+				errmsg, parseErr := parseAsError(msg)
+				require.NoError(t, parseErr)
+				errs = append(errs, errmsg)
+			}
+		}
+		require.Equal(t, 4, len(errs))
+		for _, err := range errs {
+			require.ErrorContains(t, err, "init message signature isn't valid")
+		}
 	})
 	srv1.httpSrv.Close()
 	srv2.httpSrv.Close()
@@ -296,4 +323,14 @@ type testOperator struct {
 	privKey *rsa.PrivateKey
 	httpSrv *httptest.Server
 	srv     *Server
+}
+
+func parseAsError(msg []byte) (error, error) {
+	sszerr := &wire.ErrSSZ{}
+	err := sszerr.UnmarshalSSZ(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return errors.New(string(sszerr.Error)), nil
 }
