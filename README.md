@@ -34,7 +34,7 @@ Operators info file example (`./examples/operators_integration.json`):
 The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
 The operator is able to participate in multiple DKG ceremonies in parallel.
 
-NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the dkgcli tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the ssv-dkg tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
 
 #### Start a DKG-operator
 
@@ -48,7 +48,7 @@ ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json
 --storeShare # store created bls key share to a file for later reuse if needed
 ```
 
-Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for the config file at `./config/` folder.
+Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
 
 Example:
 

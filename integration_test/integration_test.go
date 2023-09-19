@@ -22,7 +22,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -64,13 +63,13 @@ func TestHappyFlow(t *testing.T) {
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		srv1 := CreateOperator(t, 1)
-		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		ops[1] = initiator.Operator{Addr: srv1.srv.URL, ID: 1, PubKey: &srv1.privKey.PublicKey}
 		srv2 := CreateOperator(t, 2)
-		ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+		ops[2] = initiator.Operator{Addr: srv2.srv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
 		srv3 := CreateOperator(t, 3)
-		ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+		ops[3] = initiator.Operator{Addr: srv3.srv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
 		srv4 := CreateOperator(t, 7)
-		ops[101] = initiator.Operator{srv4.srv.URL, 101, &srv4.privKey.PublicKey}
+		ops[101] = initiator.Operator{Addr: srv4.srv.URL, ID: 101, PubKey: &srv4.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -95,23 +94,24 @@ func TestHappyFlow(t *testing.T) {
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		srv1 := CreateOperator(t, 1)
-		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		ops[1] = initiator.Operator{Addr: srv1.srv.URL, ID: 1, PubKey: &srv1.privKey.PublicKey}
 		srv2 := CreateOperator(t, 2)
-		ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+		ops[2] = initiator.Operator{Addr: srv2.srv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
 		srv3 := CreateOperator(t, 3)
-		ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+		ops[3] = initiator.Operator{Addr: srv3.srv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
 		srv4 := CreateOperator(t, 4)
-		ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+		ops[4] = initiator.Operator{Addr: srv4.srv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
 		srv5 := CreateOperator(t, 5)
-		ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
+		ops[5] = initiator.Operator{Addr: srv5.srv.URL, ID: 5, PubKey: &srv5.privKey.PublicKey}
 		srv6 := CreateOperator(t, 6)
-		ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
+		ops[6] = initiator.Operator{Addr: srv6.srv.URL, ID: 6, PubKey: &srv6.privKey.PublicKey}
 		srv7 := CreateOperator(t, 7)
-		ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
+		ops[7] = initiator.Operator{Addr: srv7.srv.URL, ID: 7, PubKey: &srv7.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		require.NoError(t, err)
 		clnt := initiator.New(priv, ops)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
@@ -134,33 +134,34 @@ func TestHappyFlow(t *testing.T) {
 	t.Run("test 12 operators happy flow", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		srv1 := CreateOperator(t, 1)
-		ops[1] = initiator.Operator{srv1.srv.URL, 1, &srv1.privKey.PublicKey}
+		ops[1] = initiator.Operator{Addr: srv1.srv.URL, ID: 1, PubKey: &srv1.privKey.PublicKey}
 		srv2 := CreateOperator(t, 2)
-		ops[2] = initiator.Operator{srv2.srv.URL, 2, &srv2.privKey.PublicKey}
+		ops[2] = initiator.Operator{Addr: srv2.srv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
 		srv3 := CreateOperator(t, 3)
-		ops[3] = initiator.Operator{srv3.srv.URL, 3, &srv3.privKey.PublicKey}
+		ops[3] = initiator.Operator{Addr: srv3.srv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
 		srv4 := CreateOperator(t, 4)
-		ops[4] = initiator.Operator{srv4.srv.URL, 4, &srv4.privKey.PublicKey}
+		ops[4] = initiator.Operator{Addr: srv4.srv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
 		srv5 := CreateOperator(t, 5)
-		ops[5] = initiator.Operator{srv5.srv.URL, 5, &srv5.privKey.PublicKey}
+		ops[5] = initiator.Operator{Addr: srv5.srv.URL, ID: 5, PubKey: &srv5.privKey.PublicKey}
 		srv6 := CreateOperator(t, 6)
-		ops[6] = initiator.Operator{srv6.srv.URL, 6, &srv6.privKey.PublicKey}
+		ops[6] = initiator.Operator{Addr: srv6.srv.URL, ID: 6, PubKey: &srv6.privKey.PublicKey}
 		srv7 := CreateOperator(t, 7)
-		ops[7] = initiator.Operator{srv7.srv.URL, 7, &srv7.privKey.PublicKey}
+		ops[7] = initiator.Operator{Addr: srv7.srv.URL, ID: 7, PubKey: &srv7.privKey.PublicKey}
 		srv8 := CreateOperator(t, 8)
-		ops[8] = initiator.Operator{srv8.srv.URL, 8, &srv8.privKey.PublicKey}
+		ops[8] = initiator.Operator{Addr: srv8.srv.URL, ID: 8, PubKey: &srv8.privKey.PublicKey}
 		srv9 := CreateOperator(t, 9)
-		ops[9] = initiator.Operator{srv9.srv.URL, 9, &srv9.privKey.PublicKey}
+		ops[9] = initiator.Operator{Addr: srv9.srv.URL, ID: 9, PubKey: &srv9.privKey.PublicKey}
 		srv10 := CreateOperator(t, 10)
-		ops[10] = initiator.Operator{srv10.srv.URL, 10, &srv10.privKey.PublicKey}
+		ops[10] = initiator.Operator{Addr: srv10.srv.URL, ID: 10, PubKey: &srv10.privKey.PublicKey}
 		srv11 := CreateOperator(t, 11)
-		ops[11] = initiator.Operator{srv11.srv.URL, 11, &srv11.privKey.PublicKey}
+		ops[11] = initiator.Operator{Addr: srv11.srv.URL, ID: 11, PubKey: &srv11.privKey.PublicKey}
 		srv12 := CreateOperator(t, 12)
-		ops[12] = initiator.Operator{srv12.srv.URL, 12, &srv12.privKey.PublicKey}
+		ops[12] = initiator.Operator{Addr: srv12.srv.URL, ID: 12, PubKey: &srv12.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		require.NoError(t, err)
 		clnt := initiator.New(priv, ops)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
@@ -281,7 +282,7 @@ func splitBytes(buf []byte, lim int) [][]byte {
 }
 
 func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
-	require.True(t, bytes.Equal(crypto.WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
+	require.True(t, bytes.Equal(ourcrypto.WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
 	masterSig := &bls.Sign{}
 	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
 	valdatorPubKey := &bls.PublicKey{}
@@ -296,7 +297,7 @@ func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, wi
 	require.True(t, res)
 	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), dkg.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
 	require.NoError(t, err)
-	res, err = crypto.VerifyDepositData(depositData, dkg.GetNetworkByFork(fork))
+	res, err = ourcrypto.VerifyDepositData(depositData, dkg.GetNetworkByFork(fork))
 	require.NoError(t, err)
 	require.True(t, res)
 	depositMsg := &phase0.DepositMessage{

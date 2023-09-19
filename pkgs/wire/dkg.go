@@ -7,7 +7,7 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
-	bls2 "github.com/drand/kyber/sign/bls"
+	drand_bls "github.com/drand/kyber/sign/bls"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,7 +34,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		NewNodes:  config.Nodes,
 		OldNodes:  config.Nodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
 		Threshold: config.T,
-		Auth:      bls2.NewSchemeOnG2(config.Suite),
+		Auth:      drand_bls.NewSchemeOnG2(config.Suite),
 
 		Log: config.Logger,
 	}

@@ -26,16 +26,15 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-const encryptedKeyLength = 256
 const exmaplePath = "../../examples/"
 
 func TestRateLimit(t *testing.T) {
 	srv := CreateTestOperator(t, 1)
 	t.Run("test init route rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
-		ops[1] = initiator.Operator{srv.httpSrv.URL, 1, &srv.privKey.PublicKey}
+		ops[1] = initiator.Operator{Addr: srv.httpSrv.URL, ID: 1, PubKey: &srv.privKey.PublicKey}
 
-		parts := make([]*wire.Operator, 0, 0)
+		parts := make([]*wire.Operator, 0)
 		for _, id := range []uint64{1} {
 			op, ok := ops[id]
 			if !ok {
@@ -139,10 +138,10 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	srv2 := CreateTestOperator(t, 2)
 	srv3 := CreateTestOperator(t, 3)
 	srv4 := CreateTestOperator(t, 4)
-	ops[1] = initiator.Operator{srv1.httpSrv.URL, 1, &srv1.privKey.PublicKey}
-	ops[2] = initiator.Operator{srv2.httpSrv.URL, 2, &srv2.privKey.PublicKey}
-	ops[3] = initiator.Operator{srv3.httpSrv.URL, 3, &srv3.privKey.PublicKey}
-	ops[4] = initiator.Operator{srv4.httpSrv.URL, 4, &srv4.privKey.PublicKey}
+	ops[1] = initiator.Operator{Addr: srv1.httpSrv.URL, ID: 1, PubKey: &srv1.privKey.PublicKey}
+	ops[2] = initiator.Operator{Addr: srv2.httpSrv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
+	ops[3] = initiator.Operator{Addr: srv3.httpSrv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
+	ops[4] = initiator.Operator{Addr: srv4.httpSrv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
 
 	t.Run("test wrong pub key in init message", func(t *testing.T) {
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -156,7 +155,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		c := initiator.New(priv, ops)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0, 0)
+		parts := make([]*wire.Operator, 0)
 		for _, id := range ids {
 			op, ok := c.Operators[id]
 			require.True(t, ok)
@@ -220,7 +219,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		c := initiator.New(priv, ops)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0, 0)
+		parts := make([]*wire.Operator, 0)
 		for _, id := range ids {
 			op, ok := c.Operators[id]
 			require.True(t, ok)
