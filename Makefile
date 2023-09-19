@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build docker-operators docker-initiator mockgen-install
+.PHONY: install clean build test docker-build-image docker-operators docker-initiator mockgen-install lint-prepare lint
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -33,7 +33,7 @@ test:
 	go test -v -p 1 ./...
 
 # Recipe to build the Docker image
-docker-build:
+docker-build-image:
 	@echo "Building Docker image..."
 	docker build -t $(DOCKER_IMAGE) .
 
@@ -48,3 +48,14 @@ docker-initiator:
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
 	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"
+
+lint-prepare:
+	@echo "Preparing Linter"
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s latest
+
+lint:
+	./bin/golangci-lint run -v ./...
+	@if [ ! -z "${UNFORMATTED}" ]; then \
+		echo "Some files requires formatting, please run 'go fmt ./...'"; \
+		exit 1; \
+	fi

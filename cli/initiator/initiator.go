@@ -33,16 +33,37 @@ func init() {
 	flags.ForkVersionFlag(StartDKG)
 	flags.AddDepositResultStorePathFlag(StartDKG)
 	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
-	viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress"))
-	viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs"))
-	viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath"))
-	viper.BindPFlag("owner", StartDKG.PersistentFlags().Lookup("owner"))
-	viper.BindPFlag("nonce", StartDKG.PersistentFlags().Lookup("nonce"))
-	viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork"))
-	viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath"))
-	viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath"))
-	viper.BindPFlag("initiatorPrivKey", StartDKG.PersistentFlags().Lookup("initiatorPrivKey"))
-	viper.BindPFlag("initiatorPrivKeyPassword", StartDKG.PersistentFlags().Lookup("initiatorPrivKeyPassword"))
+	flags.ConfigPathFlag(StartDKG)
+	if err := viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("owner", StartDKG.PersistentFlags().Lookup("owner")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("nonce", StartDKG.PersistentFlags().Lookup("nonce")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("initiatorPrivKey", StartDKG.PersistentFlags().Lookup("initiatorPrivKey")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("initiatorPrivKeyPassword", StartDKG.PersistentFlags().Lookup("initiatorPrivKeyPassword")); err != nil {
+		panic(err)
+	}
 }
 
 var StartDKG = &cobra.Command{
@@ -59,12 +80,18 @@ var StartDKG = &cobra.Command{
 		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
 			log.Fatal(err)
 		}
-		logger := zap.L().Named(cmd.Short)
-
-		viper.SetConfigName("initiator")
+		logger := zap.L().Named("dkg-initiator")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("./config/")
-		err := viper.ReadInConfig()
+		configPath, err := flags.GetConfigPathFlagValue(cmd)
+		if err != nil {
+			logger.Fatal(err.Error())
+		}
+		if configPath != "" {
+			viper.AddConfigPath(configPath)
+		} else {
+			viper.AddConfigPath("./config")
+		}
+		err = viper.ReadInConfig()
 		if err != nil {
 			logger.Warn("couldn't find config file, its ok if you using, cli params")
 		}

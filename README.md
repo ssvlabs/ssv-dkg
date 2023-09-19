@@ -33,7 +33,7 @@ ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json
 --storeShare # store the bls key share created during DKG ceremony to a file for later reuse if needed
 ```
 
-It is also possible to use a YAML configuration file:
+It is also possible to use a YAML configuration file
 
 Example:
 
@@ -188,7 +188,7 @@ More details in the [Architecture](#architecture) section below.
 
 ## Architecture
 
-![flow](./imgs/DKGinit.drawio.png)
+![flow](./docs/imgs/DKGinit.drawio.png)
 
 ### Flow Description:
 

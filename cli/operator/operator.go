@@ -8,7 +8,6 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/load"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 
 	"github.com/bloxapp/ssv/logging"
@@ -22,10 +21,19 @@ func init() {
 	flags.OperatorPrivateKeyPassFlag(StartDKGOperator)
 	flags.OperatorPortFlag(StartDKGOperator)
 	flags.AddStoreShareFlag(StartDKGOperator)
-	viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey"))
-	viper.BindPFlag("password", StartDKGOperator.PersistentFlags().Lookup("password"))
-	viper.BindPFlag("port", StartDKGOperator.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("storeShare", StartDKGOperator.PersistentFlags().Lookup("storeShare"))
+	flags.ConfigPathFlag(StartDKGOperator)
+	if err := viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("password", StartDKGOperator.PersistentFlags().Lookup("password")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("port", StartDKGOperator.PersistentFlags().Lookup("port")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("storeShare", StartDKGOperator.PersistentFlags().Lookup("storeShare")); err != nil {
+		panic(err)
+	}
 }
 
 var StartDKGOperator = &cobra.Command{
@@ -43,13 +51,19 @@ var StartDKGOperator = &cobra.Command{
 			log.Fatal(err)
 		}
 		logger := zap.L().Named("dkg-operator")
-
-		viper.SetConfigName("operator")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("./config")
-		err := viper.ReadInConfig()
+		configPath, err := flags.GetConfigPathFlagValue(cmd)
 		if err != nil {
-			logger.Warn("couldn't find config file, its ok if you using, cli params")
+			logger.Fatal(err.Error())
+		}
+		if configPath != "" {
+			viper.AddConfigPath(configPath)
+		} else {
+			viper.AddConfigPath("./config")
+		}
+		err = viper.ReadInConfig()
+		if err != nil {
+			logger.Warn("couldn't find config file, its ok if you are using cli params")
 		}
 		privKeyPath := viper.GetString("privKey")
 		if privKeyPath == "" {
@@ -75,10 +89,7 @@ var StartDKGOperator = &cobra.Command{
 				logger.Fatal(err.Error())
 			}
 		} else {
-			privateKey, err = load.PrivateKey(privKeyPath)
-			if err != nil {
-				logger.Fatal(err.Error())
-			}
+			logger.Fatal("please provide password string or path to password file", zap.Error(err))
 		}
 		srv := operator.New(privateKey)
 		port := viper.GetUint64("port")

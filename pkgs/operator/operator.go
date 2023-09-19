@@ -102,8 +102,12 @@ func RegisterRoutes(s *Server) {
 	s.Router.Route("/dkg", func(r chi.Router) {
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
-
 			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(wire.MakeErr(err))
+				return
+			}
 			b, err := s.State.ProcessMessage(rawdata)
 			if err != nil {
 				writer.WriteHeader(http.StatusBadRequest)

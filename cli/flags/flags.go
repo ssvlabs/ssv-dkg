@@ -14,6 +14,7 @@ const (
 	operatorIDs              = "operatorIDs"
 	operatorsInfo            = "operatorsInfoPath"
 	operatorPrivKey          = "privKey"
+	configPath               = "configPath"
 	initiatorPrivKey         = "initiatorPrivKey"
 	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
 	operatorPort             = "port"
@@ -161,6 +162,16 @@ func GetOperatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
 // OperatorPortFlag  adds operator listening port flag to the command
 func OperatorPortFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
+}
+
+// OperatorConfigPathFlag config path flag to the command
+func ConfigPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
+}
+
+// GetConfigPathFlagValue gets config path flag from the command
+func GetConfigPathFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(configPath)
 }
 
 // GetOperatorPortFlagValue gets operator listening port flag from the command

@@ -31,7 +31,8 @@ const (
 )
 
 func init() {
-	types.InitBLS()
+	_ = bls.Init(bls.BLS12_381)
+	_ = bls.SetETHmode(bls.EthModeDraft07)
 }
 
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
