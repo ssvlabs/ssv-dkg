@@ -87,7 +87,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal(err.Error())
 		}
 		if configPath != "" {
-			viper.AddConfigPath(configPath)
+			viper.SetConfigFile(configPath)
 		} else {
 			viper.AddConfigPath("./config")
 		}
@@ -101,8 +101,8 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to get deposit result path flag value", zap.Error(err))
 		}
 		_, err = os.Stat(depositResultsPath)
-		if !os.IsNotExist(err) {
-			logger.Fatal("Deposit file at provided path already exist", zap.Error(err))
+		if os.IsNotExist(err) {
+			logger.Fatal("Folder to store deposit file does not exist", zap.Error(err))
 		}
 		// Check paths for results
 		ssvPayloadResultsPath := viper.GetString("ssvPayloadResultsPath")
@@ -110,8 +110,8 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to get ssv payload path flag value", zap.Error(err))
 		}
 		_, err = os.Stat(ssvPayloadResultsPath)
-		if !os.IsNotExist(err) {
-			logger.Fatal("SSV payload file at provided path already exist", zap.Error(err))
+		if os.IsNotExist(err) {
+			logger.Fatal("Folder to store SSV payload file does not exist", zap.Error(err))
 		}
 		// Load operators TODO: add more sources.
 		operatorFile := viper.GetString("operatorsInfoPath")
@@ -202,13 +202,13 @@ var StartDKG = &cobra.Command{
 		}
 		// Save deposit file
 		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
-		err = utils.WriteJSON(depositResultsPath, []initiator.DepositDataJson{*depositData})
+		err = utils.WriteJSON(depositResultsPath+"deposit_"+fmt.Sprint(depositData.PubKey)+".json", []initiator.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file", zap.Error(err))
 		}
 
 		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", ssvPayloadResultsPath))
-		err = utils.WriteJSON(ssvPayloadResultsPath, keyShares)
+		err = utils.WriteJSON(ssvPayloadResultsPath+"payload_"+fmt.Sprint(depositData.PubKey)+".json", keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file", zap.Error(err))
 		}

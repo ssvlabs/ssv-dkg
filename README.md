@@ -1,4 +1,4 @@
-# ssv-dkg-tool
+# ssv-dkg
 
 ### Build
 

@@ -280,7 +280,7 @@ func GetNetworkFlag(c *cobra.Command) (string, error) {
 }
 
 func AddDepositResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, depositResultsPath, "", "Path to store deposit result file json", false)
+	AddPersistentStringFlag(c, depositResultsPath, "./", "Path to store deposit result file json", false)
 }
 
 func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
@@ -288,7 +288,7 @@ func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
 }
 
 func AddSSVPayloadResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, ssvPayloadResultsPath, "", "Path to store ssv contract payload file json", false)
+	AddPersistentStringFlag(c, ssvPayloadResultsPath, "./", "Path to store ssv contract payload file json", false)
 }
 
 func GetSSVPayloadResultStorePathFlag(c *cobra.Command) (string, error) {

@@ -1,4 +1,4 @@
-privKey: ./encrypted_private_key.json
-password: ./password
-port: 3033
+privKey: /data/operator4/encrypted_private_key.json
+password: /data/operator4/password
+port: 3030
 storeShare: true

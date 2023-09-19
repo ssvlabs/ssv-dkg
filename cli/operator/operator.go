@@ -57,7 +57,7 @@ var StartDKGOperator = &cobra.Command{
 			logger.Fatal(err.Error())
 		}
 		if configPath != "" {
-			viper.AddConfigPath(configPath)
+			viper.SetConfigFile(configPath)
 		} else {
 			viper.AddConfigPath("./config")
 		}
