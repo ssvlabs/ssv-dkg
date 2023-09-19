@@ -1,9 +1,10 @@
-FROM golang:1.20
+FROM golang:1.20-alpine3.17
+RUN apk add build-base
 
 WORKDIR /
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 
 COPY ./ ./
 

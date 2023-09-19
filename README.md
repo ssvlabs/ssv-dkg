@@ -145,7 +145,7 @@ Here we explain how we secure the communication between DKG ceremony initiator a
 
 ## Architecture
 
-![flow](./imgs/DKGinit.drawio.png)
+![flow](./docs/imgs/DKGinit.drawio.png)
 
 #### Basic Flow Description:
 

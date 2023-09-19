@@ -8,13 +8,7 @@ services:
       - "3030:3030"
     entrypoint: /app
     command:
-      [
-        "start-operator",
-        "--privKey",
-        "/data/operator1/encrypted_private_key.json",
-        "--password",
-        "/data/operator1/password",
-      ]
+      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -26,13 +20,7 @@ services:
       - "3031:3030"
     entrypoint: /app
     command:
-      [
-        "start-operator",
-        "--privKey",
-        "/data/operator2/encrypted_private_key.json",
-        "--password",
-        "/data/operator2/password",
-      ]
+      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -44,13 +32,7 @@ services:
       - "3032:3030"
     entrypoint: /app
     command:
-      [
-        "start-operator",
-        "--privKey",
-        "/data/operator3/encrypted_private_key.json",
-        "--password",
-        "/data/operator3/password",
-      ]
+      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -62,13 +44,7 @@ services:
       - "3033:3030"
     entrypoint: /app
     command:
-      [
-        "start-operator",
-        "--privKey",
-        "/data/operator4/encrypted_private_key.json",
-        "--password",
-        "/data/operator4/password",
-      ]
+      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -82,30 +58,7 @@ services:
     networks:
       - shared_network
     entrypoint: /app
-    command:
-      [
-        "init",
-        "--operatorIDs",
-        "1,2,3,4",
-        "--operatorsInfoPath",
-        "/data/docker_operators.json",
-        "--depositResultsPath",
-        "/data/initiator/output/deposit.json",
-        "--ssvPayloadResultsPath",
-        "/data/initiator/output/payload.json",
-        "--owner",
-        "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-        "--nonce",
-        "1",
-        "--withdrawAddress",
-        "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
-        "--fork",
-        "mainnet",
-        "--initiatorPrivKey",
-        "/data/initiator/encrypted_private_key.json",
-        "--initiatorPrivKeyPassword",
-        "/data/initiator/password",
-      ]
+    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
     volumes:
       - ./examples:/data
 

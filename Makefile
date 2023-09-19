@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build docker-operators docker-initiator mockgen-install lint-prepare lint
+.PHONY: install clean build test docker-build-image docker-operators docker-initiator mockgen-install lint-prepare lint
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -33,7 +33,7 @@ test:
 	go test -v -p 1 ./...
 
 # Recipe to build the Docker image
-docker-build:
+docker-build-image:
 	@echo "Building Docker image..."
 	docker build -t $(DOCKER_IMAGE) .
 
