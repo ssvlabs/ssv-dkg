@@ -45,7 +45,7 @@ ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
 --password: ./password # path to password file to decrypt the key
---storeShare # store created bls key share to a file for later reuse if needed
+--storeShare: true # store created bls key share to a file for later reuse if needed
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
@@ -62,7 +62,7 @@ storeShare: true
 When using configuration file, run:
 
 ```sh
-ssv-dkg start-operator
+ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
 ### Initiator
@@ -100,8 +100,8 @@ ssv-dkg init \
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
---depositResultsPath # path and filename to store the staking deposit file
---ssvPayloadResultsPath # path and filename to store ssv contract payload file
+--depositResultsPath: ./output/ # path and filename to store the staking deposit file
+--ssvPayloadResultsPath: ./output/ # path and filename to store ssv contract payload file
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
 ```
@@ -117,8 +117,8 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.json
-depositResultsPath: ./deposit.json
-ssvPayloadResultsPath: ./payload.json
+depositResultsPath: ./output/
+ssvPayloadResultsPath: ./output/
 privKey: ./encrypted_private_key.json
 password: ./password
 ```
@@ -126,7 +126,7 @@ password: ./password
 When using configuration file, run:
 
 ```sh
-ssv-dkg init
+ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**

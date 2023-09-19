@@ -1,4 +1,4 @@
 privKey: /data/operator3/encrypted_private_key.json
 password: /data/operator3/password
 port: 3030
-storeShare: true
+storeShare: false
