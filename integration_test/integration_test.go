@@ -11,10 +11,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
+	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,16 +39,20 @@ type testOperator struct {
 }
 
 func CreateOperator(t *testing.T, id uint64) *testOperator {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("integration-tests")
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := operator.NewSwitch(priv)
+	swtch := operator.NewSwitch(priv, logger)
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
 	s := &operator.Server{
-		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}
@@ -60,6 +66,10 @@ func CreateOperator(t *testing.T, id uint64) *testOperator {
 }
 
 func TestHappyFlow(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("integration-tests")
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		srv1 := CreateOperator(t, 1)
@@ -75,7 +85,7 @@ func TestHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		clnt := initiator.New(priv, ops)
+		clnt := initiator.New(priv, ops, logger)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
@@ -112,7 +122,7 @@ func TestHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		clnt := initiator.New(priv, ops)
+		clnt := initiator.New(priv, ops, logger)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
@@ -162,7 +172,7 @@ func TestHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		clnt := initiator.New(priv, ops)
+		clnt := initiator.New(priv, ops, logger)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)

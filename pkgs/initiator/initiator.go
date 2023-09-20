@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -106,7 +106,7 @@ type MockInitiator interface {
 }
 
 type Initiator struct {
-	Logger     *logrus.Entry
+	Logger     *zap.Logger
 	Client     *req.Client
 	Operators  Operators
 	VerifyFunc func(id uint64, msg, sig []byte) error
@@ -229,12 +229,12 @@ func (ks *KeyShares) GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) 
 	return nil
 }
 
-func New(privKey *rsa.PrivateKey, operatorMap Operators) *Initiator {
+func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	c := &Initiator{
-		Logger:     logrus.NewEntry(logrus.New()),
+		Logger:     logger,
 		Client:     client,
 		Operators:  operatorMap,
 		PrivateKey: privKey,
@@ -252,19 +252,16 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	r := c.Client.R()
 	// TODO: Consider signing a message
 	r.SetBodyBytes(data)
-	c.Logger.Debugf("final addr %v", fmt.Sprintf("%v/%v", op.Addr, method))
+	c.Logger.Debug(fmt.Sprintf("final addr %v/%v", op.Addr, method))
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
 	if err != nil {
 		return nil, err
 	}
-
 	resdata, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-
-	c.Logger.Debugf("operator %d responded to %s with %x", op.ID, method, resdata)
-
+	c.Logger.Debug(fmt.Sprintf("operator %d responded to %s with %x", op.ID, method, resdata))
 	return resdata, nil
 }
 
@@ -273,7 +270,7 @@ func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
 	for _, op := range c.Operators {
 		go func(operator Operator) {
 			res, err := c.SendAndCollect(operator, method, msg)
-			c.Logger.Debugf("Collected message: method: %s, from: %s", method, operator.Addr)
+			c.Logger.Debug(fmt.Sprintf("Collected message: method: %s, from: %s", method, operator.Addr))
 			resc <- opReqResult{
 				operatorID: operator.ID,
 				err:        err,
@@ -345,14 +342,14 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
 			return nil, err
 		}
-		c.Logger.Infof("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(), tsp.Signer)
-		c.Logger.Debugf("Operator messages are valid. Continue.")
+		c.Logger.Info(fmt.Sprintf("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(), tsp.Signer))
+		c.Logger.Debug("Operator messages are valid. Continue.")
 
 		final.Messages[i] = tsp
 		allMsgsBytes = append(allMsgsBytes, msg...)
 	}
 	// sign message by initiator
-	c.Logger.Infof("Signing combined messages from operators with initiator public key, ID: %x", sha256.Sum256(c.PrivateKey.N.Bytes()))
+	c.Logger.Info(fmt.Sprintf("Signing combined messages from operators with initiator public key, ID: %x", sha256.Sum256(c.PrivateKey.N.Bytes())))
 	sig, err := crypto.SignRSA(c.PrivateKey, allMsgsBytes)
 	if err != nil {
 		return nil, err
@@ -400,7 +397,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if err != nil {
 		return nil, nil, err
 	}
-	c.Logger.Infof("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes()))
+	c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
 	// make init message
 	init := &wire.Init{
 		Operators:             parts,
@@ -424,7 +421,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if err != nil {
 		return nil, nil, err
 	}
-	c.Logger.Infof("Round 2. Finished successfully. Got DKG results")
+	c.Logger.Info("Round 2. Finished successfully. Got DKG results")
 
 	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
 	if err != nil {
@@ -432,9 +429,9 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	}
 
 	// Collect operators answers as a confirmation of DKG process and prepare deposit data
-	c.Logger.Debugf("Withdrawal Credentials %x", init.WithdrawalCredentials)
-	c.Logger.Debugf("Fork Version %x", init.Fork)
-	c.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
+	c.Logger.Debug(fmt.Sprintf("Withdrawal Credentials %x", init.WithdrawalCredentials))
+	c.Logger.Debug(fmt.Sprintf("Fork Version %x", init.Fork))
+	c.Logger.Debug(fmt.Sprintf("Domain %x", ssvspec_types.DomainDeposit))
 
 	shareRoot, err := crypto.DepositDataRoot(init.WithdrawalCredentials, validatorPubKey, getNetworkByFork(init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
@@ -456,7 +453,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	if !bytes.Equal(validatorPubKey.Serialize(), validatorRecoveredPK.Serialize()) {
 		return nil, nil, fmt.Errorf("incoming validator pub key isnt equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
-	c.Logger.Infof("Round 2. Post verification. Successfully recovered validator public key from shares %x", validatorRecoveredPK.Serialize())
+	c.Logger.Info(fmt.Sprintf("Round 2. Post verification. Successfully recovered validator public key from shares %x", validatorRecoveredPK.Serialize()))
 	// 2. Recover master signature from shares
 	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(sigDepositShares)
 	if err != nil {
@@ -509,8 +506,8 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
 	data := []byte(fmt.Sprintf("%s:%d", common.Address(init.Owner).String(), init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
-	c.Logger.Debugf("Owner, Nonce  %x, %d", init.Owner, init.Nonce)
-	c.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
+	c.Logger.Debug(fmt.Sprintf("Owner, Nonce  %x, %d", init.Owner, init.Nonce))
+	c.Logger.Debug(fmt.Sprintf("SSV Keccak 256 of Owner + Nonce  %x", hash))
 
 	err = crypto.VerifyPartialSigs(ssvContractOwnerNonceSigShares, sharePks, hash)
 	if err != nil {
@@ -618,7 +615,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		if err := validatorPubKey.Deserialize(result.ValidatorPubKey); err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
-		c.Logger.Debugf("Validator pub %x", validatorPubKey.Serialize())
+		c.Logger.Debug(fmt.Sprintf("Validator pub %x", validatorPubKey.Serialize()))
 		sharePubKey := &bls.PublicKey{}
 		if err := sharePubKey.Deserialize(result.SharePubKey); err != nil {
 			return nil, nil, nil, nil, nil, err
@@ -634,7 +631,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 			return nil, nil, nil, nil, nil, err
 		}
 		ssvContractOwnerNonceSigShares[result.OperatorID] = ownerNonceShareSig
-		c.Logger.Debugf("Result of DKG from an operator %v", result)
+		c.Logger.Debug(fmt.Sprintf("Result of DKG from an operator %v", result))
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }
@@ -706,7 +703,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, e
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Infof("round 2. Exchange phase finished, sending kyber deal messages")
+	c.Logger.Info("round 2. Exchange phase finished, sending kyber deal messages")
 	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)

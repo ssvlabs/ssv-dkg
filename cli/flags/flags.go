@@ -28,6 +28,10 @@ const (
 	depositResultsPath       = "depositResultsPath"
 	ssvPayloadResultsPath    = "ssvPayloadResultsPath"
 	storeShare               = "storeShare"
+	logLevel                 = "logLevel"
+	logFormat                = "logFormat"
+	logLevelFormat           = "logLevelFormat"
+	logFilePath              = "logFilePath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -177,6 +181,46 @@ func GetConfigPathFlagValue(c *cobra.Command) (string, error) {
 // GetOperatorPortFlagValue gets operator listening port flag from the command
 func GetOperatorPortFlagValue(c *cobra.Command) (uint64, error) {
 	return c.Flags().GetUint64(operatorPort)
+}
+
+// LogLevelFlag logger's log level flag to the command
+func LogLevelFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevel, "debug", "Defines logger's log level", false)
+}
+
+// GetLogLevelFlagValue gets logger's log level flag from the command
+func GetLogLevelFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logLevel)
+}
+
+// LogFormatFlag logger's  logger's encoding flag to the command
+func LogFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFormat, "json", "Defines logger's encoding, valid values are 'json' (default) and 'console'", false)
+}
+
+// GetLogFormatFlagValue gets logger's encoding flag from the command
+func GetLogFormatFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logFormat)
+}
+
+// LogLevelFormatFlag logger's level format flag to the command
+func LogLevelFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevelFormat, "capitalColor", "Defines logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase'", false)
+}
+
+// GetLogLevelFormatFlagValue gets logger's level format flag from the command
+func GetLogLevelFormatFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logLevelFormat)
+}
+
+// LogFilePathFlag file path to write logs into
+func LogFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFilePath, "./data/debug.log", "Defines a file path to write logs into", false)
+}
+
+// GetLogFilePathValue gets logs file path flag from the command
+func GetLogFilePathValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logFilePath)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

@@ -14,11 +14,11 @@ import (
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type Server struct {
-	Logger     *logrus.Entry
+	Logger     *zap.Logger
 	HttpServer *http.Server
 	Router     chi.Router
 	State      *Switch
@@ -69,7 +69,7 @@ func RegisterRoutes(s *Server) {
 			rawdata, _ := io.ReadAll(request.Body)
 			signedInitMsg := &wire.SignedTransport{}
 			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
-				s.Logger.Errorf("parsing failed, err %v", err)
+				s.Logger.Error("parsing failed: ", zap.Error(err))
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(err))
 				return
@@ -77,17 +77,17 @@ func RegisterRoutes(s *Server) {
 
 			// Validate that incoming message is an init message
 			if signedInitMsg.Message.Type != wire.InitMessageType {
-				s.Logger.Errorf("recieved bad msg non init message send to init route")
+				s.Logger.Error("recieved bad msg non init message send to init route")
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
 				return
 			}
 			reqid := signedInitMsg.Message.Identifier
-			logger := s.Logger.WithField("reqid", hex.EncodeToString(reqid[:]))
+			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
 			if err != nil {
-				logger.Errorf("failed to initiate instance err:%v", err)
+				logger.Error(fmt.Sprintf("failed to initiate instance err:%v", err))
 
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(err))
@@ -120,13 +120,11 @@ func RegisterRoutes(s *Server) {
 	})
 }
 
-func New(key *rsa.PrivateKey) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger) *Server {
 	r := chi.NewRouter()
-	swtch := NewSwitch(key)
-	lg := logrus.New()
-	lg.SetLevel(logrus.DebugLevel)
+	swtch := NewSwitch(key, logger)
 	s := &Server{
-		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}
@@ -135,7 +133,7 @@ func New(key *rsa.PrivateKey) *Server {
 }
 
 func (s *Server) Start(port uint16) error {
-	s.Logger.Infof("server listening for incoming requests on port %d", port)
+	s.Logger.Info(fmt.Sprint("server listening for incoming requests on port %d", port))
 	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
 	s.HttpServer = srv
 	return s.HttpServer.ListenAndServe()

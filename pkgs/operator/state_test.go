@@ -9,9 +9,11 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -45,15 +47,15 @@ func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.O
 }
 
 func TestCreateInstance(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("state-tests")
 	testCreateInstance := func(t *testing.T, numOps int) {
-
 		privateKey, ops := generateOperatorsData(t, numOps)
-
-		s := NewSwitch(privateKey)
-
+		s := NewSwitch(privateKey, logger)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
-
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
@@ -95,11 +97,12 @@ func TestCreateInstance(t *testing.T) {
 }
 
 func TestInitInstance(t *testing.T) {
-
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
-
-	swtch := NewSwitch(privateKey)
-
+	swtch := NewSwitch(privateKey, logger)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -168,11 +171,13 @@ func TestInitInstance(t *testing.T) {
 
 func TestSwitch_cleanInstances(t *testing.T) {
 	privateKey, ops := generateOperatorsData(t, 4)
-	swtch := NewSwitch(privateKey)
-
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("state-tests")
+	swtch := NewSwitch(privateKey, logger)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
-
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
