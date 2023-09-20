@@ -50,7 +50,7 @@ When using configuration file, run:
 ssv-dkg start-operator
 ```
 
-`ssv-dkg` will be looking for a file named `operator.yaml` at `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
+`ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
 
 ### Initiator
 
@@ -120,7 +120,7 @@ When using configuration file, simply run:
 ssv-dkg init
 ```
 
-`ssv-dkg` will be looking for a file named `initiator.yaml` at `./config/` folder at the same root as the binary (i.e. `./config/initiator.yaml`)
+`ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)
 
 `init` message fields:
 
@@ -148,7 +148,7 @@ SSV does not provide operators data for the operations described above (ID, URL,
 
 Suggested options are, for example, a centralized ad-hoc Operator data service, or a preset file where all operators data is stored.
 
-Information about operators can be collected at `json` file and supplied to initiator to be used use for the key generation ceremony, as shown above.
+Information about operators can be collected in a `json` file and supplied to initiator to be used use for the key generation ceremony, as shown above.
 
 Operators info file example (`./examples/operators_integration.json`):
 
@@ -274,7 +274,7 @@ Output of an operator when DKG ceremony is complete:
 1. DKG time phaser starts `deal` phase
 
   - computes a private share for each of the operators ids
-  - encrypts with a corresponding to the operator BLS public key created at exchange step
+  - encrypts with a corresponding to the operator BLS public key created during the exchange step
   - pack all `deal`s together and signs
 
 2. `deal` bundle is created and sent back to the initiator
