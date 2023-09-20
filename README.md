@@ -163,8 +163,7 @@ Operators info file example (`./examples/operators_integration.json`):
     "id": 2,
     "public_key": "LS0tLS1CRUdJTiB....",
     "ip": "http://localhost:3031"
-  },
-  # ...
+  }
 ]
 ```
 
