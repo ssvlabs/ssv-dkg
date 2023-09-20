@@ -39,7 +39,7 @@ type testOperator struct {
 }
 
 func CreateOperator(t *testing.T, id uint64) *testOperator {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("integration-tests")
@@ -66,7 +66,7 @@ func CreateOperator(t *testing.T, id uint64) *testOperator {
 }
 
 func TestHappyFlow(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("integration-tests")
