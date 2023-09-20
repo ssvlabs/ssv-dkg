@@ -25,7 +25,6 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -338,13 +337,11 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	}
 	o.data.init = init
 	o.data.ReqID = reqID
-	kyberLogger := logrus.NewEntry(logrus.New())
-	kyberLogger = kyberLogger.WithField("reqid", o.data.ReqID)
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
 	o.b = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			kyberLogger.Logger.Debugf("server: broadcasting kyber message")
-
+			kyberLogger.Debug("server: broadcasting kyber message")
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
 				return err

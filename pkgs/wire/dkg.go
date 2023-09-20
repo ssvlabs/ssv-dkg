@@ -2,7 +2,7 @@ package wire
 
 import (
 	"crypto/sha256"
-	"reflect"
+	"fmt"
 	"time"
 
 	"github.com/drand/kyber"
@@ -35,11 +35,11 @@ func New(logger *zap.Logger) *LogWrapper {
 	return &LogWrapper{Logger: logger}
 }
 func (l *LogWrapper) Info(vals ...interface{}) {
-	l.Logger.Info(reflect.ValueOf(vals).String())
+	l.Logger.Info(fmt.Sprint(vals...))
 }
 
 func (l *LogWrapper) Error(vals ...interface{}) {
-	l.Logger.Error(reflect.ValueOf(vals).String())
+	l.Logger.Error(fmt.Sprint(vals...))
 }
 
 func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {

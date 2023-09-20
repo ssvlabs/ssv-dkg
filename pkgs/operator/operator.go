@@ -133,7 +133,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger) *Server {
 }
 
 func (s *Server) Start(port uint16) error {
-	s.Logger.Info(fmt.Sprint("server listening for incoming requests on port %d", port))
+	s.Logger.Info(fmt.Sprintf("server listening for incoming requests on port %d", port))
 	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
 	s.HttpServer = srv
 	return s.HttpServer.ListenAndServe()
