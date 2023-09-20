@@ -39,13 +39,25 @@ NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plin
 #### Start a DKG-operator
 
 ```sh
-ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
+ssv-dkg start-operator \
+            --privKey ./examples/operator1/encrypted_private_key.json  \
+            --port 3030 \
+            --password ./password \
+            --storeShare true \
+            --logLevel info \
+            --logFormat json \
+            --logLevelFormat capitalColor \
+            --logFilePath ./operator1_logs/debug.log
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
 --password: ./password # path to password file to decrypt the key
 --storeShare: true # store created bls key share to a file for later reuse if needed
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./operator1_logs/debug.log # a file path to write logs into
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
@@ -57,6 +69,10 @@ privKey: ./encrypted_private_key.json
 password: ./password
 port: 3030
 storeShare: true
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: ./operator1_logs/debug.log
 ```
 
 When using configuration file, run:
@@ -87,11 +103,15 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
-          --fork "mainnet"
-          --depositResultsPath deposit.json
-          --ssvPayloadResultsPath payload.json
-          --initiatorPrivKey ./encrypted_private_key.json
-          --initiatorPrivKeyPassword ./password
+          --fork "mainnet" \
+          --depositResultsPath deposit.json \
+          --ssvPayloadResultsPath payload.json \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
@@ -104,6 +124,10 @@ ssv-dkg init \
 --ssvPayloadResultsPath: ./output/ # path and filename to store ssv contract payload file
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./initiator_logs/debug.log # a file path to write logs into
 ```
 
 Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `ssv-dkg` will be looking for this file at `./config/` folder at the same root as the binary.
