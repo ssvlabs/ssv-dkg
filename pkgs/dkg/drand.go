@@ -25,8 +25,8 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (
@@ -87,7 +87,7 @@ func (msg *Result) Decode(data []byte) error {
 var ErrAlreadyExists = errors.New("duplicate message")
 
 type LocalOwner struct {
-	Logger      *logrus.Entry
+	Logger      *zap.Logger
 	startedDKG  chan struct{}
 	ErrorChan   chan error
 	ID          uint64
@@ -109,7 +109,7 @@ type LocalOwner struct {
 }
 
 type OwnerOpts struct {
-	Logger             *logrus.Entry
+	Logger             *zap.Logger
 	ID                 uint64
 	BroadcastF         func([]byte) error
 	Suite              pairing.Suite
@@ -142,7 +142,7 @@ func New(opts OwnerOpts) *LocalOwner {
 }
 
 func (o *LocalOwner) StartDKG() error {
-	o.Logger.Infof("Starting DKG")
+	o.Logger.Info("Starting DKG")
 	nodes := make([]dkg.Node, 0)
 	for id, e := range o.Exchanges {
 		p := o.suite.G1().Point()
@@ -155,7 +155,7 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
-	o.Logger.Debugf("Staring DKG with nodes %v", nodes)
+	o.Logger.Debug(fmt.Sprintf("Staring DKG with nodes %v", nodes))
 
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
@@ -202,18 +202,18 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Debugf("responding with a signed message, msg:%v", hex.EncodeToString(final))
+	o.Logger.Debug(fmt.Sprintf("responding with a signed message, msg:%v", hex.EncodeToString(final)))
 
 	return o.BroadcastF(final)
 }
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if res.Error != nil {
-		o.Logger.Error(res.Error)
+		o.Logger.Error("dkg ceremony returned error: ", zap.Error(res.Error))
 		o.broadcastError(res.Error)
 		return res.Error
 	}
-	o.Logger.Infof("DKG ceremony finished successfully")
+	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
 	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
@@ -224,7 +224,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debugf("Validator public key %x", validatorPubKey.Serialize())
+	o.Logger.Debug(fmt.Sprintf("Validator public key %x", validatorPubKey.Serialize()))
 
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
@@ -244,7 +244,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		}
 		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
 		if err != nil {
-			o.Logger.Errorf("%v", err)
+			o.Logger.Error("%v", zap.Error(err))
 		}
 	}
 
@@ -272,14 +272,14 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 
-	o.Logger.Debugf("Encrypted share %x", ciphertext)
-	o.Logger.Debugf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
-	o.Logger.Debugf("Fork Version %x", o.data.init.Fork)
-	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
+	o.Logger.Debug(fmt.Sprintf("Encrypted share %x", ciphertext))
+	o.Logger.Debug(fmt.Sprintf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials))
+	o.Logger.Debug(fmt.Sprintf("Fork Version %x", o.data.init.Fork))
+	o.Logger.Debug(fmt.Sprintf("Domain %x", ssvspec_types.DomainDeposit))
 
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
-	o.Logger.Debugf("Root %x", signRoot)
+	o.Logger.Debug(fmt.Sprintf("Root %x", signRoot))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
 	if !val {
@@ -289,8 +289,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.Owner.String(), o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
-	o.Logger.Debugf("Owner, Nonce  %x, %d", o.Owner, o.Nonce)
-	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
+	o.Logger.Debug(fmt.Sprintf("Owner, Nonce  %x, %d", o.Owner, o.Nonce))
+	o.Logger.Debug(fmt.Sprintf("SSV Keccak 256 of Owner + Nonce  %x", hash))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
 		o.broadcastError(err)
@@ -302,7 +302,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
+	o.Logger.Debug(fmt.Sprintf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize()))
 	out := Result{
 		RequestID:                  o.data.ReqID,
 		EncryptedShare:             ciphertext,
@@ -337,13 +337,11 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	}
 	o.data.init = init
 	o.data.ReqID = reqID
-	kyberLogger := logrus.NewEntry(logrus.New())
-	kyberLogger = kyberLogger.WithField("reqid", o.data.ReqID)
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
 	o.b = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			kyberLogger.Logger.Debugf("server: broadcasting kyber message")
-
+			kyberLogger.Debug("server: broadcasting kyber message")
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
 				return err
@@ -358,7 +356,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 			// todo not loop with channels
 			go func(trsp *wire.Transport) {
 				if err := o.Broadcast(trsp); err != nil {
-					o.Logger.Errorf("broadcasting failed %v", err)
+					o.Logger.Error("broadcasting failed %v", zap.Error(err))
 				}
 			}(trsp)
 
@@ -381,7 +379,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Debugf("operator: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
+	o.Logger.Debug(fmt.Sprintf("operator: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from))
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
@@ -390,11 +388,11 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("operator: received deal bundle from %d", from)
+		o.Logger.Debug(fmt.Sprintf("operator: received deal bundle from %d", from))
 
 		o.b.DealC <- *b
 
-		o.Logger.Debugf("operator: gone through deal sending %d", from)
+		o.Logger.Debug(fmt.Sprintf("operator: gone through deal sending %d", from))
 
 	case wire.KyberResponseBundleMessageType:
 
@@ -403,7 +401,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("operator: received response bundle from %d", from)
+		o.Logger.Debug(fmt.Sprintf("operator: received response bundle from %d", from))
 
 		o.b.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
@@ -412,7 +410,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 
-		o.Logger.Debugf("operator: received justification bundle from %d", from)
+		o.Logger.Debug(fmt.Sprintf("operator: received justification bundle from %d", from))
 
 		o.b.JustificationC <- *b
 	default:
@@ -432,8 +430,8 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		return err
 	}
 	t := st.Message
-	o.Logger.Debugf("operator: got msg from type %s, at: %d", t.Type.String(), o.ID)
-	o.Logger.Infof("Successfully verified incoming DKG message type %s: from %d", t.Type.String(), st.Signer)
+	o.Logger.Debug(fmt.Sprintf("operator: got msg from type %s, at: %d", t.Type.String(), o.ID))
+	o.Logger.Info(fmt.Sprintf("Successfully verified incoming DKG message type %s: from %d", t.Type.String(), st.Signer))
 	switch t.Type {
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}
@@ -522,6 +520,6 @@ func (o *LocalOwner) VerifyInitiatorMessage(msg []byte, sig []byte) error {
 	if err := crypto.VerifyRSA(o.InitiatorPublicKey, msg, sig); err != nil {
 		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
 	}
-	o.Logger.Infof("Successfully verified initiator message signature from: %x", sha256.Sum256(o.InitiatorPublicKey.N.Bytes()))
+	o.Logger.Info(fmt.Sprintf("Successfully verified initiator message signature from: %x", sha256.Sum256(o.InitiatorPublicKey.N.Bytes())))
 	return nil
 }

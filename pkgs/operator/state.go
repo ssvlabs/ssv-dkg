@@ -14,7 +14,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	bls3 "github.com/drand/kyber-bls12381"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const MaxInstances = 1024
@@ -78,7 +78,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.WithField("instance", hex.EncodeToString(reqID[:])),
+		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
 		SignFunc:           s.Sign,
 		VerifyFunc:         verify,
@@ -98,7 +98,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	s.Logger.Infof("Waiting for owner response to init")
+	s.Logger.Info("Waiting for owner response to init")
 	res := <-bchan
 	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
 }
@@ -127,7 +127,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 type Switch struct {
-	Logger           *logrus.Entry
+	Logger           *zap.Logger
 	Mtx              sync.RWMutex
 	InstanceInitTime map[InstanceID]time.Time
 	Instances        map[InstanceID]Instance
@@ -137,9 +137,9 @@ type Switch struct {
 	//broadcastF func([]byte) error
 }
 
-func NewSwitch(pv *rsa.PrivateKey) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger) *Switch {
 	return &Switch{
-		Logger:           logrus.NewEntry(logrus.New()),
+		Logger:           logger,
 		Mtx:              sync.RWMutex{},
 		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
@@ -148,8 +148,8 @@ func NewSwitch(pv *rsa.PrivateKey) *Switch {
 }
 
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	logger := s.Logger.WithField("reqid", hex.EncodeToString(reqID[:]))
-	logger.Infof("initializing DKG instance")
+	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
+	logger.Info("initializing DKG instance")
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err != nil {
 		return nil, fmt.Errorf("init message signature isn't valid: %s", err.Error())
 	}
-	s.Logger.Infof("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes()))
+	s.Logger.Info(fmt.Sprintf("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes())))
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {

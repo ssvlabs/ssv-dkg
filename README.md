@@ -1,4 +1,4 @@
-# ssv-dkg-tool
+# ssv-dkg
 
 ## Quickstart
 
@@ -24,13 +24,25 @@ SSV Operators typically play the role of dkg-operators, running the `ssv-dkg` to
 #### Start a DKG-operator
 
 ```sh
-ssv-dkg start-operator --privKey ./examples/operator1/encrypted_private_key.json  --port 3030 --password ./password --storeShare true
+ssv-dkg start-operator \
+            --privKey ./examples/operator1/encrypted_private_key.json  \
+            --port 3030 \
+            --password ./password \
+            --storeShare true \
+            --logLevel info \
+            --logFormat json \
+            --logLevelFormat capitalColor \
+            --logFilePath ./operator1_logs/debug.log
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
 --password: ./password # path to password file to decrypt the key
---storeShare # store the bls key share created during DKG ceremony to a file for later reuse if needed
+--storeShare: true # store the bls key share created during DKG ceremony to a file for later reuse if needed
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./operator1_logs/debug.log # a file path to write logs into
 ```
 
 It is also possible to use a YAML configuration file
@@ -42,12 +54,16 @@ privKey: ./encrypted_private_key.json
 password: ./password
 port: 3030
 storeShare: true
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: ./operator1_logs/debug.log
 ```
 
 When using configuration file, run:
 
 ```sh
-ssv-dkg start-operator
+ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
 `ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
@@ -78,11 +94,15 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
-          --fork "mainnet"
-          --depositResultsPath deposit.json
-          --ssvPayloadResultsPath payload.json
-          --initiatorPrivKey ./encrypted_private_key.json
-          --initiatorPrivKeyPassword ./password
+          --fork "mainnet" \
+          --depositResultsPath deposit.json \
+          --ssvPayloadResultsPath payload.json \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
@@ -91,10 +111,14 @@ ssv-dkg init \
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
---depositResultsPath # path and filename to store the staking deposit file
---ssvPayloadResultsPath # path and filename to store ssv contract payload file
+--depositResultsPath: ./output/ # path and filename to store the staking deposit file
+--ssvPayloadResultsPath: ./output/ # path and filename to store ssv contract payload file
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./initiator_logs/debug.log # a file path to write logs into
 ```
 
 It is also possible to use YAML configuration file for parameters:
@@ -108,8 +132,8 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.json
-depositResultsPath: ./deposit.json
-ssvPayloadResultsPath: ./payload.json
+depositResultsPath: ./output/
+ssvPayloadResultsPath: ./output/
 privKey: ./encrypted_private_key.json
 password: ./password
 ```
@@ -117,7 +141,7 @@ password: ./password
 When using configuration file, simply run:
 
 ```sh
-ssv-dkg init
+ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
 `ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)

@@ -24,7 +24,7 @@ var GenerateInitiatorKeysCmd = &cobra.Command{
 	Short: "generates RSA initiator keys",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := zap.L().Named(cmd.Short)
-		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
+		if err := logging.SetGlobalLogger("debug", "capital", "console", "./data/debug.log"); err != nil {
 			log.Fatal(err)
 		}
 		password, err := cmd.Flags().GetString("password")

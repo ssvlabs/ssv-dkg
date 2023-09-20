@@ -2,13 +2,14 @@ package wire
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"time"
 
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // NonceLength is the length of the nonce
@@ -23,10 +24,26 @@ type Config struct {
 	T      int
 	Board  dkg.Board
 
-	Logger *logrus.Entry
+	Logger *zap.Logger
+}
+
+type LogWrapper struct {
+	Logger *zap.Logger
+}
+
+func New(logger *zap.Logger) *LogWrapper {
+	return &LogWrapper{Logger: logger}
+}
+func (l *LogWrapper) Info(vals ...interface{}) {
+	l.Logger.Info(fmt.Sprint(vals...))
+}
+
+func (l *LogWrapper) Error(vals ...interface{}) {
+	l.Logger.Error(fmt.Sprint(vals...))
 }
 
 func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
+	dkgLogger := New(config.Logger)
 	dkgConfig := &dkg.Config{
 		Longterm:  config.Secret,
 		Nonce:     GetNonce(config.Identifier),
@@ -35,8 +52,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		OldNodes:  config.Nodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
 		Threshold: config.T,
 		Auth:      drand_bls.NewSchemeOnG2(config.Suite),
-
-		Log: config.Logger,
+		Log:       dkgLogger,
 	}
 
 	phaser := dkg.NewTimePhaser(time.Second * 5)

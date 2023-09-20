@@ -12,12 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi/v5"
 	"github.com/imroc/req/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -133,6 +135,10 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := CreateTestOperator(t, 1)
 	srv2 := CreateTestOperator(t, 2)
@@ -142,7 +148,6 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	ops[2] = initiator.Operator{Addr: srv2.httpSrv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
 	ops[3] = initiator.Operator{Addr: srv3.httpSrv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
 	ops[4] = initiator.Operator{Addr: srv4.httpSrv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
-
 	t.Run("test wrong pub key in init message", func(t *testing.T) {
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -152,7 +157,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops)
+		c := initiator.New(priv, ops, logger)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
@@ -177,7 +182,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		wrongPub, err := crypto.EncodePublicKey(&newPriv.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Infof("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes()))
+		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
@@ -216,7 +221,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops)
+		c := initiator.New(priv, ops, logger)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
@@ -236,7 +241,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		c.VerifyFunc = verify
 		wrongPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Infof("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes()))
+		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
@@ -289,11 +294,15 @@ func TestWrongInitiatorSignature(t *testing.T) {
 }
 
 func CreateTestOperator(t *testing.T, id uint64) *testOperator {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("operator-tests")
 	priv, err := load.EncryptedPrivateKey(exmaplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	swtch := &Switch{
-		Logger:           logrus.NewEntry(logrus.New()),
+		Logger:           logger,
 		Mtx:              sync.RWMutex{},
 		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
@@ -303,7 +312,7 @@ func CreateTestOperator(t *testing.T, id uint64) *testOperator {
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
 	s := &Server{
-		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}

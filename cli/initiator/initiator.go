@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
@@ -34,6 +33,10 @@ func init() {
 	flags.AddDepositResultStorePathFlag(StartDKG)
 	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
 	flags.ConfigPathFlag(StartDKG)
+	flags.LogLevelFlag(StartDKG)
+	flags.LogFormatFlag(StartDKG)
+	flags.LogLevelFormatFlag(StartDKG)
+	flags.LogFilePathFlag(StartDKG)
 	if err := viper.BindPFlag("withdrawAddress", StartDKG.PersistentFlags().Lookup("withdrawAddress")); err != nil {
 		panic(err)
 	}
@@ -64,12 +67,24 @@ func init() {
 	if err := viper.BindPFlag("initiatorPrivKeyPassword", StartDKG.PersistentFlags().Lookup("initiatorPrivKeyPassword")); err != nil {
 		panic(err)
 	}
+	if err := viper.BindPFlag("logLevel", StartDKG.PersistentFlags().Lookup("logLevel")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("logFormat", StartDKG.PersistentFlags().Lookup("logFormat")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("logLevelFormat", StartDKG.PersistentFlags().Lookup("logLevelFormat")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("logFilePath", StartDKG.PersistentFlags().Lookup("logFilePath")); err != nil {
+		panic(err)
+	}
 }
 
 var StartDKG = &cobra.Command{
 	Use:   "init",
 	Short: "Initiates a DKG protocol",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(`
 		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
 		██╔══██╗██║ ██╔╝██╔════╝     ██║████╗  ██║██║╚══██╔══╝██║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
@@ -77,32 +92,40 @@ var StartDKG = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := logging.SetGlobalLogger("debug", "capital", "console"); err != nil {
-			log.Fatal(err)
-		}
-		logger := zap.L().Named("dkg-initiator")
 		viper.SetConfigType("yaml")
 		configPath, err := flags.GetConfigPathFlagValue(cmd)
 		if err != nil {
-			logger.Fatal(err.Error())
+			return err
 		}
 		if configPath != "" {
-			viper.AddConfigPath(configPath)
+			viper.SetConfigFile(configPath)
 		} else {
 			viper.AddConfigPath("./config")
 		}
-		err = viper.ReadInConfig()
-		if err != nil {
-			logger.Warn("couldn't find config file, its ok if you using, cli params")
+		if err := viper.ReadInConfig(); err != nil {
+			return err
 		}
+		logLevel := viper.GetString("logLevel")
+		logFormat := viper.GetString("logFormat")
+		logLevelFormat := viper.GetString("logLevelFormat")
+		logFilePath := viper.GetString("logFilePath")
+		// If the log file doesn't exist, create it
+		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, logFilePath); err != nil {
+			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
+		}
+		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
 		depositResultsPath := viper.GetString("depositResultsPath")
 		if depositResultsPath == "" {
 			logger.Fatal("failed to get deposit result path flag value", zap.Error(err))
 		}
 		_, err = os.Stat(depositResultsPath)
-		if !os.IsNotExist(err) {
-			logger.Fatal("Deposit file at provided path already exist", zap.Error(err))
+		if os.IsNotExist(err) {
+			logger.Fatal("Folder to store deposit file does not exist", zap.Error(err))
 		}
 		// Check paths for results
 		ssvPayloadResultsPath := viper.GetString("ssvPayloadResultsPath")
@@ -110,8 +133,8 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to get ssv payload path flag value", zap.Error(err))
 		}
 		_, err = os.Stat(ssvPayloadResultsPath)
-		if !os.IsNotExist(err) {
-			logger.Fatal("SSV payload file at provided path already exist", zap.Error(err))
+		if os.IsNotExist(err) {
+			logger.Fatal("Folder to store SSV payload file does not exist", zap.Error(err))
 		}
 		// Load operators TODO: add more sources.
 		operatorFile := viper.GetString("operatorsInfoPath")
@@ -166,7 +189,7 @@ var StartDKG = &cobra.Command{
 			}
 		}
 
-		dkgInitiator := initiator.New(privateKey, opMap)
+		dkgInitiator := initiator.New(privateKey, opMap, logger)
 		withdrawAddr := viper.GetString("withdrawAddress")
 		if withdrawAddr == "" {
 			logger.Fatal("failed to get withdrawal address flag value", zap.Error(err))
@@ -196,19 +219,18 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
 		depositData, keyShares, err := dkgInitiator.StartDKG(withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
-
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
 		// Save deposit file
 		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
-		err = utils.WriteJSON(depositResultsPath, []initiator.DepositDataJson{*depositData})
+		err = utils.WriteJSON(depositResultsPath+"deposit_"+fmt.Sprint(depositData.PubKey)+".json", []initiator.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file", zap.Error(err))
 		}
 
 		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", ssvPayloadResultsPath))
-		err = utils.WriteJSON(ssvPayloadResultsPath, keyShares)
+		err = utils.WriteJSON(ssvPayloadResultsPath+"payload_"+fmt.Sprint(depositData.PubKey)+".json", keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file", zap.Error(err))
 		}
@@ -230,6 +252,7 @@ var StartDKG = &cobra.Command{
 		 When using distributed key generation you understand all the risks involved with
 		 experimental cryptography.  
 		 `)
+		return nil
 	},
 }
 

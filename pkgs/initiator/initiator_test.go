@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -19,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
@@ -39,6 +41,10 @@ type testOperator struct {
 const exmaplePath = "../../examples/"
 
 func TestOperatorMisbehave(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := CreateTestOperator(t, 1)
 	srv2 := CreateTestOperator(t, 2)
@@ -55,24 +61,24 @@ func TestOperatorMisbehave(t *testing.T) {
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		initiator := initiator.New(priv, ops)
+		initiator := initiator.New(priv, ops, logger)
 		depositData, keyshares, err := initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		testSharesData(t, ops, []*rsa.PrivateKey{srv1.privKey, srv2.privKey, srv3.privKey, srv4.privKey}, keyshares, owner, 0)
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		initiator := initiator.New(priv, ops)
+		initiator := initiator.New(priv, ops, logger)
 		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		initiator := initiator.New(priv, ops)
+		initiator := initiator.New(priv, ops, logger)
 		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		initiator := initiator.New(priv, ops)
+		initiator := initiator.New(priv, ops, logger)
 		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
 	})
@@ -84,11 +90,15 @@ func TestOperatorMisbehave(t *testing.T) {
 }
 
 func CreateTestOperator(t *testing.T, id uint64) *testOperator {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("operator-tests")
 	priv, err := load.EncryptedPrivateKey(exmaplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	swtch := &operator.Switch{
-		Logger:           logrus.NewEntry(logrus.New()),
+		Logger:           logger,
 		Mtx:              sync.RWMutex{},
 		InstanceInitTime: make(map[operator.InstanceID]time.Time, operator.MaxInstances),
 		Instances:        make(map[operator.InstanceID]operator.Instance, operator.MaxInstances),
@@ -98,7 +108,7 @@ func CreateTestOperator(t *testing.T, id uint64) *testOperator {
 	lg := logrus.New()
 	lg.SetLevel(logrus.DebugLevel)
 	s := &operator.Server{
-		Logger: logrus.NewEntry(lg).WithField("comp", "server"),
+		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}

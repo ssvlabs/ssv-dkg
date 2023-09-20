@@ -2,13 +2,12 @@ package board
 
 import (
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	//"github.com/RockX-SG/frost-dkg-demo/internal/node/kyber"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type Board struct {
-	logger *logrus.Entry
+	logger *zap.Logger
 
 	broadcastF     func(msg *wire2.KyberMessage) error
 	DealC          chan dkg.DealBundle
@@ -17,13 +16,12 @@ type Board struct {
 }
 
 func NewBoard(
-	logger *logrus.Entry,
+	logger *zap.Logger,
 	broadcastF func(msg *wire2.KyberMessage) error,
 ) *Board {
 	return &Board{
-		broadcastF: broadcastF,
-		logger:     logger,
-
+		broadcastF:     broadcastF,
+		logger:         logger,
 		DealC:          make(chan dkg.DealBundle),
 		ResponseC:      make(chan dkg.ResponseBundle),
 		JustificationC: make(chan dkg.JustificationBundle),
@@ -55,7 +53,7 @@ func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
 }
 
 func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
-	b.logger.Infof("pushing response bundle")
+	b.logger.Info("pushing response bundle")
 
 	byts, err := wire2.EncodeResponseBundle(bundle)
 	if err != nil {
@@ -79,7 +77,7 @@ func (b *Board) IncomingResponse() <-chan dkg.ResponseBundle {
 }
 
 func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
-	b.logger.Infof("pushing justification bundle")
+	b.logger.Info("pushing justification bundle")
 
 	byts, err := wire2.EncodeJustificationBundle(bundle)
 	if err != nil {
