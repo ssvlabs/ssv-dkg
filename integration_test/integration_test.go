@@ -78,8 +78,8 @@ func TestHappyFlow(t *testing.T) {
 		ops[2] = initiator.Operator{Addr: srv2.srv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
 		srv3 := CreateOperator(t, 3)
 		ops[3] = initiator.Operator{Addr: srv3.srv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
-		srv4 := CreateOperator(t, 7)
-		ops[101] = initiator.Operator{Addr: srv4.srv.URL, ID: 101, PubKey: &srv4.privKey.PublicKey}
+		srv4 := CreateOperator(t, 4)
+		ops[4] = initiator.Operator{Addr: srv4.srv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)

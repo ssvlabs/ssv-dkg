@@ -40,7 +40,7 @@ type testOperator struct {
 
 const exmaplePath = "../../examples/"
 
-func TestOperatorMisbehave(t *testing.T) {
+func TestStartDKG(t *testing.T) {
 	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
 		panic(err)
 	}
