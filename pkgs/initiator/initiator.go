@@ -535,7 +535,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	return depositDataJson, keyshares, nil
 }
 
-func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds []uint64, coefs []byte) (*DepositDataJson, *KeyShares, error) {
+func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds []uint64, coefs []byte) (*DepositDataJson, *bls.PublicKey, error) {
 	if len(oldIds) < 4 {
 		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
@@ -620,8 +620,8 @@ func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds 
 	if err != nil {
 		return nil, nil, err
 	}
-	c.Logger.Info(fmt.Sprintf("%x", validatorPubKey.GetHexString()))
-	return nil, nil, nil
+	c.Logger.Debug(fmt.Sprintf("%s", validatorPubKey.GetHexString()))
+	return nil, validatorPubKey, nil
 }
 
 type KeySign struct {

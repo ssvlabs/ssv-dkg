@@ -194,7 +194,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			InitiatorPublicKey:    wrongPub,
 		}
 		id := c.NewID()
-		results, err := c.SendInitMsg(init, id)
+		results, err := c.SendInitMsg(init, id, parts)
 		require.NoError(t, err)
 		var errs []error
 		for i := 0; i < len(results); i++ {
@@ -269,7 +269,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Signature: sig}
 		signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
 		require.NoError(t, err)
-		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
+		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts)
 		require.NoError(t, err)
 		var errs []error
 		for i := 0; i < len(results); i++ {

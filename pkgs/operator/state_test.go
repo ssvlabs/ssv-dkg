@@ -70,7 +70,7 @@ func TestCreateInstance(t *testing.T) {
 			InitiatorPublicKey: encPubKey,
 		}
 
-		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey)
+		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey, nil, nil)
 
 		require.NoError(t, err)
 		require.NotNil(t, inst)

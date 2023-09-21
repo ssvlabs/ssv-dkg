@@ -1,6 +1,8 @@
 package board
 
 import (
+	"fmt"
+
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
@@ -30,7 +32,10 @@ func NewBoard(
 
 func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 	b.logger.Debug("pushing deal bundle")
-
+	for _, d := range bundle.Deals {
+		b.logger.Debug(fmt.Sprintf("ShareIndex %d", d.ShareIndex))
+		b.logger.Debug(fmt.Sprintf("EncryptedShare %x", d.EncryptedShare))
+	}
 	byts, err := wire2.EncodeDealBundle(bundle)
 	if err != nil {
 		b.logger.Error(err.Error())

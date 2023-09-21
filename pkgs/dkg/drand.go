@@ -369,6 +369,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debug(fmt.Sprintf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize()))
 	var commits []byte
 	for _, point := range res.Result.Key.Commits {
+		o.Logger.Debug(fmt.Sprintf("Commit point  %s", point.String()))
 		b, _ := point.MarshalBinary()
 		commits = append(commits, b...)
 	}

@@ -218,6 +218,10 @@ func TestReshareHappyFlow(t *testing.T) {
 		ops[4] = initiator.Operator{Addr: srv4.srv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
 		srv5 := CreateOperator(t, 5)
 		ops[5] = initiator.Operator{Addr: srv5.srv.URL, ID: 5, PubKey: &srv5.privKey.PublicKey}
+		srv6 := CreateOperator(t, 6)
+		ops[6] = initiator.Operator{Addr: srv6.srv.URL, ID: 6, PubKey: &srv6.privKey.PublicKey}
+		srv7 := CreateOperator(t, 7)
+		ops[7] = initiator.Operator{Addr: srv7.srv.URL, ID: 7, PubKey: &srv7.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -271,16 +275,18 @@ func TestReshareHappyFlow(t *testing.T) {
 		dkgResults, validatorPubKey, _, _, _, err := c.ProcessDKGResultResponse(dkgResult, id)
 		require.NotNil(t, validatorPubKey)
 		require.NoError(t, err)
-		newIds := []uint64{5}
+		newIds := []uint64{5, 6, 7}
 		c = initiator.New(priv, ops, logger)
-		_, _, err = c.StartReshare(id, ids, newIds, dkgResults[0].Commits)
+		_, valPubReshare, err := c.StartReshare(id, ids, newIds, dkgResults[0].Commits)
 		require.NoError(t, err)
-
+		require.Equal(t, validatorPubKey.SerializeToHexStr(), valPubReshare.SerializeToHexStr())
 		srv1.srv.Close()
 		srv2.srv.Close()
 		srv3.srv.Close()
 		srv4.srv.Close()
 		srv5.srv.Close()
+		srv6.srv.Close()
+		srv7.srv.Close()
 	})
 }
 func testSharesData(t *testing.T, ops map[uint64]initiator.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
