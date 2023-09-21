@@ -196,7 +196,7 @@ func (o *LocalOwner) StartDKG() error {
 			Identifier:   o.Data.ReqID[:],
 			Secret:       o.Data.Secret,
 			OldNodes:     OldNodes,
-			NewNodes:     NewNodes,
+			NewNodes:     append(OldNodes, NewNodes...),
 			Suite:        o.suite,
 			T:            int(o.Data.init.T),
 			NewT:         int(o.Data.init.NewT),

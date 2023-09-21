@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/logging"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -17,6 +19,7 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestDKGFull(t *testing.T) {
@@ -36,6 +39,59 @@ func TestDKGFull(t *testing.T) {
 
 	results := RunDKG(t, tns, conf, nil, nil, nil)
 	testResults(t, suite, thr, n, results)
+}
+
+func TestDKGReshareFull(t *testing.T) {
+	n := 5
+	thr := 4
+	suite := kyber_bls12381.NewBLS12381Suite()
+	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
+	list := NodesFromTest(tns)
+	conf := dkg.Config{
+		Suite:     suite.G1().(dkg.Suite),
+		NewNodes:  list,
+		Threshold: thr,
+		Auth:      drand_bls.NewSchemeOnG2(suite),
+	}
+	types.InitBLS()
+	results := RunDKG(t, tns, conf, nil, nil, nil)
+	for i, t := range tns {
+		t.res = results[i]
+	}
+	testResults(t, suite, thr, n, results)
+	// we setup now the second group with higher node count and higher threshold
+	// and we remove one node from the previous group
+	newN := n + 5
+	newT := thr + 4
+	var newTns = make([]*TestNode, newN)
+	// remove the last node from the previous group
+	offline := 1
+	copy(newTns, tns[:n-offline])
+	// + offline because we fill the gap of the offline nodes by new nodes
+	newNode := newN - n + offline
+	for i := 0; i < newNode; i++ {
+		//  new node can have the same index as a previous one, separation is made
+		newTns[n-1+i] = NewTestNode(suite.G1().(dkg.Suite), n-1+i)
+	}
+	newList := NodesFromTest(newTns)
+	t.Logf("old nodes %v", list)
+	t.Logf("new nodes %v", newList)
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("crypto-tests")
+	dkgLogger := wire.New(logger)
+	newConf := &dkg.Config{
+		Suite:        suite.G1().(dkg.Suite),
+		NewNodes:     newList,
+		OldNodes:     list,
+		Threshold:    newT,
+		OldThreshold: thr,
+		Auth:         drand_bls.NewSchemeOnG2(suite),
+		Log:          dkgLogger,
+	}
+	results = RunReshare(t, newTns, *newConf, results[0].Key.Commits, nil, nil, nil)
+	testResults(t, suite, newT, newN, results)
 }
 
 func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.Result) {
@@ -197,7 +253,7 @@ func SetupNodes(nodes []*TestNode, c *dkg.Config) {
 	}
 }
 
-func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
+func SetupReshareNodes(t *testing.T, nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
 	nonce := dkg.GetNonce()
 	for _, n := range nodes {
 		c2 := *c
@@ -205,7 +261,9 @@ func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
 		c2.Nonce = nonce
 		if n.res != nil {
 			c2.Share = n.res.Key
+			t.Logf("Share for resharing %v, node index %d", n.res.Key, n.Index)
 		} else {
+			t.Logf("Commits for resharing %v, node index %d", coeffs, n.Index)
 			c2.PublicCoeffs = coeffs
 		}
 		dkg, err := dkg.NewDistKeyHandler(&c2)
@@ -287,6 +345,51 @@ func RunDKG(t *testing.T, tns []*TestNode, conf dkg.Config,
 		if errors.Is(err, dkg.ErrEvicted) {
 			continue
 		}
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		results = append(results, res)
+	}
+	return results
+}
+
+func RunReshare(t *testing.T, newTns []*TestNode, newConf dkg.Config, commits []kyber.Point,
+	dm MapDeal, rm MapResponse, jm MapJustif) []*dkg.Result {
+
+	SetupReshareNodes(t, newTns, &newConf, commits)
+
+	var deals []*dkg.DealBundle
+	for _, node := range newTns {
+		if node.res == nil {
+			// new members don't issue deals
+			continue
+		}
+		d, err := node.dkg.Deals()
+		require.NoError(t, err)
+		deals = append(deals, d)
+	}
+
+	var responses []*dkg.ResponseBundle
+	for _, node := range newTns {
+		resp, err := node.dkg.ProcessDeals(deals)
+		require.NoError(t, err)
+		if resp != nil {
+			// last node from the old group is not present so there should be
+			// some responses !
+			responses = append(responses, resp)
+		}
+	}
+	require.True(t, len(responses) > 0)
+
+	for _, node := range newTns {
+		res, just, err := node.dkg.ProcessResponses(responses)
+		require.NoError(t, err)
+		require.Nil(t, res)
+		// since the last old node is absent he can't give any justifications
+		require.Nil(t, just)
+	}
+	var results []*dkg.Result
+	for _, node := range newTns {
+		res, err := node.dkg.ProcessJustifications(nil)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		results = append(results, res)

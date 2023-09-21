@@ -72,7 +72,7 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 			Threshold:    config.T,
 			OldThreshold: config.NewT,
 			Auth:         drand_bls.NewSchemeOnG2(config.Suite),
-			PublicCoeffs: config.PublicCoeffs,
+			// PublicCoeffs: config.PublicCoeffs,
 			Log: dkgLogger,
 		}
 	}
