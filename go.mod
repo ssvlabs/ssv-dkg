@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/attestantio/go-eth2-client v0.16.3
-	github.com/drand/kyber v1.1.17
-	github.com/drand/kyber-bls12381 v0.2.4
+	github.com/drand/kyber v1.2.0
+	github.com/drand/kyber-bls12381 v0.2.5
 	github.com/ethereum/go-ethereum v1.12.2
 	github.com/ferranbt/fastssz v0.1.3
 	github.com/go-chi/chi/v5 v5.0.10

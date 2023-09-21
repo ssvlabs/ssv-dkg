@@ -13,7 +13,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/drand/kyber"
 	bls3 "github.com/drand/kyber-bls12381"
+	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +31,7 @@ type Instance interface {
 	ReadResponse() []byte
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
+	GetLocalOwner() *dkg.LocalOwner
 }
 
 type instWrapper struct {
@@ -46,9 +49,9 @@ func (iw *instWrapper) ReadError() error {
 
 type InstanceID [24]byte
 
-func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey, secret kyber.Scalar, secretShare *kyber_dkg.DistKeyShare) (Instance, []byte, error) {
 
-	verify, err := s.CreateVerifyFunc(init.Operators)
+	verify, err := s.CreateVerifyFunc(append(init.Operators, init.NewOperators...))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -59,7 +62,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, op := range init.Operators {
+	for _, op := range append(init.Operators, init.NewOperators...) {
 		if bytes.Equal(op.PubKey, pkBytes) {
 			operatorID = op.ID
 			break
@@ -91,7 +94,10 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	resp, err := owner.Init(reqID, init)
+	if secretShare != nil {
+		owner.SecretShare = secretShare
+	}
+	resp, err := owner.Init(reqID, init, secret)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -169,6 +175,54 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, fmt.Errorf("init message signature isn't valid: %s", err.Error())
 	}
 	s.Logger.Info(fmt.Sprintf("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes())))
+	// Check if we run reshare
+	var reshare bool
+	if len(init.NewOperators) != 0 {
+		reshare = true
+	}
+	// Get existing instance params
+	if reshare {
+		s.Logger.Info(fmt.Sprint("Starting reshare protocol"))
+		_, ok := s.Instances[init.OldID]
+		if ok {
+			s.Mtx.Lock()
+			l := len(s.Instances)
+			if l >= MaxInstances {
+				cleaned := s.CleanInstances() // not thread safe
+				if l-cleaned >= MaxInstances {
+					s.Mtx.Unlock()
+					return nil, ErrMaxInstances
+				}
+			}
+			_, ok := s.Instances[reqID]
+			if ok {
+				tm := s.InstanceInitTime[reqID]
+				if !time.Now().After(tm.Add(MaxInstanceTime)) {
+					s.Mtx.Unlock()
+					return nil, ErrAlreadyExists
+				}
+				delete(s.Instances, reqID)
+				delete(s.InstanceInitTime, reqID)
+			}
+			oldLocalOwner := s.Instances[init.OldID].GetLocalOwner()
+			s.Mtx.Unlock()
+			inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey, oldLocalOwner.Data.Secret, oldLocalOwner.SecretShare)
+			if err != nil {
+				return nil, err
+			}
+			s.Mtx.Lock()
+			_, ok = s.Instances[reqID]
+			if ok {
+				s.Mtx.Unlock()
+				return nil, ErrAlreadyExists
+			}
+			s.Instances[reqID] = inst
+			s.InstanceInitTime[reqID] = time.Now()
+			s.Mtx.Unlock()
+			return resp, nil
+		}
+	}
+
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
@@ -189,7 +243,8 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		delete(s.InstanceInitTime, reqID)
 	}
 	s.Mtx.Unlock()
-	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
+	s.Logger.Info(fmt.Sprint("Starting initial DKG protocol"))
+	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey, nil, nil)
 
 	if err != nil {
 		return nil, err

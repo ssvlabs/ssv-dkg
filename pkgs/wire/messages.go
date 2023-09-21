@@ -94,6 +94,11 @@ type Init struct {
 	Nonce uint64
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
+	// Reshare fields
+	NewOperators []*Operator `ssz-max:"26"`
+	NewT         uint64
+	OldID        [24]byte `ssz-size:"24"`
+	Coefs        []byte   `ssz-max:"4096"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

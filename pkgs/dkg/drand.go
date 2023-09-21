@@ -72,6 +72,8 @@ type Result struct {
 	DepositPartialSignature []byte
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte
+	// Public poly commitments
+	Commits []byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -91,7 +93,7 @@ type LocalOwner struct {
 	startedDKG  chan struct{}
 	ErrorChan   chan error
 	ID          uint64
-	data        *DKGData
+	Data        *DKGData
 	b           *board.Board
 	suite       pairing.Suite
 	BroadcastF  func([]byte) error
@@ -143,31 +145,93 @@ func New(opts OwnerOpts) *LocalOwner {
 
 func (o *LocalOwner) StartDKG() error {
 	o.Logger.Info("Starting DKG")
-	nodes := make([]dkg.Node, 0)
-	for id, e := range o.Exchanges {
-		p := o.suite.G1().Point()
-		if err := p.UnmarshalBinary(e.PK); err != nil {
-			return err
-		}
+	var config *wire.Config
+	// reshare
 
-		nodes = append(nodes, dkg.Node{
-			Index:  dkg.Index(id - 1),
-			Public: p,
-		})
+	if len(o.Data.init.NewOperators) != 0 {
+		NewNodes := make([]dkg.Node, 0)
+		for _, op := range o.Data.init.NewOperators {
+			if o.Exchanges[op.ID] == nil {
+				return fmt.Errorf("no operator at Exchanges")
+			}
+			e := o.Exchanges[op.ID]
+			p := o.suite.G1().Point()
+			if err := p.UnmarshalBinary(e.PK); err != nil {
+				return err
+			}
+
+			NewNodes = append(NewNodes, dkg.Node{
+				Index:  dkg.Index(op.ID - 1),
+				Public: p,
+			})
+		}
+		OldNodes := make([]dkg.Node, 0)
+		for _, op := range o.Data.init.Operators {
+			if o.Exchanges[op.ID] == nil {
+				return fmt.Errorf("no operator at Exchanges")
+			}
+			e := o.Exchanges[op.ID]
+			p := o.suite.G1().Point()
+			if err := p.UnmarshalBinary(e.PK); err != nil {
+				return err
+			}
+
+			OldNodes = append(OldNodes, dkg.Node{
+				Index:  dkg.Index(op.ID - 1),
+				Public: p,
+			})
+		}
+		var coefs []kyber.Point
+		coefsBytes := splitBytes(o.Data.init.Coefs, 48)
+		for _, c := range coefsBytes {
+			p := o.suite.G1().Point()
+			err := p.UnmarshalBinary(c)
+			if err != nil {
+				return err
+			}
+			coefs = append(coefs, p)
+		}
+		o.Logger.Debug(fmt.Sprintf("Staring Reshare with nodes %v", append(OldNodes, NewNodes...)))
+		config = &wire.Config{
+			Identifier:   o.Data.ReqID[:],
+			Secret:       o.Data.Secret,
+			OldNodes:     OldNodes,
+			NewNodes:     NewNodes,
+			Suite:        o.suite,
+			T:            int(o.Data.init.T),
+			NewT:         int(o.Data.init.NewT),
+			Board:        o.b,
+			PublicCoeffs: coefs,
+			Share:        o.SecretShare,
+			Logger:       o.Logger,
+		}
+	} else {
+		nodes := make([]dkg.Node, 0)
+		for id, e := range o.Exchanges {
+			p := o.suite.G1().Point()
+			if err := p.UnmarshalBinary(e.PK); err != nil {
+				return err
+			}
+
+			nodes = append(nodes, dkg.Node{
+				Index:  dkg.Index(id - 1),
+				Public: p,
+			})
+		}
+		o.Logger.Debug(fmt.Sprintf("Staring DKG with nodes %v", nodes))
+		config = &wire.Config{
+			Identifier: o.Data.ReqID[:],
+			Secret:     o.Data.Secret,
+			NewNodes:   nodes,
+			Suite:      o.suite,
+			T:          int(o.Data.init.T),
+			Board:      o.b,
+			Logger:     o.Logger,
+		}
 	}
-	o.Logger.Debug(fmt.Sprintf("Staring DKG with nodes %v", nodes))
 
 	// New protocol
-	p, err := wire.NewDKGProtocol(&wire.Config{
-		Identifier: o.data.ReqID[:],
-		Secret:     o.data.Secret,
-		Nodes:      nodes,
-		Suite:      o.suite,
-		T:          int(o.data.init.T),
-		Board:      o.b,
-
-		Logger: o.Logger,
-	})
+	p, err := wire.NewDKGProtocol(config)
 	if err != nil {
 		return err
 	}
@@ -242,7 +306,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 			Index:  res.Result.Key.Share.I,
 			Secret: secretKeyBLS.SerializeToHexStr(),
 		}
-		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
+		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.Data.ReqID[:]), &data)
 		if err != nil {
 			o.Logger.Error("%v", zap.Error(err))
 		}
@@ -273,12 +337,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 
 	o.Logger.Debug(fmt.Sprintf("Encrypted share %x", ciphertext))
-	o.Logger.Debug(fmt.Sprintf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials))
-	o.Logger.Debug(fmt.Sprintf("Fork Version %x", o.data.init.Fork))
+	o.Logger.Debug(fmt.Sprintf("Withdrawal Credentials %x", o.Data.init.WithdrawalCredentials))
+	o.Logger.Debug(fmt.Sprintf("Fork Version %x", o.Data.init.Fork))
 	o.Logger.Debug(fmt.Sprintf("Domain %x", ssvspec_types.DomainDeposit))
 
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.Data.init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug(fmt.Sprintf("Root %x", signRoot))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -303,8 +367,13 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	o.Logger.Debug(fmt.Sprintf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize()))
+	var commits []byte
+	for _, point := range res.Result.Key.Commits {
+		b, _ := point.MarshalBinary()
+		commits = append(commits, b...)
+	}
 	out := Result{
-		RequestID:                  o.data.ReqID,
+		RequestID:                  o.Data.ReqID,
 		EncryptedShare:             ciphertext,
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
@@ -312,6 +381,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
+		Commits:                    commits,
 	}
 
 	encodedOutput, err := out.Encode()
@@ -322,7 +392,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 
 	tsMsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
-		Identifier: o.data.ReqID,
+		Identifier: o.Data.ReqID,
 		Data:       encodedOutput,
 	}
 
@@ -331,13 +401,13 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	return nil
 }
 
-func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
-	if o.data == nil {
-		o.data = &DKGData{}
+func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init, secret kyber.Scalar) (*wire.Transport, error) {
+	if o.Data == nil {
+		o.Data = &DKGData{}
 	}
-	o.data.init = init
-	o.data.ReqID = reqID
-	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
+	o.Data.init = init
+	o.Data.ReqID = reqID
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.Data.ReqID[:])))
 	o.b = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
@@ -349,7 +419,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 
 			trsp := &wire.Transport{
 				Type:       wire.KyberMessageType,
-				Identifier: o.data.ReqID,
+				Identifier: o.Data.ReqID,
 				Data:       byts,
 			}
 
@@ -363,14 +433,24 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 			return nil
 		},
 	)
-
-	eciesSK, pk := InitSecret(o.suite)
-	o.data.Secret = eciesSK
-	bts, _, err := CreateExchange(pk)
-	if err != nil {
-		return nil, err
+	if secret != nil {
+		o.Data.Secret = secret
+		pk := o.suite.G1().Point().Mul(secret, nil)
+		bts, _, err := CreateExchange(pk)
+		if err != nil {
+			return nil, err
+		}
+		return ExchangeWireMessage(bts, reqID), nil
+	} else {
+		eciesSK, pk := InitSecret(o.suite)
+		o.Data.Secret = eciesSK
+		// check if we are running resharing protocol
+		bts, _, err := CreateExchange(pk)
+		if err != nil {
+			return nil, err
+		}
+		return ExchangeWireMessage(bts, reqID), nil
 	}
-	return ExchangeWireMessage(bts, reqID), nil
 }
 
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
@@ -444,7 +524,15 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
-		if len(o.Exchanges) == len(o.data.init.Operators) {
+		var operators []*wire.Operator
+		// if we are running reshare then new operators field should not be empty
+
+		if o.Data.init.NewOperators != nil {
+			operators = append(o.Data.init.Operators, o.Data.init.NewOperators...)
+		} else {
+			operators = o.Data.init.Operators
+		}
+		if len(o.Exchanges) == len(operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
 			}
@@ -504,7 +592,7 @@ func (o *LocalOwner) broadcastError(err error) {
 	errMsgEnc, _ := json.Marshal(err.Error())
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
-		Identifier: o.data.ReqID,
+		Identifier: o.Data.ReqID,
 		Data:       errMsgEnc,
 	}
 
@@ -522,4 +610,21 @@ func (o *LocalOwner) VerifyInitiatorMessage(msg []byte, sig []byte) error {
 	}
 	o.Logger.Info(fmt.Sprintf("Successfully verified initiator message signature from: %x", sha256.Sum256(o.InitiatorPublicKey.N.Bytes())))
 	return nil
+}
+
+func (o *LocalOwner) GetLocalOwner() *LocalOwner {
+	return o
+}
+
+func splitBytes(buf []byte, lim int) [][]byte {
+	var chunk []byte
+	chunks := make([][]byte, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
 }

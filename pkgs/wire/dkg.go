@@ -18,13 +18,16 @@ const NonceLength = 32
 type Config struct {
 	Identifier []byte
 	// Secret session secret key
-	Secret kyber.Scalar
-	Nodes  []dkg.Node
-	Suite  pairing.Suite
-	T      int
-	Board  dkg.Board
-
-	Logger *zap.Logger
+	Secret       kyber.Scalar
+	OldNodes     []dkg.Node
+	NewNodes     []dkg.Node
+	Suite        pairing.Suite
+	T            int
+	NewT         int
+	Board        dkg.Board
+	Share        *dkg.DistKeyShare
+	PublicCoeffs []kyber.Point
+	Logger       *zap.Logger
 }
 
 type LogWrapper struct {
@@ -44,15 +47,34 @@ func (l *LogWrapper) Error(vals ...interface{}) {
 
 func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 	dkgLogger := New(config.Logger)
-	dkgConfig := &dkg.Config{
-		Longterm:  config.Secret,
-		Nonce:     GetNonce(config.Identifier),
-		Suite:     config.Suite.G1().(dkg.Suite),
-		NewNodes:  config.Nodes,
-		OldNodes:  config.Nodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
-		Threshold: config.T,
-		Auth:      drand_bls.NewSchemeOnG2(config.Suite),
-		Log:       dkgLogger,
+	var dkgConfig *dkg.Config
+	if config.Share != nil {
+		dkgLogger.Info(fmt.Sprintf("starting dkg resharing protocol with share %s", config.Share.Share.V.String()))
+		dkgConfig = &dkg.Config{
+			Longterm:     config.Secret,
+			Nonce:        GetNonce(config.Identifier),
+			Suite:        config.Suite.G1().(dkg.Suite),
+			NewNodes:     config.NewNodes,
+			OldNodes:     config.OldNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
+			Threshold:    config.T,
+			OldThreshold: config.NewT,
+			Auth:         drand_bls.NewSchemeOnG2(config.Suite),
+			Share:        config.Share,
+			Log:          dkgLogger,
+		}
+	} else {
+		dkgConfig = &dkg.Config{
+			Longterm:     config.Secret,
+			Nonce:        GetNonce(config.Identifier),
+			Suite:        config.Suite.G1().(dkg.Suite),
+			NewNodes:     config.NewNodes,
+			OldNodes:     config.OldNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
+			Threshold:    config.T,
+			OldThreshold: config.NewT,
+			Auth:         drand_bls.NewSchemeOnG2(config.Suite),
+			PublicCoeffs: config.PublicCoeffs,
+			Log: dkgLogger,
+		}
 	}
 
 	phaser := dkg.NewTimePhaser(time.Second * 5)

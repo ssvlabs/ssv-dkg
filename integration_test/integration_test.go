@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
@@ -24,10 +25,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const encryptedKeyLength = 256
@@ -198,6 +201,88 @@ func TestHappyFlow(t *testing.T) {
 	})
 }
 
+func TestReshareHappyFlow(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("integration-tests")
+	t.Run("test 4 operators reshare happy flow", func(t *testing.T) {
+		ops := make(map[uint64]initiator.Operator)
+		srv1 := CreateOperator(t, 1)
+		ops[1] = initiator.Operator{Addr: srv1.srv.URL, ID: 1, PubKey: &srv1.privKey.PublicKey}
+		srv2 := CreateOperator(t, 2)
+		ops[2] = initiator.Operator{Addr: srv2.srv.URL, ID: 2, PubKey: &srv2.privKey.PublicKey}
+		srv3 := CreateOperator(t, 3)
+		ops[3] = initiator.Operator{Addr: srv3.srv.URL, ID: 3, PubKey: &srv3.privKey.PublicKey}
+		srv4 := CreateOperator(t, 4)
+		ops[4] = initiator.Operator{Addr: srv4.srv.URL, ID: 4, PubKey: &srv4.privKey.PublicKey}
+		srv5 := CreateOperator(t, 5)
+		ops[5] = initiator.Operator{Addr: srv5.srv.URL, ID: 5, PubKey: &srv5.privKey.PublicKey}
+		// Initiator priv key
+		_, pv, err := rsaencryption.GenerateKeys()
+		require.NoError(t, err)
+		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		require.NoError(t, err)
+		c := initiator.New(priv, ops, logger)
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+		ids := []uint64{1, 2, 3, 4}
+		// depositData, ks, err := c.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		// compute threshold (3f+1)
+		threshold := len(ids) - ((len(ids) - 1) / 3)
+		parts := make([]*wire.Operator, 0)
+		for _, id := range ids {
+			op, ok := c.Operators[id]
+			if !ok {
+				t.Fatal("op is not in list")
+			}
+			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			require.NoError(t, err)
+			parts = append(parts, &wire.Operator{
+				ID:     op.ID,
+				PubKey: pkBytes,
+			})
+		}
+		// Add messages verification coming form operators
+		verify, err := c.CreateVerifyFunc(parts)
+		require.NoError(t, err)
+		c.VerifyFunc = verify
+		pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
+		// make init message
+		init := &wire.Init{
+			Operators:             parts,
+			T:                     uint64(threshold),
+			WithdrawalCredentials: withdraw.Bytes(),
+			Fork:                  [4]byte{0, 0, 0, 0},
+			Owner:                 owner,
+			Nonce:                 0,
+			InitiatorPublicKey:    pkBytes,
+		}
+		id := c.NewID()
+		results, err := c.SendInitMsg(init, id, parts)
+		require.NoError(t, err)
+		results, err = c.SendExchangeMsgs(results, id, parts)
+		require.NoError(t, err)
+		dkgResult, err := c.SendKyberMsgs(results, id, parts)
+		require.NoError(t, err)
+		c.Logger.Info("Round 2. Finished successfully. Got DKG results")
+		dkgResults, validatorPubKey, _, _, _, err := c.ProcessDKGResultResponse(dkgResult, id)
+		require.NotNil(t, validatorPubKey)
+		require.NoError(t, err)
+		newIds := []uint64{5}
+		c = initiator.New(priv, ops, logger)
+		_, _, err = c.StartReshare(id, ids, newIds, dkgResults[0].Commits)
+		require.NoError(t, err)
+
+		srv1.srv.Close()
+		srv2.srv.Close()
+		srv3.srv.Close()
+		srv4.srv.Close()
+		srv5.srv.Close()
+	})
+}
 func testSharesData(t *testing.T, ops map[uint64]initiator.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {
 	operatorCount := len(keys)
 	signatureOffset := phase0.SignatureLength
