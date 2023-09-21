@@ -88,7 +88,7 @@ func TestHappyFlow(t *testing.T) {
 		clnt := initiator.New(priv, ops, logger)
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 101}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 		require.NoError(t, err)

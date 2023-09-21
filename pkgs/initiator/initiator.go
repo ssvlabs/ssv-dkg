@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"time"
 
@@ -728,4 +731,38 @@ func (c *Initiator) validateOpIDs(ids []uint64) error {
 		opMap[id] = true
 	}
 	return nil
+}
+
+func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
+	opmap := make(map[uint64]Operator)
+	var operators []OperatorDataJson
+	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
+	if err != nil {
+		return nil, err
+	}
+	for _, opdata := range operators {
+		_, err := url.ParseRequestURI(opdata.Addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid operator URL")
+		}
+		operatorKeyByte, err := base64.StdEncoding.DecodeString(opdata.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		pemBlock, _ := pem.Decode(operatorKeyByte)
+		if pemBlock == nil {
+			return nil, fmt.Errorf("wrong pub key string")
+		}
+		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		opmap[opdata.ID] = Operator{
+			Addr:   opdata.Addr,
+			ID:     opdata.ID,
+			PubKey: pbKey.(*rsa.PublicKey),
+		}
+	}
+	return opmap, nil
 }
