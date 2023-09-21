@@ -361,7 +361,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 	return final, nil
 }
 
-func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 	if len(ids) < 4 {
 		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
@@ -379,7 +379,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	for _, id := range ids {
 		op, ok := c.Operators[id]
 		if !ok {
-			return nil, nil, errors.New("op is not in list")
+			return nil, nil, errors.New("operator is not in the list")
 		}
 		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
 		if err != nil {
@@ -411,7 +411,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 		Nonce:                 nonce,
 		InitiatorPublicKey:    pkBytes,
 	}
-	id := c.NewID()
+
 	results, err := c.SendInitMsg(init, id)
 	if err != nil {
 		return nil, nil, err
@@ -634,7 +634,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 			return nil, nil, nil, nil, nil, err
 		}
 		ssvContractOwnerNonceSigShares[result.OperatorID] = ownerNonceShareSig
-		c.Logger.Debug(fmt.Sprintf("Result of DKG from an operator %v", result))
+		c.Logger.Debug(fmt.Sprintf("Result of DKG from an operator %x", result.ValidatorPubKey))
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }

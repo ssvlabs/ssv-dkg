@@ -22,8 +22,10 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
+const examplePath = "../../examples/"
+
 func TestRateLimit(t *testing.T) {
-	srv := CreateTestOperator(t, 1)
+	srv := CreateTestOperatorFromFile(t, 1, examplePath)
 	t.Run("test init route rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
@@ -35,9 +37,7 @@ func TestRateLimit(t *testing.T) {
 				t.Fatalf("no op")
 			}
 			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
-			if err != nil {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
@@ -132,10 +132,10 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	}
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := CreateTestOperator(t, 1)
-	srv2 := CreateTestOperator(t, 2)
-	srv3 := CreateTestOperator(t, 3)
-	srv4 := CreateTestOperator(t, 4)
+	srv1 := CreateTestOperatorFromFile(t, 1, examplePath)
+	srv2 := CreateTestOperatorFromFile(t, 2, examplePath)
+	srv3 := CreateTestOperatorFromFile(t, 3, examplePath)
+	srv4 := CreateTestOperatorFromFile(t, 4, examplePath)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}

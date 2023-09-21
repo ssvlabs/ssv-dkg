@@ -44,16 +44,18 @@ var jsonStr = []byte(`[
   }
 ]`)
 
+const examplePath = "../../examples/"
+
 func TestStartDKG(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("debug", "capital", "console", ""); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
-	srv2 := operator.CreateTestOperator(t, 2)
-	srv3 := operator.CreateTestOperator(t, 3)
-	srv4 := operator.CreateTestOperator(t, 4)
+	srv1 := operator.CreateTestOperatorFromFile(t, 1, examplePath)
+	srv2 := operator.CreateTestOperatorFromFile(t, 2, examplePath)
+	srv3 := operator.CreateTestOperatorFromFile(t, 3, examplePath)
+	srv4 := operator.CreateTestOperatorFromFile(t, 4, examplePath)
 	ops[1] = Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
 	ops[2] = Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
 	ops[3] = Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
@@ -66,24 +68,28 @@ func TestStartDKG(t *testing.T) {
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		depositData, keyshares, err := initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		id := initiator.NewID()
+		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		VerifySharesData(t, ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		VerifyDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		id := initiator.NewID()
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		id := initiator.NewID()
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		_, _, err = initiator.StartDKG(withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		id := initiator.NewID()
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
 	})
 
