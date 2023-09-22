@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -104,10 +103,9 @@ type LocalOwner struct {
 	VerifyFunc func(id uint64, msg, sig []byte) error
 	SignFunc   func([]byte) ([]byte, error)
 
-	Owner              common.Address
-	Nonce              uint64
-	done               chan struct{}
-	InitiatorPublicKey *rsa.PublicKey
+	Owner common.Address
+	Nonce uint64
+	done  chan struct{}
 }
 
 type OwnerOpts struct {
@@ -125,20 +123,19 @@ type OwnerOpts struct {
 
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
-		Logger:             opts.Logger,
-		startedDKG:         make(chan struct{}, 1),
-		ErrorChan:          make(chan error, 1),
-		ID:                 opts.ID,
-		BroadcastF:         opts.BroadcastF,
-		Exchanges:          make(map[uint64]*wire.Exchange),
-		SignFunc:           opts.SignFunc,
-		VerifyFunc:         opts.VerifyFunc,
-		done:               make(chan struct{}, 1),
-		suite:              opts.Suite,
-		OpPrivKey:          opts.OpPrivKey,
-		Owner:              opts.Owner,
-		Nonce:              opts.Nonce,
-		InitiatorPublicKey: opts.InitiatorPublicKey,
+		Logger:     opts.Logger,
+		startedDKG: make(chan struct{}, 1),
+		ErrorChan:  make(chan error, 1),
+		ID:         opts.ID,
+		BroadcastF: opts.BroadcastF,
+		Exchanges:  make(map[uint64]*wire.Exchange),
+		SignFunc:   opts.SignFunc,
+		VerifyFunc: opts.VerifyFunc,
+		done:       make(chan struct{}, 1),
+		suite:      opts.Suite,
+		OpPrivKey:  opts.OpPrivKey,
+		Owner:      opts.Owner,
+		Nonce:      opts.Nonce,
 	}
 	return owner
 }
@@ -222,6 +219,7 @@ func (o *LocalOwner) StartDKG() error {
 		config = &wire.Config{
 			Identifier: o.Data.ReqID[:],
 			Secret:     o.Data.Secret,
+			Share:      o.SecretShare,
 			NewNodes:   nodes,
 			Suite:      o.suite,
 			T:          int(o.Data.init.T),
@@ -599,18 +597,6 @@ func (o *LocalOwner) broadcastError(err error) {
 
 	o.Broadcast(errMsg)
 	close(o.done)
-}
-
-func (o *LocalOwner) VerifyInitiatorMessage(msg []byte, sig []byte) error {
-	pubKey, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
-	if err != nil {
-		return err
-	}
-	if err := crypto.VerifyRSA(o.InitiatorPublicKey, msg, sig); err != nil {
-		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
-	}
-	o.Logger.Info(fmt.Sprintf("Successfully verified initiator message signature from: %x", sha256.Sum256(o.InitiatorPublicKey.N.Bytes())))
-	return nil
 }
 
 func (o *LocalOwner) GetLocalOwner() *LocalOwner {

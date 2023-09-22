@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/google/uuid"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -442,4 +443,14 @@ func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.
 		}
 	}
 	return nil
+}
+
+func NewID() [24]byte {
+	var id [24]byte
+	b := uuid.New()
+	b2 := uuid.New() // random ID for each new DKG initiation
+	copy(id[:16], b[:])
+	copy(id[16:], b2[:8])
+	//copy(id[8:], b[:])
+	return id
 }
