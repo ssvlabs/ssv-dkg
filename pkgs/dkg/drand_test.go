@@ -3,6 +3,10 @@ package dkg
 import (
 	"crypto/rsa"
 	"fmt"
+	mrand "math/rand"
+	"testing"
+	"time"
+
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber"
@@ -12,9 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	mrand "math/rand"
-	"testing"
-	"time"
 )
 
 type testVerify struct {
@@ -206,8 +207,10 @@ func TestDKG(t *testing.T) {
 
 	require.NoError(t, err)
 
+	pubs := make(map[uint64]kyber.Point)
 	err = ts.ForAll(func(o *LocalOwner) error {
 		<-o.done
+		pubs[o.ID] = o.SecretShare.Public()
 		return nil
 	})
 
@@ -326,12 +329,24 @@ func TestDKG(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-
+	newPubs := make(map[uint64]kyber.Point)
 	err = ts2.ForAll(func(o *LocalOwner) error {
 		<-o.done
+		newPubs[o.ID] = o.SecretShare.Public()
 		return nil
 	})
 
+	// Print old pubs
+	var resPub kyber.Point
+	for id, pub := range pubs {
+		t.Logf("ID %d, old pub %s", id, pub.String())
+		resPub = pub
+	}
+	// Print new pubs
+	for id, pub := range newPubs {
+		require.Equal(t, resPub.String(), pub.String())
+		t.Logf("ID %d, new pub %s", id, pub.String())
+	}
 	require.NoError(t, err)
 
 }
