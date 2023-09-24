@@ -15,6 +15,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
@@ -48,9 +49,10 @@ type Operator struct {
 }
 
 type DKGData struct {
-	ReqID  [24]byte
-	init   *wire.Init
-	Secret kyber.Scalar
+	ReqID   [24]byte
+	Init    *wire.Init
+	Reshare *wire.Reshare
+	Secret  kyber.Scalar
 }
 
 // Result is the last message in every DKG which marks a specific node's end of process
@@ -83,6 +85,26 @@ func (msg *Result) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
 }
 
+type PriShare struct {
+	I int    `json:"index"`
+	V []byte `json:"secret_point"`
+}
+
+type DistKeyShare struct {
+	Commits []byte   `json:"commits"`
+	Share   PriShare `json:"secret_share"`
+}
+
+// Encode returns a msg encoded bytes or error
+func (msg *DistKeyShare) Encode() ([]byte, error) {
+	return json.Marshal(msg)
+}
+
+// Decode returns error if decoding failed
+func (msg *DistKeyShare) Decode(data []byte) error {
+	return json.Unmarshal(data, msg)
+}
+
 var ErrAlreadyExists = errors.New("duplicate message")
 
 type LocalOwner struct {
@@ -105,6 +127,7 @@ type LocalOwner struct {
 	Nonce              uint64
 	done               chan struct{}
 	InitiatorPublicKey *rsa.PublicKey
+	DB                 *kv.BadgerDB
 }
 
 type OwnerOpts struct {
@@ -118,6 +141,7 @@ type OwnerOpts struct {
 	Owner              [20]byte
 	Nonce              uint64
 	InitiatorPublicKey *rsa.PublicKey
+	DB                 *kv.BadgerDB
 }
 
 func New(opts OwnerOpts) *LocalOwner {
@@ -136,6 +160,7 @@ func New(opts OwnerOpts) *LocalOwner {
 		Owner:              opts.Owner,
 		Nonce:              opts.Nonce,
 		InitiatorPublicKey: opts.InitiatorPublicKey,
+		DB:                 opts.DB,
 	}
 	return owner
 }
@@ -164,7 +189,7 @@ func (o *LocalOwner) StartDKG() error {
 		Secret:     o.data.Secret,
 		Nodes:      nodes,
 		Suite:      o.suite,
-		T:          int(o.data.init.T),
+		T:          int(o.data.Init.T),
 		Board:      o.b,
 
 		Logger: o.Logger,
@@ -215,7 +240,31 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
 	o.SecretShare = res.Result.Key
-
+	// encode priv share
+	secret := &DistKeyShare{}
+	var commits []byte
+	for _, point := range o.SecretShare.Commits {
+		b, _ := point.MarshalBinary()
+		commits = append(commits, b...)
+	}
+	secret.Commits = commits
+	secterPoint, err := o.SecretShare.Share.V.MarshalBinary()
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	secret.Share.V = secterPoint
+	secret.Share.I = o.SecretShare.Share.I
+	bin, err := secret.Encode()
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], bin)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
 	if err != nil {
@@ -273,12 +322,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 
 	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
-	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.data.init.WithdrawalCredentials)))
-	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.data.init.Fork[:])))
+	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.data.Init.WithdrawalCredentials)))
+	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.data.Init.Fork[:])))
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.Init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.Init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -330,11 +379,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	return nil
 }
 
-func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
+func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init, reshare *wire.Reshare) (*wire.Transport, error) {
 	if o.data == nil {
 		o.data = &DKGData{}
 	}
-	o.data.init = init
+	o.data.Init = init
+	o.data.Reshare = reshare
 	o.data.ReqID = reqID
 	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
 	o.b = board.NewBoard(
@@ -432,7 +482,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
-		if len(o.Exchanges) == len(o.data.init.Operators) {
+		if len(o.Exchanges) == len(o.data.Init.Operators) {
 			if err := o.StartDKG(); err != nil {
 				return err
 			}
@@ -510,4 +560,8 @@ func (o *LocalOwner) VerifyInitiatorMessage(msg []byte, sig []byte) error {
 	}
 	o.Logger.Info("Successfully verified initiator message signature", zap.Uint64("from", o.ID))
 	return nil
+}
+
+func (o *LocalOwner) GetLocalOwner() *LocalOwner {
+	return o
 }

@@ -14,6 +14,7 @@ type TransportType uint64
 
 const (
 	InitMessageType TransportType = iota
+	ReshareMessageType
 	KyberMessageType
 	InitReshareMessageType
 	ExchangeMessageType
@@ -29,6 +30,8 @@ func (t TransportType) String() string {
 	switch t {
 	case InitMessageType:
 		return "InitMessageType"
+	case ReshareMessageType:
+		return "ReshareMessageType"
 	case KyberMessageType:
 		return "KyberMessageType"
 	case ExchangeMessageType:
@@ -87,6 +90,23 @@ type Init struct {
 	Nonce uint64
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
+}
+
+type Reshare struct {
+	// Operators involved in the DKG
+	OldOperators []*Operator `ssz-max:"13"`
+	// Operators involved in the resharing
+	NewOperators []*Operator `ssz-max:"13"`
+	// OldT is the old threshold for signing
+	OldT uint64
+	// NewT is the old threshold for signing
+	NewT uint64
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
+	// ID of the initial DKG ceremony
+	OldID [24]byte `ssz-size:"24"`
+	// Public coeffs
+	Coefs []byte   `ssz-max:"4096"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

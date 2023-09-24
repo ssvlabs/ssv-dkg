@@ -217,7 +217,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to decode withdrawal public key: ", zap.Error(err))
 		}
-		id := dkgInitiator.NewID()
+		id := crypto.NewID()
 		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))

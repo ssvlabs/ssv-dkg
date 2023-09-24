@@ -1,17 +1,19 @@
 package operator
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/go-chi/chi/v5"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -46,9 +48,13 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := NewSwitch(priv, logger)
-	lg := logrus.New()
-	lg.SetLevel(logrus.DebugLevel)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(priv, logger, db)
 	s := &Server{
 		Logger: logger,
 		Router: r,
@@ -74,9 +80,13 @@ func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	swtch := NewSwitch(priv, logger)
-	lg := logrus.New()
-	lg.SetLevel(logrus.DebugLevel)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(priv, logger, db)
 	s := &Server{
 		Logger: logger,
 		Router: r,

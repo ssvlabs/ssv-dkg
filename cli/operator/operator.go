@@ -1,16 +1,19 @@
 package operator
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 
 	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -26,6 +29,9 @@ func init() {
 	flags.LogFormatFlag(StartDKGOperator)
 	flags.LogLevelFormatFlag(StartDKGOperator)
 	flags.LogFilePathFlag(StartDKGOperator)
+	flags.DBPathFlag(StartDKGOperator)
+	flags.DBReportingFlag(StartDKGOperator)
+	flags.DBGCIntervalFlag(StartDKGOperator)
 	if err := viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey")); err != nil {
 		panic(err)
 	}
@@ -48,6 +54,15 @@ func init() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("logFilePath", StartDKGOperator.PersistentFlags().Lookup("logFilePath")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("DBPath", StartDKGOperator.PersistentFlags().Lookup("DBPath")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("DBReporting", StartDKGOperator.PersistentFlags().Lookup("DBReporting")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("DBGCInterval", StartDKGOperator.PersistentFlags().Lookup("DBGCInterval")); err != nil {
 		panic(err)
 	}
 }
@@ -120,9 +135,27 @@ var StartDKGOperator = &cobra.Command{
 			}
 		} else {
 			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
+				logger.Fatal("Error reading Password file", zap.Error(err))
+		}
+		
+
+		var DBOptions basedb.Options
+		DBPath := viper.GetString("DBPath")
+		DBReporting := viper.GetBool("DBReporting")
+		DBGCInterval := viper.GetString("DBGCInterval")
+		if DBPath != "" {
+			if _, err := os.Stat(DBPath); err != nil {
+				logger.Fatal("Cant DB path", zap.Error(err))
+			}
+		}
+		DBOptions.Path = DBPath
+		DBOptions.Reporting = DBReporting
+		DBOptions.GCInterval, err = time.ParseDuration(DBGCInterval)
+		DBOptions.Ctx = context.Background()
+		if err != nil {
 			return err
 		}
-		srv := operator.New(privateKey, logger)
+		srv := operator.New(privateKey, logger, DBOptions)
 		port := viper.GetUint64("port")
 		if port == 0 {
 			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))

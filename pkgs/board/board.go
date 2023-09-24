@@ -36,7 +36,6 @@ func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 		b.logger.Error(err.Error())
 		return
 	}
-
 	msg := &wire2.KyberMessage{
 		Type: wire2.KyberDealBundleMessageType,
 		Data: byts,

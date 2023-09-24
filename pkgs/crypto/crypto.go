@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/drand/kyber/share"
@@ -445,7 +446,6 @@ func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.
 	return nil
 }
 
-
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -487,4 +487,13 @@ func PrivateKey(path string) (*rsa.PrivateKey, error) {
 		return nil, err
 	}
 	return parsedSk, nil
+}
+
+func NewID() [24]byte {
+	var id [24]byte
+	b := uuid.New()
+	b2 := uuid.New()
+	copy(id[:16], b[:])
+	copy(id[16:], b2[:8])
+	return id
 }

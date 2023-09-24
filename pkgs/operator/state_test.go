@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -51,9 +54,15 @@ func TestCreateInstance(t *testing.T) {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		s := NewSwitch(privateKey, logger)
+		s := NewSwitch(privateKey, logger, db)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -70,7 +79,7 @@ func TestCreateInstance(t *testing.T) {
 			InitiatorPublicKey: encPubKey,
 		}
 
-		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey)
+		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey, nil)
 
 		require.NoError(t, err)
 		require.NotNil(t, inst)
@@ -102,7 +111,13 @@ func TestInitInstance(t *testing.T) {
 	}
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
-	swtch := NewSwitch(privateKey, logger)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -175,7 +190,13 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
-	swtch := NewSwitch(privateKey, logger)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()

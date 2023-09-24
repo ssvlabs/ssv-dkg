@@ -32,6 +32,9 @@ const (
 	logFormat                = "logFormat"
 	logLevelFormat           = "logLevelFormat"
 	logFilePath              = "logFilePath"
+	DBPath                   = "DBPath"
+	DBReporting              = "DBReporting"
+	DBGCInterval             = "DBGCInterval"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -221,6 +224,36 @@ func LogFilePathFlag(c *cobra.Command) {
 // GetLogFilePathValue gets logs file path flag from the command
 func GetLogFilePathValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(logFilePath)
+}
+
+// DBPathFlag adds path for storage flag to the command
+func DBPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, DBPath, "./data/db", "Path for storage", false)
+}
+
+// GetDBPathFlagValue gets path for storage flag from the command
+func GetDBPathFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(DBPath)
+}
+
+// DBReportingFlag adds flag to run on-off db size reporting to the command
+func DBReportingFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, DBReporting, false, "Flag to run on-off db size reporting", false)
+}
+
+// GetDBReportingFlagValue gets flag flag to run on-off db size reporting
+func GetDBReportingFlagValue(c *cobra.Command) (bool, error) {
+	return c.Flags().GetBool(DBReporting)
+}
+
+// DBGCIntervalFlag adds path for storage flag to the command
+func DBGCIntervalFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, DBGCInterval, "6m", "Interval between garbage collection cycles. Set to 0 to disable.", false)
+}
+
+// GetDBGCIntervalFlagValue gets path for storage flag from the command
+func GetDBGCIntervalFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(DBGCInterval)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
