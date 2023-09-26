@@ -268,9 +268,9 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	return resdata, nil
 }
 
-func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
-	resc := make(chan opReqResult, len(c.Operators))
-	for _, op := range c.Operators {
+func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
+	resc := make(chan opReqResult, len(operatorsIDs))
+	for _, op := range operatorsIDs {
 		go func(operator Operator) {
 			res, err := c.SendAndCollect(operator, method, msg)
 			c.Logger.Debug(fmt.Sprintf("Collected message: method: %s, from: %s", method, operator.Addr))
@@ -279,14 +279,14 @@ func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
 				err:        err,
 				result:     res,
 			}
-		}(op)
+		}(c.Operators[op.ID])
 	}
 	// TODO: consider a map
-	final := make([][]byte, 0, len(c.Operators))
+	final := make([][]byte, 0, len(operatorsIDs))
 
 	errarr := make([]error, 0)
 
-	for i := 0; i < len(c.Operators); i++ {
+	for i := 0; i < len(operatorsIDs); i++ {
 		res := <-resc
 		if res.err != nil {
 			errarr = append(errarr, res.err)
@@ -362,19 +362,15 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 }
 
 func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
-	if len(ids) < 4 {
-		return nil, nil, fmt.Errorf("minimum supported amount of operators is 4")
-	}
-	// limit amount of operators
-	if len(ids) > 13 {
-		return nil, nil, fmt.Errorf("maximum supported amount of operators is 13")
+	// compute threshold (3f+1)
+	threshold, err := c.GetThreshold(ids)
+	if err != nil {
+		return nil, nil, err
 	}
 	// check that operator ids are unique
 	if err := c.validateOpIDs(ids); err != nil {
 		return nil, nil, err
 	}
-	// compute threshold (3f+1)
-	threshold := len(ids) - ((len(ids) - 1) / 3)
 	parts := make([]*wire.Operator, 0)
 	for _, id := range ids {
 		op, ok := c.Operators[id]
@@ -412,15 +408,15 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4
 		InitiatorPublicKey:    pkBytes,
 	}
 
-	results, err := c.SendInitMsg(init, id)
+	results, err := c.SendInitMsg(init, id, parts)
 	if err != nil {
 		return nil, nil, err
 	}
-	results, err = c.SendExchangeMsgs(results, id)
+	results, err = c.SendExchangeMsgs(results, id, parts)
 	if err != nil {
 		return nil, nil, err
 	}
-	dkgResult, err := c.SendKyberMsgs(results, id)
+	dkgResult, err := c.SendKyberMsgs(results, id, parts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -639,7 +635,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }
 
-func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	sszinit, err := init.MarshalSSZ()
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init msg to ssz %v", err)
@@ -670,14 +666,14 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) 
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
 	c.Logger.Info("round 1. Sending init message to operators")
-	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
+	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
 	return results, nil
 }
 
-func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("round 1. Parsing init responses")
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
@@ -689,14 +685,14 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]by
 		return nil, err
 	}
 	c.Logger.Info("round 1. Send exchange response combined message to operators / receive kyber deal messages")
-	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts)
+	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing exchange messages  %v", err)
 	}
 	return results, nil
 }
 
-func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
 		return nil, err
@@ -707,7 +703,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, e
 		return nil, err
 	}
 	c.Logger.Info("round 2. Exchange phase finished, sending kyber deal messages")
-	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
+	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)
 	}
@@ -765,4 +761,16 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 		}
 	}
 	return opmap, nil
+}
+
+func (c *Initiator) GetThreshold(ids []uint64) (int, error) {
+	if len(ids) < 4 {
+		return 0, fmt.Errorf("minimum supported amount of operators is 4")
+	}
+	// limit amount of operators
+	if len(ids) > 13 {
+		return 0, fmt.Errorf("maximum supported amount of operators is 13")
+	}
+	threshold := len(ids) - ((len(ids) - 1) / 3)
+	return threshold, nil
 }
