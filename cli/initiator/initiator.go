@@ -10,7 +10,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/load"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -147,7 +146,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to read operator info file", zap.Error(err))
 		}
 
-		opMap, err := load.LoadOperatorsJson(opsfile)
+		opMap, err := initiator.LoadOperatorsJson(opsfile)
 		if err != nil {
 			logger.Fatal("Failed to load operators: ", zap.Error(err))
 		}
@@ -183,7 +182,7 @@ var StartDKG = &cobra.Command{
 				logger.Fatal(err.Error())
 			}
 		} else {
-			privateKey, err = load.PrivateKey(privKeyPath)
+			privateKey, err = crypto.PrivateKey(privKeyPath)
 			if err != nil {
 				logger.Fatal(err.Error())
 			}
@@ -218,7 +217,8 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to decode withdrawal public key", zap.Error(err))
 		}
-		depositData, keyShares, err := dkgInitiator.StartDKG(withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
+		id := dkgInitiator.NewID()
+		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
 		if err != nil {
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}

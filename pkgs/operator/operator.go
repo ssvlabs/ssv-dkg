@@ -4,16 +4,17 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
+
 	"time"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 

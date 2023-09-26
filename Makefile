@@ -30,7 +30,7 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go test -v -p 1 ./...
+	go test -v -p 1 ./... > test.report
 
 # Recipe to build the Docker image
 docker-build-image:

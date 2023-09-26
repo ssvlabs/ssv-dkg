@@ -3,12 +3,15 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"time"
 
@@ -30,37 +33,6 @@ import (
 
 // b64 encrypted key length is 256
 const encryptedKeyLength = 256
-
-// Initiator will send messages to DKG servers, collect responses and redirects messages to them.
-
-/*
-Step 1
-					<-->| operator 1
-Initiator -> (Init)	<-->| operator 2
-					<-->| operator 3
-					<-->| operator 4
-
-Step 2
-
-Initiator Collects responses
-Initiator creates combined message
-SignedMessages = {
-	Identifier
-	[]SignedMessage
-}
-
-						<-->| operator 1
-Initiator -> ([4]Exchange)	<-->| operator 2
-						<-->| operator 3
-						<-->| operator 4
-
-
-							<-->| operator 1
-Initiator -> ([4]KyberMessage)	<-->| operator 2
-							<-->| operator 3
-							<-->| operator 4
-
-*/
 
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
@@ -243,7 +215,6 @@ type opReqResult struct {
 
 func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
-	// TODO: Consider signing a message
 	r.SetBodyBytes(data)
 	c.Logger.Debug(fmt.Sprintf("final addr %v/%v", op.Addr, method))
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -258,9 +229,9 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	return resdata, nil
 }
 
-func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
-	resc := make(chan opReqResult, len(c.Operators))
-	for _, op := range c.Operators {
+func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
+	resc := make(chan opReqResult, len(operatorsIDs))
+	for _, op := range operatorsIDs {
 		go func(operator Operator) {
 			res, err := c.SendAndCollect(operator, method, msg)
 			c.Logger.Debug(fmt.Sprintf("Collected message: method: %s, from: %s", method, operator.Addr))
@@ -269,14 +240,13 @@ func (c *Initiator) SendToAll(method string, msg []byte) ([][]byte, error) {
 				err:        err,
 				result:     res,
 			}
-		}(op)
+		}(c.Operators[op.ID])
 	}
-	// TODO: consider a map
-	final := make([][]byte, 0, len(c.Operators))
+	final := make([][]byte, 0, len(operatorsIDs))
 
 	errarr := make([]error, 0)
 
-	for i := 0; i < len(c.Operators); i++ {
+	for i := 0; i < len(operatorsIDs); i++ {
 		res := <-resc
 		if res.err != nil {
 			errarr = append(errarr, res.err)
@@ -412,9 +382,9 @@ func validatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 	return ops, nil
 }
 
-func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte) ([][]byte, error) {
+func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
-	results, err := c.SendInitMsg(init, id)
+	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +395,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte) ([][]byte,
 	c.Logger.Info("phase 1: ✅ verified operator init responses signatures")
 
 	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
-	results, err = c.SendExchangeMsgs(results, id)
+	results, err = c.SendExchangeMsgs(results, id, operators)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +405,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte) ([][]byte,
 	}
 	c.Logger.Info("phase 2: ✅ verified operator responses (deal messages) signatures")
 	c.Logger.Info("phase 3: ➡️ sending deal dkg data to all operators")
-	dkgResult, err := c.SendKyberMsgs(results, id)
+	dkgResult, err := c.SendKyberMsgs(results, id, operators)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +491,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	return depositDataJson, nil
 }
 
-func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 
 	ops, err := validatedOperatorData(ids, c.Operators)
 	if err != nil {
@@ -540,7 +510,6 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 		return nil, nil, err
 	}
 
-	id := c.NewID()
 	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
 	c.Logger.Info("starting dkg ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("operator_ids", ids), instanceIDField)
 
@@ -558,7 +527,7 @@ func (c *Initiator) StartDKG(withdraw []byte, ids []uint64, fork [4]byte, forkNa
 	}
 	c.Logger = c.Logger.With(instanceIDField)
 
-	dkgResult, err := c.messageFlowHandling(init, id)
+	dkgResult, err := c.messageFlowHandling(init, id, ops)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -706,12 +675,12 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 			return nil, nil, nil, nil, nil, err
 		}
 		ssvContractOwnerNonceSigShares[result.OperatorID] = ownerNonceShareSig
-		c.Logger.Debug(fmt.Sprintf("Result of DKG from an operator %v", result))
+		c.Logger.Debug(fmt.Sprintf("Result of DKG from an operator %x", result.ValidatorPubKey))
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }
 
-func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	sszinit, err := init.MarshalSSZ()
 	if err != nil {
 		return nil, fmt.Errorf("failed marshiling init msg to ssz %v", err)
@@ -741,14 +710,14 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error) 
 	if err != nil {
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
-	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts)
+	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing init messages  %v", err)
 	}
 	return results, nil
 }
 
-func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
 		return nil, err
@@ -757,14 +726,14 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]by
 	if err != nil {
 		return nil, err
 	}
-	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts)
+	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing exchange messages  %v", err)
 	}
 	return results, nil
 }
 
-func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
 		return nil, err
@@ -774,7 +743,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, e
 	if err != nil {
 		return nil, err
 	}
-	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts)
+	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
 	if err != nil {
 		return nil, fmt.Errorf("error at processing kyber deal messages  %v", err)
 	}
@@ -787,4 +756,61 @@ func (c *Initiator) NewID() [24]byte {
 	b := uuid.New() // random ID for each new DKG initiation
 	copy(id[8:], b[:])
 	return id
+}
+
+func (c *Initiator) validateOpIDs(ids []uint64) error {
+	opMap := make(map[uint64]bool)
+	for _, id := range ids {
+		if opMap[id] {
+			return fmt.Errorf("operators ids should be unique in the list")
+		}
+		opMap[id] = true
+	}
+	return nil
+}
+
+func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
+	opmap := make(map[uint64]Operator)
+	var operators []OperatorDataJson
+	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
+	if err != nil {
+		return nil, err
+	}
+	for _, opdata := range operators {
+		_, err := url.ParseRequestURI(opdata.Addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid operator URL")
+		}
+		operatorKeyByte, err := base64.StdEncoding.DecodeString(opdata.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		pemBlock, _ := pem.Decode(operatorKeyByte)
+		if pemBlock == nil {
+			return nil, fmt.Errorf("wrong pub key string")
+		}
+		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		opmap[opdata.ID] = Operator{
+			Addr:   opdata.Addr,
+			ID:     opdata.ID,
+			PubKey: pbKey.(*rsa.PublicKey),
+		}
+	}
+	return opmap, nil
+}
+
+func (c *Initiator) GetThreshold(ids []uint64) (int, error) {
+	if len(ids) < 4 {
+		return 0, fmt.Errorf("minimum supported amount of operators is 4")
+	}
+	// limit amount of operators
+	if len(ids) > 13 {
+		return 0, fmt.Errorf("maximum supported amount of operators is 13")
+	}
+	threshold := len(ids) - ((len(ids) - 1) / 3)
+	return threshold, nil
 }

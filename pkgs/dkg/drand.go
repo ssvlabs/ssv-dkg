@@ -215,7 +215,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
-	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
 
 	// Get validator BLS public key from result

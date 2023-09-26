@@ -62,13 +62,6 @@ type SignedTransport struct {
 	Signature []byte `ssz-max:"2048"`
 }
 
-//
-//const (
-//	KyberDealBundleMessageType TransportType = iota
-//	KyberResponseBundleMessageType
-//	KyberJustificationBundleMessageType
-//)
-
 type KyberMessage struct {
 	Type TransportType
 	Data []byte `ssz-max:"4096"`
@@ -85,7 +78,7 @@ type Init struct {
 	// T is the threshold for signing
 	T uint64
 	// WithdrawalCredentials for deposit data
-	WithdrawalCredentials []byte `ssz-max:"32"` // 2^23
+	WithdrawalCredentials []byte `ssz-max:"32"`
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
 	// Owner address
