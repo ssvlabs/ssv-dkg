@@ -127,7 +127,7 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("operator-tests")

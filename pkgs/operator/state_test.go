@@ -47,7 +47,7 @@ func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.O
 }
 
 func TestCreateInstance(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
@@ -97,7 +97,7 @@ func TestCreateInstance(t *testing.T) {
 }
 
 func TestInitInstance(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
@@ -171,7 +171,7 @@ func TestInitInstance(t *testing.T) {
 
 func TestSwitch_cleanInstances(t *testing.T) {
 	privateKey, ops := generateOperatorsData(t, 4)
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")

@@ -39,7 +39,7 @@ func parseAsError(msg []byte) (error, error) {
 const encryptedKeyLength = 256
 
 func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *TestOperator {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("operator-tests")
@@ -65,7 +65,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 }
 
 func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("integration-tests")

@@ -31,7 +31,7 @@ const encryptedKeyLength = 256
 const examplePath = "../examples/"
 
 func TestHappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("integration-tests")
@@ -134,7 +134,7 @@ func TestHappyFlows(t *testing.T) {
 }
 
 func TestUnhappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("integration-tests")
@@ -272,7 +272,7 @@ func TestUnhappyFlows(t *testing.T) {
 		owner := newEthAddress(t)
 		id := clnt.NewID()
 		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-		require.ErrorContains(t, err, "operator is not in the list")
+		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()

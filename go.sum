@@ -45,8 +45,8 @@ github.com/attestantio/go-eth2-client v0.16.3/go.mod h1:Om16oH+H34E2JHoOY8hLWg+6
 github.com/benbjohnson/clock v1.3.5 h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz5o=
 github.com/bloxapp/eth2-key-manager v1.3.1 h1:1olQcOHRY2TN1o8JX9AN1siEIJXWnlM+BlknfBbXoo4=
 github.com/bloxapp/eth2-key-manager v1.3.1/go.mod h1:cT+qAJfnAzNz9StFoHQ8xAkyU2eyEukd6xfxvcBWuZA=
-github.com/bloxapp/ssv v1.0.0-rc.1 h1:gYkaTTbsNr7uAkmeCIaLEsx9jXkxoIOCwm+xPtTDNNo=
-github.com/bloxapp/ssv v1.0.0-rc.1/go.mod h1:BfexF+fyhGcRYuNSCMc8AKWOnPFYTcFTMacnsFzOYCk=
+github.com/bloxapp/ssv v1.0.0-rc.2 h1:MevGjY7r8KA9NbMgHwjMhP9ZqJMXmFa/8z7dddjv7VI=
+github.com/bloxapp/ssv v1.0.0-rc.2/go.mod h1:BfexF+fyhGcRYuNSCMc8AKWOnPFYTcFTMacnsFzOYCk=
 github.com/bloxapp/ssv-spec v0.3.1 h1:Ajg5LIM77DuqPw3UP0gLC9EQi0BaIqQ7h5kW67907a4=
 github.com/bloxapp/ssv-spec v0.3.1/go.mod h1:zPJR7YnG5iZ6I0h6EzfVly8bTBXaZwcx4TyJ8pzYVd8=
 github.com/btcsuite/btcd/btcec/v2 v2.3.2 h1:5n0X6hX0Zk+6omWcihdYvdAlGf2DfasC0GMf7DClJ3U=

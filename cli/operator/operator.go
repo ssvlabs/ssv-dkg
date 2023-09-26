@@ -85,7 +85,7 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, logFilePath); err != nil {
+		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
 		logger := zap.L().Named("dkg-operator")

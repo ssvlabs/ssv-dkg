@@ -53,7 +53,7 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/bloxapp/eth2-key-manager v1.3.1
-	github.com/bloxapp/ssv v1.0.0-rc.1
+	github.com/bloxapp/ssv v1.0.0-rc.2
 	github.com/bloxapp/ssv-spec v0.3.1
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4

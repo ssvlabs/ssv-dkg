@@ -113,7 +113,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, logFilePath); err != nil {
+		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
 		logger := zap.L().Named("dkg-initiator")
@@ -223,19 +223,20 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("failed to initiate DKG ceremony", zap.Error(err))
 		}
 		// Save deposit file
-		logger.Info("DKG finished. All data is validated. Writing deposit data json to file %s\n", zap.String("path", depositResultsPath))
-		err = utils.WriteJSON(depositResultsPath+"deposit_"+fmt.Sprint(depositData.PubKey)+".json", []initiator.DepositDataJson{*depositData})
+		logger.Info("🎯  all data is validated.")
+		depositFinalPath := fmt.Sprintf("%s/deposit_%s.json", depositResultsPath, depositData.PubKey)
+		logger.Info("💾 writing deposit data json to file", zap.String("path", depositFinalPath))
+		err = utils.WriteJSON(depositFinalPath, []initiator.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file", zap.Error(err))
 		}
-
-		logger.Info("DKG finished. All data is validated. Writing keyshares to file: %s\n", zap.String("path", ssvPayloadResultsPath))
-		err = utils.WriteJSON(ssvPayloadResultsPath+"payload_"+fmt.Sprint(depositData.PubKey)+".json", keyShares)
+		payloadFinalPath := fmt.Sprintf("%s/payload_%v.json", ssvPayloadResultsPath, depositData.PubKey)
+		logger.Info("💾 writing keyshares payload to file", zap.String("path", payloadFinalPath))
+		err = utils.WriteJSON(payloadFinalPath, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file", zap.Error(err))
 		}
 
-		logger.Info("DKG protocol finished successfull")
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒

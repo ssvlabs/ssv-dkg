@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -47,7 +48,7 @@ var jsonStr = []byte(`[
 const examplePath = "../../examples/"
 
 func TestStartDKG(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", ""); err != nil {
+	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
 		panic(err)
 	}
 	logger := zap.L().Named("operator-tests")
@@ -90,7 +91,7 @@ func TestStartDKG(t *testing.T) {
 		initiator := New(priv, ops, logger)
 		id := initiator.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-		require.ErrorContains(t, err, "operators ids should be unique in the list")
+		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 
 	srv1.HttpSrv.Close()
@@ -195,4 +196,105 @@ func TestLoadOperators(t *testing.T) {
     ]`))
 		require.ErrorContains(t, err, "invalid operator URL")
 	})
+}
+
+func generateOperators(ids []uint64) Operators {
+	m := make(map[uint64]Operator)
+	for _, i := range ids {
+		m[i] = Operator{
+			Addr: "",
+			ID:   i,
+			PubKey: &rsa.PublicKey{
+				N: big.NewInt(1),
+				E: 0,
+			},
+		}
+	}
+
+	return m
+}
+
+func TestValidateDKGParams(t *testing.T) {
+
+	ops_1_13 := generateOperators([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
+	ops_not_serial := generateOperators([]uint64{1, 15, 3, 41, 5, 28, 7, 52, 9, 10, 104, 200, 13})
+
+	tests := []struct {
+		name    string
+		ids     []uint64
+		ops     Operators
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "less than 4 operators",
+			ids:     []uint64{1, 2, 3},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "minimum supported amount of operators is 4",
+		},
+		{
+			name:    "more than 13 operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "maximum supported amount of operators is 13",
+		},
+		{
+			name:    "duplicate operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12},
+			ops:     ops_1_13,
+			wantErr: true,
+			errMsg:  "operators ids should be unique in the list",
+		},
+		{
+			name:    "valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "other valid operators",
+			ids:     []uint64{1, 15, 3, 41, 5, 28, 7, 52, 9, 10, 104, 200, 13},
+			ops:     ops_not_serial,
+			wantErr: false,
+		},
+		{
+			name:    "op not in list",
+			ids:     []uint64{1, 15, 21, 41, 5, 28, 7, 52, 9, 10, 104, 200, 13},
+			ops:     ops_not_serial,
+			wantErr: true,
+			errMsg:  "operator is not in given operator data list",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := validatedOperatorData(tt.ids, tt.ops)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				} else if err.Error() != tt.errMsg {
+					t.Errorf("expected error message %q but got %q", tt.errMsg, err.Error())
+				}
+			} else if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			} else {
+
+				// verify list is ok
+				need := len(tt.ids)
+			verLoop:
+				for _, id := range tt.ids {
+					for _, op := range res {
+						if op.ID == id {
+							need--
+							continue verLoop
+						}
+					}
+				}
+
+				require.Equal(t, need, 0)
+			}
+		})
+	}
 }
