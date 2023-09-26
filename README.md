@@ -1,40 +1,71 @@
 # ssv-dkg
 
+## Table of contents:
+
+- [ssv-dkg](#ssv-dkg)
+  - [Table of contents:](#table-of-contents)
+  - [Goal and Introduction](#goal-and-introduction)
+    - [DKG](#dkg)
+    - [DKG tool by SSV](#dkg-tool-by-ssv)
+  - [Quick-start](#quick-start)
+    - [Overview](#overview)
+    - [Build](#build)
+    - [Operator](#operator)
+      - [Start a DKG-operator](#start-a-dkg-operator)
+    - [Initiator](#initiator)
+      - [Generate Initiator identity RSA key pair](#generate-initiator-identity-rsa-key-pair)
+      - [Obtaining Operators data](#obtaining-operators-data)
+  - [Architecture](#architecture)
+    - [Flow Description:](#flow-description)
+    - [Note on DKG instance management](#note-on-dkg-instance-management)
+  - [Security notes](#security-notes)
+  - [Development Notes:](#development-notes)
+    - [TODO:](#todo)
+    - [Additional:](#additional)
+    - [Flow TODO Brakedown](#flow-todo-brakedown)
+      - [Round 1](#round-1)
+      - [Round 2](#round-2)
+
+
+## Goal and Introduction
+
+### DKG
+
+Distributed Key Generation is a cryptographic process that aims to solve the problem of coordinating `N` parties to cryptographically sign and verify signatures without relying on Trusted Third Parties.
+The process is demonstrated to be successful in successfully computing a key pair in the presence of a number `T` attackers in a decentralized network.
+To do so, this algorithm generates a public key, and a secret key of which no single party knows, but has some share of.
+The involvement of many parties requires Distributed key generation to ensure secrecy in the presence of malicious contributions to the key calculation.
+
+For more information about DKG in general, [please visit this page](https://en.wikipedia.org/wiki/Distributed_key_generation).
+
+### DKG tool by SSV
+
+The SSV team built this tool leveraging [drand](https://drand.love/)'s DKG protocol implementation ([please visit their documentation](https://drand.love/docs/cryptography/#setup-phase) for more details on it). This implementation operates under the assumption of a p2p network, allowing operators to communicate.
+
+The `ssv-dkg` was built to lift this assumption and provide a communication layer that centered on an Initiator figure, to facilitate communication between operators. The introduced potential risk for centralization and bad actors is handled with signatures and signature verifications, as explained in the [Security notes](#security-notes) section.
+
+Finally, the outcome of the DKG ceremony is a BLS key pair to be used for validator duties by operators on the ssv.network. As such, the tool ends the process by creating a deposit file to activate the newly created validator key pair, and proceeds to generating the payload for the transaction, and triggering the transaction itself.
+
+## Quick-start
+
+### Overview
+
+In order for the DKG protocol to execute successfully:
+* all the chosen Operators must be running the `ssv-dkg` tool as Operators
+* separately, an Initiator (one of the Operators, or a separate entity), starts the DKG ceremony by running the `ssv-dkg` tool with the `init` parameter
+* the tool automatically exchange data between the interested parties, as outlined in the [Architecture](#basic-flow-description) section, until the key shares are created
+
 ### Build
 
 ```sh
 make install
 ```
 
-### Operators data
-
-The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
-
-Information about operators can be collected at `json` file and supplied to initiator to use for a key generation.
-
-Operators info file example (`./examples/operators_integration.json`):
-
-```json
-[
-  {
-    "id": 1,
-    "public_key": "LS0tLS1CRUdJTiBSU0....",
-    "ip": "http://localhost:3030"
-  },
-  {
-    "id": 2,
-    "public_key": "LS0tLS1CRUdJTiB....",
-    "ip": "http://localhost:3031"
-  }
-]
-```
-
 ### Operator
 
-The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
-The operator is able to participate in multiple DKG ceremonies in parallel.
+SSV Operators typically play the role of dkg-operators, running the `ssv-dkg` tool as Operators. As a result, it is an Operator RSA private key is a requirement. A dkg-operator is able to participate in multiple DKG ceremonies in parallel.
 
-NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the ssv-dkg tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+⚠️ **NOTE:** `ssv-dkg` tool is using an ssv operator private key file. Both encrypted and plain text versions are supported. If `password` parameter is provided then the `ssv-dkg` tool assumes that the operator's RSA key is encrypted, otherwise it assumes that the key is provided as plain text.
 
 #### Start a DKG-operator
 
@@ -60,9 +91,7 @@ ssv-dkg start-operator \
 --logFilePath: ./operator1_logs/debug.log # a file path to write logs into
 ```
 
-Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
-
-Example:
+It is also possible to use YAML configuration file. Example:
 
 ```yaml
 privKey: ./encrypted_private_key.json
@@ -81,20 +110,26 @@ When using configuration file, run:
 ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
+`ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
+
 ### Initiator
 
-The initiator uses `init` to create the initial details needed to run DKG between all operators.
+#### Generate Initiator identity RSA key pair
 
-Generate initiator identity RSA key pair:
+The Initiator needs to sign all messages exchanged with DKG participants with an RSA key.
+
+To generate Initiator RSA keys, launch the following command, replacing `<PASSWORD>` with a password of your choosing:
 
 ```sh
-ssv-dkg generate-initiator-keys --password 12345678
+ssv-dkg generate-initiator-keys --password <PASSWORD>
 ```
 
-This will create `encrypted_private_key.json` with encrypted by password RSA key pair
-Write down `password` in any text file, for example to `./password`
+This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
+Write down your chosen password in any text file, for example to `./password`.
 
-Run:
+⚠️ **NOTE:** For more details on `operatorsInfoPath` please read the [note on obtaining Operators data](#note-on-operators-data) below.
+
+The Initiator creates the initial details needed to run DKG between all operators via the `init` command. Copy (or type) and run the following:
 
 ```sh
 ssv-dkg init \
@@ -115,7 +150,7 @@ ssv-dkg init \
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./operators_integration.json # path to operators info ID,base64(RSA pub key),
+--operatorsInfoPath ./operators_integration.json # path to operators info: ID,base64(RSA pub key),
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
@@ -130,9 +165,7 @@ ssv-dkg init \
 --logFilePath: ./initiator_logs/debug.log # a file path to write logs into
 ```
 
-Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `ssv-dkg` will be looking for this file at `./config/` folder at the same root as the binary.
-
-Example:
+It is also possible to use YAML configuration file. Example:
 
 ```yaml
 operatorIDs: [1, 2, 3, 4]
@@ -147,115 +180,15 @@ privKey: ./encrypted_private_key.json
 password: ./password
 ```
 
-When using configuration file, run:
+When using configuration file, simply run:
 
 ```sh
 ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
-**_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
+`ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)
 
----
-
-### Security notes
-
-Here we explain how we secure the communication between DKG ceremony initiator and operators
-
-1. Initiator is using RSA key (2048 bits) to sign init message sent to operators. Upon receiving operators verify the sig using pub key at init message. If the sig is valid, operators store this pub key for further verification of messages coming from the initiator(s).
-2. Operators are using RSA key (ssv operator key - 2048 bits) to sign every message sent back to initiator.
-3. Initiator verifies every message incoming from any operator using ID and Public Key provided by operators info file, then initiator creates a combined message and signs it.
-4. Operators verify each of the messages of other operators participating in the ceremony and verifies initiator`s signature of the combined message.
-5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
-
-## Architecture
-
-![flow](./docs/imgs/DKGinit.drawio.png)
-
-#### Basic Flow Description:
-
-1. The initiator creates an initial message, signs it and sends it to all operators (/init)
-2. The operators upon receiving initial message check initiator message signature and create their DKG identity:
-
-- new DKG secrets created
-- if 5 mins pass after the last init message with ID [24]byte and new init message with the same ID is incoming the DKG instance is recreated
-- `Exchange` signed message containing the DKG identity is created
-- operator replies to init message with the created `Exchange` message
-
-3. The initiator collects all responses into one message and verify signatures
-4. The initiator sends back to all operators the combined message (/dkg)
-5. Operators receive all exchange messages to start the DKG process, responding back to initiator with a signed dkg deal bundle
-6. Initiator packs the deal bundles together and sends them back to all operators (/dkg)
-7. Operators process dkg bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each operator has a share of the shared key which can be used for signing
-8. Operator using its share of the shared key signs a deposit root, encrypts with the initial RSA key the share and sends it to the initiator
-9. Initiator receives all messages from operators with signatures/encrypted shares and prepares the deposit data with a signature and save it as JSON file
-10. Initiator prepares a payload for SSV contract
-11. After the deposit is successfull and SSV contract transaction is accepted, operators can continue with their duties using their share of the distributes key
-
-The result of successfull DKG protocol at operator side:
-
-```go
-type Result struct {
-	QUAL []Node // list of nodes that successfully ran the protocol
-	Key  *DistKeyShare // the share of the node
-}
-type DistKeyShare struct {
-    // Coefficients of the public polynomial holding the public key.
-    Commits []kyber.Point
-    // Share of the distributed secret which is private information. This will be used to sign. All sigs can be aggregated to create a T-threshold signature
-    Share *share.PriShare
-}
-```
-
-Output of an operator after DKG is finished:
-
-```go
-	// RequestID for the DKG instance (not used for signing)
-	RequestID [24]byte
-	// EncryptedShare standard SSV encrypted shares
-	EncryptedShare []byte
-	// SharePubKey is the share's BLS pubkey
-	SharePubKey []byte
-	// ValidatorPubKey the resulting public key corresponding to the shared private key
-	ValidatorPubKey types.ValidatorPK
-	// Partial Operator Signature of Deposit Data
-	PartialSignature types.Signature
-```
-
-## DKG protocol description
-
-#### Exchange message creation DKG protocol:
-
-1. Upon receiving init message from initiator, operator creates (if not exists for init msg ID[24]byte) a kyber-bls12381 instance consisting of
-
-- randomly generated scalar
-- corresponding point in elliptic curve group G1 (384 bit)
-
-2. Creates a signed with exchange message consisting of ID[24]byte and point bits
-
-#### DKG protocol steps at operator after receiving all exchange messages from the initiator
-
-1. Generation of DKG nodes:
-
-- operator ID uint64;
-- operators G1 point;
-
-2. Creation of a time phaser
-3. DKG time phaser starts DealPhase
-
-- computes a private share for each of the operators ids
-- encrypts with a corresponding to the operator BLS public key created at exchange step
-- pack all deals together and signs
-
-4. Deal bundle is created and sent back to the initiator
-
-### DKG protocol steps at operator after receiving all deal messages from the initiator:
-
-1. Creates the public polynomial from received bundle
-2. For each deal decrypts a deal share
-3. Checks if share is valid w.r.t. public commitment
-4. Forms a response bundle
-
-Initial message fields:
+`init` message fields:
 
 ```go
  ID [16]byte //   random UUID
@@ -273,9 +206,121 @@ Initial message fields:
  Nonce int
 ```
 
-### `Switch` instance management
+⚠️ **NOTE:** Threshold is computed automatically using 3f+1 tolerance.
 
-The DKG-operator can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
+#### Obtaining Operators data
+
+The `ssv-dkg` tool does not provide Operators data for the operations described above (ID, URL, Pub key). 
+
+Teams integrating with SSV are responsible for sourcing it however they see fit. This information can be collected in various ways, such as the [official SSV API](https://api.ssv.network/documentation/#/v4). Other suggested options are, for example, building an ad-hoc Operator data service, or a preset file where all Operators data is stored.
+
+Information about Operators can be collected in a `json` file and supplied to Initiator to be used use for the key generation ceremony, as shown above.
+
+Operators info file example (`./examples/operators_integration.json`):
+
+```json
+[
+  {
+    "id": 1,
+    "public_key": "LS0tLS1CRUdJTiBSU0....",
+    "ip": "http://localhost:3030"
+  },
+  {
+    "id": 2,
+    "public_key": "LS0tLS1CRUdJTiB....",
+    "ip": "http://localhost:3031"
+  }
+]
+```
+
+## Architecture
+
+![flow](./docs/imgs/DKGinit.drawio.png)
+
+### Flow Description:
+
+1. The Initiator creates an initiation (`init`) message, signs it and sends it to all Operators
+
+2. Upon receiving initiation message, the Operators check Initiator message signature and create their own DKG identity:
+
+- new DKG secrets created
+- if a new `init` message with ID [24]byte is received and at least 5 minutes have passed from the last `init` message with the same ID, the DKG instance is recreated
+- `Exchange` signed message containing the DKG identity is created
+- Operator replies to `init` message with the created `Exchange` message
+
+3. The Initiator collects all responses into one combined message and verifies signatures
+
+4. The Initiator sends back the combined message to all Operators
+
+5. Each Operator receives combined `exchange` message and starts the DKG process, responding back to Initiator with a signed `dkg` deal bundle
+
+6. The Initiator packs the deal bundles together and sends them back to all Operators
+
+7. Operators process `dkg` bundles and finish the DKG protocol of creating a shared key. After DKG process is finished each Operator has a share of the shared key which can be used for signing
+
+8. Each Operator signs a deposit root, using its share of the shared key, then encrypts the share with the initial RSA key and sends it to the Initiator
+
+9.  Initiator receives all messages from Operators with signatures/encrypted shares and prepares the deposit data with a signature and save it as JSON file
+
+10.  Initiator prepares a payload for SSV contract
+
+11.  After the deposit is successful and SSV contract transaction is accepted, Operators can continue with their duties using their share of the distributes key
+
+Result of successful DKG protocol execution for an Operator:
+
+```go
+type Result struct {
+	QUAL []Node // list of nodes that successfully ran the protocol
+	Key  *DistKeyShare // the share of the node
+}
+type DistKeyShare struct {
+    // Coefficients of the public polynomial holding the public key.
+    Commits []kyber.Point
+    // Share of the distributed secret which is private information. This will be used to sign. All sigs can be aggregated to create a T-threshold signature
+    Share *share.PriShare
+}
+```
+
+Output of an Operator when DKG ceremony is complete:
+
+```go
+	// RequestID for the DKG instance (not used for signing)
+	RequestID [24]byte
+	// EncryptedShare standard SSV encrypted shares
+	EncryptedShare []byte
+	// SharePubKey is the share's BLS pubkey
+	SharePubKey []byte
+	// ValidatorPubKey the resulting public key corresponding to the shared private key
+	ValidatorPubKey types.ValidatorPK
+	// Partial Operator Signature of Deposit Data
+	PartialSignature types.Signature
+```
+
+### Note on DKG instance management
+
+A DKG-operator can handle multiple DKG instances, it saves up to `MaxInstances` (1024) up to `MaxInstanceTime` (5 minutes). If a new `Init` arrives the DKG-operator tries to clean instances older than `MaxInstanceTime` from the list. If any of them are found, they are removed and the incoming is added, otherwise it responds with an error, saying that the maximum number of instances is already running.
+
+---
+
+## Security notes
+
+It is important to briefly explain how the communication between DKG ceremony Initiator and Operators is secured:
+
+1. Initiator is using RSA key (2048 bits) to sign `init` message sent to Operators. Upon receiving the signature, Operators verify it using public key included in the `init` message. If the signature is valid, Operators store this pub key for further verification of messages coming from the Initiator(s).
+
+2. Operators are using RSA key (ssv Operator key - 2048 bits) to sign every message sent back to Initiator.
+
+3. Initiator verifies every incoming message from any Operator using ID and Public Key provided by Operators' info file, then Initiator creates a combined message and signs it.
+
+4. Operators verify each of the messages from other Operators participating in the ceremony and verifies Initiator's signature of the combined message.
+
+5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
+
+More details in the [Architecture](#architecture) section.
+
+---
+
+## Development Notes:
 
 ### TODO:
 
