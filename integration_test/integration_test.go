@@ -251,16 +251,15 @@ func TestUnhappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := clnt.GetThreshold([]uint64{1, 2, 3, 4})
 		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey}
-		require.Less(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 4, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey}
-		require.Equal(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 4, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.ErrorContains(t, err, "could not reconstruct a valid signature")
+		// test valid threshold
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test same ID", func(t *testing.T) {
