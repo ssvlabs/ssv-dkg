@@ -25,7 +25,7 @@ var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
 type Instance interface {
-	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
+	Process(uint64, *wire.SignedTransport) error
 	ReadResponse() []byte
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
@@ -131,10 +131,7 @@ type Switch struct {
 	Mtx              sync.RWMutex
 	InstanceInitTime map[InstanceID]time.Time
 	Instances        map[InstanceID]Instance
-
 	PrivateKey *rsa.PrivateKey
-
-	//broadcastF func([]byte) error
 }
 
 func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger) *Switch {

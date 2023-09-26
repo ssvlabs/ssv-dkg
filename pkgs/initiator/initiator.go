@@ -35,43 +35,6 @@ import (
 // b64 encrypted key length is 256
 const encryptedKeyLength = 256
 
-// Initiator will send messages to DKG servers, collect responses and redirects messages to them.
-
-/*
-Step 1
-					<-->| operator 1
-Initiator -> (Init)	<-->| operator 2
-					<-->| operator 3
-					<-->| operator 4
-
-Step 2
-
-Initiator Collects responses
-Initiator creates combined message
-SignedMessages = {
-	Identifier
-	[]SignedMessage
-}
-
-						<-->| operator 1
-Initiator -> ([4]Exchange)	<-->| operator 2
-						<-->| operator 3
-						<-->| operator 4
-
-
-							<-->| operator 1
-Initiator -> ([4]KyberMessage)	<-->| operator 2
-							<-->| operator 3
-							<-->| operator 4
-
-*/
-
-func IDtoOperator(id uint64) Operator {
-	// TODO: this should either come from server, or from local config or w/e
-	// 	we should support multiple ways to get this hence this function is replacble.
-	return Operator{}
-}
-
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
 	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
@@ -253,7 +216,6 @@ type opReqResult struct {
 
 func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
-	// TODO: Consider signing a message
 	r.SetBodyBytes(data)
 	c.Logger.Debug(fmt.Sprintf("final addr %v/%v", op.Addr, method))
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -281,7 +243,6 @@ func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Op
 			}
 		}(c.Operators[op.ID])
 	}
-	// TODO: consider a map
 	final := make([][]byte, 0, len(operatorsIDs))
 
 	errarr := make([]error, 0)

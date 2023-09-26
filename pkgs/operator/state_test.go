@@ -217,7 +217,3 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.Len(t, swtch.Instances, 0)
 
 }
-
-func TestProcessMessage(t *testing.T) {
-	// todo
-}
