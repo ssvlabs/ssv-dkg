@@ -78,18 +78,21 @@ ssv-dkg start-operator \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./examples/output/operator1_logs_debug.log
-
-### where
---privKey ./examples/operator1/encrypted_private_key.json # path to ssv operator`s private key
---port 3030 # port for listening messages
---password: ./examples/operator1/password # path to password file to decrypt the key
---storeShare: true # store created bls key share to a file for later reuse if needed
---logLevel: info # logger's log level (info/debug/
---logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
---logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
---logFilePath: ./examples/operator1_logs_debug.log # a file path to write logs into
+            --logFilePath ./operator1_logs/debug.log
 ```
+
+Here's an explanation of each parameter:
+
+| Argument         | type                                      | description                                                                    |
+| ---------------- | :---------------------------------------- | :----------------------------------------------------------------------------- |
+| --privKey        | string                                    | Path to ssv operator`s private key                                             |
+| --port           | int                                       | Port for listening messages                                                    |
+| --password       | string                                    | Path to password file to decrypt the key                                       |
+| --storeShare     | boolean                                   | Weather to store the created bls key share to a file for later reuse if needed |
+| --logLevel       | debug / info / warning / error / critical | Logger's log level                                                             |
+| --logFormat      | json / console                            | Logger's encoding                                                              |
+| --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format                                                          |
+| --logFilePath    | string                                    | Path to file where logs should be written                                      |
 
 It is also possible to use YAML configuration file. Example:
 
@@ -145,28 +148,28 @@ ssv-dkg init \
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
-          --logFilePath ./examples/output/initiator_debug.log
-
-#### where
---operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./operators_integration.json # path to operators info: ID,base64(RSA pub key),
---owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
---nonce 4 # owner nonce for the SSV contract
---withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
---network "mainnet" # network name: mainnet, prater, or now_test_network
---outputPath: ./output/ # path to store results
-###### Initiator RSA key management part.
-###### Use either key file (if password is provided, will try to decrypted, else plaintext) or generate a new key pair. Not both.
---initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
---initiatorPrivKeyPassword: ./password # path to password file to decrypt the key. If not provided key file considered contains plaintext key.
-##
---generateInitiatorKey: true # default false. If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
-#####
---logLevel: info # logger's log level (info/debug/
---logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
---logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
---logFilePath: ./initiator_logs/debug.log # a file path to write logs into
+          --logFilePath ./initiator_logs/debug.log
 ```
+
+Here's an explanation of each parameter:
+
+| Argument                   | type                                      | description                                              |
+| -------------------------- | :---------------------------------------- | :------------------------------------------------------- |
+| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony       |
+| --operatorsInfoPath        | string                                    | Path to operators info: ID,base64(RSA pub key),IP        |
+| --owner                    | address                                   | Owner address for the SSV contract                       |
+| --nonce                    | int                                       | Owner nonce for the SSV contract                         |
+| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent |
+| --fork                     | mainnet / prater / now_test_network       | Fork name                                                |
+| --depositResultsPath       | string                                    | Path to store the staking deposit file                   |
+| --ssvPayloadResultsPath    | string                                    | Path to store ssv contract payload file                  |
+| --initiatorPrivKey         | string                                    | Path to ssv initiators's private key                     |
+| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key                 |
+| --logLevel                 | debug / info / warning / error / critical | Logger's log level                                       |
+| --logFormat                | json / console                            | Logger's encoding                                        |
+| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format                                    |
+| --logFilePath              | string                                    | Path to file where logs should be written                |
+
 
 It is also possible to use YAML configuration file. Example:
 
