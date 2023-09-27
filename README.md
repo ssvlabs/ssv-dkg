@@ -12,8 +12,12 @@
     - [Build](#build)
     - [Operator](#operator)
       - [Start a DKG-operator](#start-a-dkg-operator)
+      - [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file)
     - [Initiator](#initiator)
       - [Generate Initiator identity RSA key pair](#generate-initiator-identity-rsa-key-pair)
+      - [Start DKG Initiator](#start-dkg-initiator)
+      - [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file-1)
+      - [`init` message fields:](#init-message-fields)
       - [Obtaining Operators data](#obtaining-operators-data)
   - [Architecture](#architecture)
     - [Flow Description:](#flow-description)
@@ -115,6 +119,20 @@ ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 
 If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
 
+#### Launch with Docker and YAML file
+
+The team builds a Docker image with every release of the tool.
+
+It is advised to store all the necessary files (encrypted_private_key.json, password) in a single folder (represented below with <PATH_TO_FOLDER_WITH_CONFIG_FILES>) and share such folder with the container as a volume.
+
+To use it, run the command below:
+
+```sh
+docker run --name ssv_dkg -p 3030:3030  \
+-v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+"ssv-dkg:latest" start-operator --configPath /data/operator.yaml 
+```
+
 ### Initiator
 
 #### Generate Initiator identity RSA key pair
@@ -130,7 +148,7 @@ ssv-dkg generate-initiator-keys --password <PASSWORD>
 This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
 Write down your chosen password in any text file, for example to `./password`.
 
-⚠️ **NOTE:** For more details on `operatorsInfoPath` please read the [note on obtaining Operators data](#note-on-operators-data) below.
+#### Start DKG Initiator
 
 The Initiator creates the initial details needed to run DKG between all operators via the `init` command. Copy (or type) and run the following:
 
@@ -150,6 +168,7 @@ ssv-dkg init \
           --logLevelFormat capitalColor \
           --logFilePath ./initiator_logs/debug.log
 ```
+⚠️ **NOTE:** For more details on `operatorsInfoPath` please read the [note on obtaining Operators data](#note-on-operators-data) below.
 
 Here's an explanation of each parameter:
 
@@ -197,7 +216,21 @@ ssv-dkg init --configPath /examples/config/initiator.example.yaml
 
 If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)
 
-`init` message fields:
+#### Launch with Docker and YAML file
+
+The team builds a Docker image with every release of the tool.
+
+It is advised to store all the necessary files (encrypted_private_key.json, password, operators_info.json) in a single folder (represented below with <PATH_TO_FOLDER_WITH_CONFIG_FILES>) and share such folder with the container as a volume.
+
+To use it, run the command below:
+
+```sh
+docker run --name ssv_dkg \
+-v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+"ssv-dkg:latest" init --configPath /data/initiator.yaml
+```
+
+#### `init` message fields:
 
 ```go
  ID [16]byte //   random UUID
