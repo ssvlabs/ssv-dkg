@@ -78,7 +78,7 @@ func RegisterRoutes(s *Server) {
 
 			// Validate that incoming message is an init message
 			if signedInitMsg.Message.Type != wire.InitMessageType {
-				s.Logger.Error("recieved bad msg non init message send to init route")
+				s.Logger.Error("received bad msg non init message sent to init route")
 				writer.WriteHeader(http.StatusBadRequest)
 				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
 				return
@@ -94,7 +94,7 @@ func RegisterRoutes(s *Server) {
 				writer.Write(wire.MakeErr(err))
 				return
 			}
-			logger.Info("instance started successfully")
+			logger.Info("✅ Instance started successfully")
 
 			writer.WriteHeader(http.StatusOK)
 			writer.Write(b)
@@ -134,10 +134,14 @@ func New(key *rsa.PrivateKey, logger *zap.Logger) *Server {
 }
 
 func (s *Server) Start(port uint16) error {
-	s.Logger.Info(fmt.Sprintf("server listening for incoming requests on port %d", port))
 	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
 	s.HttpServer = srv
-	return s.HttpServer.ListenAndServe()
+	err := s.HttpServer.ListenAndServe()
+	if err != nil {
+		return err
+	}
+	s.Logger.Info("✅ Server is listening for incoming requests", zap.Uint16("port", port))
+	return nil
 }
 
 func (s *Server) Stop() error {

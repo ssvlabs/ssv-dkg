@@ -35,7 +35,7 @@ var GenerateInitiatorKeysCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("Failed to generate operator keys", zap.Error(err))
 		}
-		logger.Info("generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
+		logger.Info("Generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
 
 		if password != "" {
 			encryptedData, err := keystorev4.New().Encrypt(sk, password)
@@ -53,10 +53,10 @@ var GenerateInitiatorKeysCmd = &cobra.Command{
 				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
 			}
 
-			logger.Info("private key encrypted and stored in encrypted_private_key.json")
+			logger.Info("Private key encrypted and stored in encrypted_private_key.json")
 		} else {
-			logger.Info("generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
-			logger.Info("generated private key (base64)", zap.String("sk", base64.StdEncoding.EncodeToString(sk)))
+			logger.Info("Generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
+			logger.Info("Generated private key (base64)", zap.String("sk", base64.StdEncoding.EncodeToString(sk)))
 		}
 	},
 }

@@ -90,42 +90,42 @@ var StartDKGOperator = &cobra.Command{
 		}
 		logger := zap.L().Named("dkg-operator")
 		if err != nil {
-			logger.Warn("couldn't find config file, its ok if you are using cli params")
+			logger.Warn("Couldn't find config file, its ok if you are using cli params")
 		}
 		privKeyPath := viper.GetString("privKey")
 		if privKeyPath == "" {
-			logger.Fatal("failed to get operator private key flag value", zap.Error(err))
+			logger.Fatal("😥 Failed to get operator private key flag value: ", zap.Error(err))
 		}
 		var privateKey *rsa.PrivateKey
 		pass := viper.GetString("password")
 		if pass != "" {
 			// check if a password string a valid path, then read password from the file
 			if _, err := os.Stat(pass); err != nil {
-				logger.Fatal("Cant read password file", zap.Error(err))
+				logger.Fatal("Password file: ", zap.Error(err))
 			}
 			keyStorePassword, err := os.ReadFile(pass)
 			if err != nil {
-				logger.Fatal("Error reading Password file", zap.Error(err))
+				logger.Fatal("😥 Error reading password file: ", zap.Error(err))
 				return err
 			}
 			encryptedJSON, err := os.ReadFile(privKeyPath)
 			if err != nil {
-				logger.Fatal("cant read operator`s key file", zap.Error(err))
+				logger.Fatal("😥 Cant read operator`s key file: ", zap.Error(err))
 				return err
 			}
 			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
 			if err != nil {
-				logger.Fatal("cant read operator`s key file", zap.Error(err))
+				logger.Fatal("😥 Cant read operator`s key file: ", zap.Error(err))
 				return err
 			}
 		} else {
-			logger.Fatal("please provide password string or path to password file", zap.Error(err))
+			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
 			return err
 		}
 		srv := operator.New(privateKey, logger)
 		port := viper.GetUint64("port")
 		if port == 0 {
-			logger.Fatal("failed to get operator info file path flag value", zap.Error(err))
+			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))
 			return err
 		}
 		pubKey, err := crypto.EncodePublicKey(&privateKey.PublicKey)
@@ -133,7 +133,7 @@ var StartDKGOperator = &cobra.Command{
 			logger.Fatal(err.Error())
 			return err
 		}
-		logger.Info("starting DKG operator", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
+		logger.Info("🚀 Starting DKG operator", zap.Uint64("port", port), zap.String("public key", string(pubKey)))
 		if err := srv.Start(uint16(port)); err != nil {
 			log.Fatalf("Error in operator %v", err)
 			return err

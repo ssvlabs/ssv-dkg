@@ -201,7 +201,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		}
 		require.Equal(t, 4, len(errs))
 		for _, err := range errs {
-			require.ErrorContains(t, err, "init message signature isn't valid")
+			require.ErrorContains(t, err, "init message: initiator signature isn't valid: crypto/rsa: verification error")
 		}
 	})
 	t.Run("test wrong signature of init message", func(t *testing.T) {
@@ -276,7 +276,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		}
 		require.Equal(t, 4, len(errs))
 		for _, err := range errs {
-			require.ErrorContains(t, err, "init message signature isn't valid")
+			require.ErrorContains(t, err, "init message: initiator signature isn't valid: crypto/rsa: verification error")
 		}
 	})
 	srv1.HttpSrv.Close()

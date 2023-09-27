@@ -67,7 +67,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	if operatorID == 0 {
-		return nil, nil, errors.New("my operator is missing inside the op list")
+		return nil, nil, errors.New("my operator is missing inside the operators list at instance")
 	}
 
 	bchan := make(chan []byte, 1)
@@ -98,7 +98,6 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	s.Logger.Info("Waiting for owner response to init")
 	res := <-bchan
 	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
 }
@@ -108,7 +107,6 @@ func (s *Switch) Sign(msg []byte) ([]byte, error) {
 }
 
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
-
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
 		pk, err := crypto.ParseRSAPubkey(op.PubKey)
@@ -120,7 +118,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 	return func(id uint64, msg []byte, sig []byte) error {
 		pk, ok := inst_ops[id]
 		if !ok {
-			return errors.New("ops not exist for this instance")
+			return fmt.Errorf("cant find operator participating at DKG %d", id)
 		}
 		return crypto.VerifyRSA(pk, msg, sig)
 	}, nil
@@ -131,7 +129,7 @@ type Switch struct {
 	Mtx              sync.RWMutex
 	InstanceInitTime map[InstanceID]time.Time
 	Instances        map[InstanceID]Instance
-	PrivateKey *rsa.PrivateKey
+	PrivateKey       *rsa.PrivateKey
 }
 
 func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger) *Switch {
@@ -146,12 +144,11 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger) *Switch {
 
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
-	logger.Info("initializing DKG instance")
+	logger.Info("🚀 Initializing DKG instance")
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, err
 	}
-	s.Logger.Debug("decoded init message")
 	// Check that incoming init message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
 	if err != nil {
@@ -163,13 +160,14 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("init message signature isn't valid: %s", err.Error())
+		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
 	}
-	s.Logger.Info(fmt.Sprintf("init message signature is successfully verified, from: %x", sha256.Sum256(initiatorPubKey.N.Bytes())))
+	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
+	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x",initiatorID[:])))
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
-		cleaned := s.CleanInstances() // not thread safe
+		cleaned := s.CleanInstances()
 		if l-cleaned >= MaxInstances {
 			s.Mtx.Unlock()
 			return nil, ErrMaxInstances

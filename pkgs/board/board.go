@@ -29,7 +29,7 @@ func NewBoard(
 }
 
 func (b *Board) PushDeals(bundle *dkg.DealBundle) {
-	b.logger.Debug("pushing deal bundle")
+	b.logger.Debug("Pushing deal bundle: ", zap.Int("num of deals", len(bundle.Deals)))
 
 	byts, err := wire2.EncodeDealBundle(bundle)
 	if err != nil {
@@ -53,7 +53,7 @@ func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
 }
 
 func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
-	b.logger.Info("pushing response bundle")
+	b.logger.Info("Pushing response bundle: ", zap.Int("num of responses", len(bundle.Responses)))
 
 	byts, err := wire2.EncodeResponseBundle(bundle)
 	if err != nil {
@@ -77,7 +77,7 @@ func (b *Board) IncomingResponse() <-chan dkg.ResponseBundle {
 }
 
 func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
-	b.logger.Info("pushing justification bundle")
+	b.logger.Info("Pushing justification bundle: ", zap.Int("num of responses", len(bundle.Justifications)))
 
 	byts, err := wire2.EncodeJustificationBundle(bundle)
 	if err != nil {
