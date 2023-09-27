@@ -38,7 +38,7 @@ docker-build-image:
 	docker build -t $(DOCKER_IMAGE) .
 
 docker-operators:
-	@echo "Running servers in docker demo"
+	@echo "Running operators in docker demo"
 	docker-compose up --build operator1 operator2 operator3 operator4
 
 docker-initiator:
