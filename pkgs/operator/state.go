@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
@@ -28,7 +29,7 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error // maybe return resp, threadsafe
-	ReadResponse() []byte
+	ReadResponse(ctx context.Context) []byte
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
 	GetLocalOwner() *dkg.LocalOwner
@@ -36,15 +37,31 @@ type Instance interface {
 
 type instWrapper struct {
 	*dkg.LocalOwner
-	respChan chan []byte
-	errChan  chan error
+	initiator *rsa.PublicKey
+	respChan  chan []byte
+	errChan   chan error
 }
 
-func (iw *instWrapper) ReadResponse() []byte {
-	return <-iw.respChan
+func (iw *instWrapper) ReadResponse(ctx context.Context) []byte {
+	s := time.Now()
+	defer fmt.Println("Took %v to get msg", time.Since(s).String())
+	for {
+		select {
+		case rd := <-iw.respChan:
+			return rd
+		case <-ctx.Done():
+			return nil
+		default:
+			continue
+		}
+	}
 }
 func (iw *instWrapper) ReadError() error {
 	return <-iw.errChan
+}
+
+func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
+	return crypto.VerifyRSA(iw.initiator, msg, sig)
 }
 
 type InstanceID [24]byte
@@ -73,7 +90,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		return nil, nil, errors.New("my operator is missing inside the op list")
 	}
 
-	bchan := make(chan []byte, 1)
+	bchan := make(chan []byte, 5)
 
 	broadcast := func(msg []byte) error {
 		bchan <- msg
@@ -81,7 +98,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:])), zap.Uint64("operator_id", operatorID)),
 		BroadcastF:         broadcast,
 		SignFunc:           s.Sign,
 		VerifyFunc:         verify,
@@ -106,7 +123,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 	s.Logger.Info("Waiting for owner response to init")
 	res := <-bchan
-	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
+	return &instWrapper{LocalOwner: owner, initiator: initiatorPublicKey, respChan: bchan, errChan: owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
@@ -311,7 +328,41 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 			return nil, err
 		}
 	}
-	resp := inst.ReadResponse()
+	tm := time.Millisecond * 50
+	if st.Messages[0].Message.Type == wire.KyberMessageType {
+		tm = time.Second * 11
+	}
+	ctx, c := context.WithTimeout(context.Background(), tm)
+	defer c()
+	resp := inst.ReadResponse(ctx)
+	if resp == nil {
+		t := &wire.Transport{
+			Type:       wire.EmptyMessageType,
+			Identifier: id,
+			Data:       nil,
+		}
 
+		mrshl, err := t.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+
+		// Sign message with RSA private key
+		sign, err := s.Sign(mrshl)
+		if err != nil {
+			return nil, err
+		}
+
+		ts := &wire.SignedTransport{
+			Message:   t,
+			Signer:    inst.GetLocalOwner().ID,
+			Signature: sign,
+		}
+
+		resp, err = ts.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return resp, nil
 }

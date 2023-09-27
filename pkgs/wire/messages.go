@@ -23,6 +23,7 @@ const (
 	KyberJustificationBundleMessageType
 	BlsSignRequestType
 	ErrorMessageType
+	EmptyMessageType
 )
 
 func (t TransportType) String() string {
@@ -45,6 +46,8 @@ func (t TransportType) String() string {
 		return "BlsSignRequestType"
 	case ErrorMessageType:
 		return "ErrorMessageType"
+	case EmptyMessageType:
+		return "EmptyMessageType"
 	default:
 		return "no type impl"
 	}

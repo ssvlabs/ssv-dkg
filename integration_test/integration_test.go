@@ -222,6 +222,8 @@ func TestReshareHappyFlow(t *testing.T) {
 		ops[6] = initiator.Operator{Addr: srv6.srv.URL, ID: 6, PubKey: &srv6.privKey.PublicKey}
 		srv7 := CreateOperator(t, 7)
 		ops[7] = initiator.Operator{Addr: srv7.srv.URL, ID: 7, PubKey: &srv7.privKey.PublicKey}
+		srv8 := CreateOperator(t, 8)
+		ops[8] = initiator.Operator{Addr: srv8.srv.URL, ID: 8, PubKey: &srv8.privKey.PublicKey}
 		// Initiator priv key
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -273,9 +275,9 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		c.Logger.Info("Round 2. Finished successfully. Got DKG results")
 		dkgResults, validatorPubKey, _, _, _, err := c.ProcessDKGResultResponse(dkgResult, id)
-		require.NotNil(t, validatorPubKey)
 		require.NoError(t, err)
-		newIds := []uint64{5, 6, 7}
+		require.NotNil(t, validatorPubKey)
+		newIds := []uint64{5, 6, 7, 8}
 		c = initiator.New(priv, ops, logger)
 		_, valPubReshare, err := c.StartReshare(id, ids, newIds, dkgResults[0].Commits)
 		require.NoError(t, err)
@@ -287,6 +289,7 @@ func TestReshareHappyFlow(t *testing.T) {
 		srv5.srv.Close()
 		srv6.srv.Close()
 		srv7.srv.Close()
+		srv8.srv.Close()
 	})
 }
 func testSharesData(t *testing.T, ops map[uint64]initiator.Operator, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) {

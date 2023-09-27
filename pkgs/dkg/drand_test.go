@@ -3,6 +3,7 @@ package dkg
 import (
 	"crypto/rsa"
 	"fmt"
+	"golang.org/x/exp/maps"
 	mrand "math/rand"
 	"testing"
 	"time"
@@ -51,16 +52,27 @@ type testState struct {
 	T            *testing.T
 	info         map[uint64]rsa.PublicKey
 	ops          map[uint64]*LocalOwner
-	tv           *testVerify
+	msgs         []struct {
+		uint64
+		string
+		time.Time
+	}
+	tv *testVerify
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
+	st := &wire2.SignedTransport{}
+	if err := st.UnmarshalSSZ(data); err != nil {
+		return err
+	}
+
+	ts.msgs = append(ts.msgs, struct {
+		uint64
+		string
+		time.Time
+	}{uint64: id, string: st.Message.Type.String(), Time: time.Now()})
+
 	return ts.ForAll(func(o *LocalOwner) error {
-		//if o.info.ID != id {
-		st := &wire2.SignedTransport{}
-		if err := st.UnmarshalSSZ(data); err != nil {
-			return err
-		}
 		if err := o.Process(id, st); err != nil {
 			return err
 		}
@@ -155,7 +167,12 @@ func TestDKG(t *testing.T) {
 	ts := &testState{
 		T:   t,
 		ops: make(map[uint64]*LocalOwner),
-		tv:  newTestVerify(),
+		msgs: make([]struct {
+			uint64
+			string
+			time.Time
+		}, 0),
+		tv: newTestVerify(),
 	}
 
 	for i := 0; i < n; i++ {
@@ -245,7 +262,12 @@ func TestDKG(t *testing.T) {
 	ts2 := &testState{
 		T:   t,
 		ops: make(map[uint64]*LocalOwner),
-		tv:  newTestVerify(),
+		msgs: make([]struct {
+			uint64
+			string
+			time.Time
+		}, 0),
+		tv: newTestVerify(),
 	}
 
 	for _, opx := range ts.ops {
@@ -348,6 +370,19 @@ func TestDKG(t *testing.T) {
 		t.Logf("ID %d, new pub %s", id, pub.String())
 	}
 	require.NoError(t, err)
+
+	fmt.Println("################ REG ")
+	fmt.Println(maps.Keys(ts.ops))
+	for _, msg := range ts.msgs {
+		fmt.Printf("\n at %v, %v sent %v \n", msg.Time.Format(time.TimeOnly), msg.uint64, msg.string)
+	}
+
+	fmt.Println("################ RESHARE ")
+	fmt.Println(maps.Keys(ts2.ops))
+
+	for _, msg := range ts2.msgs {
+		fmt.Printf("\n at %v %v sent %v \n", msg.Time.Format(time.TimeOnly), msg.uint64, msg.string)
+	}
 
 }
 

@@ -315,7 +315,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
-		Messages:   make([]*wire.SignedTransport, len(allmsgs)),
+		Messages:   make([]*wire.SignedTransport, 0),
 	}
 	var allMsgsBytes []byte
 	for i := 0; i < len(allmsgs); i++ {
@@ -330,6 +330,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 			}
 			return nil, err
 		}
+		fmt.Printf("\n Adding msg of type %v from %v \n", tsp.Message.Type.String(), tsp.Signer)
 		signedBytes, err := tsp.Message.MarshalSSZ()
 		if err != nil {
 			return nil, err
@@ -345,7 +346,11 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		c.Logger.Info(fmt.Sprintf("Successfully verified incoming DKG message type %s signature: from %d", tsp.Message.Type.String(), tsp.Signer))
 		c.Logger.Debug("Operator messages are valid. Continue.")
 
-		final.Messages[i] = tsp
+		if tsp.Message.Type == wire.EmptyMessageType {
+			continue
+		}
+
+		final.Messages = append(final.Messages, tsp)
 		allMsgsBytes = append(allMsgsBytes, msg...)
 	}
 	// sign message by initiator
@@ -566,7 +571,7 @@ func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds 
 	}
 
 	// compute new threshold (3f+1)
-	newThreshold := len(append(oldIds, newIds...)) - ((len(append(oldIds, newIds...)) - 1) / 3)
+	newThreshold := 3 //len(append(oldIds, newIds...)) - ((len(append(oldIds, newIds...)) - 1) / 3)
 	newParts := make([]*wire.Operator, 0)
 	for _, id := range newIds {
 		op, ok := c.Operators[id]
@@ -582,8 +587,11 @@ func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds 
 			PubKey: pkBytes,
 		})
 	}
+
+	allParts := append(oldParts, newParts...)
+
 	// Add messages verification coming form operators
-	verify, err := c.CreateVerifyFunc(append(oldParts, newParts...))
+	verify, err := c.CreateVerifyFunc(allParts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -604,15 +612,15 @@ func (c *Initiator) StartReshare(oldRequestID [24]byte, oldIds []uint64, newIds 
 		InitiatorPublicKey: pkBytes,
 	}
 	id := c.NewID()
-	results, err := c.SendInitMsg(init, id, append(oldParts, newParts...))
+	results, err := c.SendInitMsg(init, id, allParts)
 	if err != nil {
 		return nil, nil, err
 	}
-	results, err = c.SendExchangeMsgs(results, id, append(oldParts, newParts...))
+	results, err = c.SendExchangeMsgs(results, id, allParts)
 	if err != nil {
 		return nil, nil, err
 	}
-	dkgResult, err := c.SendKyberMsgs(results, id, append(oldParts, newParts...))
+	dkgResult, err := c.SendKyberMsgs(results, id, allParts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -690,7 +698,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 			return nil, nil, nil, nil, nil, fmt.Errorf(msgErr)
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, nil, nil, nil, nil, fmt.Errorf("wrong incoming message type")
+			return nil, nil, nil, nil, nil, fmt.Errorf("wrong incoming message type want %v got %v", wire.OutputMessageType, tsp.Message.Type)
 		}
 		result := &dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
