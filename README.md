@@ -110,7 +110,7 @@ When using configuration file, run:
 ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
-`ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
+If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `operator.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/operator.yaml`)
 
 ### Initiator
 
@@ -192,7 +192,7 @@ When using configuration file, simply run:
 ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
-`ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)
+If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `initiator.yaml` in `./config/` folder in the same root as the binary (i.e. `./config/initiator.yaml`)
 
 `init` message fields:
 
