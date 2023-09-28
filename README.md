@@ -87,16 +87,16 @@ ssv-dkg start-operator \
 
 Here's an explanation of each parameter:
 
-| Argument         | type                                      | description                                                                    |
-| ---------------- | :---------------------------------------- | :----------------------------------------------------------------------------- |
-| --privKey        | string                                    | Path to ssv operator`s private key                                             |
-| --port           | int                                       | Port for listening messages                                                    |
-| --password       | string                                    | Path to password file to decrypt the key                                       |
-| --storeShare     | boolean                                   | Weather to store the created bls key share to a file for later reuse if needed |
-| --logLevel       | debug / info / warning / error / critical | Logger's log level                                                             |
-| --logFormat      | json / console                            | Logger's encoding                                                              |
-| --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format                                                          |
-| --logFilePath    | string                                    | Path to file where logs should be written                                      |
+| Argument         | type                                      | description                                                                                       |
+| ---------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| --privKey        | string                                    | Private key of ssv operator (path, or plain text, if not encrypted)                               |
+| --port           | int                                       | Port for listening messages (default: `3030`)                                                     |
+| --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)              |
+| --storeShare     | boolean                                   | Weather to store the created bls key share to a file for later reuse if needed (default: `false`) |
+| --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                             |
+| --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
+| --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
+| --logFilePath    | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                           |
 
 It is also possible to use YAML configuration file. Example:
 
@@ -173,22 +173,22 @@ ssv-dkg init \
 
 Here's an explanation of each parameter:
 
-| Argument                   | type                                      | description                                              |
-| -------------------------- | :---------------------------------------- | :------------------------------------------------------- |
-| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony       |
-| --operatorsInfoPath        | string                                    | Path to operators info: ID,base64(RSA pub key),IP        |
-| --owner                    | address                                   | Owner address for the SSV contract                       |
-| --nonce                    | int                                       | Owner nonce for the SSV contract                         |
-| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent |
-| --fork                     | mainnet / prater / now_test_network       | Fork name                                                |
-| --depositResultsPath       | string                                    | Path to store the staking deposit file                   |
-| --ssvPayloadResultsPath    | string                                    | Path to store ssv contract payload file                  |
-| --initiatorPrivKey         | string                                    | Path to ssv initiators's private key                     |
-| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key                 |
-| --logLevel                 | debug / info / warning / error / critical | Logger's log level                                       |
-| --logFormat                | json / console                            | Logger's encoding                                        |
-| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format                                    |
-| --logFilePath              | string                                    | Path to file where logs should be written                |
+| Argument                   | type                                      | description                                                                          |
+| -------------------------- | :---------------------------------------- | :----------------------------------------------------------------------------------- |
+| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                   |
+| --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                            |
+| --owner                    | address                                   | Owner address for the SSV contract                                                   |
+| --nonce                    | int                                       | Owner nonce for the SSV contract                                                     |
+| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                             |
+| --fork                     | mainnet / prater / now_test_network       | Network name (default: `mainnet`)                                                    |
+| --depositResultsPath       | string                                    | Path to store the staking deposit file                                               |
+| --ssvPayloadResultsPath    | string                                    | Path to store ssv contract payload file                                              |
+| --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                 |
+| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key) |
+| --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                |
+| --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                  |
+| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                      |
+| --logFilePath              | string                                    | Path to file where logs should be written (default: `./data/debug.log`)              |
 
 
 It is also possible to use YAML configuration file. Example:
@@ -198,7 +198,7 @@ operatorIDs: [1, 2, 3, 4]
 withdrawAddress: "0000000000000000000000000000000000000009"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
-fork: "00000000"
+fork: "prater"
 operatorsInfoPath: ./examples/operators_integration.json
 depositResultsPath: ./output/
 ssvPayloadResultsPath: ./output/
@@ -262,16 +262,18 @@ Operators info file example (`./examples/operators_integration.json`):
 [
   {
     "id": 1,
-    "public_key": "LS0tLS1CRUdJTiBSU0....",
+    "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBd0xlSnhtb1hKQmczQnVmSUhTTHgKcXFYYzI5Z1J1TklsS3JwT3NxM1YvNmQ0cFRwVHY3emxSSGN5NnRGZEUxSUdGVElhaXVac3hySlFxZ1dqTVRESwpFa0srdTZ2bmVwMXBEeFVWK0V0TU9TbGY1eXdMa2tkODByOVBGa1lmOVVDUlFNTlQ5THBLd2lZSFJ1SkJ2S2F5CllaSmI5SHpJVlNuc2hkL3VReWlXK2JvSU1hamF2ckQ2WGtBSHFacnJVdWYzV280clQ3OC9ldG1jWGIwMFRhb3oKclBxQThJL3loS0kzaGdjYlc5TkZLYmpQcVY2c3U0SkFSSTJPSlVQeUo4SEdqMTNrczdBR00yZjY0SEZSNFNPdAo3NWRiWWlWaW42WENPeHRVbDBJekltakRmL0RlVGdIWWdrWkNYVWtnSUxlZTF1ZUtaTVN5cGNyY3ZGekhpUlNsCkdRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
     "ip": "http://localhost:3030"
   },
   {
     "id": 2,
-    "public_key": "LS0tLS1CRUdJTiB....",
+    "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBd0xlSnhtb1hKQmczQnVmSUhTTHgKcXFYYzI5Z1J1TklsS3JwT3NxM1YvNmQ0cFRwVHY3emxSSGN5NnRGZEUxSUdGVElhaXVac3hySlFxZ1dqTVRESwpFa0srdTZ2bmVwMXBEeFVWK0V0TU9TbGY1eXdMa2tkODByOVBGa1lmOVVDUlFNTlQ5THBLd2lZSFJ1SkJ2S2F5CllaSmI5SHpJVlNuc2hkL3VReWlXK2JvSU1hamF2ckQ2WGtBSHFacnJVdWYzV280clQ3OC9ldG1jWGIwMFRhb3oKclBxQThJL3loS0kzaGdjYlc5TkZLYmpQcVY2c3U0SkFSSTJPSlVQeUo4SEdqMTNrczdBR00yZjY0SEZSNFNPdAo3NWRiWWlWaW42WENPeHRVbDBJekltakRmL0RlVGdIWWdrWkNYVWtnSUxlZTF1ZUtaTVN5cGNyY3ZGekhpUlNsCkdRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS01",
     "ip": "http://localhost:3031"
   }
 ]
 ```
+
+Please note, this example only contains information about two operators, but it could be a list of objects representing **every** operator on the ssv.network. As a matter of fact, it could be wise to do so.
 
 ## Architecture
 
