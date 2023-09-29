@@ -16,8 +16,10 @@ const (
 	InitMessageType TransportType = iota
 	ReshareMessageType
 	KyberMessageType
+	ReshareKyberMessageType
 	InitReshareMessageType
 	ExchangeMessageType
+	ReshareExchangeMessageType
 	OutputMessageType
 	KyberDealBundleMessageType
 	KyberResponseBundleMessageType
@@ -34,8 +36,12 @@ func (t TransportType) String() string {
 		return "ReshareMessageType"
 	case KyberMessageType:
 		return "KyberMessageType"
+	case ReshareKyberMessageType:
+		return "ReshareKyberMessageType"
 	case ExchangeMessageType:
 		return "ExchangeMessageType"
+	case ReshareExchangeMessageType:
+		return "ReshareExchangeMessageType"
 	case OutputMessageType:
 		return "OutputMessageType"
 	case KyberDealBundleMessageType:
@@ -66,6 +72,11 @@ type SignedTransport struct {
 }
 
 type KyberMessage struct {
+	Type TransportType
+	Data []byte `ssz-max:"4096"`
+}
+
+type ReshareKyberMessage struct {
 	Type TransportType
 	Data []byte `ssz-max:"4096"`
 }
@@ -105,8 +116,12 @@ type Reshare struct {
 	InitiatorPublicKey []byte `ssz-max:"2048"`
 	// ID of the initial DKG ceremony
 	OldID [24]byte `ssz-size:"24"`
+	// Owner address
+	Owner [20]byte `ssz-size:"20"`
+	// Owner nonce
+	Nonce uint64
 	// Public coeffs
-	Coefs []byte   `ssz-max:"4096"`
+	Coefs []byte `ssz-max:"4096"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

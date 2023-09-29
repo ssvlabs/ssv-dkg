@@ -73,6 +73,8 @@ type Result struct {
 	DepositPartialSignature []byte
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte
+	// Public poly commitments
+	Commits []byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -117,6 +119,7 @@ type LocalOwner struct {
 	suite       pairing.Suite
 	BroadcastF  func([]byte) error
 	Exchanges   map[uint64]*wire.Exchange
+	Deals       map[uint64]*dkg.DealBundle
 	OpPrivKey   *rsa.PrivateKey
 	SecretShare *dkg.DistKeyShare
 
@@ -152,6 +155,7 @@ func New(opts OwnerOpts) *LocalOwner {
 		ID:                 opts.ID,
 		BroadcastF:         opts.BroadcastF,
 		Exchanges:          make(map[uint64]*wire.Exchange),
+		Deals:              make(map[uint64]*dkg.DealBundle),
 		SignFunc:           opts.SignFunc,
 		VerifyFunc:         opts.VerifyFunc,
 		done:               make(chan struct{}, 1),
@@ -187,12 +191,11 @@ func (o *LocalOwner) StartDKG() error {
 	p, err := wire.NewDKGProtocol(&wire.Config{
 		Identifier: o.data.ReqID[:],
 		Secret:     o.data.Secret,
-		Nodes:      nodes,
+		NewNodes:   nodes,
 		Suite:      o.suite,
 		T:          int(o.data.Init.T),
 		Board:      o.b,
-
-		Logger: o.Logger,
+		Logger:     o.Logger,
 	})
 	if err != nil {
 		return err
@@ -203,6 +206,146 @@ func (o *LocalOwner) StartDKG() error {
 		postF(&res)
 	}(p, o.PostDKG)
 	close(o.startedDKG)
+	return nil
+}
+
+func (o *LocalOwner) StartReshareDKGOldNodes() error {
+	o.Logger.Info("Starting Resharing DKG ceremony")
+	NewNodes := make([]dkg.Node, 0)
+	for _, op := range o.data.Reshare.NewOperators {
+		if o.Exchanges[op.ID] == nil {
+			return fmt.Errorf("no operator at Exchanges")
+		}
+		e := o.Exchanges[op.ID]
+		p := o.suite.G1().Point()
+		if err := p.UnmarshalBinary(e.PK); err != nil {
+			return err
+		}
+
+		NewNodes = append(NewNodes, dkg.Node{
+			Index:  dkg.Index(op.ID - 1),
+			Public: p,
+		})
+	}
+	OldNodes := make([]dkg.Node, 0)
+	for _, op := range o.data.Reshare.OldOperators {
+		if o.Exchanges[op.ID] == nil {
+			return fmt.Errorf("no operator at Exchanges")
+		}
+		e := o.Exchanges[op.ID]
+		p := o.suite.G1().Point()
+		if err := p.UnmarshalBinary(e.PK); err != nil {
+			return err
+		}
+
+		OldNodes = append(OldNodes, dkg.Node{
+			Index:  dkg.Index(op.ID - 1),
+			Public: p,
+		})
+	}
+	o.Logger.Debug("Staring DKG with nodes: ")
+	for _, n := range append(OldNodes, NewNodes...) {
+		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
+	}
+	// New protocol
+	p, err := wire.NewReshareProtocolOldNodes(&wire.Config{
+		Identifier: o.data.ReqID[:],
+		Secret:     o.data.Secret,
+		OldNodes:   OldNodes,
+		NewNodes:   NewNodes,
+		Suite:      o.suite,
+		T:          int(o.data.Reshare.OldT),
+		NewT:       int(o.data.Reshare.NewT),
+		Board:      o.b,
+		Share:      o.SecretShare,
+		Logger:     o.Logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
+		res := <-p.WaitEnd()
+		postF(&res)
+	}(p, o.PostDKG)
+	close(o.startedDKG)
+	return nil
+}
+
+func (o *LocalOwner) StartReshareDKGNewNodes() error {
+	o.Logger.Info("Starting Resharing DKG ceremony")
+	NewNodes := make([]dkg.Node, 0)
+	for _, op := range o.data.Reshare.NewOperators {
+		if o.Exchanges[op.ID] == nil {
+			return fmt.Errorf("no operator at Exchanges")
+		}
+		e := o.Exchanges[op.ID]
+		p := o.suite.G1().Point()
+		if err := p.UnmarshalBinary(e.PK); err != nil {
+			return err
+		}
+
+		NewNodes = append(NewNodes, dkg.Node{
+			Index:  dkg.Index(op.ID - 1),
+			Public: p,
+		})
+	}
+	OldNodes := make([]dkg.Node, 0)
+	for _, op := range o.data.Reshare.OldOperators {
+		if o.Exchanges[op.ID] == nil {
+			return fmt.Errorf("no operator at Exchanges")
+		}
+		e := o.Exchanges[op.ID]
+		p := o.suite.G1().Point()
+		if err := p.UnmarshalBinary(e.PK); err != nil {
+			return err
+		}
+
+		OldNodes = append(OldNodes, dkg.Node{
+			Index:  dkg.Index(op.ID - 1),
+			Public: p,
+		})
+	}
+	o.Logger.Debug("Staring resharing DKG with nodes: ")
+	for _, n := range append(OldNodes, NewNodes...) {
+		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
+	}
+
+	var coefs []kyber.Point
+	coefsBytes := utils.SplitBytes(o.data.Reshare.Coefs, 48)
+	for _, c := range coefsBytes {
+		p := o.suite.G1().Point()
+		err := p.UnmarshalBinary(c)
+		if err != nil {
+			return err
+		}
+		coefs = append(coefs, p)
+	}
+
+	// New protocol
+	p, err := wire.NewReshareProtocolNewNodes(&wire.Config{
+		Identifier:   o.data.ReqID[:],
+		Secret:       o.data.Secret,
+		OldNodes:     OldNodes,
+		NewNodes:     NewNodes,
+		Suite:        o.suite,
+		T:            int(o.data.Reshare.OldT),
+		NewT:         int(o.data.Reshare.NewT),
+		Board:        o.b,
+		PublicCoeffs: coefs,
+		Logger:       o.Logger,
+	})
+
+	if err != nil {
+		return err
+	}
+	for _, b := range o.Deals {
+		o.b.DealC <- *b
+	}
+	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
+		res := <-p.WaitEnd()
+		postF(&res)
+	}(p, o.PostReshare)
 	return nil
 }
 
@@ -360,6 +503,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
+		Commits:                    commits,
 	}
 
 	encodedOutput, err := out.Encode()
@@ -379,12 +523,148 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	return nil
 }
 
-func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init, reshare *wire.Reshare) (*wire.Transport, error) {
+func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
+	if res.Error != nil {
+		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
+		o.broadcastError(res.Error)
+		return res.Error
+	}
+	o.Logger.Info("DKG resharing ceremony finished successfully")
+	// Store result share a instance
+	o.SecretShare = res.Result.Key
+	// encode priv share
+	secret := &DistKeyShare{}
+	var commits []byte
+	for _, point := range o.SecretShare.Commits {
+		b, _ := point.MarshalBinary()
+		commits = append(commits, b...)
+	}
+	secret.Commits = commits
+	secterPoint, err := o.SecretShare.Share.V.MarshalBinary()
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	secret.Share.V = secterPoint
+	secret.Share.I = o.SecretShare.Share.I
+	bin, err := secret.Encode()
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], bin)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	// Get validator BLS public key from result
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
+
+	// Get BLS partial secret key share from DKG
+	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	// Store secret if requested
+	if viper.GetBool("storeShare") {
+		type shareStorage struct {
+			Index  int    `json:"index"`
+			Secret string `json:"secret"`
+		}
+		data := shareStorage{
+			Index:  res.Result.Key.Share.I,
+			Secret: secretKeyBLS.SerializeToHexStr(),
+		}
+		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
+		if err != nil {
+			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
+			o.broadcastError(err)
+			return err
+		}
+	}
+
+	// Encrypt BLS share for SSV contract
+	rawshare := secretKeyBLS.SerializeToHexStr()
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(rawshare))
+	if err != nil {
+		o.broadcastError(err)
+		return fmt.Errorf("cant encrypt private share")
+	}
+	// check that we encrypt right
+	shareSecretDecrypted := &bls.SecretKey{}
+	decryptedSharePrivateKey, err := rsaencryption.DecodeKey(o.OpPrivKey, ciphertext)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	if err = shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+		o.broadcastError(err)
+		return err
+	}
+
+	if !bytes.Equal(shareSecretDecrypted.Serialize(), secretKeyBLS.Serialize()) {
+		o.broadcastError(err)
+		return err
+	}
+
+	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
+
+	// Sign SSV owner + nonce
+	data := []byte(fmt.Sprintf("%s:%d", o.Owner.String(), o.Nonce))
+	hash := eth_crypto.Keccak256([]byte(data))
+	o.Logger.Debug("Owner, Nonce", zap.String("owner", o.Owner.String()), zap.Uint64("nonce", o.Nonce))
+	o.Logger.Debug("SSV Keccak 256 hash of owner + nonce", zap.String("hash", fmt.Sprintf("%x", hash)))
+	sigOwnerNonce := secretKeyBLS.SignByte(hash)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	// Verify partial SSV owner + nonce signature
+	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
+	if !val {
+		o.broadcastError(err)
+		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
+	}
+	out := Result{
+		RequestID:       o.data.ReqID,
+		EncryptedShare:  ciphertext,
+		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
+		ValidatorPubKey: validatorPubKey.Serialize(),
+		// DepositPartialSignature:    depositRootSig.Serialize(),
+		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
+		OperatorID:                 o.ID,
+		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
+		Commits:                    commits,
+	}
+
+	encodedOutput, err := out.Encode()
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+
+	tsMsg := &wire.Transport{
+		Type:       wire.OutputMessageType,
+		Identifier: o.data.ReqID,
+		Data:       encodedOutput,
+	}
+
+	o.Broadcast(tsMsg)
+	close(o.done)
+	return nil
+}
+
+func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
 	if o.data == nil {
 		o.data = &DKGData{}
 	}
 	o.data.Init = init
-	o.data.Reshare = reshare
 	o.data.ReqID = reqID
 	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
 	o.b = board.NewBoard(
@@ -411,6 +691,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init, reshare *wire.Reshare
 
 			return nil
 		},
+		len(o.data.Init.Operators),
 	)
 
 	eciesSK, pk := InitSecret(o.suite)
@@ -420,6 +701,49 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init, reshare *wire.Reshare
 		return nil, err
 	}
 	return ExchangeWireMessage(bts, reqID), nil
+}
+
+func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare) (*wire.Transport, error) {
+	if o.data == nil {
+		o.data = &DKGData{}
+	}
+	o.data.Reshare = reshare
+	o.data.ReqID = reqID
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
+	o.b = board.NewBoard(
+		kyberLogger,
+		func(msg *wire.KyberMessage) error {
+			kyberLogger.Debug("server: broadcasting kyber message")
+			byts, err := msg.MarshalSSZ()
+			if err != nil {
+				return err
+			}
+
+			trsp := &wire.Transport{
+				Type:       wire.ReshareKyberMessageType,
+				Identifier: o.data.ReqID,
+				Data:       byts,
+			}
+
+			// todo not loop with channels
+			go func(trsp *wire.Transport) {
+				if err := o.Broadcast(trsp); err != nil {
+					o.Logger.Error("broadcasting failed", zap.Error(err))
+				}
+			}(trsp)
+
+			return nil
+		},
+		len(o.data.Reshare.OldOperators),
+	)
+
+	eciesSK, pk := InitSecret(o.suite)
+	o.data.Secret = eciesSK
+	bts, _, err := CreateExchange(pk)
+	if err != nil {
+		return nil, err
+	}
+	return ReshareExchangeWireMessage(bts, reqID), nil
 }
 
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
@@ -487,6 +811,66 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				return err
 			}
 		}
+	case wire.ReshareExchangeMessageType:
+		exchMsg := &wire.Exchange{}
+		if err := exchMsg.UnmarshalSSZ(t.Data); err != nil {
+			return err
+		}
+		if _, ok := o.Exchanges[from]; ok {
+			return ErrAlreadyExists
+		}
+
+		o.Exchanges[from] = exchMsg
+
+		if len(o.Exchanges) == len(append(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators...)) {
+			if o.SecretShare != nil {
+				if err := o.StartReshareDKGOldNodes(); err != nil {
+					return err
+				}
+			} else {
+				bundle := &dkg.DealBundle{}
+				b, err := wire.EncodeDealBundle(bundle)
+				if err != nil {
+					return err
+				}
+				msg := &wire.ReshareKyberMessage{
+					Type: wire.KyberDealBundleMessageType,
+					Data: b,
+				}
+
+				byts, err := msg.MarshalSSZ()
+				if err != nil {
+					return err
+				}
+				trsp := &wire.Transport{
+					Type:       wire.ReshareKyberMessageType,
+					Identifier: o.data.ReqID,
+					Data:       byts,
+				}
+				o.Broadcast(trsp)
+			}
+		}
+	case wire.ReshareKyberMessageType:
+		kyberMsg := &wire.ReshareKyberMessage{}
+		if err := kyberMsg.UnmarshalSSZ(t.Data); err != nil {
+			return err
+		}
+		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.suite.G1().(dkg.Suite))
+		if err != nil {
+			return err
+		}
+		if _, ok := o.Deals[from]; ok {
+			return ErrAlreadyExists
+		}
+		if len(b.Deals) != 0 {
+			fmt.Printf("Got kyber deals from %d, at %d, deals %d \n", from, o.ID, len(b.Deals))
+			o.Deals[from] = b
+		}
+		if len(o.Deals) == len(o.data.Reshare.OldOperators) {
+			if err := o.StartReshareDKGNewNodes(); err != nil {
+				return err
+			}
+		}
 	case wire.KyberMessageType:
 		<-o.startedDKG
 		return o.processDKG(from, t)
@@ -522,6 +906,14 @@ func CreateExchange(pk kyber.Point) ([]byte, *wire.Exchange, error) {
 func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 	return &wire.Transport{
 		Type:       wire.ExchangeMessageType,
+		Identifier: reqID,
+		Data:       exchData,
+	}
+}
+
+func ReshareExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
+	return &wire.Transport{
+		Type:       wire.ReshareExchangeMessageType,
 		Identifier: reqID,
 		Data:       exchData,
 	}

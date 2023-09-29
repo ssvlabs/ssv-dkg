@@ -93,7 +93,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	resp, err := owner.Init(reqID, init, nil)
+	resp, err := owner.Init(reqID, init)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -139,6 +139,8 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		Suite:              bls3.NewBLS12381Suite(),
 		ID:                 operatorID,
 		OpPrivKey:          s.PrivateKey,
+		Owner:              reshare.Owner,
+		Nonce:              reshare.Nonce,
 		InitiatorPublicKey: initiatorPublicKey,
 		DB:                 s.DB,
 	}
@@ -147,7 +149,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	if secretShare != nil {
 		owner.SecretShare = secretShare
 	}
-	resp, err := owner.Init(reqID, nil, reshare)
+	resp, err := owner.CreateInstanceReshare(reqID, reshare)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -316,6 +318,40 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 			return nil, err
 		}
 		secret.Share = &share.PriShare{V: secretPoint, I: privShare.Share.I}
+		s.Mtx.Lock()
+		l := len(s.Instances)
+		if l >= MaxInstances {
+			cleaned := s.CleanInstances() // not thread safe
+			if l-cleaned >= MaxInstances {
+				s.Mtx.Unlock()
+				return nil, ErrMaxInstances
+			}
+		}
+		_, ok = s.Instances[reqID]
+		if ok {
+			tm := s.InstanceInitTime[reqID]
+			if !time.Now().After(tm.Add(MaxInstanceTime)) {
+				s.Mtx.Unlock()
+				return nil, ErrAlreadyExists
+			}
+			delete(s.Instances, reqID)
+			delete(s.InstanceInitTime, reqID)
+		}
+		s.Mtx.Unlock()
+		inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, secret)
+		if err != nil {
+			return nil, err
+		}
+		s.Mtx.Lock()
+		_, ok = s.Instances[reqID]
+		if ok {
+			s.Mtx.Unlock()
+			return nil, ErrAlreadyExists
+		}
+		s.Instances[reqID] = inst
+		s.InstanceInitTime[reqID] = time.Now()
+		s.Mtx.Unlock()
+		return resp, nil
 	}
 	s.Mtx.Lock()
 	l := len(s.Instances)
@@ -337,7 +373,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		delete(s.InstanceInitTime, reqID)
 	}
 	s.Mtx.Unlock()
-	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, secret)
+	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -69,7 +69,7 @@ func TestStartDKG(t *testing.T) {
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		id := initiator.NewID()
+		id := crypto.NewID()
 		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		VerifySharesData(t, ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
@@ -77,19 +77,19 @@ func TestStartDKG(t *testing.T) {
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		id := initiator.NewID()
+		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		id := initiator.NewID()
+		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
-		id := initiator.NewID()
+		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})

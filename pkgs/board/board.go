@@ -18,13 +18,14 @@ type Board struct {
 func NewBoard(
 	logger *zap.Logger,
 	broadcastF func(msg *wire2.KyberMessage) error,
+	n int,
 ) *Board {
 	return &Board{
 		broadcastF:     broadcastF,
 		logger:         logger,
-		DealC:          make(chan dkg.DealBundle),
-		ResponseC:      make(chan dkg.ResponseBundle),
-		JustificationC: make(chan dkg.JustificationBundle),
+		DealC:          make(chan dkg.DealBundle, n),
+		ResponseC:      make(chan dkg.ResponseBundle, n),
+		JustificationC: make(chan dkg.JustificationBundle, n),
 	}
 }
 
