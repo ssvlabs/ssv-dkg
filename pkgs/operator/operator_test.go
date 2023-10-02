@@ -185,7 +185,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Nonce:                 0,
 			InitiatorPublicKey:    wrongPub,
 		}
-		id := c.NewID()
+		id := crypto.NewID()
 		results, err := c.SendInitMsg(init, id, parts)
 		require.NoError(t, err)
 		var errs []error
@@ -244,7 +244,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Nonce:                 0,
 			InitiatorPublicKey:    wrongPub,
 		}
-		id := c.NewID()
+		id := crypto.NewID()
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
 		initMessage := &wire.Transport{

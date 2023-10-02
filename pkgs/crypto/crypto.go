@@ -19,6 +19,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	types "github.com/wealdtech/go-eth2-types/v2"
@@ -445,7 +446,6 @@ func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.
 	return nil
 }
 
-
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -487,4 +487,13 @@ func PrivateKey(path string) (*rsa.PrivateKey, error) {
 		return nil, err
 	}
 	return parsedSk, nil
+}
+
+func NewID() [24]byte {
+	var id [24]byte
+	b := uuid.New()
+	copy(id[:12], b[:])
+	b = uuid.New()
+	copy(id[12:], b[:])
+	return id
 }

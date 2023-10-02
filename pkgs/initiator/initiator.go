@@ -20,7 +20,6 @@ import (
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
@@ -732,15 +731,6 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 		return nil, err
 	}
 	return responseResult, nil
-}
-
-func (c *Initiator) NewID() [24]byte { // random ID for each new DKG initiation
-	var id [24]byte
-	b := uuid.New()
-	copy(id[:12], b[:])
-	b = uuid.New()
-	copy(id[12:], b[:])
-	return id
 }
 
 func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {

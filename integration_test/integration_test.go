@@ -21,6 +21,7 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -71,7 +72,7 @@ func TestHappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -83,7 +84,7 @@ func TestHappyFlows(t *testing.T) {
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -95,7 +96,7 @@ func TestHappyFlows(t *testing.T) {
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test 10 operators happy flow", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -107,7 +108,7 @@ func TestHappyFlows(t *testing.T) {
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test 13 operators happy flow", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -119,7 +120,7 @@ func TestHappyFlows(t *testing.T) {
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
 	})
 	t.Run("test 13 operators - random operators order", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -186,7 +187,7 @@ func TestThreshold(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -206,7 +207,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators threshold", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -226,7 +227,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators threshold", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -246,7 +247,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -319,7 +320,7 @@ func TestUnhappyFlows(t *testing.T) {
 	clnt := initiator.New(priv, ops, logger)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	id := clnt.NewID()
+	id := crypto.NewID()
 	depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -332,7 +333,7 @@ func TestUnhappyFlows(t *testing.T) {
 	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, ks, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -358,7 +359,7 @@ func TestUnhappyFlows(t *testing.T) {
 	t.Run("test wrong operator IDs", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := clnt.NewID()
+		id := crypto.NewID()
 		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
