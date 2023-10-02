@@ -33,8 +33,21 @@ type Instance interface {
 
 type instWrapper struct {
 	*dkg.LocalOwner
-	respChan chan []byte
-	errChan  chan error
+	InitiatorPublicKey *rsa.PublicKey
+	respChan           chan []byte
+	errChan            chan error
+}
+
+func (iw *instWrapper) VerifyInitiatorMessage(msg []byte, sig []byte) error {
+	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyRSA(iw.InitiatorPublicKey, msg, sig); err != nil {
+		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
+	}
+	iw.Logger.Info("Successfully verified initiator message signature", zap.Uint64("from", iw.ID))
+	return nil
 }
 
 func (iw *instWrapper) ReadResponse() []byte {
@@ -78,16 +91,15 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
-		Suite:              bls3.NewBLS12381Suite(),
-		ID:                 operatorID,
-		OpPrivKey:          s.PrivateKey,
-		Owner:              init.Owner,
-		Nonce:              init.Nonce,
-		InitiatorPublicKey: initiatorPublicKey,
+		Logger:     s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF: broadcast,
+		SignFunc:   s.Sign,
+		VerifyFunc: verify,
+		Suite:      bls3.NewBLS12381Suite(),
+		ID:         operatorID,
+		OpPrivKey:  s.PrivateKey,
+		Owner:      init.Owner,
+		Nonce:      init.Nonce,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -99,7 +111,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		return nil, nil, err
 	}
 	res := <-bchan
-	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
+	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
@@ -163,7 +175,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
 	}
 	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
-	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x",initiatorID[:])))
+	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
