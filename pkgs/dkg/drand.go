@@ -2,7 +2,6 @@ package dkg
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -15,7 +14,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
@@ -95,44 +93,48 @@ type LocalOwner struct {
 	suite       pairing.Suite
 	BroadcastF  func([]byte) error
 	Exchanges   map[uint64]*wire.Exchange
-	OpPrivKey   *rsa.PrivateKey
 	SecretShare *dkg.DistKeyShare
-
-	VerifyFunc func(id uint64, msg, sig []byte) error
-	SignFunc   func([]byte) ([]byte, error)
-
-	Owner common.Address
-	Nonce uint64
-	done  chan struct{}
+	VerifyFunc  func(id uint64, msg, sig []byte) error
+	SignFunc    func([]byte) ([]byte, error)
+	EncryptFunc func([]byte) ([]byte, error)
+	DecryptFunc func([]byte) ([]byte, error)
+	RSAPub      *rsa.PublicKey
+	Owner       common.Address
+	Nonce       uint64
+	done        chan struct{}
 }
 
 type OwnerOpts struct {
-	Logger     *zap.Logger
-	ID         uint64
-	BroadcastF func([]byte) error
-	Suite      pairing.Suite
-	VerifyFunc func(id uint64, msg, sig []byte) error
-	SignFunc   func([]byte) ([]byte, error)
-	OpPrivKey  *rsa.PrivateKey
-	Owner      [20]byte
-	Nonce      uint64
+	Logger      *zap.Logger
+	ID          uint64
+	BroadcastF  func([]byte) error
+	Suite       pairing.Suite
+	VerifyFunc  func(id uint64, msg, sig []byte) error
+	SignFunc    func([]byte) ([]byte, error)
+	EncryptFunc func([]byte) ([]byte, error)
+	DecryptFunc func([]byte) ([]byte, error)
+	RSAPub      *rsa.PublicKey
+	Owner       [20]byte
+	Nonce       uint64
 }
 
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
-		Logger:     opts.Logger,
-		startedDKG: make(chan struct{}, 1),
-		ErrorChan:  make(chan error, 1),
-		ID:         opts.ID,
-		BroadcastF: opts.BroadcastF,
-		Exchanges:  make(map[uint64]*wire.Exchange),
-		SignFunc:   opts.SignFunc,
-		VerifyFunc: opts.VerifyFunc,
-		done:       make(chan struct{}, 1),
-		suite:      opts.Suite,
-		OpPrivKey:  opts.OpPrivKey,
-		Owner:      opts.Owner,
-		Nonce:      opts.Nonce,
+		Logger:      opts.Logger,
+		startedDKG:  make(chan struct{}, 1),
+		ErrorChan:   make(chan error, 1),
+		ID:          opts.ID,
+		BroadcastF:  opts.BroadcastF,
+		Exchanges:   make(map[uint64]*wire.Exchange),
+		SignFunc:    opts.SignFunc,
+		VerifyFunc:  opts.VerifyFunc,
+		EncryptFunc: opts.EncryptFunc,
+		DecryptFunc: opts.DecryptFunc,
+		RSAPub:      opts.RSAPub,
+		done:        make(chan struct{}, 1),
+		suite:       opts.Suite,
+		Owner:       opts.Owner,
+		Nonce:       opts.Nonce,
 	}
 	return owner
 }
@@ -247,14 +249,14 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 
 	// Encrypt BLS share for SSV contract
 	rawshare := secretKeyBLS.SerializeToHexStr()
-	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(rawshare))
+	ciphertext, err := o.EncryptFunc([]byte(rawshare))
 	if err != nil {
 		o.broadcastError(err)
 		return fmt.Errorf("cant encrypt private share")
 	}
-	// check that we encrypt right
+	// check that we encrypt correctly
 	shareSecretDecrypted := &bls.SecretKey{}
-	decryptedSharePrivateKey, err := rsaencryption.DecodeKey(o.OpPrivKey, ciphertext)
+	decryptedSharePrivateKey, err := o.DecryptFunc(ciphertext)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -305,7 +307,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
 		DepositPartialSignature:    depositRootSig.Serialize(),
-		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
+		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
 	}

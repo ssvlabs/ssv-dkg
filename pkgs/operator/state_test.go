@@ -78,7 +78,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.Equal(t, wrapper.LocalOwner.OpPrivKey, privateKey)
+		require.True(t, wrapper.LocalOwner.RSAPub.Equal(&privateKey.PublicKey))
 	}
 
 	testParams := []struct {

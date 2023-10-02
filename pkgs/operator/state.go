@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	bls3 "github.com/drand/kyber-bls12381"
 	"go.uber.org/zap"
 )
@@ -91,15 +93,17 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:     s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF: broadcast,
-		SignFunc:   s.Sign,
-		VerifyFunc: verify,
-		Suite:      bls3.NewBLS12381Suite(),
-		ID:         operatorID,
-		OpPrivKey:  s.PrivateKey,
-		Owner:      init.Owner,
-		Nonce:      init.Nonce,
+		Logger:      s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:  broadcast,
+		SignFunc:    s.Sign,
+		VerifyFunc:  verify,
+		EncryptFunc: s.Encrypt,
+		DecryptFunc: s.Decrypt,
+		Suite:       bls3.NewBLS12381Suite(),
+		ID:          operatorID,
+		RSAPub:      &s.PrivateKey.PublicKey,
+		Owner:       init.Owner,
+		Nonce:       init.Nonce,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -118,6 +122,13 @@ func (s *Switch) Sign(msg []byte) ([]byte, error) {
 	return crypto.SignRSA(s.PrivateKey, msg)
 }
 
+func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
+	return rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, msg)
+}
+
+func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
+	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
+}
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
