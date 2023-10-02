@@ -315,17 +315,9 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 			}
 			return nil, err
 		}
-		signedBytes, err := tsp.Message.MarshalSSZ()
-		if err != nil {
-			return nil, err
-		}
 		// Verify that incoming messages have valid DKG ceremony ID
 		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
 			return nil, fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
-		}
-		// Verification operator signatures
-		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
-			return nil, err
 		}
 		final.Messages[i] = tsp
 		allMsgsBytes = append(allMsgsBytes, msg...)
