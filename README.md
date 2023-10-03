@@ -48,7 +48,7 @@ The SSV team built this tool leveraging [drand](https://drand.love/)'s DKG proto
 
 The `ssv-dkg` was built to lift this assumption and provide a communication layer that centered on an Initiator figure, to facilitate communication between operators. The introduced potential risk for centralization and bad actors is handled with signatures and signature verifications, as explained in the [Security notes](#security-notes) section.
 
-Finally, the outcome of the DKG ceremony is a BLS key pair to be used for validator duties by operators on the ssv.network. As such, the tool ends the process by creating a deposit file to activate the newly created validator key pair, and proceeds to generating the payload for the transaction, and triggering the transaction itself.
+Finally, the outcome of the DKG ceremony is a BLS key pair to be used for validator duties by operators on the ssv.network. As such, the tool ends the process by creating a deposit file to activate the newly created validator key pair, and proceeds to generating the payload for the transaction to register the validator on the ssv.network.
 
 ## Quick-start
 
@@ -67,9 +67,11 @@ make install
 
 ### Operator
 
-SSV Operators typically play the role of dkg-operators, running the `ssv-dkg` tool as Operators. As a result, it is an Operator RSA private key is a requirement. A dkg-operator is able to participate in multiple DKG ceremonies in parallel.
+A requirement to participate as a DKG-Operator, is a valid RSA private key. SSV node Operators typically also run the `ssv-dkg` tool as Operators, so they could re-use the same RSA key used for their SSV Node to fulfill this requirement.
 
-⚠️ **NOTE:** `ssv-dkg` tool is using an ssv operator private key file. Both encrypted and plain text versions are supported. If `password` parameter is provided then the `ssv-dkg` tool assumes that the operator's RSA key is encrypted, otherwise it assumes that the key is provided as plain text.
+Finally, a DKG-Operator is able to participate in multiple DKG ceremonies in parallel.
+
+⚠️ **NOTE:** `ssv-dkg` tool is using an SSV operator private key file. Both encrypted and plain text versions are supported. If `password` parameter is provided then the `ssv-dkg` tool assumes that the operator's RSA key is encrypted, otherwise it assumes that the key is provided as plain text.
 
 #### Start a DKG-operator
 
@@ -92,7 +94,7 @@ Here's an explanation of each parameter:
 | --privKey        | string                                    | Private key of ssv operator (path, or plain text, if not encrypted)                               |
 | --port           | int                                       | Port for listening messages (default: `3030`)                                                     |
 | --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)              |
-| --storeShare     | boolean                                   | Weather to store the created bls key share to a file for later reuse if needed (default: `false`) |
+| --storeShare     | boolean                                   | Whether to store the created bls key share to a file for later reuse if needed (default: `false`) |
 | --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                             |
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
@@ -353,7 +355,7 @@ It is important to briefly explain how the communication between DKG ceremony In
 
 3. Initiator verifies every incoming message from any Operator using ID and Public Key provided by Operators' info file, then Initiator creates a combined message and signs it.
 
-4. Operators verify each of the messages from other Operators participating in the ceremony and verifies Initiator's signature of the combined message.
+4.  Operators verify the Initiator's signature of the combined message and then proceed to verifying each of the messages from other Operators participating in the ceremony.
 
 5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
 
