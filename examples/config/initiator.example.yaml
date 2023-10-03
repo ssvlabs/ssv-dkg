@@ -1,7 +1,7 @@
 operatorIDs: [1, 2, 3, 4]
 withdrawAddress: "0000000000000000000000000000000000000009"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 4
+nonce: 0
 fork: "mainnet"
 operatorsInfoPath: /data/docker_operators.json
 depositResultsPath: /data/output/
