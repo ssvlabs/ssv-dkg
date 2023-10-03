@@ -96,7 +96,7 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 
 // ForkVersionFlag  adds the fork version of the network flag to the command
 func ForkVersionFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, fork, "", "Fork version 4 bytes in HEX, i.e. 0x0000000000", false)
+	AddPersistentStringFlag(c, fork, "", "Fork version, mainnet/prater", false)
 }
 
 // GetForkVersionFlagValue gets the fork version of the network flag from the command
