@@ -90,21 +90,21 @@ type DepositDataJson struct {
 }
 
 type KeyShares struct {
-	Version   string           `json:"version"`
-	Data      Data             `json:"data"`
-	Payload   KeySharesPayload `json:"payload"`
-	CreatedAt time.Time        `json:"createdAt"`
+	Version   string          `json:"version"`
+	Data      Data            `json:"data"`
+	Payload   ReadablePayload `json:"payload"`
+	CreatedAt time.Time       `json:"createdAt"`
 }
 
 type Data struct {
 	PublicKey string         `json:"publicKey"`
 	Operators []OperatorData `json:"operators"`
-	Shares    KeySharesKeys  `json:"shares"`
+	//Shares    KeySharesKeys  `json:"shares"`
 }
 
 type OperatorData struct {
 	ID        uint64 `json:"id"`
-	PublicKey string `json:"publicKey"`
+	PublicKey string `json:"operatorKey"`
 }
 
 type KeySharesKeys struct {
@@ -112,17 +112,15 @@ type KeySharesKeys struct {
 	EncryptedKeys []string `json:"encryptedKeys"`
 }
 
-type KeySharesPayload struct {
-	Readable ReadablePayload `json:"readable"`
-	Raw      string          `json:"raw"`
-}
+//type KeySharesPayload struct {
+//	Readable ReadablePayload `json:"readable"`
+//	Raw      string          `json:"raw"`
+//}
 
 type ReadablePayload struct {
 	PublicKey   string   `json:"publicKey"`
 	OperatorIDs []uint64 `json:"operatorIds"`
-	Shares      string   `json:"shares"`
-	Amount      string   `json:"amount"`
-	Cluster     string   `json:"cluster"`
+	SharesData  string   `json:"sharesData"`
 }
 
 func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, error) {
@@ -161,7 +159,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 	data := Data{
 		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		Operators: operatorData,
-		Shares:    shares,
+		//Shares:    shares,
 	}
 	// Create share string for ssv contract
 	sharesData := append(pubkeys, encryptedShares...)
@@ -176,17 +174,13 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	payload := KeySharesPayload{
-		Readable: ReadablePayload{
-			PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
-			OperatorIDs: operatorIds,
-			Shares:      "0x" + hex.EncodeToString(sharesDataSigned),
-			Amount:      "Amount of SSV tokens to be deposited to your validator's cluster balance (mandatory only for 1st validator in a cluster)",
-			Cluster:     "The latest cluster snapshot data, obtained using the cluster-scanner tool. If this is the cluster's 1st validator then use - {0,0,0,0,0,false}",
-		},
+	payload := ReadablePayload{
+		PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
+		OperatorIDs: operatorIds,
+		SharesData:  "0x" + hex.EncodeToString(sharesDataSigned),
 	}
 	ks := &KeyShares{}
-	ks.Version = "v3"
+	ks.Version = "v4"
 	ks.Data = data
 	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
