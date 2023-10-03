@@ -5,4 +5,4 @@ storeShare: false
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/operator4_logs/debug.log
+logFilePath: /data/output/operator4_logs_debug.log

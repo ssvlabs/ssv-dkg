@@ -11,4 +11,4 @@ initiatorPrivKeyPassword: /data/initiator/password
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/initiator_logs/debug.log
+logFilePath: /data/output/initiator_debug.log
