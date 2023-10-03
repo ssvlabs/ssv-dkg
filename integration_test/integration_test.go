@@ -26,7 +26,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const encryptedKeyLength = 256
@@ -332,55 +331,23 @@ func TestReshareHappyFlows(t *testing.T) {
 	owner := newEthAddress(t)
 	ids := []uint64{1, 2, 3, 4}
 	t.Run("test reshare 5 new operators happy flow", func(t *testing.T) {
-		// compute threshold (3f+1)
-		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0)
-		for _, id := range ids {
-			op, ok := i.Operators[id]
-			if !ok {
-				t.Fatal("op is not in list")
-			}
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
-			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
-				ID:     op.ID,
-				PubKey: pkBytes,
-			})
-		}
-		// Add messages verification coming form operators
-		verify, err := i.CreateVerifyFunc(parts)
-		require.NoError(t, err)
-		i.VerifyFunc = verify
-		pkBytes, err := crypto.EncodePublicKey(&i.PrivateKey.PublicKey)
-		require.NoError(t, err)
-		// make init message
-		init := &wire.Init{
-			Operators:             parts,
-			T:                     uint64(threshold),
-			WithdrawalCredentials: withdraw.Bytes(),
-			Fork:                  [4]byte{0, 0, 0, 0},
-			Owner:                 owner,
-			Nonce:                 0,
-			InitiatorPublicKey:    pkBytes,
-		}
 		id := crypto.NewID()
-		results, err := i.SendInitMsg(init, id, parts)
-		require.NoError(t, err)
-		results, err = i.SendExchangeMsgs(results, id, parts)
-		require.NoError(t, err)
-		dkgResult, err := i.SendKyberMsgs(results, id, parts)
-		require.NoError(t, err)
-		i.Logger.Info("Round 2. Finished successfully. Got DKG results")
-		dkgResults, validatorPubKey, _, _, _, err := i.ProcessDKGResultResponse(dkgResult, id)
-		require.NotNil(t, validatorPubKey)
-		require.NoError(t, err)
-		newIds := []uint64{5, 6, 7, 8, 9}
-		newId := crypto.NewID()
-		ks, err := i.StartReshare(newId, id, ids, newIds, dkgResults[0].Commits, owner, 0)
+		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+		require.NoError(t, err)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		newIds := []uint64{5, 6, 7, 8, 9}
+		newId := crypto.NewID()
+		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err = hex.DecodeString(ks.Payload.Readable.Shares[2:])
+		require.NoError(t, err)
+		pubkeyraw, err = hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
 		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)

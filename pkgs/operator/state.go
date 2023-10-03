@@ -146,10 +146,15 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
+	var commits []byte
 	if secretShare != nil {
 		owner.SecretShare = secretShare
+		for _, point := range secretShare.Commits {
+			b, _ := point.MarshalBinary()
+			commits = append(commits, b...)
+		}
 	}
-	resp, err := owner.CreateInstanceReshare(reqID, reshare)
+	resp, err := owner.CreateInstanceReshare(reqID, reshare, commits)
 	if err != nil {
 		return nil, nil, err
 	}

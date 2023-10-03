@@ -120,13 +120,12 @@ type Reshare struct {
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
-	// Public coeffs
-	Coefs []byte `ssz-max:"4096"`
 }
 
 // Exchange contains the session auth/ encryption key for each node
 type Exchange struct {
-	PK []byte `ssz-max:"2048"`
+	PK      []byte `ssz-max:"2048"`
+	Commits []byte `ssz-max:"2048"`
 }
 
 type Output struct {

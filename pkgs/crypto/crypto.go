@@ -13,19 +13,24 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
+	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	types "github.com/wealdtech/go-eth2-types/v2"
 	util "github.com/wealdtech/go-eth2-util"
 	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 )
+
+const encryptedKeyLength = 256
 
 const (
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
@@ -496,4 +501,32 @@ func NewID() [24]byte {
 	copy(id[:16], b[:])
 	copy(id[16:], b2[:8])
 	return id
+}
+
+func DecryptShare(operatorCount int, id uint64, key *rsa.PrivateKey, sharesData []byte) (*share.PriShare, error) {
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
+	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+	if len(sharesData) != sharesExpectedLength {
+		return nil, fmt.Errorf("shares data len is not correct")
+	}
+	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
+	secretShare := &share.PriShare{}
+	for _, enck := range encryptedKeys {
+		share, err := rsaencryption.DecodeKey(key, enck)
+		if err != nil {
+			continue
+		}
+		secret := &bls.SecretKey{}
+		err = secret.SetHexString(string(share))
+		if err != nil {
+			return nil, err
+		}
+		secretPoint := bls3.NewBLS12381Suite().G1().Scalar()
+		err = secretPoint.UnmarshalBinary(secret.Serialize())
+		secretShare.I = int(id - 1)
+		secretShare.V = secretPoint
+	}
+	return secretShare, nil
 }

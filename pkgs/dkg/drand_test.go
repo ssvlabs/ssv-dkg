@@ -6,6 +6,7 @@ import (
 	"fmt"
 	mrand "math/rand"
 	"testing"
+	"time"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -13,6 +14,7 @@ import (
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -78,6 +80,15 @@ func (ts *testState) ForAll(f func(o *LocalOwner) error) error {
 	}
 	return nil
 }
+func (ts *testState) ForNew(f func(o *LocalOwner) error, newOps []*wire2.Operator) error {
+	for _, op := range newOps {
+		newOp := ts.ops[op.ID]
+		if err := f(newOp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func NewTestOperator(ts *testState) *LocalOwner {
 	id := uint64(mrand.Int63n(13))
@@ -110,6 +121,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		ID:        id,
 		suite:     bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
+		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
@@ -140,6 +152,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		ID:        id,
 		suite:     bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
+		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
@@ -220,137 +233,138 @@ func TestDKG(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	// var commits []kyber.Point
-	// err = ts.ForAll(func(o *LocalOwner) error {
-	// 	commits = o.SecretShare.Commits
-	// 	return nil
-	// })
-	// require.NoError(t, err)
-	// commitsbytes := make([]byte, 0, 48*3)
-	// fmt.Println("################ commits #####################################################################")
-	// for _, comm := range commits {
-	// 	bin, err := comm.MarshalBinary()
-	// 	require.NoError(t, err)
-	// 	fmt.Println(len(bin))
-	// 	commitsbytes = append(commitsbytes, bin...)
-	// }
+	var commits []kyber.Point
+	err = ts.ForAll(func(o *LocalOwner) error {
+		commits = o.SecretShare.Commits
+		return nil
+	})
+	require.NoError(t, err)
+	commitsbytes := make([]byte, 0, 48*3)
+	fmt.Println("################ commits #####################################################################")
+	for _, comm := range commits {
+		bin, err := comm.MarshalBinary()
+		require.NoError(t, err)
+		fmt.Println(len(bin))
+		commitsbytes = append(commitsbytes, bin...)
+	}
 
-	// // Start resharing
+	// Start resharing
 
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
-	// time.Sleep(1 * time.Second)
-	// fmt.Println("######################################START OF RESHARE#####################################################")
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
-	// fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	time.Sleep(1 * time.Second)
+	fmt.Println("######################################START OF RESHARE#####################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
+	fmt.Println("###########################################################################################")
 
-	// ts2 := &testState{
-	// 	T:   t,
-	// 	ops: make(map[uint64]*LocalOwner),
-	// 	tv:  newTestVerify(),
-	// }
+	ts2 := &testState{
+		T:   t,
+		ops: make(map[uint64]*LocalOwner),
+		tv:  newTestVerify(),
+	}
 
-	// for _, opx := range ts.ops {
-	// 	op := AddExistingOperator(ts2, opx)
-	// 	ts2.ops[op.ID] = op
-	// }
+	for _, opx := range ts.ops {
+		op := AddExistingOperator(ts2, opx)
+		ts2.ops[op.ID] = op
+	}
 
-	// var newops []uint64
-	// newopsArr := make([]*wire2.Operator, 0, len(ts2.tv.ops))
-	// //newopsArr = append(newopsArr, opsarr...)
-	// //spew.Dump(newopsArr)
+	var newops []uint64
+	newopsArr := make([]*wire2.Operator, 0, len(ts2.tv.ops))
+	//newopsArr = append(newopsArr, opsarr...)
+	//spew.Dump(newopsArr)
 
-	// for i := 0; i < n; i++ {
-	// 	op := NewTestOperator(ts2)
-	// 	ts2.ops[op.ID] = op
-	// 	newops = append(newops, op.ID)
-	// }
+	for i := 0; i < n; i++ {
+		op := NewTestOperator(ts2)
+		ts2.ops[op.ID] = op
+		newops = append(newops, op.ID)
+	}
 
-	// for _, opid := range newops {
-	// 	//ops[id] = own.info
-	// 	pktobytes, err := crypto.EncodePublicKey(ts2.tv.ops[opid])
-	// 	require.NoError(t, err)
-	// 	newopsArr = append(newopsArr, &wire2.Operator{
-	// 		ID:     opid,
-	// 		PubKey: pktobytes,
-	// 	})
-	// }
+	for _, opid := range newops {
+		//ops[id] = own.info
+		pktobytes, err := crypto.EncodePublicKey(ts2.tv.ops[opid])
+		require.NoError(t, err)
+		newopsArr = append(newopsArr, &wire2.Operator{
+			ID:     opid,
+			PubKey: pktobytes,
+		})
+	}
 
-	// fmt.Println("############################################## OPERATOPR ")
-	// fmt.Println("############################################## OLD OPERATOPR ")
-	// for _, i := range opsarr {
-	// 	fmt.Println(i.ID)
-	// }
-	// fmt.Println("############################################## NEW OPERATOPR ")
-	// for _, i := range newopsArr {
-	// 	fmt.Println(i.ID)
-	// }
-	// fmt.Println("############################################## OPERATOPR ")
+	fmt.Println("############################################## OPERATOPR ")
+	fmt.Println("############################################## OLD OPERATOPR ")
+	for _, i := range opsarr {
+		fmt.Println(i.ID)
+	}
+	fmt.Println("############################################## NEW OPERATOPR ")
+	for _, i := range newopsArr {
+		fmt.Println(i.ID)
+	}
+	fmt.Println("############################################## OPERATOPR ")
 
-	// init2 := &wire2.Init{
-	// 	Operators:             opsarr,
-	// 	NewOperators:          newopsArr,
-	// 	OldID:                 uid,
-	// 	T:                     3,
-	// 	NewT:                  6,
-	// 	WithdrawalCredentials: []byte("0x0000"),
-	// 	Fork:                  [4]byte{0, 0, 0, 0},
-	// 	Nonce:                 0,
-	// 	Owner:                 common.HexToAddress("0x1234"),
-	// 	Coefs:                 commitsbytes,
-	// }
-	// newuid := crypto.NewID()
-	// exch2 := map[uint64]*wire2.Transport{}
+	reshare := &wire2.Reshare{
+		OldOperators: opsarr,
+		NewOperators: newopsArr,
+		OldID:        uid,
+		OldT:         3,
+		NewT:         6,
+		Nonce:        0,
+		Owner:        common.HexToAddress("0x1234"),
+	}
+	newuid := crypto.NewID()
+	exch2 := map[uint64]*wire2.Transport{}
 
-	// err = ts2.ForAll(func(o *LocalOwner) error {
-	// 	var share *dkg.DistKeyShare
-	// 	if oldop, ex := ts.ops[o.ID]; ex {
-	// 		share = oldop.SecretShare
-	// 	}
-	// 	o.SecretShare = share
-	// 	ts, err := o.Init(newuid, init2)
-	// 	if err != nil {
-	// 		t.Error(t, err)
-	// 	}
-	// 	exch2[o.ID] = ts
-	// 	return nil
-	// })
-	// require.NoError(t, err)
-	// err = ts2.ForAll(func(o *LocalOwner) error {
-	// 	return o.Broadcast(exch2[o.ID])
-	// })
+	err = ts2.ForAll(func(o *LocalOwner) error {
+		var share *dkg.DistKeyShare
+		if oldop, ex := ts.ops[o.ID]; ex {
+			share = oldop.SecretShare
+		}
+		o.SecretShare = share
+		var commits []byte
+		for _, point := range o.SecretShare.Commits {
+			b, _ := point.MarshalBinary()
+			commits = append(commits, b...)
+		}
+		ts, err := o.CreateInstanceReshare(newuid, reshare, commits)
+		if err != nil {
+			t.Error(t, err)
+		}
+		exch2[o.ID] = ts
+		return nil
+	})
+	require.NoError(t, err)
+	err = ts2.ForAll(func(o *LocalOwner) error {
+		return o.Broadcast(exch2[o.ID])
+	})
 
-	// require.NoError(t, err)
+	require.NoError(t, err)
 
-	// err = ts2.ForAll(func(o *LocalOwner) error {
-	// 	<-o.startedDKG
-	// 	return nil
-	// })
+	err = ts2.ForAll(func(o *LocalOwner) error {
+		<-o.startedDKG
+		return nil
+	})
 
-	// require.NoError(t, err)
-	// newPubs := make(map[uint64]kyber.Point)
-	// err = ts2.ForAll(func(o *LocalOwner) error {
-	// 	<-o.done
-	// 	newPubs[o.ID] = o.SecretShare.Public()
-	// 	return nil
-	// })
+	require.NoError(t, err)
+	newPubs := make(map[uint64]kyber.Point)
+	err = ts2.ForAll(func(o *LocalOwner) error {
+		<-o.done
+		return nil
+	})
 
-	// // Print old pubs
-	// var resPub kyber.Point
-	// for id, pub := range pubs {
-	// 	t.Logf("ID %d, old pub %s", id, pub.String())
-	// 	resPub = pub
-	// }
-	// // Print new pubs
-	// for id, pub := range newPubs {
-	// 	require.Equal(t, resPub.String(), pub.String())
-	// 	t.Logf("ID %d, new pub %s", id, pub.String())
-	// }
-	// require.NoError(t, err)
+	// Print old pubs
+	var resPub kyber.Point
+	for id, pub := range pubs {
+		t.Logf("ID %d, old pub %s", id, pub.String())
+		resPub = pub
+	}
+	// Print new pubs
+	for id, pub := range newPubs {
+		require.Equal(t, resPub.String(), pub.String())
+		t.Logf("ID %d, new pub %s", id, pub.String())
+	}
+	require.NoError(t, err)
 
 }
 

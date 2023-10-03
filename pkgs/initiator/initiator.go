@@ -117,6 +117,11 @@ type KeySharesPayload struct {
 	Raw      string          `json:"raw"`
 }
 
+type Commits struct {
+	ID      string `json:"id"`
+	Commits string `json:"commits"`
+}
+
 type ReadablePayload struct {
 	PublicKey   string   `json:"publicKey"`
 	OperatorIDs []uint64 `json:"operatorIds"`
@@ -601,7 +606,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4
 	return depositDataJson, keyshares, nil
 }
 
-func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64, coefs []byte, owner common.Address, nonce uint64) (*KeyShares, error) {
+func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64, owner common.Address, nonce uint64) (*KeyShares, error) {
 
 	oldOps, err := validatedOperatorData(oldIDs, c.Operators)
 	if err != nil {
@@ -638,7 +643,6 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 		OldT:               uint64(oldThreshold),
 		NewT:               uint64(newThreshold),
 		OldID:              oldID,
-		Coefs:              coefs,
 		Owner:              owner,
 		Nonce:              nonce,
 		InitiatorPublicKey: pkBytes,

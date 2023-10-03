@@ -291,11 +291,18 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		})
 	}
 	OldNodes := make([]dkg.Node, 0)
+	var commits []byte
+	var coefs []kyber.Point
 	for _, op := range o.data.Reshare.OldOperators {
 		if o.Exchanges[op.ID] == nil {
 			return fmt.Errorf("no operator at Exchanges")
 		}
 		e := o.Exchanges[op.ID]
+		if e.Commits == nil {
+			return fmt.Errorf("no commits at Exchanges")
+		}
+		o.Logger.Debug("Commits at exchange", zap.Uint64("ID", op.ID), zap.Binary("commits", e.Commits))
+		commits = e.Commits
 		p := o.suite.G1().Point()
 		if err := p.UnmarshalBinary(e.PK); err != nil {
 			return err
@@ -310,9 +317,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	for _, n := range append(OldNodes, NewNodes...) {
 		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
 	}
-
-	var coefs []kyber.Point
-	coefsBytes := utils.SplitBytes(o.data.Reshare.Coefs, 48)
+	coefsBytes := utils.SplitBytes(commits, 48)
 	for _, c := range coefsBytes {
 		p := o.suite.G1().Point()
 		err := p.UnmarshalBinary(c)
@@ -335,7 +340,6 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		PublicCoeffs: coefs,
 		Logger:       o.Logger,
 	})
-
 	if err != nil {
 		return err
 	}
@@ -696,14 +700,14 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 
 	eciesSK, pk := InitSecret(o.suite)
 	o.data.Secret = eciesSK
-	bts, _, err := CreateExchange(pk)
+	bts, _, err := CreateExchange(pk, nil)
 	if err != nil {
 		return nil, err
 	}
 	return ExchangeWireMessage(bts, reqID), nil
 }
 
-func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare) (*wire.Transport, error) {
+func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, commits []byte) (*wire.Transport, error) {
 	if o.data == nil {
 		o.data = &DKGData{}
 	}
@@ -739,7 +743,7 @@ func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare
 
 	eciesSK, pk := InitSecret(o.suite)
 	o.data.Secret = eciesSK
-	bts, _, err := CreateExchange(pk)
+	bts, _, err := CreateExchange(pk, commits)
 	if err != nil {
 		return nil, err
 	}
@@ -806,10 +810,13 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
-		if len(o.Exchanges) == len(o.data.Init.Operators) {
-			if err := o.StartDKG(); err != nil {
-				return err
+		for _, op := range o.data.Init.Operators {
+			if o.Exchanges[op.ID] == nil {
+				return nil
 			}
+		}
+		if err := o.StartDKG(); err != nil {
+			return err
 		}
 	case wire.ReshareExchangeMessageType:
 		exchMsg := &wire.Exchange{}
@@ -821,34 +828,36 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		}
 
 		o.Exchanges[from] = exchMsg
-
-		if len(o.Exchanges) == len(append(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators...)) {
-			if o.SecretShare != nil {
-				if err := o.StartReshareDKGOldNodes(); err != nil {
-					return err
-				}
-			} else {
-				bundle := &dkg.DealBundle{}
-				b, err := wire.EncodeDealBundle(bundle)
-				if err != nil {
-					return err
-				}
-				msg := &wire.ReshareKyberMessage{
-					Type: wire.KyberDealBundleMessageType,
-					Data: b,
-				}
-
-				byts, err := msg.MarshalSSZ()
-				if err != nil {
-					return err
-				}
-				trsp := &wire.Transport{
-					Type:       wire.ReshareKyberMessageType,
-					Identifier: o.data.ReqID,
-					Data:       byts,
-				}
-				o.Broadcast(trsp)
+		for _, op := range append(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators...) {
+			if o.Exchanges[op.ID] == nil {
+				return nil
 			}
+		}
+		if o.SecretShare != nil {
+			if err := o.StartReshareDKGOldNodes(); err != nil {
+				return err
+			}
+		} else {
+			bundle := &dkg.DealBundle{}
+			b, err := wire.EncodeDealBundle(bundle)
+			if err != nil {
+				return err
+			}
+			msg := &wire.ReshareKyberMessage{
+				Type: wire.KyberDealBundleMessageType,
+				Data: b,
+			}
+
+			byts, err := msg.MarshalSSZ()
+			if err != nil {
+				return err
+			}
+			trsp := &wire.Transport{
+				Type:       wire.ReshareKyberMessageType,
+				Identifier: o.data.ReqID,
+				Data:       byts,
+			}
+			o.Broadcast(trsp)
 		}
 	case wire.ReshareKyberMessageType:
 		kyberMsg := &wire.ReshareKyberMessage{}
@@ -863,13 +872,15 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 			return ErrAlreadyExists
 		}
 		if len(b.Deals) != 0 {
-			fmt.Printf("Got kyber deals from %d, at %d, deals %d \n", from, o.ID, len(b.Deals))
 			o.Deals[from] = b
 		}
-		if len(o.Deals) == len(o.data.Reshare.OldOperators) {
-			if err := o.StartReshareDKGNewNodes(); err != nil {
-				return err
+		for _, op := range o.data.Reshare.OldOperators {
+			if o.Deals[op.ID] == nil {
+				return nil
 			}
+		}
+		if err := o.StartReshareDKGNewNodes(); err != nil {
+			return err
 		}
 	case wire.KyberMessageType:
 		<-o.startedDKG
@@ -887,13 +898,14 @@ func InitSecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
 	return eciesSK, pk
 }
 
-func CreateExchange(pk kyber.Point) ([]byte, *wire.Exchange, error) {
+func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, error) {
 	pkByts, err := pk.MarshalBinary()
 	if err != nil {
 		return nil, nil, err
 	}
 	exch := wire.Exchange{
-		PK: pkByts,
+		PK:      pkByts,
+		Commits: commits,
 	}
 	exchByts, err := exch.MarshalSSZ()
 	if err != nil {
