@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build-image docker-operators docker-initiator mockgen-install lint-prepare lint
+.PHONY: install clean build test docker-build-image docker-operators docker-initiator docker-resharing mockgen-install lint-prepare lint 
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -39,11 +39,16 @@ docker-build-image:
 
 docker-operators:
 	@echo "Running operators in docker demo"
-	docker-compose up --build operator1 operator2 operator3 operator4
+	docker-compose up --build operator1 operator2 operator3 operator4 operator5 operator6 operator7 operator8
 
 docker-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
+
+docker-resharing:
+	@echo "Running resharing in docker demo"
+	docker-compose up --build resharing
+
 
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0

@@ -12,6 +12,8 @@ const (
 	threshold                = "threshold"
 	withdrawAddress          = "withdrawAddress"
 	operatorIDs              = "operatorIDs"
+	newOperatorIDs           = "newOperatorIDs"
+	oldID                    = "oldID"
 	operatorsInfo            = "operatorsInfoPath"
 	operatorPrivKey          = "privKey"
 	configPath               = "configPath"
@@ -65,6 +67,26 @@ func OperatorIDsFlag(c *cobra.Command) {
 // GetThresholdFlagValue gets operators IDs flag from the command
 func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
 	return c.Flags().GetStringSlice(operatorIDs)
+}
+
+// operatorIDsFlag adds new operators IDs flag to the command
+func NewOperatorIDsFlag(c *cobra.Command) {
+	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs", false)
+}
+
+// GetThresholdFlagValue gets new operators IDs flag from the command
+func GetNewOperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
+	return c.Flags().GetStringSlice(newOperatorIDs)
+}
+
+// OldIDFlag  adds previous DKG ceremony ID flag to the command
+func OldIDFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, oldID, "", "Old ID (24 bytes)", false)
+}
+
+// GetWithdrawAddressFlagValue gets previous DKG ceremony ID flag from the command
+func GetOldIDFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(oldID)
 }
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command

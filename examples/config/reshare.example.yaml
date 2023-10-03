@@ -1,10 +1,9 @@
 operatorIDs: [1, 2, 3, 4]
-withdrawAddress: "0000000000000000000000000000000000000009"
+newOperatorIDs: [5, 6, 7, 8]
+oldID: "a866d319e6454c6cad4c7ce9dfbb5ae819a834c739ae4578"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
-fork: "mainnet"
 operatorsInfoPath: /data/docker_operators.json
-depositResultsPath: /data/output/
 ssvPayloadResultsPath: /data/output/
 initiatorPrivKey: /data/initiator/encrypted_private_key.json
 initiatorPrivKeyPassword: /data/initiator/password

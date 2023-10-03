@@ -378,7 +378,7 @@ func TestUnhappyFlows(t *testing.T) {
 	srv13.HttpSrv.Close()
 }
 
-func TestReshareHappyFlows(t *testing.T) {
+func TestReshareHappyFlow(t *testing.T) {
 	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
 		panic(err)
 	}

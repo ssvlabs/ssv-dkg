@@ -20,13 +20,13 @@ func init() {
 
 // GenerateOperatorKeysCmd is the command to generate operator private/public keys
 var GenerateInitiatorKeysCmd = &cobra.Command{
-	Use:   "generate-initiator-keys",
-	Short: "generates RSA initiator keys",
+	Use:   "generate-keys",
+	Short: "generates RSA keys",
 	Run: func(cmd *cobra.Command, args []string) {
-		logger := zap.L().Named(cmd.Short)
 		if err := logging.SetGlobalLogger("debug", "capital", "console", &logging.LogFileOptions{FileName: "./data/debug.log"}); err != nil {
 			log.Fatal(err)
 		}
+		logger := zap.L().Named(cmd.Short)
 		password, err := cmd.Flags().GetString("password")
 		if err != nil {
 			logger.Fatal("Failed to get password for RSA key", zap.Error(err))

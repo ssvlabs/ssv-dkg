@@ -95,11 +95,6 @@ var StartDKGOperator = &cobra.Command{
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
 		logFilePath := viper.GetString("logFilePath")
-		// If the log file doesn't exist, create it
-		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
 		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
@@ -135,9 +130,8 @@ var StartDKGOperator = &cobra.Command{
 			}
 		} else {
 			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
-				logger.Fatal("Error reading Password file", zap.Error(err))
+			logger.Fatal("Error reading Password file", zap.Error(err))
 		}
-		
 
 		var DBOptions basedb.Options
 		DBPath := viper.GetString("DBPath")
@@ -145,7 +139,7 @@ var StartDKGOperator = &cobra.Command{
 		DBGCInterval := viper.GetString("DBGCInterval")
 		if DBPath != "" {
 			if _, err := os.Stat(DBPath); err != nil {
-				logger.Fatal("Cant DB path", zap.Error(err))
+					return err
 			}
 		}
 		DBOptions.Path = DBPath

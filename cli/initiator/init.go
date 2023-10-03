@@ -108,11 +108,6 @@ var StartDKG = &cobra.Command{
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
 		logFilePath := viper.GetString("logFilePath")
-		// If the log file doesn't exist, create it
-		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
 		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
@@ -230,7 +225,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Warn("Failed writing deposit data file: ", zap.Error(err))
 		}
-		payloadFinalPath := fmt.Sprintf("%s/payload_%v.json", ssvPayloadResultsPath, depositData.PubKey)
+		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", ssvPayloadResultsPath, depositData.PubKey, hex.EncodeToString(id[:]))
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", payloadFinalPath))
 		err = utils.WriteJSON(payloadFinalPath, keyShares)
 		if err != nil {
