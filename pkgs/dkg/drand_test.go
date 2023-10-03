@@ -127,7 +127,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		},
 		SignFunc:   sign,
 		VerifyFunc: ver,
-		OpPrivKey:  pv,
+		RSAPub:     &pv.PublicKey,
 		done:       make(chan struct{}, 1),
 		startedDKG: make(chan struct{}, 1),
 		DB:         db,
@@ -136,11 +136,10 @@ func NewTestOperator(ts *testState) *LocalOwner {
 
 func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 	id := owner.ID
-	pv, pk := owner.OpPrivKey, &owner.OpPrivKey.PublicKey
-	ts.tv.Add(id, pk)
+	ts.tv.Add(id, owner.RSAPub)
 
 	sign := func(d []byte) ([]byte, error) {
-		return crypto.SignRSA(pv, d)
+		return owner.SignFunc(d)
 	}
 
 	ver := ts.tv.Verify
@@ -156,12 +155,14 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		BroadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		SignFunc:   sign,
-		VerifyFunc: ver,
-		OpPrivKey:  pv,
-		done:       make(chan struct{}, 1),
-		startedDKG: make(chan struct{}, 1),
-		DB:         owner.DB,
+		SignFunc:    sign,
+		VerifyFunc:  ver,
+		EncryptFunc: owner.EncryptFunc,
+		DecryptFunc: owner.DecryptFunc,
+		RSAPub:      owner.RSAPub,
+		done:        make(chan struct{}, 1),
+		startedDKG:  make(chan struct{}, 1),
+		DB:          owner.DB,
 	}
 
 }

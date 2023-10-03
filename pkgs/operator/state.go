@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,6 +17,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
@@ -39,8 +41,21 @@ type Instance interface {
 
 type instWrapper struct {
 	*dkg.LocalOwner
-	respChan chan []byte
-	errChan  chan error
+	InitiatorPublicKey *rsa.PublicKey
+	respChan           chan []byte
+	errChan            chan error
+}
+
+func (iw *instWrapper) VerifyInitiatorMessage(msg []byte, sig []byte) error {
+	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyRSA(iw.InitiatorPublicKey, msg, sig); err != nil {
+		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
+	}
+	iw.Logger.Info("Successfully verified initiator message signature", zap.Uint64("from", iw.ID))
+	return nil
 }
 
 func (iw *instWrapper) ReadResponse() []byte {
@@ -79,17 +94,18 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 
 	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
-		Suite:              bls3.NewBLS12381Suite(),
-		ID:                 operatorID,
-		OpPrivKey:          s.PrivateKey,
-		Owner:              init.Owner,
-		Nonce:              init.Nonce,
-		InitiatorPublicKey: initiatorPublicKey,
-		DB:                 s.DB,
+		Logger:      s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:  broadcast,
+		SignFunc:    s.Sign,
+		VerifyFunc:  verify,
+		EncryptFunc: s.Encrypt,
+		DecryptFunc: s.Decrypt,
+		Suite:       bls3.NewBLS12381Suite(),
+		ID:          operatorID,
+		RSAPub:      &s.PrivateKey.PublicKey,
+		Owner:       init.Owner,
+		Nonce:       init.Nonce,
+		DB:          s.DB,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -101,7 +117,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		return nil, nil, err
 	}
 	res := <-bchan
-	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
+	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, initiatorPublicKey *rsa.PublicKey, secretShare *kyber_dkg.DistKeyShare) (Instance, []byte, error) {
@@ -132,17 +148,18 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		return nil
 	}
 	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
-		Suite:              bls3.NewBLS12381Suite(),
-		ID:                 operatorID,
-		OpPrivKey:          s.PrivateKey,
-		Owner:              reshare.Owner,
-		Nonce:              reshare.Nonce,
-		InitiatorPublicKey: initiatorPublicKey,
-		DB:                 s.DB,
+		Logger:      s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:  broadcast,
+		SignFunc:    s.Sign,
+		EncryptFunc: s.Encrypt,
+		DecryptFunc: s.Decrypt,
+		VerifyFunc:  verify,
+		Suite:       bls3.NewBLS12381Suite(),
+		ID:          operatorID,
+		RSAPub:      &s.PrivateKey.PublicKey,
+		Owner:       reshare.Owner,
+		Nonce:       reshare.Nonce,
+		DB:          s.DB,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -162,13 +179,20 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		return nil, nil, err
 	}
 	res := <-bchan
-	return &instWrapper{owner, bchan, owner.ErrorChan}, res, nil
+	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
 }
 
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
 	return crypto.SignRSA(s.PrivateKey, msg)
 }
 
+func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
+	return rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, msg)
+}
+
+func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
+	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
+}
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
