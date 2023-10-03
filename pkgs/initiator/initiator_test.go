@@ -129,9 +129,9 @@ func VerifyDepositData(t *testing.T, depsitDataJson *DepositDataJson, withdrawCr
 }
 
 func VerifySharesData(t *testing.T, ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeyShares, owner common.Address, nonce uint16) {
-	sharesData, err := hex.DecodeString(ks.Payload.Readable.SharesData[2:])
+	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
 	require.NoError(t, err)
-	validatorPublicKey, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+	validatorPublicKey, err := hex.DecodeString(ks.Payload.PublicKey[2:])
 	require.NoError(t, err)
 
 	operatorCount := len(keys)
