@@ -144,7 +144,6 @@ type OwnerOpts struct {
 	Nonce       uint64
 	DB          *kv.BadgerDB
 	SecretShare *dkg.DistKeyShare
-	done        chan struct{}
 }
 
 func New(opts OwnerOpts) *LocalOwner {
@@ -211,7 +210,7 @@ func (o *LocalOwner) StartDKG() error {
 }
 
 func (o *LocalOwner) StartReshareDKGOldNodes() error {
-	o.Logger.Info("Starting Resharing DKG ceremony")
+	o.Logger.Info("Starting Resharing DKG ceremony at old nodes")
 	NewNodes := make([]dkg.Node, 0)
 	for _, op := range o.data.Reshare.NewOperators {
 		if o.Exchanges[op.ID] == nil {
@@ -274,7 +273,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 }
 
 func (o *LocalOwner) StartReshareDKGNewNodes() error {
-	o.Logger.Info("Starting Resharing DKG ceremony")
+	o.Logger.Info("Starting Resharing DKG ceremony at new nodes")
 	NewNodes := make([]dkg.Node, 0)
 	for _, op := range o.data.Reshare.NewOperators {
 		if o.Exchanges[op.ID] == nil {
@@ -351,6 +350,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		res := <-p.WaitEnd()
 		postF(&res)
 	}(p, o.PostReshare)
+	close(o.startedDKG)
 	return nil
 }
 
@@ -889,16 +889,20 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				return nil
 			}
 		}
-		if err := o.StartReshareDKGNewNodes(); err != nil {
-			return err
+		for _, op := range o.data.Reshare.NewOperators {
+			if o.ID == op.ID {
+				if err := o.StartReshareDKGNewNodes(); err != nil {
+					return err
+				}
+			}
 		}
+
 	case wire.KyberMessageType:
 		<-o.startedDKG
 		return o.processDKG(from, t)
 	default:
 		return fmt.Errorf("unknown message type")
 	}
-
 	return nil
 }
 

@@ -2,6 +2,7 @@ package dkg
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
 	mrand "math/rand"
@@ -12,6 +13,7 @@ import (
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
@@ -90,6 +92,16 @@ func (ts *testState) ForNew(f func(o *LocalOwner) error, newOps []*wire2.Operato
 	return nil
 }
 
+func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operator) error {
+	for _, op := range oldOps {
+		newOp := ts.ops[op.ID]
+		if err := f(newOp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func NewTestOperator(ts *testState) *LocalOwner {
 	id := uint64(mrand.Int63n(13))
 	_, exists := ts.ops[id]
@@ -104,6 +116,12 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	ts.tv.Add(id, pk)
 	sign := func(d []byte) ([]byte, error) {
 		return crypto.SignRSA(pv, d)
+	}
+	encrypt := func(d []byte) ([]byte, error) {
+		return rsa.EncryptPKCS1v15(rand.Reader, pk, d)
+	}
+	decrypt := func(d []byte) ([]byte, error) {
+		return rsaencryption.DecodeKey(pv, d)
 	}
 	ver := ts.tv.Verify
 	logger, _ := zap.NewDevelopment()
@@ -125,12 +143,14 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		BroadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		SignFunc:   sign,
-		VerifyFunc: ver,
-		RSAPub:     &pv.PublicKey,
-		done:       make(chan struct{}, 1),
-		startedDKG: make(chan struct{}, 1),
-		DB:         db,
+		SignFunc:    sign,
+		VerifyFunc:  ver,
+		EncryptFunc: encrypt,
+		DecryptFunc: decrypt,
+		RSAPub:      &pv.PublicKey,
+		done:        make(chan struct{}, 1),
+		startedDKG:  make(chan struct{}, 1),
+		DB:          db,
 	}
 }
 
@@ -275,9 +295,6 @@ func TestDKG(t *testing.T) {
 
 	var newops []uint64
 	newopsArr := make([]*wire2.Operator, 0, len(ts2.tv.ops))
-	//newopsArr = append(newopsArr, opsarr...)
-	//spew.Dump(newopsArr)
-
 	for i := 0; i < n; i++ {
 		op := NewTestOperator(ts2)
 		ts2.ops[op.ID] = op
@@ -310,7 +327,7 @@ func TestDKG(t *testing.T) {
 		NewOperators: newopsArr,
 		OldID:        uid,
 		OldT:         3,
-		NewT:         6,
+		NewT:         3,
 		Nonce:        0,
 		Owner:        common.HexToAddress("0x1234"),
 	}
@@ -324,9 +341,11 @@ func TestDKG(t *testing.T) {
 		}
 		o.SecretShare = share
 		var commits []byte
-		for _, point := range o.SecretShare.Commits {
-			b, _ := point.MarshalBinary()
-			commits = append(commits, b...)
+		if o.SecretShare != nil {
+			for _, point := range o.SecretShare.Commits {
+				b, _ := point.MarshalBinary()
+				commits = append(commits, b...)
+			}
 		}
 		ts, err := o.CreateInstanceReshare(newuid, reshare, commits)
 		if err != nil {
@@ -349,10 +368,11 @@ func TestDKG(t *testing.T) {
 
 	require.NoError(t, err)
 	newPubs := make(map[uint64]kyber.Point)
-	err = ts2.ForAll(func(o *LocalOwner) error {
+	err = ts2.ForNew(func(o *LocalOwner) error {
 		<-o.done
+		newPubs[o.ID] = o.SecretShare.Public()
 		return nil
-	})
+	}, newopsArr)
 
 	// Print old pubs
 	var resPub kyber.Point
@@ -366,44 +386,4 @@ func TestDKG(t *testing.T) {
 		t.Logf("ID %d, new pub %s", id, pub.String())
 	}
 	require.NoError(t, err)
-
-}
-
-func TestForALL(t *testing.T) {
-	n := 4
-
-	ts := &testState{
-		T:   t,
-		ops: make(map[uint64]*LocalOwner),
-	}
-
-	for i := 0; i < n; i++ {
-		op := NewTestOperator(ts)
-		ts.ops[op.ID] = op
-	}
-
-	//req := wire.GetRandRequestID()
-
-	//ops := make(map[uint64]Operator, len(ts.ops))
-	//
-	//for id, own := range ts.ops {
-	//	ops[id] = own.info
-	//}
-
-	require.Len(t, ts.ops, n)
-	//require.Len(t, ops, n)
-
-	c := make(chan uint64, n)
-
-	err := ts.ForAll(func(o *LocalOwner) error {
-		c <- o.ID
-		return nil
-	})
-
-	require.NoError(t, err)
-
-	for i := 0; i < n; i++ {
-		fmt.Println(<-c)
-	}
-
 }
