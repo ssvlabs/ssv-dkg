@@ -408,7 +408,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], bin)
+	encBin, err := o.EncryptSecretDB(bin)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], encBin)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -430,12 +435,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	// Store secret if requested
 	if viper.GetBool("storeShare") {
 		type shareStorage struct {
-			Index  int    `json:"index"`
+			ID     uint64 `json:"ID"`
 			Secret string `json:"secret"`
 		}
 		data := shareStorage{
-			Index:  res.Result.Key.Share.I,
-			Secret: secretKeyBLS.SerializeToHexStr(),
+			ID:     o.ID,
+			Secret: hex.EncodeToString(encBin),
 		}
 		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
 		if err != nil {
@@ -557,7 +562,12 @@ func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], bin)
+	encBin, err := o.EncryptSecretDB(bin)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	err = o.DB.Set([]byte("secret"), o.data.ReqID[:], encBin)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -579,12 +589,12 @@ func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
 	// Store secret if requested
 	if viper.GetBool("storeShare") {
 		type shareStorage struct {
-			Index  int    `json:"index"`
+			ID     uint64 `json:"ID"`
 			Secret string `json:"secret"`
 		}
 		data := shareStorage{
-			Index:  res.Result.Key.Share.I,
-			Secret: secretKeyBLS.SerializeToHexStr(),
+			ID:     o.ID,
+			Secret: hex.EncodeToString(encBin),
 		}
 		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
 		if err != nil {
@@ -952,4 +962,22 @@ func (o *LocalOwner) broadcastError(err error) {
 
 	o.Broadcast(errMsg)
 	close(o.done)
+}
+
+func (o *LocalOwner) GetLocalOwner() *LocalOwner {
+	return o
+}
+
+func (o *LocalOwner) EncryptSecretDB(bin []byte) ([]byte, error) {
+	// brake to chunks of 256 byte
+	chuncks := utils.SplitBytes(bin, 128)
+	var encrypted []byte
+	for _, chunk := range chuncks {
+		encBin, err := o.EncryptFunc(chunk)
+		if err != nil {
+			return nil, err
+		}
+		encrypted = append(encrypted, encBin...)
+	}
+	return encrypted, nil
 }

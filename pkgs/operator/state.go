@@ -37,6 +37,7 @@ type Instance interface {
 	ReadResponse() []byte
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
+	GetLocalOwner() *dkg.LocalOwner
 }
 
 type instWrapper struct {
@@ -325,8 +326,12 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		return nil, err
 	}
 	if ok {
+		decBin, err := s.DecryptSecretDB(shareFromDB.Value)
+		if err != nil {
+			return nil, err
+		}
 		var privShare dkg.DistKeyShare
-		err := privShare.Decode(shareFromDB.Value)
+		err = privShare.Decode(decBin)
 		if err != nil {
 			return nil, err
 		}
@@ -469,4 +474,18 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	resp := inst.ReadResponse()
 
 	return resp, nil
+}
+
+func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
+	// brake to chunks of 256 byte
+	chuncks := utils.SplitBytes(bin, 256)
+	var decrypted []byte
+	for _, chunk := range chuncks {
+		decBin, err := s.Decrypt(chunk)
+		if err != nil {
+			return nil, err
+		}
+		decrypted = append(decrypted, decBin...)
+	}
+	return decrypted, nil
 }
