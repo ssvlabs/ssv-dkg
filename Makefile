@@ -37,13 +37,32 @@ docker-build-image:
 	@echo "Building Docker image..."
 	docker build -t $(DOCKER_IMAGE) .
 
-docker-operators:
+docker-demo-operators:
 	@echo "Running operators in docker demo"
 	docker-compose up --build operator1 operator2 operator3 operator4
 
-docker-initiator:
+docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
+
+docker-operator:
+	@echo "Running operator docker, make sure to update ./examples/config/operator1.example.yaml"
+	docker run -d \
+	  --name svv-dkg-operator \
+	  -p 3030:3030 \
+	  -v $(shell pwd)/examples:/data \
+	  --entrypoint /app \
+	  $(DOCKER_IMAGE):latest \
+	  start-operator --configPath /data/config/operator1.example.yaml
+
+docker-initiator:
+	@echo "Running initiator docker, make sure to update ./examples/config/initiator.example.yaml"
+	docker run -d \
+	  --name ssv-dkg-initiator \
+	  -v $(shell pwd)/examples:/data \
+	  --entrypoint /app \
+	  $(DOCKER_IMAGE):latest \
+	  init --configPath /data/config/initiator.example.yaml
 
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
