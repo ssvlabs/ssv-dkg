@@ -435,7 +435,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
 	}
-	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.WithdrawalCredentialsHash(withdrawCredentials)) {
+	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.ETH1WithdrawalCredentialsHash(withdrawCredentials)) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
 	}
 	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {

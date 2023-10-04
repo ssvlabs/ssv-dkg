@@ -2,7 +2,6 @@ package initiator
 
 import (
 	"crypto/rsa"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -213,10 +212,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to get owner address flag value: ", zap.Error(err))
 		}
 		nonce := viper.GetUint64("nonce")
-		withdrawPubKey, err := hex.DecodeString(withdrawAddr)
-		if err != nil {
-			logger.Fatal("😥 Failed to decode withdrawal public key: ", zap.Error(err))
-		}
+		withdrawPubKey := common.HexToAddress(withdrawAddr).Bytes()
 		id := crypto.NewID()
 		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
 		if err != nil {

@@ -509,7 +509,7 @@ func splitBytes(buf []byte, lim int) [][]byte {
 }
 
 func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
-	require.True(t, bytes.Equal(ourcrypto.WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
+	require.True(t, bytes.Equal(ourcrypto.BLSWithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
 	masterSig := &bls.Sign{}
 	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
 	valdatorPubKey := &bls.PublicKey{}
