@@ -104,8 +104,8 @@ ssv-dkg init \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
           --fork "mainnet" \
-          --depositResultsPath deposit.json \
-          --ssvPayloadResultsPath payload.json \
+          --depositOutputPath deposit.json \
+          --keysharesOutputPath payload.json \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
           --logLevel info \
@@ -120,8 +120,8 @@ ssv-dkg init \
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
---depositResultsPath: ./output/ # path and filename to store the staking deposit file
---ssvPayloadResultsPath: ./output/ # path and filename to store ssv contract payload file
+--depositOutputPath: ./output/ # path and filename to store the staking deposit file
+--keysharesOutputPath: ./output/ # path and filename to store ssv contract payload file
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
 --logLevel: info # logger's log level (info/debug/
@@ -141,8 +141,8 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.json
-depositResultsPath: ./output/
-ssvPayloadResultsPath: ./output/
+depositOutputPath: ./output/
+keysharesOutputPath: ./output/
 privKey: ./encrypted_private_key.json
 password: ./password
 ```
