@@ -47,7 +47,8 @@ ssv-dkg start-operator \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./operator1_logs/debug.log
+            --logFilePath ./operator1_logs/debug.log \
+            --DBPath: ./operator1_db/
 
 ### where
 --privKey ./encrypted_private_key.json # path to ssv operator`s private key
@@ -58,6 +59,7 @@ ssv-dkg start-operator \
 --logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
 --logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
 --logFilePath: ./operator1_logs/debug.log # a file path to write logs into
+--DBPath: ./operator1_db/ # Path for db storage
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
@@ -73,6 +75,7 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: ./operator1_logs/debug.log
+DBPath: ./operator2_db/
 ```
 
 When using configuration file, run:
@@ -82,6 +85,8 @@ ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
 ### Initiator
+
+#### 1. Initial DKG ceremony
 
 The initiator uses `init` to create the initial details needed to run DKG between all operators.
 
@@ -121,7 +126,7 @@ ssv-dkg init \
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --fork "mainnet" # fork name: mainnet, prater, or now_test_network
 --depositResultsPath: ./output/ # path and filename to store the staking deposit file
---ssvPayloadResultsPath: ./output/ # path and filename to store ssv contract payload file
+--ssvPayloadResultsPath: ./output/ # path to store ssv contract payload file
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
 --logLevel: info # logger's log level (info/debug/
@@ -154,6 +159,50 @@ ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
+
+#### 2. Resharing DKG ceremony
+
+The initiator uses `reshare` command to reshare an existing BLS key to new operators. This will create a new ssv payload file for new operators.
+
+Run:
+
+```sh
+ssv-dkg reshare \
+          --operatorIDs 1,2,3,4 \
+          --newOperatorIDs 5, 6, 7, 8 \
+          --oldID a866d319e6454c6cad4c7ce9dfbb5ae819a834c739ae4578
+          --operatorsInfoPath ./operators_integration.json \
+          --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
+          --nonce 4 \
+          --ssvPayloadResultsPath payload.json \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
+
+#### where
+--operatorIDs 1,2,3,4 # old operator IDs which was used at previous DKG ceremony
+--newOperatorIDs 5,6,7,8  # new operator IDs which will create new validator BLS partial shares but preserve old validator public key
+--oldID a866d319e6454c6cad4c7ce9dfbb5ae819a834c739ae4578 # 24byte ID of previous DKG ceremony which can be found at previous ssv payload file name. This is crucial to have it, otherwise resharing is impossible.
+--operatorsInfoPath ./operators_integration.json # path to operators info ID,base64(RSA pub key),
+--owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
+--nonce 4 # owner nonce for the SSV contract
+--ssvPayloadResultsPath: ./output/ # path to store new ssv contract payload file
+--initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
+--initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./initiator_logs/debug.log # a file path to write logs into
+```
+
+When using configuration file, run:
+
+```sh
+ssv-dkg reshare --configPath /examples/config/initiator.example.yaml
+```
 
 ---
 
