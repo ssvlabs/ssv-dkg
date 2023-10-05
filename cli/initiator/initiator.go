@@ -11,8 +11,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -211,10 +209,17 @@ var StartDKG = &cobra.Command{
 		if owner == "" {
 			logger.Fatal("😥 Failed to get owner address flag value: ", zap.Error(err))
 		}
+		ownerAddress, err := utils.HexToAddress(owner)
+		if err != nil {
+			logger.Fatal("😥 Failed to parse owner address: ", zap.Error(err))
+		}
 		nonce := viper.GetUint64("nonce")
-		withdrawPubKey := common.HexToAddress(withdrawAddr).Bytes()
+		withdrawAddress, err := utils.HexToAddress(withdrawAddr)
+		if err != nil {
+			logger.Fatal("😥 Failed to parse withdraw address: ", zap.Error(err))
+		}
 		id := crypto.NewID()
-		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawPubKey, parts, forkHEX, fork, common.HexToAddress(owner), nonce)
+		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawAddress.Bytes(), parts, forkHEX, fork, ownerAddress, nonce)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
