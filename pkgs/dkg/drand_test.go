@@ -15,9 +15,10 @@ import (
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
-	bls "github.com/drand/kyber-bls12381"
+	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
+	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -137,7 +138,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
-		suite:     bls.NewBLS12381Suite(),
+		suite:     kyber_bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
 		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
@@ -169,7 +170,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
-		suite:     bls.NewBLS12381Suite(),
+		suite:     kyber_bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
 		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
@@ -189,25 +190,18 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 
 func TestDKG(t *testing.T) {
 	// Send operators we want to deal with them
-
 	n := 4
-
 	ts := &testState{
 		T:   t,
 		ops: make(map[uint64]*LocalOwner),
 		tv:  newTestVerify(),
 	}
-
 	for i := 0; i < n; i++ {
 		op := NewTestOperator(ts)
 		ts.ops[op.ID] = op
 	}
-
-	//ops := make(map[uint64]Operator, len(ts.ops))
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
-
 	for id, _ := range ts.ops {
-		//ops[id] = own.info
 		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &wire2.Operator{
@@ -215,7 +209,6 @@ func TestDKG(t *testing.T) {
 			PubKey: pktobytes,
 		})
 	}
-
 	init := &wire2.Init{
 		Operators:             opsarr,
 		T:                     3,
@@ -255,8 +248,14 @@ func TestDKG(t *testing.T) {
 	})
 	require.NoError(t, err)
 	var commits []kyber.Point
+	secretsOldNodes := make(map[uint64]*herumi_bls.SecretKey)
 	err = ts.ForAll(func(o *LocalOwner) error {
 		commits = o.SecretShare.Commits
+		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
+		if err != nil {
+			return nil
+		}
+		secretsOldNodes[o.ID] = key
 		return nil
 	})
 	require.NoError(t, err)
@@ -368,9 +367,15 @@ func TestDKG(t *testing.T) {
 
 	require.NoError(t, err)
 	newPubs := make(map[uint64]kyber.Point)
+	secretsNewNodes := make(map[uint64]*herumi_bls.SecretKey)
 	err = ts2.ForNew(func(o *LocalOwner) error {
 		<-o.done
 		newPubs[o.ID] = o.SecretShare.Public()
+		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
+		if err != nil {
+			return nil
+		}
+		secretsNewNodes[o.ID] = key
 		return nil
 	}, newopsArr)
 
@@ -386,4 +391,82 @@ func TestDKG(t *testing.T) {
 		t.Logf("ID %d, new pub %s", id, pub.String())
 	}
 	require.NoError(t, err)
+
+	// check that old nodes sigs cannot be used
+	bytesToSign := []byte("Hello World")
+	// Sign with old nodes
+	oldNodesSigs := make(map[uint64][]byte)
+	sharePks := make(map[uint64]*herumi_bls.PublicKey)
+	for id, oldNode := range secretsOldNodes {
+		sharePks[id] = oldNode.GetPublicKey()
+		sig := oldNode.SignByte(bytesToSign)
+		oldNodesSigs[id] = sig.Serialize()
+	}
+	validatorRecoveredPKOldNodes, err := crypto.RecoverValidatorPublicKey(sharePks)
+	require.NoError(t, err)
+	reconstructedMasterSigOldNodes, err := crypto.ReconstructSignatures(oldNodesSigs)
+	require.NoError(t, err)
+	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigOldNodes, validatorRecoveredPKOldNodes.Serialize(), bytesToSign)
+	require.NoError(t, err)
+
+	// Sign with new nodes
+	newNodesSigs := make(map[uint64][]byte)
+	newNodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	for id, newNode := range secretsNewNodes {
+		newNodesSharePks[id] = newNode.GetPublicKey()
+		sig := newNode.SignByte(bytesToSign)
+		newNodesSigs[id] = sig.Serialize()
+	}
+	validatorRecoveredPKNewNodes, err := crypto.RecoverValidatorPublicKey(newNodesSharePks)
+	require.NoError(t, err)
+	reconstructedMasterSigNewNodes, err := crypto.ReconstructSignatures(newNodesSigs)
+	require.NoError(t, err)
+	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigNewNodes, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
+	require.NoError(t, err)
+	require.Equal(t, validatorRecoveredPKNewNodes.SerializeToHexStr(), validatorRecoveredPKOldNodes.SerializeToHexStr())
+	t.Logf("pub %s", validatorRecoveredPKNewNodes.SerializeToHexStr())
+
+	// try to mix sigs from old and new nodes
+	mixedNodesSigs := make(map[uint64][]byte)
+	mixedNodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	for id, oldNode := range secretsOldNodes {
+		mixedNodesSharePks[id] = oldNode.GetPublicKey()
+		sig := oldNode.SignByte(bytesToSign)
+		mixedNodesSigs[id] = sig.Serialize()
+		if len(mixedNodesSigs) == 2 {
+			break
+		}
+	}
+	for id, newNode := range secretsNewNodes {
+		mixedNodesSharePks[id] = newNode.GetPublicKey()
+		sig := newNode.SignByte(bytesToSign)
+		mixedNodesSigs[id] = sig.Serialize()
+		if len(mixedNodesSigs) == 4 {
+			break
+		}
+	}
+	validatorRecoveredPKMixedNodes, err := crypto.RecoverValidatorPublicKey(mixedNodesSharePks)
+	require.NoError(t, err)
+	reconstructedMasterSigMixedNodes, err := crypto.ReconstructSignatures(mixedNodesSigs)
+	require.NoError(t, err)
+	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigMixedNodes, validatorRecoveredPKMixedNodes.Serialize(), bytesToSign)
+	require.NoError(t, err)
+	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKOldNodes.SerializeToHexStr())
+	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKNewNodes.SerializeToHexStr())
+
+	// check threshold holds at new nodes
+	nodeSigs := make(map[uint64][]byte)
+	nodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	for id, n := range secretsNewNodes {
+		nodesSharePks[id] = n.GetPublicKey()
+		sig := n.SignByte(bytesToSign)
+		nodeSigs[id] = sig.Serialize()
+		if len(nodeSigs) == 2 {
+			break
+		}
+	}
+	reconstructedMasterSig, err := crypto.ReconstructSignatures(nodeSigs)
+	require.NoError(t, err)
+	err = crypto.VerifyReconstructedSignature(reconstructedMasterSig, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
+	require.ErrorContains(t, err, "could not reconstruct a valid signature")
 }

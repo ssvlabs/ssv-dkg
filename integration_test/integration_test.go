@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -438,8 +437,14 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err = hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		// check if threshold holds
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.ErrorContains(t, err, "could not reconstruct a valid signature")
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
+		// check if old nodes cant decrypt
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
 	})
 
 	srv1.HttpSrv.Close()
@@ -516,50 +521,13 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 			return fmt.Errorf("shares order is incorrect")
 		}
 	}
-	recon, err := ReconstructSignatures(sigs2)
+	recon, err := crypto.ReconstructSignatures(sigs2)
 	if err != nil {
 		return err
 	}
-	err = VerifyReconstructedSignature(recon, validatorPublicKey, msg)
+	err = crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
-// It then reconstructs the original threshold signature using lagrange interpolation
-func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
-	reconstructedSig := bls.Sign{}
-	idVec := make([]bls.ID, 0)
-	sigVec := make([]bls.Sign, 0)
-	for index, signature := range signatures {
-		blsID := bls.ID{}
-		err := blsID.SetDecString(fmt.Sprintf("%d", index))
-		if err != nil {
-			return nil, err
-		}
-		idVec = append(idVec, blsID)
-		blsSig := bls.Sign{}
-
-		err = blsSig.Deserialize(signature)
-		if err != nil {
-			return nil, err
-		}
-		sigVec = append(sigVec, blsSig)
-	}
-	err := reconstructedSig.Recover(sigVec, idVec)
-	return &reconstructedSig, err
-}
-
-func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
-	pk := &bls.PublicKey{}
-	if err := pk.Deserialize(validatorPubKey); err != nil {
-		return errors.Wrap(err, "could not deserialize validator pk")
-	}
-	// verify reconstructed sig
-	if res := sig.VerifyByte(pk, msg); !res {
-		return errors.New("could not reconstruct a valid signature")
 	}
 	return nil
 }
