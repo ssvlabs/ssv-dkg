@@ -461,7 +461,7 @@ func TestReshareHappyFlow(t *testing.T) {
 	srv12.HttpSrv.Close()
 	srv13.HttpSrv.Close()
 }
-func TestReshareChainHappyFlow(t *testing.T) {
+func TestReshareChain(t *testing.T) {
 	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
 		panic(err)
 	}

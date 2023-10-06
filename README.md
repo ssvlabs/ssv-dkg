@@ -6,6 +6,36 @@
 make install
 ```
 
+#### Run docker example
+
+1. Build docker image
+
+```
+make docker-build-image
+```
+
+2. Start 8 example operators
+
+```
+make docker-operators
+```
+
+3. Start initiator for operators 1-4
+
+```
+make docker-initiator
+```
+
+The result deposit and ssv-payload files will be paced to `./examples/output` 4. To start resharing for new operators 5-8
+
+- get the request ID from ssv-payload filename (payload*[validator public key]*[request ID].json)
+- update `oldID` at config file `examples/config/reshare.example.yaml`
+- start resharing for new operators
+
+```
+make docker-resharing
+```
+
 ### Operators data
 
 The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
