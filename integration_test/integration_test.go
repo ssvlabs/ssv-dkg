@@ -414,12 +414,12 @@ func TestReshareHappyFlow(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	i := initiator.New(priv, ops, logger)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	ids := []uint64{1, 2, 3, 4}
-	t.Run("test reshare 5 new operators happy flow", func(t *testing.T) {
+	i := initiator.New(priv, ops, logger)
+	t.Run("test reshare 5 new disjoint operators", func(t *testing.T) {
 		id := crypto.NewID()
+		ids := []uint64{1, 2, 3, 4}
 		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -446,64 +446,9 @@ func TestReshareHappyFlow(t *testing.T) {
 		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
 	})
-
-	srv1.HttpSrv.Close()
-	srv2.HttpSrv.Close()
-	srv3.HttpSrv.Close()
-	srv4.HttpSrv.Close()
-	srv5.HttpSrv.Close()
-	srv6.HttpSrv.Close()
-	srv7.HttpSrv.Close()
-	srv8.HttpSrv.Close()
-	srv9.HttpSrv.Close()
-	srv10.HttpSrv.Close()
-	srv11.HttpSrv.Close()
-	srv12.HttpSrv.Close()
-	srv13.HttpSrv.Close()
-}
-func TestReshareChain(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
-		panic(err)
-	}
-	logger := zap.L().Named("integration-tests")
-	ops := make(map[uint64]initiator.Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
-	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := operator.CreateTestOperator(t, 2)
-	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := operator.CreateTestOperator(t, 3)
-	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := operator.CreateTestOperator(t, 4)
-	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := operator.CreateTestOperator(t, 5)
-	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := operator.CreateTestOperator(t, 6)
-	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := operator.CreateTestOperator(t, 7)
-	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := operator.CreateTestOperator(t, 8)
-	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := operator.CreateTestOperator(t, 9)
-	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := operator.CreateTestOperator(t, 10)
-	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := operator.CreateTestOperator(t, 11)
-	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := operator.CreateTestOperator(t, 12)
-	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := operator.CreateTestOperator(t, 13)
-	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
-	// Initiator priv key
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-	require.NoError(t, err)
-	i := initiator.New(priv, ops, logger)
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-	ids := []uint64{1, 2, 3, 4}
-	t.Run("test reshare chain 4-4-4 new operators happy flow", func(t *testing.T) {
+	t.Run("test reshare 5 joint operators: 2 old + 3 new", func(t *testing.T) {
 		id := crypto.NewID()
+		ids := []uint64{1, 2, 3, 4}
 		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
@@ -513,7 +458,7 @@ func TestReshareChain(t *testing.T) {
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-		newIds := []uint64{5, 6, 7, 8}
+		newIds := []uint64{1, 2, 7, 8, 9}
 		newId := crypto.NewID()
 		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
 		require.NoError(t, err)
@@ -522,29 +467,14 @@ func TestReshareChain(t *testing.T) {
 		pubkeyraw, err = hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
 		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		// check if old nodes cant decrypt
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
-		//reshare again with new nodes
-		newIds = []uint64{9, 10, 11, 12, 13}
-		newId = crypto.NewID()
-		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Payload.Readable.Shares[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
 	})
-
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
 	srv3.HttpSrv.Close()

@@ -838,36 +838,42 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		}
 
 		o.Exchanges[from] = exchMsg
-		for _, op := range append(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators...) {
+		allOps := append(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators...)
+		for _, op := range allOps {
 			if o.Exchanges[op.ID] == nil {
 				return nil
 			}
 		}
-		if o.SecretShare != nil {
-			if err := o.StartReshareDKGOldNodes(); err != nil {
-				return err
+		for _, op := range o.data.Reshare.OldOperators {
+			if o.ID == op.ID {
+				if err := o.StartReshareDKGOldNodes(); err != nil {
+					return err
+				}
 			}
-		} else {
-			bundle := &dkg.DealBundle{}
-			b, err := wire.EncodeDealBundle(bundle)
-			if err != nil {
-				return err
-			}
-			msg := &wire.ReshareKyberMessage{
-				Type: wire.KyberDealBundleMessageType,
-				Data: b,
-			}
+		}
+		for _, op := range o.data.Reshare.NewOperators {
+			if o.ID == op.ID {
+				bundle := &dkg.DealBundle{}
+				b, err := wire.EncodeDealBundle(bundle)
+				if err != nil {
+					return err
+				}
+				msg := &wire.ReshareKyberMessage{
+					Type: wire.KyberDealBundleMessageType,
+					Data: b,
+				}
 
-			byts, err := msg.MarshalSSZ()
-			if err != nil {
-				return err
+				byts, err := msg.MarshalSSZ()
+				if err != nil {
+					return err
+				}
+				trsp := &wire.Transport{
+					Type:       wire.ReshareKyberMessageType,
+					Identifier: o.data.ReqID,
+					Data:       byts,
+				}
+				o.Broadcast(trsp)
 			}
-			trsp := &wire.Transport{
-				Type:       wire.ReshareKyberMessageType,
-				Identifier: o.data.ReqID,
-				Data:       byts,
-			}
-			o.Broadcast(trsp)
 		}
 	case wire.ReshareKyberMessageType:
 		kyberMsg := &wire.ReshareKyberMessage{}
