@@ -162,8 +162,8 @@ ssv-dkg init \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
           --fork "mainnet" \
-          --depositResultsPath deposit.json \
-          --ssvPayloadResultsPath payload.json \
+          --depositOutputPath deposit.json \
+          --keysharesOutputPath payload.json \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
           --logLevel info \
@@ -202,8 +202,8 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "prater"
 operatorsInfoPath: ./examples/operators_integration.json
-depositResultsPath: ./output/
-ssvPayloadResultsPath: ./output/
+depositOutputPath: ./output/
+keysharesOutputPath: ./output/
 privKey: ./encrypted_private_key.json
 password: ./password
 ```
