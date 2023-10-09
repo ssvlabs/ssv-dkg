@@ -467,9 +467,9 @@ func TestReshareHappyFlow(t *testing.T) {
 		pubkeyraw, err = hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
 		require.NoError(t, err)
 		// check if threshold holds
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		// check if old nodes cant decrypt
 		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)

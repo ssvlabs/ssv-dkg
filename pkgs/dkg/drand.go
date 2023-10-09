@@ -248,6 +248,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
 	}
 	// New protocol
+	logger := o.Logger.With(zap.Uint64("ID", o.ID))
 	p, err := wire.NewReshareProtocolOldNodes(&wire.Config{
 		Identifier: o.data.ReqID[:],
 		Secret:     o.data.Secret,
@@ -258,7 +259,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		NewT:       int(o.data.Reshare.NewT),
 		Board:      o.b,
 		Share:      o.SecretShare,
-		Logger:     o.Logger,
+		Logger:     logger,
 	})
 	if err != nil {
 		return err
@@ -267,7 +268,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
 		postF(&res)
-	}(p, o.PostDKG)
+	}(p, o.PostReshare)
 	close(o.startedDKG)
 	return nil
 }
@@ -328,6 +329,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	}
 
 	// New protocol
+	logger := o.Logger.With(zap.Uint64("ID", o.ID))
 	p, err := wire.NewReshareProtocolNewNodes(&wire.Config{
 		Identifier:   o.data.ReqID[:],
 		Secret:       o.data.Secret,
@@ -338,7 +340,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		NewT:         int(o.data.Reshare.NewT),
 		Board:        o.b,
 		PublicCoeffs: coefs,
-		Logger:       o.Logger,
+		Logger:       logger,
 	})
 	if err != nil {
 		return err
@@ -350,7 +352,14 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		res := <-p.WaitEnd()
 		postF(&res)
 	}(p, o.PostReshare)
-	close(o.startedDKG)
+	// close(o.startedDKG)
+	return nil
+}
+
+func (o *LocalOwner) PushDealsOldNodes() error {
+	for _, b := range o.Deals {
+		o.b.DealC <- *b
+	}
 	return nil
 }
 
@@ -705,7 +714,6 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 
 			return nil
 		},
-		len(o.data.Init.Operators),
 	)
 
 	eciesSK, pk := InitSecret(o.suite)
@@ -748,7 +756,6 @@ func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare
 
 			return nil
 		},
-		len(o.data.Reshare.OldOperators),
 	)
 
 	eciesSK, pk := InitSecret(o.suite)
@@ -851,7 +858,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				}
 			}
 		}
-		for _, op := range o.data.Reshare.NewOperators {
+		for _, op := range o.GetDisjointNewOperators(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators) {
 			if o.ID == op.ID {
 				bundle := &dkg.DealBundle{}
 				b, err := wire.EncodeDealBundle(bundle)
@@ -890,15 +897,21 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		if len(b.Deals) != 0 {
 			o.Deals[from] = b
 		}
-		for _, op := range o.data.Reshare.OldOperators {
-			if o.Deals[op.ID] == nil {
-				return nil
+		oldNodes := o.GetDisjointOldOperators(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators)
+		newNodes := o.GetDisjointNewOperators(o.data.Reshare.OldOperators, o.data.Reshare.NewOperators)
+		if len(o.Deals) == len(o.data.Reshare.OldOperators) {
+			for _, op := range oldNodes {
+				if o.ID == op.ID {
+					if err := o.PushDealsOldNodes(); err != nil {
+						return err
+					}
+				}
 			}
-		}
-		for _, op := range o.data.Reshare.NewOperators {
-			if o.ID == op.ID {
-				if err := o.StartReshareDKGNewNodes(); err != nil {
-					return err
+			for _, op := range newNodes {
+				if o.ID == op.ID {
+					if err := o.StartReshareDKGNewNodes(); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -990,4 +1003,42 @@ func (o *LocalOwner) EncryptSecretDB(bin []byte) ([]byte, error) {
 		encrypted = append(encrypted, encBin...)
 	}
 	return encrypted, nil
+}
+
+func (o *LocalOwner) GetDisjointOldOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+	tmp := make(map[uint64]*wire.Operator)
+	var set []*wire.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			set = append(set, op)
+		}
+	}
+	// for _, op := range tmp {
+	// 	set = append(set, op)
+	// }
+	return set
+}
+
+func (o *LocalOwner) GetDisjointNewOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+	tmp := make(map[uint64]*wire.Operator)
+	var set []*wire.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			delete(tmp, op.ID)
+		}
+	}
+	for _, op := range tmp {
+		set = append(set, op)
+	}
+	return set
 }

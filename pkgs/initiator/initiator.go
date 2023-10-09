@@ -409,7 +409,7 @@ func (c *Initiator) messageFlowHandlingInit(init *wire.Init, id [24]byte, operat
 
 func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators []*wire.Operator, newOperators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending reshare message to old operators")
-	allOps := c.Unique(oldOperators, newOperators)
+	allOps := c.JoinSets(oldOperators, newOperators)
 	results, err := c.SendReshareMsg(reshare, newID, allOps)
 	if err != nil {
 		return nil, err
@@ -960,7 +960,7 @@ func (c *Initiator) GetThreshold(ids []uint64) (int, error) {
 	return threshold, nil
 }
 
-func (c *Initiator) Unique(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+func (c *Initiator) JoinSets(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
 	tmp := make(map[uint64]*wire.Operator)
 	var set []*wire.Operator
 	for _, op := range oldOperators {
