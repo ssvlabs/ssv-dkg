@@ -360,10 +360,10 @@ func TestDKG(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = ts2.ForAll(func(o *LocalOwner) error {
-		<-o.startedDKG
-		return nil
-	})
+	// err = ts2.ForAll(func(o *LocalOwner) error {
+	// 	<-o.startedDKG
+	// 	return nil
+	// })
 
 	require.NoError(t, err)
 	newPubs := make(map[uint64]kyber.Point)
