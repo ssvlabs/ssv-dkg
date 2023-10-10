@@ -31,7 +31,7 @@ func init() {
 	flags.NonceFlag(StartReshare)
 	flags.ForkVersionFlag(StartReshare)
 	flags.AddDepositResultStorePathFlag(StartReshare)
-	flags.AddSSVPayloadResultStorePathFlag(StartReshare)
+	flags.AddKeysharesOutputPathFlag(StartReshare)
 	flags.ConfigPathFlag(StartReshare)
 	flags.LogLevelFlag(StartReshare)
 	flags.LogFormatFlag(StartReshare)
