@@ -86,7 +86,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		}
 	}
 	if operatorID == 0 {
-		return nil, nil, errors.New("my operator is missing inside the operators list at instance")
+		return nil, nil, fmt.Errorf("my operator is missing inside the operators list at instance")
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
@@ -240,20 +240,20 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	logger.Info("🚀 Initializing DKG instance")
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
 	// Check that incoming init message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
 	}
 	marshalledWireMsg, err := initMsg.MarshalSSZ()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("init: failed to marshal transport message: %s", err.Error())
 	}
 	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
 	}
 	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
 	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
@@ -278,9 +278,8 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	s.Mtx.Unlock()
 	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
 	}
 	s.Mtx.Lock()
 	_, ok = s.Instances[reqID]
@@ -440,7 +439,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	st := &wire.MultipleSignedTransports{}
 	err := st.UnmarshalSSZ(dkgMsg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("process message: failed to unmarshal dkg message: %s", err.Error())
 	}
 
 	id := InstanceID(st.Identifier)
@@ -456,19 +455,19 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	for _, ts := range st.Messages {
 		tsBytes, err := ts.MarshalSSZ()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("process message: failed to marshal message: %s", err.Error())
 		}
 		mltplMsgsBytes = append(mltplMsgsBytes, tsBytes...)
 	}
 	// Verify initiator signature
 	err = inst.VerifyInitiatorMessage(mltplMsgsBytes, st.Signature)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
 	}
 	for _, ts := range st.Messages {
 		err = inst.Process(ts.Signer, ts)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
 		}
 	}
 	resp := inst.ReadResponse()

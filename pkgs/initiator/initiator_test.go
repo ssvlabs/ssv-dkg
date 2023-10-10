@@ -101,7 +101,7 @@ func TestStartDKG(t *testing.T) {
 }
 
 func VerifyDepositData(t *testing.T, depsitDataJson *DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
-	require.True(t, bytes.Equal(ourcrypto.WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
+	require.True(t, bytes.Equal(ourcrypto.ETH1WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
 	masterSig := &bls.Sign{}
 	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
 	valdatorPubKey := &bls.PublicKey{}
@@ -129,9 +129,9 @@ func VerifyDepositData(t *testing.T, depsitDataJson *DepositDataJson, withdrawCr
 }
 
 func VerifySharesData(t *testing.T, ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeyShares, owner common.Address, nonce uint16) {
-	sharesData, err := hex.DecodeString(ks.Payload.Readable.Shares[2:])
+	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
 	require.NoError(t, err)
-	validatorPublicKey, err := hex.DecodeString(ks.Payload.Readable.PublicKey[2:])
+	validatorPublicKey, err := hex.DecodeString(ks.Payload.PublicKey[2:])
 	require.NoError(t, err)
 
 	operatorCount := len(keys)

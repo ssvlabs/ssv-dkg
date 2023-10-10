@@ -203,7 +203,7 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", ssvPayloadResultsPath, keyShares.Payload.Readable.PublicKey, hex.EncodeToString(id[:]))
+		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", ssvPayloadResultsPath, keyShares.Payload.PublicKey, hex.EncodeToString(id[:]))
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", payloadFinalPath))
 		err = utils.WriteJSON(payloadFinalPath, keyShares)
 		if err != nil {

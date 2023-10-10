@@ -34,7 +34,8 @@ const encryptedKeyLength = 256
 
 const (
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
-	BLSWithdrawalPrefixByte = byte(0)
+	BLSWithdrawalPrefixByte  = byte(0)
+	ETH1WithdrawalPrefixByte = byte(1)
 )
 
 func init() {
@@ -277,7 +278,7 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], publicKey)
@@ -323,9 +324,17 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key
 //	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
 //
 // where withdrawal_credentials is of type bytes32.
-func WithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
+func BLSWithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
 	h := util.SHA256(withdrawalPubKey)
 	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
+}
+
+func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
+	withdrawalCredentials := make([]byte, 32)
+	copy(withdrawalCredentials[:1], []byte{ETH1WithdrawalPrefixByte})
+	//withdrawalCredentials[1:12] == b'\x00' * 11 // this is not needed since cells are zeroed anyway
+	copy(withdrawalCredentials[12:], withdrawalAddr)
+	return withdrawalCredentials
 }
 
 // IsSupportedDepositNetwork returns true if the given network is supported
@@ -339,7 +348,7 @@ func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network 
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], publicKey.Serialize())
@@ -419,7 +428,7 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], validatorPublicKey.Serialize())

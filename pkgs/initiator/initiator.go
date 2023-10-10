@@ -90,44 +90,26 @@ type DepositDataJson struct {
 }
 
 type KeyShares struct {
-	Version   string           `json:"version"`
-	Data      Data             `json:"data"`
-	Payload   KeySharesPayload `json:"payload"`
-	CreatedAt time.Time        `json:"createdAt"`
+	Version   string    `json:"version"`
+	CreatedAt time.Time `json:"createdAt"`
+	Data      Data      `json:"data"`
+	Payload   Payload   `json:"payload"`
 }
 
 type Data struct {
 	PublicKey string         `json:"publicKey"`
 	Operators []OperatorData `json:"operators"`
-	Shares    KeySharesKeys  `json:"shares"`
 }
 
 type OperatorData struct {
-	ID        uint64 `json:"id"`
-	PublicKey string `json:"publicKey"`
+	ID          uint64 `json:"id"`
+	OperatorKey string `json:"operatorKey"`
 }
 
-type KeySharesKeys struct {
-	PublicKeys    []string `json:"publicKeys"`
-	EncryptedKeys []string `json:"encryptedKeys"`
-}
-
-type KeySharesPayload struct {
-	Readable ReadablePayload `json:"readable"`
-	Raw      string          `json:"raw"`
-}
-
-type Commits struct {
-	ID      string `json:"id"`
-	Commits string `json:"commits"`
-}
-
-type ReadablePayload struct {
+type Payload struct {
 	PublicKey   string   `json:"publicKey"`
 	OperatorIDs []uint64 `json:"operatorIds"`
-	Shares      string   `json:"shares"`
-	Amount      string   `json:"amount"`
-	Cluster     string   `json:"cluster"`
+	SharesData  string   `json:"sharesData"`
 }
 
 func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, error) {
@@ -136,10 +118,6 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 		return result[i].OperatorID < result[j].OperatorID
 	})
 
-	shares := KeySharesKeys{
-		PublicKeys:    make([]string, 0),
-		EncryptedKeys: make([]string, 0),
-	}
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint64, 0)
 
@@ -155,18 +133,15 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 			return nil, err
 		}
 		operatorData = append(operatorData, OperatorData{
-			ID:        operatorResult.OperatorID,
-			PublicKey: string(encPubKey),
+			ID:          operatorResult.OperatorID,
+			OperatorKey: string(encPubKey),
 		})
 		operatorIds = append(operatorIds, operatorResult.OperatorID)
-		shares.PublicKeys = append(shares.PublicKeys, "0x"+hex.EncodeToString(operatorResult.SharePubKey))
-		shares.EncryptedKeys = append(shares.EncryptedKeys, base64.StdEncoding.EncodeToString(operatorResult.EncryptedShare))
 	}
 
 	data := Data{
 		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		Operators: operatorData,
-		Shares:    shares,
 	}
 	// Create share string for ssv contract
 	sharesData := append(pubkeys, encryptedShares...)
@@ -181,17 +156,13 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	payload := KeySharesPayload{
-		Readable: ReadablePayload{
-			PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
-			OperatorIDs: operatorIds,
-			Shares:      "0x" + hex.EncodeToString(sharesDataSigned),
-			Amount:      "Amount of SSV tokens to be deposited to your validator's cluster balance (mandatory only for 1st validator in a cluster)",
-			Cluster:     "The latest cluster snapshot data, obtained using the cluster-scanner tool. If this is the cluster's 1st validator then use - {0,0,0,0,0,false}",
-		},
+	payload := Payload{
+		PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
+		OperatorIDs: operatorIds,
+		SharesData:  "0x" + hex.EncodeToString(sharesDataSigned),
 	}
 	ks := &KeyShares{}
-	ks.Version = "v3"
+	ks.Version = "v4"
 	ks.Data = data
 	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
@@ -495,7 +466,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
 	}
-	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.WithdrawalCredentialsHash(withdrawCredentials)) {
+	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.ETH1WithdrawalCredentialsHash(withdrawCredentials)) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
 	}
 	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
