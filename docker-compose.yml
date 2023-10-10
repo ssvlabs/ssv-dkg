@@ -1,68 +1,64 @@
-version: '3'
+version: "3"
 services:
-  server1:
-    image: ssv-dkg-tool:latest
+  operator1:
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
       - "3030:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server1/encrypted_private_key.json", "--password", "12345678"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
     volumes:
       - ./examples:/data
 
-  server2:
-    image: ssv-dkg-tool:latest
+  operator2:
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
       - "3031:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server2/encrypted_private_key.json", "--password", "12345678"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
     volumes:
       - ./examples:/data
 
-  server3:
-    image: ssv-dkg-tool:latest
+  operator3:
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
       - "3032:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server3/encrypted_private_key.json", "--password", "12345678"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
     volumes:
       - ./examples:/data
 
-  server4:
-    image: ssv-dkg-tool:latest
+  operator4:
+    image: ssv-dkg:latest
     networks:
       - shared_network
     ports:
       - "3033:3030"
     entrypoint: /app
-    command: ["start-dkg-server", "--privKey", "/data/server4/encrypted_private_key.json", "--password", "12345678"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
     volumes:
       - ./examples:/data
 
-  client:
-    image: ssv-dkg-tool:latest
+  initiator:
+    image: ssv-dkg:latest
     depends_on:
-      - server1
-      - server2
-      - server3
-      - server4
+      - operator1
+      - operator2
+      - operator3
+      - operator4
     networks:
       - shared_network
     entrypoint: /app
-    command: [ "init-dkg",
-               "--operatorIDs", "1,2,3,4",
-               "--operatorsInfoPath", "./data/docker_operators.json",
-               "--depositResultsPath", "./data/output/deposit.json",
-               "--ssvPayloadResultsPath", "./data/output/payload.json",
-               "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-               "--nonce",  "1",
-               "--withdrawAddress", "0100000000000000000000001d2f14d2dffee594b4093d42e4bc1b0ea55e8aa7",
-               ]
+    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
     volumes:
       - ./examples:/data
 

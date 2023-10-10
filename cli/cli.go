@@ -3,22 +3,21 @@ package cli
 import (
 	"log"
 
-	"github.com/bloxapp/ssv-dkg-tool/cli/initiator"
-	"github.com/bloxapp/ssv-dkg-tool/cli/operator"
+	"github.com/bloxapp/ssv-dkg/cli/initiator"
+	"github.com/bloxapp/ssv-dkg/cli/operator"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
 func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
-	RootCmd.AddCommand(operator.StartDKGServer)
-	RootCmd.AddCommand(operator.GenerateOperatorKeysCmd)
-	RootCmd.AddCommand(operator.ExportKeysCmd)
+	RootCmd.AddCommand(initiator.GenerateInitiatorKeysCmd)
+	RootCmd.AddCommand(operator.StartDKGOperator)
 }
 
 // RootCmd represents the root command of DKG-tool CLI
 var RootCmd = &cobra.Command{
-	Use:   "dkgcli",
+	Use:   "ssv-dkg",
 	Short: "CLI for running Distributed Key Generation protocol",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 	},

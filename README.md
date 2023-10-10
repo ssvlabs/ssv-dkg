@@ -1,10 +1,4 @@
-# ssv-dkg-tool
-
-## Architecture
-
-### Operators data
-
-The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
+# ssv-dkg
 
 ### Build
 
@@ -12,66 +6,131 @@ The data of the operators (ID, IP, Pubkey) can be collected in any way, for exam
 make install
 ```
 
-### Server
+### Operators data
 
-The dkg server is ran by a SSV operator, an Operator RSA private key is a requirement.
-The server is able to participate in multiple instances in parallel.
-Whenever the server receives a message it directs it to the right instance by the identifier, and respond with an answer.
+The data of the operators (ID, IP, Pubkey) can be collected in any way, for example a central server that you can pull the data from, or a preset file where all operators data exist.
 
-Start a DKG server
+Information about operators can be collected at `json` file and supplied to initiator to use for a key generation.
 
-```sh
-dkgcli start-dkg-server --privKey ./examples/server1/encrypted_private_key.json  --port 3030 --password 12345678 --storeShare true
+Operators info file example (`./examples/operators_integration.json`):
 
-### where
---privKey ./encrypted_private_key.json # path to base 64 encoded RSA private key in PKCS #1, ASN.1 DER form.
---port 3030 # port for listening messages
---password: 12345678 # password for encrypted keys
---storeShare # store created bls key share to a file for later reuse
+```json
+[
+  {
+    "id": 1,
+    "public_key": "LS0tLS1CRUdJTiBSU0....",
+    "ip": "http://localhost:3030"
+  },
+  {
+    "id": 2,
+    "public_key": "LS0tLS1CRUdJTiB....",
+    "ip": "http://localhost:3031"
+  }
+]
 ```
 
-Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+### Operator
+
+The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
+The operator is able to participate in multiple DKG ceremonies in parallel.
+
+NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the ssv-dkg tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+
+#### Start a DKG-operator
+
+```sh
+ssv-dkg start-operator \
+            --privKey ./examples/operator1/encrypted_private_key.json  \
+            --port 3030 \
+            --password ./password \
+            --storeShare true \
+            --logLevel info \
+            --logFormat json \
+            --logLevelFormat capitalColor \
+            --logFilePath ./operator1_logs/debug.log
+
+### where
+--privKey ./encrypted_private_key.json # path to ssv operator`s private key
+--port 3030 # port for listening messages
+--password: ./password # path to password file to decrypt the key
+--storeShare: true # store created bls key share to a file for later reuse if needed
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./operator1_logs/debug.log # a file path to write logs into
+```
+
+Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
 
 Example:
 
 ```yaml
 privKey: ./encrypted_private_key.json
-password: 12345678
+password: ./password
 port: 3030
 storeShare: true
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: ./operator1_logs/debug.log
 ```
 
 When using configuration file, run:
 
 ```sh
-dkgcli start-dkg-server
+ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 ```
 
-### Initiator of DKG key generation
+### Initiator
 
-The initiator uses `init-dkg` to create the initial details needed to run DKG between all operators.
+The initiator uses `init` to create the initial details needed to run DKG between all operators.
+
+Generate initiator identity RSA key pair:
 
 ```sh
-dkgcli init-dkg \
+ssv-dkg generate-initiator-keys --password 12345678
+```
+
+This will create `encrypted_private_key.json` with encrypted by password RSA key pair
+Write down `password` in any text file, for example to `./password`
+
+Run:
+
+```sh
+ssv-dkg init \
           --operatorIDs 1,2,3,4 \
-          --operatorsInfoPath ./examples/operators_integration.json \
+          --operatorsInfoPath ./operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
-          --fork 00000000
-          --depositResultsPath deposit.json
-          --ssvPayloadResultsPath payload.json
+          --fork "mainnet" \
+          --depositOutputPath deposit.json \
+          --keysharesOutputPath payload.json \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
+
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./examples/operators_integration.json # path to info about operators - ID,base64(RSA pub key),
+--operatorsInfoPath ./operators_integration.json # path to operators info ID,base64(RSA pub key),
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
---fork "00000000" # fork id bytes in HEX
---depositResultsPath # path to store the result file
---ssvPayloadResultsPath # path to store ssv contract payload file
+--withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
+--fork "mainnet" # fork name: mainnet, prater, or now_test_network
+--depositOutputPath: ./output/ # path and filename to store the staking deposit file
+--keysharesOutputPath: ./output/ # path and filename to store ssv contract payload file
+--initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
+--initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
+--logLevel: info # logger's log level (info/debug/
+--logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
+--logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
+--logFilePath: ./initiator_logs/debug.log # a file path to write logs into
 ```
 
-Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `dkgcli` will be looking for this file at `./config/` folder.
+Its also possible to use yaml configuration file `./config/initiator.yaml` for parameters. `ssv-dkg` will be looking for this file at `./config/` folder at the same root as the binary.
 
 Example:
 
@@ -82,29 +141,35 @@ owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 4
 fork: "00000000"
 operatorsInfoPath: ./examples/operators_integration.json
-depositResultsPath: ./deposit.json
-ssvPayloadResultsPath: ./payload.json
+depositOutputPath: ./output/
+keysharesOutputPath: ./output/
+privKey: ./encrypted_private_key.json
+password: ./password
 ```
 
 When using configuration file, run:
 
 ```sh
-dkgcli init-dkg
+ssv-dkg init --configPath /examples/config/initiator.example.yaml
 ```
 
 **_NOTE: Threshold is computed automatically using 3f+1 tolerance._**
 
-### Generate RSA operator key
-
-```sh
-./dkgcli generate-operator-keys --password 12345678
-```
-
 ---
 
-### Schema
+### Security notes
 
-![flow](./imgs/DKGinit.drawio.png)
+Here we explain how we secure the communication between DKG ceremony initiator and operators
+
+1. Initiator is using RSA key (2048 bits) to sign init message sent to operators. Upon receiving operators verify the sig using pub key at init message. If the sig is valid, operators store this pub key for further verification of messages coming from the initiator(s).
+2. Operators are using RSA key (ssv operator key - 2048 bits) to sign every message sent back to initiator.
+3. Initiator verifies every message incoming from any operator using ID and Public Key provided by operators info file, then initiator creates a combined message and signs it.
+4. Operators verify each of the messages of other operators participating in the ceremony and verifies initiator`s signature of the combined message.
+5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
+
+## Architecture
+
+![flow](./docs/imgs/DKGinit.drawio.png)
 
 #### Basic Flow Description:
 
@@ -210,7 +275,7 @@ Initial message fields:
 
 ### `Switch` instance management
 
-The DKG server can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
+The DKG-operator can handle multiple DKG instances, it saves up to MaxInstances(1024) up to `MaxInstanceTime` (5 minutes). If a new Init arrives we try to clean our list from instances older than `MaxInstanceTime` if we find any, we remove them and add the incoming, otherwise we respond with error that the maximum number of instances is already running.
 
 ### TODO:
 

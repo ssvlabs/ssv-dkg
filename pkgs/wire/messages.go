@@ -3,6 +3,7 @@ package wire
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
+	Signature  []byte             `ssz-max:"2048"`
 }
 
 type ErrSSZ struct {
@@ -61,13 +62,6 @@ type SignedTransport struct {
 	Signature []byte `ssz-max:"2048"`
 }
 
-//
-//const (
-//	KyberDealBundleMessageType TransportType = iota
-//	KyberResponseBundleMessageType
-//	KyberJustificationBundleMessageType
-//)
-
 type KyberMessage struct {
 	Type TransportType
 	Data []byte `ssz-max:"4096"`
@@ -84,13 +78,15 @@ type Init struct {
 	// T is the threshold for signing
 	T uint64
 	// WithdrawalCredentials for deposit data
-	WithdrawalCredentials []byte `ssz-max:"32"` // 2^23
+	WithdrawalCredentials []byte `ssz-max:"32"`
 	// Fork ethereum fork for signing
 	Fork [4]byte `ssz-size:"4"`
 	// Owner address
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

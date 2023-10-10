@@ -9,22 +9,29 @@ import (
 
 // Flag names.
 const (
-	threshold             = "threshold"
-	withdrawAddress       = "withdrawAddress"
-	operatorIDs           = "operatorIDs"
-	operatorsInfo         = "operatorsInfoPath"
-	operatorPrivKey       = "privKey"
-	operatorPort          = "port"
-	owner                 = "owner"
-	nonce                 = "nonce"
-	fork                  = "fork"
-	mnemonicFlag          = "mnemonic"
-	indexFlag             = "index"
-	networkFlag           = "network"
-	password              = "password"
-	depositResultsPath    = "depositResultsPath"
-	ssvPayloadResultsPath = "ssvPayloadResultsPath"
-	storeShare            = "storeShare"
+	threshold                = "threshold"
+	withdrawAddress          = "withdrawAddress"
+	operatorIDs              = "operatorIDs"
+	operatorsInfo            = "operatorsInfoPath"
+	operatorPrivKey          = "privKey"
+	configPath               = "configPath"
+	initiatorPrivKey         = "initiatorPrivKey"
+	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
+	operatorPort             = "port"
+	owner                    = "owner"
+	nonce                    = "nonce"
+	fork                     = "fork"
+	mnemonicFlag             = "mnemonic"
+	indexFlag                = "index"
+	networkFlag              = "network"
+	password                 = "password"
+	depositOutputPath        = "depositOutputPath"
+	keysharesOutputPath      = "keysharesOutputPath"
+	storeShare               = "storeShare"
+	logLevel                 = "logLevel"
+	logFormat                = "logFormat"
+	logLevelFormat           = "logLevelFormat"
+	logFilePath              = "logFilePath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -89,7 +96,7 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 
 // ForkVersionFlag  adds the fork version of the network flag to the command
 func ForkVersionFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, fork, "", "Fork version 4 bytes in HEX, i.e. 0x0000000000", false)
+	AddPersistentStringFlag(c, fork, "", "Fork version, mainnet/prater", false)
 }
 
 // GetForkVersionFlagValue gets the fork version of the network flag from the command
@@ -117,8 +124,28 @@ func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, string, error) {
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command
+func InitiatorPrivateKeyFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, initiatorPrivKey, "", "Path to initiator Private Key file", false)
+}
+
+// GetOperatorPrivateKeyFlagValue gets private key flag from the command
+func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(initiatorPrivKey)
+}
+
+// OperatorPrivateKeyPassFlag  adds private key flag to the command
+func InitiatorPrivateKeyPassFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, initiatorPrivKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
+}
+
+// GetOperatorPrivateKeyFlagValue gets private key flag from the command
+func GetInitiatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(initiatorPrivKeyPassword)
+}
+
+// OperatorPrivateKeyFlag  adds private key flag to the command
 func OperatorPrivateKeyFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorPrivKey, "", "Path to operator Private Key file", false)
+	AddPersistentStringFlag(c, operatorPrivKey, "", "Path to initiator Private Key file", false)
 }
 
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
@@ -141,9 +168,59 @@ func OperatorPortFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
 }
 
+// OperatorConfigPathFlag config path flag to the command
+func ConfigPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
+}
+
+// GetConfigPathFlagValue gets config path flag from the command
+func GetConfigPathFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(configPath)
+}
+
 // GetOperatorPortFlagValue gets operator listening port flag from the command
 func GetOperatorPortFlagValue(c *cobra.Command) (uint64, error) {
 	return c.Flags().GetUint64(operatorPort)
+}
+
+// LogLevelFlag logger's log level flag to the command
+func LogLevelFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevel, "debug", "Defines logger's log level", false)
+}
+
+// GetLogLevelFlagValue gets logger's log level flag from the command
+func GetLogLevelFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logLevel)
+}
+
+// LogFormatFlag logger's  logger's encoding flag to the command
+func LogFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFormat, "json", "Defines logger's encoding, valid values are 'json' (default) and 'console'", false)
+}
+
+// GetLogFormatFlagValue gets logger's encoding flag from the command
+func GetLogFormatFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logFormat)
+}
+
+// LogLevelFormatFlag logger's level format flag to the command
+func LogLevelFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevelFormat, "capitalColor", "Defines logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase'", false)
+}
+
+// GetLogLevelFormatFlagValue gets logger's level format flag from the command
+func GetLogLevelFormatFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logLevelFormat)
+}
+
+// LogFilePathFlag file path to write logs into
+func LogFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFilePath, "./data/debug.log", "Defines a file path to write logs into", false)
+}
+
+// GetLogFilePathValue gets logs file path flag from the command
+func GetLogFilePathValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(logFilePath)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
@@ -247,19 +324,19 @@ func GetNetworkFlag(c *cobra.Command) (string, error) {
 }
 
 func AddDepositResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, depositResultsPath, "", "Path to store deposit result file json", false)
+	AddPersistentStringFlag(c, depositOutputPath, "./", "Path to store deposit result file json", false)
 }
 
 func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(depositResultsPath)
+	return c.Flags().GetString(depositOutputPath)
 }
 
-func AddSSVPayloadResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, ssvPayloadResultsPath, "", "Path to store ssv contract payload file json", false)
+func AddKeysharesOutputPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, keysharesOutputPath, "./", "Path to store ssv keyshares json", false)
 }
 
-func GetSSVPayloadResultStorePathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(ssvPayloadResultsPath)
+func GetKeysharesOutputPathFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(keysharesOutputPath)
 }
 
 func AddStoreShareFlag(c *cobra.Command) {

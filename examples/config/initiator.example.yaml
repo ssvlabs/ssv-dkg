@@ -1,0 +1,14 @@
+operatorIDs: [1, 2, 3, 4]
+withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
+owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
+nonce: 0
+fork: "mainnet"
+operatorsInfoPath: /data/docker_operators.json
+depositOutputPath: /data/output/
+keysharesOutputPath: /data/output/
+initiatorPrivKey: /data/initiator/encrypted_private_key.json
+initiatorPrivKeyPassword: /data/initiator/password
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/output/initiator_debug.log

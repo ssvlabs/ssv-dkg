@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto"
+
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -10,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -18,6 +20,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	types "github.com/wealdtech/go-eth2-types/v2"
@@ -27,11 +30,13 @@ import (
 
 const (
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
-	BLSWithdrawalPrefixByte = byte(0)
+	BLSWithdrawalPrefixByte  = byte(0)
+	ETH1WithdrawalPrefixByte = byte(1)
 )
 
 func init() {
-	types.InitBLS()
+	_ = bls.Init(bls.BLS12_381)
+	_ = bls.SetETHmode(bls.EthModeDraft07)
 }
 
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
@@ -257,7 +262,7 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], publicKey)
@@ -303,9 +308,17 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key
 //	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
 //
 // where withdrawal_credentials is of type bytes32.
-func WithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
+func BLSWithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
 	h := util.SHA256(withdrawalPubKey)
 	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
+}
+
+func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
+	withdrawalCredentials := make([]byte, 32)
+	copy(withdrawalCredentials[:1], []byte{ETH1WithdrawalPrefixByte})
+	//withdrawalCredentials[1:12] == b'\x00' * 11 // this is not needed since cells are zeroed anyway
+	copy(withdrawalCredentials[12:], withdrawalAddr)
+	return withdrawalCredentials
 }
 
 // IsSupportedDepositNetwork returns true if the given network is supported
@@ -319,7 +332,7 @@ func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network 
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], publicKey.Serialize())
@@ -399,7 +412,7 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 	}
 
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: WithdrawalCredentialsHash(withdrawalPubKey),
+		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
 		Amount:                amount,
 	}
 	copy(depositMessage.PublicKey[:], validatorPublicKey.Serialize())
@@ -435,10 +448,75 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 }
 
 func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
+	res := make(map[uint64]bool)
 	for index, pub := range sharePks {
-		if !sigShares[index].VerifyByte(pub, data) {
-			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[index].Serialize(), data)
+		if sigShares[index].VerifyByte(pub, data) {
+			res[index] = true
 		}
 	}
+
+	var errStr = ""
+
+	for index, r := range res {
+		if !r {
+			errStr += fmt.Sprintf(" id %d sig %x root %x, errStr", index, sigShares[index].Serialize(), data)
+			continue
+		}
+	}
+	if errStr != "" {
+		return fmt.Errorf("error verifying partial deposit signature: %v", errStr)
+	}
 	return nil
+}
+
+func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	privateKey, err := ConvertEncryptedPemToPrivateKey(data, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey, nil
+}
+
+func PrivateKey(path string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(data))
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(operatorKeyByte)
+	// TODO: resolve deprecation https://github.com/golang/go/issues/8860
+	enc := x509.IsEncryptedPEMBlock(block) //nolint
+	b := block.Bytes
+	if enc {
+		var err error
+		// TODO: resolve deprecation https://github.com/golang/go/issues/8860
+		b, err = x509.DecryptPEMBlock(block, nil) //nolint
+		if err != nil {
+			return nil, err
+		}
+	}
+	parsedSk, err := x509.ParsePKCS1PrivateKey(b)
+	if err != nil {
+		return nil, err
+	}
+	return parsedSk, nil
+}
+
+func NewID() [24]byte {
+	var id [24]byte
+	b := uuid.New()
+	copy(id[:12], b[:])
+	b = uuid.New()
+	copy(id[12:], b[:])
+	return id
 }

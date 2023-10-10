@@ -1,0 +1,8 @@
+privKey: /data/operator1/encrypted_private_key.json
+password: /data/operator1/password
+port: 3030
+storeShare: false
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/output/operator1_logs_debug.log

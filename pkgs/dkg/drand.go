@@ -2,7 +2,6 @@ package dkg
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -10,8 +9,11 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv-dkg/pkgs/board"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
@@ -20,13 +22,8 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/board"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg-tool/pkgs/wire"
+	"go.uber.org/zap"
 )
 
 const (
@@ -87,7 +84,7 @@ func (msg *Result) Decode(data []byte) error {
 var ErrAlreadyExists = errors.New("duplicate message")
 
 type LocalOwner struct {
-	Logger      *logrus.Entry
+	Logger      *zap.Logger
 	startedDKG  chan struct{}
 	ErrorChan   chan error
 	ID          uint64
@@ -96,50 +93,54 @@ type LocalOwner struct {
 	suite       pairing.Suite
 	BroadcastF  func([]byte) error
 	Exchanges   map[uint64]*wire.Exchange
-	OpPrivKey   *rsa.PrivateKey
 	SecretShare *dkg.DistKeyShare
-
-	VerifyFunc func(id uint64, msg, sig []byte) error
-	SignFunc   func([]byte) ([]byte, error)
-
-	Owner common.Address
-	Nonce uint64
-	done  chan struct{}
+	VerifyFunc  func(id uint64, msg, sig []byte) error
+	SignFunc    func([]byte) ([]byte, error)
+	EncryptFunc func([]byte) ([]byte, error)
+	DecryptFunc func([]byte) ([]byte, error)
+	RSAPub      *rsa.PublicKey
+	Owner       common.Address
+	Nonce       uint64
+	done        chan struct{}
 }
 
 type OwnerOpts struct {
-	Logger     *logrus.Entry
-	ID         uint64
-	BroadcastF func([]byte) error
-	Suite      pairing.Suite
-	VerifyFunc func(id uint64, msg, sig []byte) error
-	SignFunc   func([]byte) ([]byte, error)
-	OpPrivKey  *rsa.PrivateKey
-	Owner      [20]byte
-	Nonce      uint64
+	Logger      *zap.Logger
+	ID          uint64
+	BroadcastF  func([]byte) error
+	Suite       pairing.Suite
+	VerifyFunc  func(id uint64, msg, sig []byte) error
+	SignFunc    func([]byte) ([]byte, error)
+	EncryptFunc func([]byte) ([]byte, error)
+	DecryptFunc func([]byte) ([]byte, error)
+	RSAPub      *rsa.PublicKey
+	Owner       [20]byte
+	Nonce       uint64
 }
 
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
-		Logger:     opts.Logger,
-		startedDKG: make(chan struct{}, 1),
-		ErrorChan:  make(chan error, 1),
-		ID:         opts.ID,
-		BroadcastF: opts.BroadcastF,
-		Exchanges:  make(map[uint64]*wire.Exchange),
-		SignFunc:   opts.SignFunc,
-		VerifyFunc: opts.VerifyFunc,
-		done:       make(chan struct{}, 1),
-		suite:      opts.Suite,
-		OpPrivKey:  opts.OpPrivKey,
-		Owner:      opts.Owner,
-		Nonce:      opts.Nonce,
+		Logger:      opts.Logger,
+		startedDKG:  make(chan struct{}, 1),
+		ErrorChan:   make(chan error, 1),
+		ID:          opts.ID,
+		BroadcastF:  opts.BroadcastF,
+		Exchanges:   make(map[uint64]*wire.Exchange),
+		SignFunc:    opts.SignFunc,
+		VerifyFunc:  opts.VerifyFunc,
+		EncryptFunc: opts.EncryptFunc,
+		DecryptFunc: opts.DecryptFunc,
+		RSAPub:      opts.RSAPub,
+		done:        make(chan struct{}, 1),
+		suite:       opts.Suite,
+		Owner:       opts.Owner,
+		Nonce:       opts.Nonce,
 	}
 	return owner
 }
 
 func (o *LocalOwner) StartDKG() error {
-	o.Logger.Infof("Starting DKG")
+	o.Logger.Info("Starting DKG")
 	nodes := make([]dkg.Node, 0)
 	for id, e := range o.Exchanges {
 		p := o.suite.G1().Point()
@@ -152,8 +153,10 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
-	o.Logger.Infof("Staring DKG with nodes %v", nodes)
-
+	o.Logger.Debug("Staring DKG with nodes: ")
+	for _, n := range nodes {
+		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
+	}
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
 		Identifier: o.data.ReqID[:],
@@ -199,20 +202,17 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Debugf("responding with a signed message, msg:%v", hex.EncodeToString(final))
-
 	return o.BroadcastF(final)
 }
 
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
-	o.Logger.Infof("DKG process finished")
 	if res.Error != nil {
-		o.Logger.Error(res.Error)
+		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
 		o.broadcastError(res.Error)
 		return res.Error
 	}
+	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
-	// TODO: store DKG result at instance for now just as global variable
 	o.SecretShare = res.Result.Key
 
 	// Get validator BLS public key from result
@@ -221,7 +221,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debugf("Validator public key %x", validatorPubKey.Serialize())
+	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
 
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
@@ -241,20 +241,22 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		}
 		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
 		if err != nil {
-			o.Logger.Errorf("%v", err)
+			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
+			o.broadcastError(err)
+			return err
 		}
 	}
 
 	// Encrypt BLS share for SSV contract
 	rawshare := secretKeyBLS.SerializeToHexStr()
-	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &o.OpPrivKey.PublicKey, []byte(rawshare))
+	ciphertext, err := o.EncryptFunc([]byte(rawshare))
 	if err != nil {
 		o.broadcastError(err)
-		return errors.New("cant encrypt share")
+		return fmt.Errorf("cant encrypt private share")
 	}
-	// check that we encrypt right
+	// check that we encrypt correctly
 	shareSecretDecrypted := &bls.SecretKey{}
-	decryptedSharePrivateKey, err := rsaencryption.DecodeKey(o.OpPrivKey, ciphertext)
+	decryptedSharePrivateKey, err := o.DecryptFunc(ciphertext)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -269,25 +271,25 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 
-	o.Logger.Debugf("Encrypted share %x", ciphertext)
-	o.Logger.Debugf("Withdrawal Credentials %x", o.data.init.WithdrawalCredentials)
-	o.Logger.Debugf("Fork Version %x", o.data.init.Fork)
-	o.Logger.Debugf("Domain %x", ssvspec_types.DomainDeposit)
+	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
+	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.data.init.WithdrawalCredentials)))
+	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.data.init.Fork[:])))
+	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
-	o.Logger.Debugf("Root %x", signRoot)
+	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
 	if !val {
 		o.broadcastError(err)
-		return fmt.Errorf("partial deposit root signature isnt valid %x", depositRootSig.Serialize())
+		return fmt.Errorf("partial deposit root signature is not valid %x", depositRootSig.Serialize())
 	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.Owner.String(), o.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
-	o.Logger.Debugf("Owner, Nonce  %x, %d", o.Owner, o.Nonce)
-	o.Logger.Debugf("SSV Keccak 256 of Owner + Nonce  %x", hash)
+	o.Logger.Debug("Owner, Nonce", zap.String("owner", o.Owner.String()), zap.Uint64("nonce", o.Nonce))
+	o.Logger.Debug("SSV Keccak 256 hash of owner + nonce", zap.String("hash", fmt.Sprintf("%x", hash)))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
 		o.broadcastError(err)
@@ -299,14 +301,13 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	o.Logger.Debugf("SSV owner + nonce signature  %x", sigOwnerNonce.Serialize())
 	out := Result{
 		RequestID:                  o.data.ReqID,
 		EncryptedShare:             ciphertext,
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
 		DepositPartialSignature:    depositRootSig.Serialize(),
-		PubKeyRSA:                  &o.OpPrivKey.PublicKey,
+		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
 	}
@@ -334,13 +335,11 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	}
 	o.data.init = init
 	o.data.ReqID = reqID
-	kyberLogger := logrus.NewEntry(logrus.New())
-	kyberLogger = kyberLogger.WithField("reqid", o.data.ReqID)
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
 	o.b = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			kyberLogger.Logger.Debugf("server: broadcasting kyber message")
-
+			kyberLogger.Debug("server: broadcasting kyber message")
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
 				return err
@@ -355,7 +354,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 			// todo not loop with channels
 			go func(trsp *wire.Transport) {
 				if err := o.Broadcast(trsp); err != nil {
-					o.Logger.Errorf("broadcasting failed %v", err)
+					o.Logger.Error("broadcasting failed", zap.Error(err))
 				}
 			}(trsp)
 
@@ -378,7 +377,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		return err
 	}
 
-	o.Logger.Debugf("server: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from)
+	o.Logger.Debug(fmt.Sprintf("operator: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from))
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
@@ -386,40 +385,30 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		if err != nil {
 			return err
 		}
-
-		o.Logger.Debugf("server: received deal bundle from %d", from)
-
+		o.Logger.Debug("operator: received deal bundle from", zap.Uint64("ID", from))
 		o.b.DealC <- *b
-
-		o.Logger.Debugf("server: gone through deal sending %d", from)
-
 	case wire.KyberResponseBundleMessageType:
 
 		b, err := wire.DecodeResponseBundle(kyberMsg.Data)
 		if err != nil {
 			return err
 		}
-
-		o.Logger.Debugf("server: received response bundle from %d", from)
-
+		o.Logger.Debug("operator: received response bundle from", zap.Uint64("ID", from))
 		o.b.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
 		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.suite.G1().(dkg.Suite))
 		if err != nil {
 			return err
 		}
-
-		o.Logger.Debugf("server: received justification bundle from %d", from)
-
+		o.Logger.Debug("operator: received justification bundle from", zap.Uint64("ID", from))
 		o.b.JustificationC <- *b
 	default:
-		return errors.New("unknown kyber message type")
+		return fmt.Errorf("unknown kyber message type")
 	}
 	return nil
 }
 
 func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
-
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
 		return err
@@ -428,11 +417,8 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	if err := o.VerifyFunc(st.Signer, msgbts, st.Signature); err != nil {
 		return err
 	}
-
 	t := st.Message
-
-	o.Logger.Debugf("server: got msg from type %s, at: %d", t.Type.String(), o.ID)
-
+	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", t.Type.String()), zap.Uint64("from", st.Signer))
 	switch t.Type {
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}
@@ -454,7 +440,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		<-o.startedDKG
 		return o.processDKG(from, t)
 	default:
-		return errors.New("unknown type")
+		return fmt.Errorf("unknown message type")
 	}
 
 	return nil
