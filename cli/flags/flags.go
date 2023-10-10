@@ -27,8 +27,8 @@ const (
 	indexFlag                = "index"
 	networkFlag              = "network"
 	password                 = "password"
-	depositResultsPath       = "depositResultsPath"
-	ssvPayloadResultsPath    = "ssvPayloadResultsPath"
+	depositOutputPath        = "depositOutputPath"
+	keysharesOutputPath      = "keysharesOutputPath"
 	storeShare               = "storeShare"
 	logLevel                 = "logLevel"
 	logFormat                = "logFormat"
@@ -379,19 +379,19 @@ func GetNetworkFlag(c *cobra.Command) (string, error) {
 }
 
 func AddDepositResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, depositResultsPath, "./", "Path to store deposit result file json", false)
+	AddPersistentStringFlag(c, depositOutputPath, "./", "Path to store deposit result file json", false)
 }
 
 func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(depositResultsPath)
+	return c.Flags().GetString(depositOutputPath)
 }
 
-func AddSSVPayloadResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, ssvPayloadResultsPath, "./", "Path to store ssv contract payload file json", false)
+func AddKeysharesOutputPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, keysharesOutputPath, "./", "Path to store ssv keyshares json", false)
 }
 
-func GetSSVPayloadResultStorePathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(ssvPayloadResultsPath)
+func GetKeysharesOutputPathFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(keysharesOutputPath)
 }
 
 func AddStoreShareFlag(c *cobra.Command) {

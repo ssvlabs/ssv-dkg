@@ -28,7 +28,7 @@ func init() {
 	flags.NonceFlag(StartDKG)
 	flags.ForkVersionFlag(StartDKG)
 	flags.AddDepositResultStorePathFlag(StartDKG)
-	flags.AddSSVPayloadResultStorePathFlag(StartDKG)
+	flags.AddKeysharesOutputPathFlag(StartDKG)
 	flags.ConfigPathFlag(StartDKG)
 	flags.LogLevelFlag(StartDKG)
 	flags.LogFormatFlag(StartDKG)
@@ -52,10 +52,10 @@ func init() {
 	if err := viper.BindPFlag("fork", StartDKG.PersistentFlags().Lookup("fork")); err != nil {
 		panic(err)
 	}
-	if err := viper.BindPFlag("depositResultsPath", StartDKG.PersistentFlags().Lookup("depositResultsPath")); err != nil {
+	if err := viper.BindPFlag("depositOutputPath", StartDKG.PersistentFlags().Lookup("depositOutputPath")); err != nil {
 		panic(err)
 	}
-	if err := viper.BindPFlag("ssvPayloadResultsPath", StartDKG.PersistentFlags().Lookup("ssvPayloadResultsPath")); err != nil {
+	if err := viper.BindPFlag("keysharesOutputPath", StartDKG.PersistentFlags().Lookup("keysharesOutputPath")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("initiatorPrivKey", StartDKG.PersistentFlags().Lookup("initiatorPrivKey")); err != nil {
@@ -111,20 +111,20 @@ var StartDKG = &cobra.Command{
 		}
 		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
-		depositResultsPath := viper.GetString("depositResultsPath")
-		if depositResultsPath == "" {
+		depositOutputPath := viper.GetString("depositOutputPath")
+		if depositOutputPath == "" {
 			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
 		}
-		_, err = os.Stat(depositResultsPath)
+		_, err = os.Stat(depositOutputPath)
 		if os.IsNotExist(err) {
 			logger.Fatal("😥 Folder to store deposit file does not exist: ", zap.Error(err))
 		}
 		// Check paths for results
-		ssvPayloadResultsPath := viper.GetString("ssvPayloadResultsPath")
-		if ssvPayloadResultsPath == "" {
+		keysharesOutputPath := viper.GetString("keysharesOutputPath")
+		if keysharesOutputPath == "" {
 			logger.Fatal("😥 Failed to get ssv payload path flag value: ", zap.Error(err))
 		}
-		_, err = os.Stat(ssvPayloadResultsPath)
+		_, err = os.Stat(keysharesOutputPath)
 		if os.IsNotExist(err) {
 			logger.Fatal("😥 Folder to store SSV payload file does not exist: ", zap.Error(err))
 		}
@@ -221,13 +221,13 @@ var StartDKG = &cobra.Command{
 		}
 		// Save deposit file
 		logger.Info("🎯  All data is validated.")
-		depositFinalPath := fmt.Sprintf("%s/deposit_%s.json", depositResultsPath, depositData.PubKey)
+		depositFinalPath := fmt.Sprintf("%s/deposit_%s.json", depositOutputPath, depositData.PubKey)
 		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
 		err = utils.WriteJSON(depositFinalPath, []initiator.DepositDataJson{*depositData})
 		if err != nil {
 			logger.Warn("Failed writing deposit data file: ", zap.Error(err))
 		}
-		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", ssvPayloadResultsPath, depositData.PubKey, hex.EncodeToString(id[:]))
+		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", keysharesOutputPath, depositData.PubKey, hex.EncodeToString(id[:]))
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", payloadFinalPath))
 		err = utils.WriteJSON(payloadFinalPath, keyShares)
 		if err != nil {

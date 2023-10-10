@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto"
+
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -464,10 +465,23 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 }
 
 func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
+	res := make(map[uint64]bool)
 	for index, pub := range sharePks {
-		if !sigShares[index].VerifyByte(pub, data) {
-			return fmt.Errorf("error verifying partial deposit signature: sig %x, root %x", sigShares[index].Serialize(), data)
+		if sigShares[index].VerifyByte(pub, data) {
+			res[index] = true
 		}
+	}
+
+	var errStr = ""
+
+	for index, r := range res {
+		if !r {
+			errStr += fmt.Sprintf(" id %d sig %x root %x, errStr", index, sigShares[index].Serialize(), data)
+			continue
+		}
+	}
+	if errStr != "" {
+		return fmt.Errorf("error verifying partial deposit signature: %v", errStr)
 	}
 	return nil
 }
