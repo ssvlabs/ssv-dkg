@@ -2,6 +2,8 @@ package initiator
 
 import (
 	"crypto/rsa"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,16 +14,20 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 
 	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 	"go.uber.org/zap"
 )
 
 func init() {
 	flags.InitiatorPrivateKeyFlag(StartDKG)
 	flags.InitiatorPrivateKeyPassFlag(StartDKG)
+	flags.GenerateInitiatorKeyFlag(StartDKG)
 	flags.WithdrawAddressFlag(StartDKG)
-	flags.OperatorsInfoFlag(StartDKG)
+	flags.OperatorsInfoFileFlag(StartDKG)
+	flags.OperatorsInfoPathFlag(StartDKG)
 	flags.OperatorIDsFlag(StartDKG)
 	flags.OwnerAddressFlag(StartDKG)
 	flags.NonceFlag(StartDKG)
@@ -37,6 +43,9 @@ func init() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("operatorIDs", StartDKG.PersistentFlags().Lookup("operatorIDs")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("operatorsInfoFile", StartDKG.PersistentFlags().Lookup("operatorsInfoFile")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
@@ -61,6 +70,9 @@ func init() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("initiatorPrivKeyPassword", StartDKG.PersistentFlags().Lookup("initiatorPrivKeyPassword")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("generateInitiatorKey", StartDKG.PersistentFlags().Lookup("generateInitiatorKey")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("logLevel", StartDKG.PersistentFlags().Lookup("logLevel")); err != nil {
@@ -106,9 +118,11 @@ var StartDKG = &cobra.Command{
 		logLevelFormat := viper.GetString("logLevelFormat")
 		logFilePath := viper.GetString("logFilePath")
 		// If the log file doesn't exist, create it
-		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
+		if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+			_, err := os.Create(logFilePath)
+			if err != nil {
+				return err
+			}
 		}
 		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
@@ -119,33 +133,66 @@ var StartDKG = &cobra.Command{
 		if depositOutputPath == "" {
 			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
 		}
-		_, err = os.Stat(depositOutputPath)
-		if os.IsNotExist(err) {
+		if stat, err := os.Stat(depositOutputPath); os.IsNotExist(err) {
 			logger.Fatal("😥 Folder to store deposit file does not exist: ", zap.Error(err))
+		} else {
+			if !stat.IsDir() {
+				logger.Fatal("😥 Provided depositOutputPath flag is not a directory: ", zap.Error(err))
+			}
 		}
 		// Check paths for results
 		keysharesOutputPath := viper.GetString("keysharesOutputPath")
 		if keysharesOutputPath == "" {
 			logger.Fatal("😥 Failed to get ssv payload path flag value: ", zap.Error(err))
 		}
-		_, err = os.Stat(keysharesOutputPath)
-		if os.IsNotExist(err) {
+		if stat, err := os.Stat(keysharesOutputPath); os.IsNotExist(err) {
 			logger.Fatal("😥 Folder to store SSV payload file does not exist: ", zap.Error(err))
+		} else {
+			if !stat.IsDir() {
+				logger.Fatal("😥 Provided keysharesOutputPath flag is not a directory: ", zap.Error(err))
+			}
 		}
 		// Load operators TODO: add more sources.
-		operatorFile := viper.GetString("operatorsInfoPath")
-		if operatorFile == "" {
-			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))
+		operatorsInfoFile := viper.GetString("operatorsInfoFile")
+		operatorsInfoPath := viper.GetString("operatorsInfoPath")
+		if operatorsInfoFile == "" && operatorsInfoPath == "" {
+			logger.Fatal("😥 Operator info file path or dir path have not provided")
 		}
-
-		opsfile, err := os.ReadFile(operatorFile)
-		if err != nil {
-			logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+		if operatorsInfoFile != "" && operatorsInfoPath != "" {
+			logger.Fatal("😥 Please provide either operator info file path or directory path to look for 'operators_info.json' file, not both")
 		}
-
-		opMap, err := initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+		var opMap initiator.Operators
+		if operatorsInfoFile != "" {
+			logger.Info("📖 reading operators info JSON file")
+			if stat, err := os.Stat(operatorsInfoFile); err == nil && !stat.IsDir() {
+				opsfile, err := os.ReadFile(operatorsInfoFile)
+				if err != nil {
+					logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+				}
+				opMap, err = initiator.LoadOperatorsJson(opsfile)
+				if err != nil {
+					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+				}
+			} else {
+				logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+			}
+		}
+		if operatorsInfoPath != "" {
+			logger.Info("📖 looking operators info 'operators_info.json' file", zap.String("at path", operatorsInfoPath))
+			if stat, err := os.Stat(operatorsInfoPath); err == nil && stat.IsDir() {
+				filePath := operatorsInfoPath + "operators_info.json"
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					logger.Fatal("😥 Failed to find operator info file at provided path: ", zap.Error(err))
+				}
+				opsfile, err := os.ReadFile(filePath)
+				if err != nil {
+					logger.Fatal("😥 Failed to read operator info file:", zap.Error(err))
+				}
+				opMap, err = initiator.LoadOperatorsJson(opsfile)
+				if err != nil {
+					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+				}
+			}
 		}
 		participants := viper.GetStringSlice("operatorIDs")
 		if participants == nil {
@@ -156,30 +203,66 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
 		privKeyPath := viper.GetString("initiatorPrivKey")
-		if privKeyPath == "" {
-			logger.Fatal("😥 Failed to get initiator key flag value", zap.Error(err))
+		generateInitiatorKey := viper.GetBool("generateInitiatorKey")
+		if privKeyPath == "" && !generateInitiatorKey {
+			logger.Fatal("😥 Initiator key flag should be provided")
+		}
+		if privKeyPath != "" && generateInitiatorKey {
+			logger.Fatal("😥 Please provide either private key path or generate command, not both")
 		}
 		var privateKey *rsa.PrivateKey
+		var encryptedRSAJSON []byte
+		var password string
 		pass := viper.GetString("initiatorPrivKeyPassword")
-		if pass != "" {
-			// check if a password string a valid path, then read password from the file
-			if _, err := os.Stat(pass); err != nil {
-				logger.Fatal("😥 Password file: ", zap.Error(err))
+		if privKeyPath != "" && !generateInitiatorKey {
+			logger.Info("🔑 opening initiator RSA private key file")
+			if pass != "" {
+				logger.Info("🔑 password for key provided - decrypting")
+				// check if a password string a valid path, then read password from the file
+				if _, err := os.Stat(pass); os.IsNotExist(err) {
+					logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
+				}
+				encryptedRSAJSON, err := os.ReadFile(privKeyPath)
+				if err != nil {
+					logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
+				}
+				keyStorePassword, err := os.ReadFile(pass)
+				if err != nil {
+					logger.Fatal("😥 Error reading password file: ", zap.Error(err))
+				}
+				privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+				if err != nil {
+					logger.Fatal(err.Error())
+				}
+			} else {
+				logger.Info("🔑 password for key NOT provided - trying to read plaintext key")
+				privateKey, err = crypto.PrivateKey(privKeyPath)
+				if err != nil {
+					logger.Fatal("😥 Error reading plaintext private key from file: ", zap.Error(err))
+				}
 			}
-			keyStorePassword, err := os.ReadFile(pass)
+		}
+		if privKeyPath == "" && generateInitiatorKey {
+			logger.Info("🔑 generating new initiator RSA key pair + password")
+			pk, priv, err := rsaencryption.GenerateKeys()
 			if err != nil {
-				logger.Fatal("😥 Error reading password file: ", zap.Error(err))
+				logger.Fatal("Failed to generate operator keys", zap.Error(err))
 			}
-			encryptedJSON, err := os.ReadFile(privKeyPath)
+			password, err = crypto.GenerateSecurePassword()
 			if err != nil {
-				logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
+				logger.Fatal("Failed to generate operator keys", zap.Error(err))
 			}
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
+			logger.Info("Generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
+			encryptedData, err := keystorev4.New().Encrypt(priv, password)
 			if err != nil {
-				logger.Fatal(err.Error())
+				logger.Fatal("Failed to encrypt private key", zap.Error(err))
 			}
-		} else {
-			privateKey, err = crypto.PrivateKey(privKeyPath)
+
+			encryptedRSAJSON, err = json.Marshal(encryptedData)
+			if err != nil {
+				logger.Fatal("Failed to marshal encrypted data to JSON", zap.Error(err))
+			}
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, password)
 			if err != nil {
 				logger.Fatal(err.Error())
 			}
@@ -236,6 +319,19 @@ var StartDKG = &cobra.Command{
 		err = utils.WriteJSON(keysharesFinalPath, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
+		}
+		if privKeyPath == "" && generateInitiatorKey {
+			rsaKeyPath := fmt.Sprintf("%s/encrypted_private_key-%v.json", keysharesOutputPath, depositData.PubKey)
+			err = os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0644)
+			if err != nil {
+				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+			}
+			rsaKeyPasswordPath := fmt.Sprintf("%s/password-%v.txt", keysharesOutputPath, depositData.PubKey)
+			err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0644)
+			if err != nil {
+				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+			}
+			logger.Info("Private key encrypted and stored at", zap.String("path", keysharesOutputPath))
 		}
 
 		fmt.Println(`

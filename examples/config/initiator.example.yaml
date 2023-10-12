@@ -3,11 +3,13 @@ withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 0
 fork: "mainnet"
-operatorsInfoPath: /data/docker_operators.json
+# operatorsInfoFile: /data/docker_operators.json
+operatorsInfoPath: /data/initiator/operators_data/
 depositOutputPath: /data/output/
 keysharesOutputPath: /data/output/
-initiatorPrivKey: /data/initiator/encrypted_private_key.json
-initiatorPrivKeyPassword: /data/initiator/password
+# initiatorPrivKey: /data/initiator/encrypted_private_key.json
+# initiatorPrivKeyPassword: /data/initiator/password
+generateInitiatorKey: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor

@@ -12,11 +12,13 @@ const (
 	threshold                = "threshold"
 	withdrawAddress          = "withdrawAddress"
 	operatorIDs              = "operatorIDs"
-	operatorsInfo            = "operatorsInfoPath"
+	operatorsInfoFile        = "operatorsInfoFile"
+	operatorsInfoPath        = "operatorsInfoPath"
 	operatorPrivKey          = "privKey"
 	configPath               = "configPath"
 	initiatorPrivKey         = "initiatorPrivKey"
 	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
+	generateInitiatorKey     = "generateInitiatorKey"
 	operatorPort             = "port"
 	owner                    = "owner"
 	nonce                    = "nonce"
@@ -65,13 +67,23 @@ func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
 }
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
-func OperatorsInfoFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", false)
+func OperatorsInfoFileFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoFile, "", "Path to operators' public keys, IDs and IPs file", false)
 }
 
 // GetOperatorsInfoFlagValue gets path to operators' ifo file flag from the command
-func GetOperatorsInfoFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorsInfo)
+func GetOperatorsInfoFileFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(operatorsInfoFile)
+}
+
+// OperatorsInfoFlag  adds path to where to look for operator info file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to where to look for operator info file", false)
+}
+
+// GetOperatorsInfoPathFlagValue gets path to where to look for operator info file flag from the command
+func GetOperatorsInfoPathFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(operatorsInfoPath)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -131,6 +143,16 @@ func InitiatorPrivateKeyFlag(c *cobra.Command) {
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(initiatorPrivKey)
+}
+
+// GenerateInitiatorKeyFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GenerateInitiatorKeyFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, generateInitiatorKey, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+}
+
+// GetGenerateInitiatorKeyFlagValue gets flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GetGenerateInitiatorKeyFlagValue(c *cobra.Command) (bool, error) {
+	return c.Flags().GetBool(generateInitiatorKey)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
