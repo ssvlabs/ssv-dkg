@@ -85,15 +85,6 @@ ssv-dkg start-operator --configPath "/examples/config/operator4.example.yaml"
 
 The initiator uses `init` to create the initial details needed to run DKG between all operators.
 
-Generate initiator identity RSA key pair:
-
-```sh
-ssv-dkg generate-initiator-keys --password 12345678
-```
-
-This will create `encrypted_private_key.json` with encrypted by password RSA key pair
-Write down `password` in any text file, for example to `./password`
-
 Run:
 
 ```sh
@@ -103,9 +94,8 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
-          --fork "mainnet" \
-          --depositOutputPath deposit.json \
-          --keysharesOutputPath payload.json \
+          --network "mainnet" \
+          --outputPath ./output/ \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
           --logLevel info \
@@ -115,15 +105,23 @@ ssv-dkg init \
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
---operatorsInfoPath ./operators_integration.json # path to operators info ID,base64(RSA pub key),
+###### Operators info data part.
+###### operatorsInfoPath or operatorsInfo, not both.
+--operatorsInfoPath ./operators_integration.json # path to operators info file or directory.
+--operatorsInfo '{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }' # raw JSON string containing operators info.
+######
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
---fork "mainnet" # fork name: mainnet, prater, or now_test_network
---depositOutputPath: ./output/ # path and filename to store the staking deposit file
---keysharesOutputPath: ./output/ # path and filename to store ssv contract payload file
+--network "mainnet" # network name: mainnet, prater, or now_test_network
+--outputPath: ./output/ # path to store results
+###### Initiator RSA key management part.
+###### Use either key file (if password is provided, will try to decrypted, else plaintext) or generate a new key pair. Not both.
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
---initiatorPrivKeyPassword: ./password # path to password file to decrypt the key
+--initiatorPrivKeyPassword: ./password # path to password file to decrypt the key. If not provided key file considered contains plaintext key.
+##
+--generateInitiatorKey: true # default false. If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
+#####
 --logLevel: info # logger's log level (info/debug/
 --logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
 --logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
@@ -136,15 +134,18 @@ Example:
 
 ```yaml
 operatorIDs: [1, 2, 3, 4]
-withdrawAddress: "0000000000000000000000000000000000000009"
+withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 4
-fork: "00000000"
-operatorsInfoPath: ./examples/operators_integration.json
-depositOutputPath: ./output/
-keysharesOutputPath: ./output/
-privKey: ./encrypted_private_key.json
-password: ./password
+nonce: 0
+network: "mainnet"
+operatorsInfoPath: /data/docker_operators.json
+outputPath: /data/output/
+initiatorPrivKey: /data/initiator/encrypted_private_key.json
+initiatorPrivKeyPassword: /data/initiator/password
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/output/initiator_debug.log
 ```
 
 When using configuration file, run:

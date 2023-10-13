@@ -20,7 +20,7 @@ func init() {
 	flags.OperatorPrivateKeyFlag(StartDKGOperator)
 	flags.OperatorPrivateKeyPassFlag(StartDKGOperator)
 	flags.OperatorPortFlag(StartDKGOperator)
-	flags.AddStoreShareFlag(StartDKGOperator)
+	flags.StoreShareFlag(StartDKGOperator)
 	flags.ConfigPathFlag(StartDKGOperator)
 	flags.LogLevelFlag(StartDKGOperator)
 	flags.LogFormatFlag(StartDKGOperator)

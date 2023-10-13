@@ -531,7 +531,7 @@ func GenerateSecurePassword() (string, error) {
 	}
 	hash := sha512.Sum512(p)
 	for _, r := range string(hash[:]) {
-		if unicode.IsNumber(r) || unicode.IsUpper(r) || unicode.IsLower(r) {
+		if unicode.IsNumber(r) || unicode.IsLetter(r) {
 			pass = append(pass, r)
 		}
 	}
