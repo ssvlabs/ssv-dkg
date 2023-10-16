@@ -136,10 +136,10 @@ var StartDKG = &cobra.Command{
 		operatorsInfo := viper.GetString("operatorsInfo")
 		operatorsInfoPath := viper.GetString("operatorsInfoPath")
 		if operatorsInfo == "" && operatorsInfoPath == "" {
-			logger.Fatal("😥 Operators string or path have not provided")
+			logger.Fatal("😥 Operators json string or path to info file have not provided")
 		}
 		if operatorsInfo != "" && operatorsInfoPath != "" {
-			logger.Fatal("😥 Please provide either operator info string or path, not both")
+			logger.Fatal("😥 Please provide either operator info json string, or path, not both")
 		}
 		var opMap initiator.Operators
 		if operatorsInfo != "" {

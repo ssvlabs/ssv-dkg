@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/attestantio/go-eth2-client v0.16.3
-	github.com/drand/kyber v1.1.17
-	github.com/drand/kyber-bls12381 v0.2.4
+	github.com/drand/kyber v1.1.18
+	github.com/drand/kyber-bls12381 v0.2.5
 	github.com/ethereum/go-ethereum v1.12.2
 	github.com/ferranbt/fastssz v0.1.3
 	github.com/go-chi/chi/v5 v5.0.10
@@ -58,7 +58,7 @@ require (
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
-	github.com/golang/mock v1.6.0
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/pprof v0.0.0-20230602150820-91b7bce49751 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/errwrap v1.1.0 // indirect

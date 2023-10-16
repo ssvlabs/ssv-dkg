@@ -8,7 +8,6 @@ import (
 
 type Board struct {
 	logger *zap.Logger
-
 	broadcastF     func(msg *wire2.KyberMessage) error
 	DealC          chan dkg.DealBundle
 	ResponseC      chan dkg.ResponseBundle

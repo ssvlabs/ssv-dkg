@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -36,8 +35,6 @@ func parseAsError(msg []byte) (error, error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
-const encryptedKeyLength = 256
-
 func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *TestOperator {
 	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
@@ -47,8 +44,6 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	swtch := NewSwitch(priv, logger)
-	lg := logrus.New()
-	lg.SetLevel(logrus.DebugLevel)
 	s := &Server{
 		Logger: logger,
 		Router: r,
@@ -75,8 +70,6 @@ func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	swtch := NewSwitch(priv, logger)
-	lg := logrus.New()
-	lg.SetLevel(logrus.DebugLevel)
 	s := &Server{
 		Logger: logger,
 		Router: r,

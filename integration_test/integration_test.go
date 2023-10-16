@@ -29,7 +29,6 @@ import (
 )
 
 const encryptedKeyLength = 256
-const examplePath = "../examples/"
 
 func TestHappyFlows(t *testing.T) {
 	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
@@ -537,7 +536,7 @@ func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, wi
 }
 
 func contains(s []*rsa.PrivateKey, i int) bool {
-	for k, _ := range s {
+	for k := range s {
 		if k == i {
 			return true
 		}
