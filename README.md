@@ -153,18 +153,19 @@ initiator-config
 
 With this configuration, a typical configuration file would look like this:
 
-
 ```yaml
 operatorIDs: [143, 219, 33, 34]    # array of Operator IDs which will be used for a DKG ceremony
 withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4"    # Address where reward payments for the validator are sent
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0    # Owner nonce for the SSV contract
-fork: "prater"    # Network name (default: mainnet)
+network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: /data/operators_info.json    # Path to the file containing operators information
-depositResultsPath: /data/    # Path to store the staking deposit file
-ssvPayloadResultsPath: /data/    # Path to store ssv contract payload file
+# alternatively:
+# operatorsInfo: '{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }'    # Raw content of the JSON file with operators information
+outputPath: /data/    # Path to store the output files
 initiatorPrivKey: /data/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: /data/password    # Path to password file to decrypt the key
+generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
@@ -237,7 +238,7 @@ Here's an explanation of each parameter:
 | -------------------------- | :---------------------------------------- | :----------------------------------------------------------------------------------- |
 | --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                   |
 | --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                            |
-| --operatorsInfo            | string                                    | operators info in JSON format: ID, base64(RSA pub key), endpoint                     |
+| --operatorsInfo            | string                                    | Raw content of the JSON file with operators information                              |
 | --owner                    | address                                   | Owner address for the SSV contract                                                   |
 | --nonce                    | int                                       | Owner nonce for the SSV contract                                                     |
 | --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                             |
