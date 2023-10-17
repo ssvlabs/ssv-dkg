@@ -86,6 +86,18 @@ func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
 	return sk, nil
 }
 
+func KyberShareToBLSKey(share *share.PriShare) (*bls.SecretKey, error) {
+	bytsSk, err := share.V.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	sk := &bls.SecretKey{}
+	if err := sk.Deserialize(bytsSk); err != nil {
+		return nil, err
+	}
+	return sk, nil
+}
+
 func ResultsToValidatorPK(results []*dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
 	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
 	bytsPK, err := exp.Eval(0).V.MarshalBinary()
@@ -536,4 +548,41 @@ func GenerateSecurePassword() (string, error) {
 		}
 	}
 	return string(pass), nil
+}
+
+// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
+// It then reconstructs the original threshold signature using lagrange interpolation
+func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
+	reconstructedSig := bls.Sign{}
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	for index, signature := range signatures {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", index))
+		if err != nil {
+			return nil, err
+		}
+		idVec = append(idVec, blsID)
+		blsSig := bls.Sign{}
+
+		err = blsSig.Deserialize(signature)
+		if err != nil {
+			return nil, err
+		}
+		sigVec = append(sigVec, blsSig)
+	}
+	err := reconstructedSig.Recover(sigVec, idVec)
+	return &reconstructedSig, err
+}
+
+func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
+	pk := &bls.PublicKey{}
+	if err := pk.Deserialize(validatorPubKey); err != nil {
+		return errors.Wrap(err, "could not deserialize validator pk")
+	}
+	// verify reconstructed sig
+	if res := sig.VerifyByte(pk, msg); !res {
+		return errors.New("could not reconstruct a valid signature")
+	}
+	return nil
 }

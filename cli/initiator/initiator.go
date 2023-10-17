@@ -269,10 +269,8 @@ var StartDKG = &cobra.Command{
 			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20}
 		case "mainnet":
 			forkHEX = [4]byte{0, 0, 0, 0}
-		case "now_test_network":
-			forkHEX = [4]byte{0x99, 0x99, 0x99, 0x99}
 		default:
-			logger.Fatal("😥 Please provide a valid network name: mainnet, prater, or now_test_network")
+			logger.Fatal("😥 Please provide a valid network name: mainnet or prater")
 		}
 		owner := viper.GetString("owner")
 		if owner == "" {
