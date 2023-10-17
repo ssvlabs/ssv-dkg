@@ -357,7 +357,7 @@ So make sure to have them available before proceeding.
 ### Start a DKG-operator
 
 There are a couple of options to launch the DKG tool:
-* [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file)
+* [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file-1)
 * [Build from source](#build-from-source-1)
 
 It is advised launching the tool as a Docker image as it is the most convenient way and only requires to have Docker installed. The team builds a Docker image with every release of the tool.
