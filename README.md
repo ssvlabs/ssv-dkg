@@ -59,8 +59,8 @@ In order for the DKG protocol to execute successfully:
 * separately, an Initiator (one of the Operators, or a separate entity), starts the DKG ceremony by running the ssv-dkg tool with the init parameter
 * the tool automatically exchange data between the interested parties, as outlined in the [Flow Description](#flow-description) section, until the key shares are created
 
-For details on how to run the tool as an Operator, please head over [to this section containing the related instructions]().
-Similarly, head over to [this other section] for instructions on how to launch the tool as the Initiator of the DKG ceremony.
+For details on how to run the tool as an Operator, please head over [to this section containing the related instructions](#operator-quick-start).
+Similarly, head over to [this other section](#initiator-quick-start) for instructions on how to launch the tool as the Initiator of the DKG ceremony.
 
 > ℹ️ NOTE: Threshold is computed automatically using 3f+1 tolerance.
 > 
@@ -87,7 +87,7 @@ docker cp ssv-node-key-generation:/encrypted_private_key.json \
 ./encrypted_private_key.json && docker rm ssv-node-key-generation
 ```
 
-This will create `encrypted_private_key.json`` with encrypted by password RSA key pair.
+This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
 
 ### Obtaining Operators data
 
@@ -175,7 +175,7 @@ logFilePath: /data/debug.log    # Path to file where logs should be written (def
 > ℹ️ In the config file above, `/data/` represents the container's shared volume created by the docker command itself with the `-v` option.
 
 A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page]().
+You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
 
 > ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data section](#obtaining-operators-data) above
 
@@ -254,7 +254,7 @@ Here's an explanation of each parameter:
 
 A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
 
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page]().
+You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
 
 > ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data](#obtaining-operators-data) section.
 
@@ -294,7 +294,7 @@ logFilePath: ./initiator-config/debug.log    # Path to file where logs should be
 
 A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
 
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page]().
+You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
 
 > ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data](#obtaining-operators-data) section.
 
@@ -347,7 +347,7 @@ In order to successfully participate in DKG ceremonies initiated by stakers, you
 * **operator ID** - the ID of the operator you want to receive keyshares created with DKG
 * **operator RSA public key** - the public key of the operator you want to receive keyshares created with DKG
 * **machine endpoint** - the endpoint (protocol:ip:port) of the machine where you intend to execute the `ssv-dkg` tool (if you have a domain name, instead of an `ip` that works as well)
-* **encrypted operator RSA private key** - this is a password-encrypted file, containing the operator's private key (follow [this guide to generate an encrypted private key file]() or [this migration guide to encrypt existing keys]())
+* **encrypted operator RSA private key** - this is a password-encrypted file, containing the operator's private key (follow [this guide to generate an encrypted private key file](https://docs.ssv.network/operator-user-guides/operator-node/installation#generate-operator-keys-encrypted) or [this migration guide to encrypt existing keys](https://docs.ssv.network/operator-user-guides/operator-node/installation#how-do-i-migrate-raw-deprecated-operator-keys))
 
 So make sure to have them available before proceeding.
 
@@ -494,7 +494,7 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 
 Once the DKG tool is up and running, please make sure to update your operator metadata, and provide your DKG Operator endpoint, in the form of `protocol:ip:port` (if you have a domain name, instead of an `ip` that works as well).
 
-Please head over to [the Operator User guide on how to update metadata]() and follow the instructions
+Please head over to [the Operator User guide on how to update metadata](https://docs.ssv.network/operator-user-guides/operator-management/setting-operator-metadata) and follow the instructions
 
 ## Flow Description:
 
