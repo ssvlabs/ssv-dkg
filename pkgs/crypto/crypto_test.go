@@ -1,7 +1,6 @@
 package crypto
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
@@ -120,7 +119,6 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 		pkVec = append(pkVec, *pk)
 	}
 	require.NoError(t, validatorPK.Recover(pkVec, idVec))
-	fmt.Printf("validator pk: %s\n", hex.EncodeToString(validatorPK.Serialize()))
 	require.Equal(t, validatorPK.Serialize(), valPK.Serialize())
 	// reconstruct sig
 	reconstructedSig := bls.Sign{}
@@ -139,8 +137,6 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 		}
 	}
 	require.NoError(t, reconstructedSig.Recover(sigVec, idVec))
-	fmt.Printf("reconstructed sig: %s\n", hex.EncodeToString(reconstructedSig.Serialize()))
-
 	// verify
 	require.True(t, reconstructedSig.Verify(&validatorPK, payloadToSign))
 }
