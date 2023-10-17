@@ -2,10 +2,12 @@ package crypto
 
 import (
 	"crypto"
+	"unicode"
 
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -519,4 +521,19 @@ func NewID() [24]byte {
 	b = uuid.New()
 	copy(id[12:], b[:])
 	return id
+}
+
+func GenerateSecurePassword() (string, error) {
+	var pass []rune
+	p := make([]byte, 64)
+	if _, err := rand.Reader.Read(p); err != nil {
+		return "", err
+	}
+	hash := sha512.Sum512(p)
+	for _, r := range string(hash[:]) {
+		if unicode.IsNumber(r) || unicode.IsLetter(r) {
+			pass = append(pass, r)
+		}
+	}
+	return string(pass), nil
 }

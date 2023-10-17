@@ -1,7 +1,6 @@
 package flags
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -12,21 +11,21 @@ const (
 	threshold                = "threshold"
 	withdrawAddress          = "withdrawAddress"
 	operatorIDs              = "operatorIDs"
-	operatorsInfo            = "operatorsInfoPath"
+	operatorsInfo            = "operatorsInfo"
+	operatorsInfoPath        = "operatorsInfoPath"
 	operatorPrivKey          = "privKey"
 	configPath               = "configPath"
 	initiatorPrivKey         = "initiatorPrivKey"
 	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
+	generateInitiatorKey     = "generateInitiatorKey"
 	operatorPort             = "port"
 	owner                    = "owner"
 	nonce                    = "nonce"
-	fork                     = "fork"
+	network                  = "network"
 	mnemonicFlag             = "mnemonic"
 	indexFlag                = "index"
-	networkFlag              = "network"
 	password                 = "password"
-	depositOutputPath        = "depositOutputPath"
-	keysharesOutputPath      = "keysharesOutputPath"
+	outputPath               = "outputPath"
 	storeShare               = "storeShare"
 	logLevel                 = "logLevel"
 	logFormat                = "logFormat"
@@ -66,12 +65,22 @@ func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfo, "", "Path to operators' public keys, IDs and IPs file", false)
+	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
 }
 
 // GetOperatorsInfoFlagValue gets path to operators' ifo file flag from the command
 func GetOperatorsInfoFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(operatorsInfo)
+}
+
+// OperatorsInfoFlag  adds path to where to look for operator info file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to where to look for operator info file", false)
+}
+
+// GetOperatorsInfoPathFlagValue gets path to where to look for operator info file flag from the command
+func GetOperatorsInfoPathFlagValue(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(operatorsInfoPath)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -94,33 +103,9 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 	return c.Flags().GetUint64(nonce)
 }
 
-// ForkVersionFlag  adds the fork version of the network flag to the command
-func ForkVersionFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, fork, "", "Fork version, mainnet/prater", false)
-}
-
-// GetForkVersionFlagValue gets the fork version of the network flag from the command
-func GetForkVersionFlagValue(c *cobra.Command) ([4]byte, string, error) {
-	forkHex, err := c.Flags().GetString(fork)
-	if err != nil {
-		return [4]byte{}, "", err
-	}
-	forkBytes, err := hex.DecodeString(forkHex)
-	if err != nil {
-		return [4]byte{}, "", err
-	}
-	var fork [4]byte
-	copy(fork[:], forkBytes)
-	switch fork {
-	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return fork, "prater", nil
-	case [4]byte{0, 0, 0, 0}:
-		return fork, "mainnet", nil
-	case [4]byte{0x99, 0x99, 0x99, 0x99}:
-		return fork, "now_test_network", nil
-	default:
-		return [4]byte{0, 0, 0, 0}, "mainnet", nil
-	}
+// NetworkFlag  adds the fork version of the network flag to the command
+func NetworkFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, or now_test_network", false)
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command
@@ -131,6 +116,16 @@ func InitiatorPrivateKeyFlag(c *cobra.Command) {
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(initiatorPrivKey)
+}
+
+// GenerateInitiatorKeyFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GenerateInitiatorKeyFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, generateInitiatorKey, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+}
+
+// GetGenerateInitiatorKeyFlagValue gets flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GetGenerateInitiatorKeyFlagValue(c *cobra.Command) (bool, error) {
+	return c.Flags().GetBool(generateInitiatorKey)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -313,33 +308,15 @@ func GetKeyIndexFlagValue(c *cobra.Command) (uint64, error) {
 	return c.Flags().GetUint64(indexFlag)
 }
 
-// AddNetworkFlag adds the network key flag to the command
-func AddNetworkFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, networkFlag, "now_test_network", "network", false)
+func ResultPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, outputPath, "./", "Path to store results", false)
 }
 
-// GetNetworkFlag gets the network key flag from the command
-func GetNetworkFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(networkFlag)
+func GetResultPathFlag(c *cobra.Command) (string, error) {
+	return c.Flags().GetString(outputPath)
 }
 
-func AddDepositResultStorePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, depositOutputPath, "./", "Path to store deposit result file json", false)
-}
-
-func GetDepositResultStorePathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(depositOutputPath)
-}
-
-func AddKeysharesOutputPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, keysharesOutputPath, "./", "Path to store ssv keyshares json", false)
-}
-
-func GetKeysharesOutputPathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(keysharesOutputPath)
-}
-
-func AddStoreShareFlag(c *cobra.Command) {
+func StoreShareFlag(c *cobra.Command) {
 	AddPersistentBoolFlag(c, storeShare, false, "Store BLS share as json", false)
 }
 
