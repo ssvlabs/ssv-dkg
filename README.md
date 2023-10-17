@@ -34,7 +34,7 @@ Operators info file example (`./examples/operators_integration.json`):
 The dkg-operator is ran by a SSV operator, an Operator RSA private key is a requirement.
 The operator is able to participate in multiple DKG ceremonies in parallel.
 
-NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plintext versiaons are supported. If `password` parameter is provided then the ssv-dkg tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
+NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plaintext versions are supported. If `password` parameter is provided then the ssv-dkg tool assumes that the operator`s RSA key is encrypted, if not then it assumes that the key is provided as plaintext.
 
 #### Start a DKG-operator
 
@@ -42,22 +42,22 @@ NOTE: ssv-dkg tool is using an ssv operator private key file. Encrypted and plin
 ssv-dkg start-operator \
             --privKey ./examples/operator1/encrypted_private_key.json  \
             --port 3030 \
-            --password ./password \
+            --password ./examples/operator1/password \
             --storeShare true \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./operator1_logs/debug.log
+            --logFilePath ./examples/output/operator1_logs_debug.log
 
 ### where
---privKey ./encrypted_private_key.json # path to ssv operator`s private key
+--privKey ./examples/operator1/encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
---password: ./password # path to password file to decrypt the key
+--password: ./examples/operator1/password # path to password file to decrypt the key
 --storeShare: true # store created bls key share to a file for later reuse if needed
 --logLevel: info # logger's log level (info/debug/
 --logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
 --logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
---logFilePath: ./operator1_logs/debug.log # a file path to write logs into
+--logFilePath: ./examples/operator1_logs_debug.log # a file path to write logs into
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file at `./config/` folder.
@@ -65,14 +65,14 @@ Its also possible to use yaml configuration file `./config/operator.yaml` for pa
 Example:
 
 ```yaml
-privKey: ./encrypted_private_key.json
-password: ./password
+privKey: /data/operator1/encrypted_private_key.json
+password: /data/operator1/password
 port: 3030
-storeShare: true
+storeShare: false
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: ./operator1_logs/debug.log
+logFilePath: /data/output/operator1_logs_debug.log
 ```
 
 When using configuration file, run:
@@ -90,25 +90,25 @@ Run:
 ```sh
 ssv-dkg init \
           --operatorIDs 1,2,3,4 \
-          --operatorsInfoPath ./operators_integration.json \
+          --operatorsInfoPath ./examples/operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
           --network "mainnet" \
           --outputPath ./output/ \
-          --initiatorPrivKey ./encrypted_private_key.json \
-          --initiatorPrivKeyPassword ./password \
+          --initiatorPrivKey ./examples/initiator/encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./examples/initiator/password \
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
-          --logFilePath ./initiator_logs/debug.log
+          --logFilePath ./examples/output/initiator_debug.log
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
 ###### Operators info data part.
 ###### operatorsInfoPath or operatorsInfo, not both.
 --operatorsInfoPath ./operators_integration.json # path to operators info file or directory.
---operatorsInfo '{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }' # raw JSON string containing operators info.
+--operatorsInfo '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]' # raw JSON string containing operators info.
 ######
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract

@@ -11,7 +11,6 @@ import (
 
 func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
-	RootCmd.AddCommand(initiator.GenerateInitiatorKeysCmd)
 	RootCmd.AddCommand(operator.StartDKGOperator)
 }
 

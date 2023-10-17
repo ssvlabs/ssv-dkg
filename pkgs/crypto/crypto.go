@@ -524,6 +524,7 @@ func NewID() [24]byte {
 }
 
 func GenerateSecurePassword() (string, error) {
+	const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var pass []rune
 	p := make([]byte, 64)
 	if _, err := rand.Reader.Read(p); err != nil {
@@ -531,7 +532,7 @@ func GenerateSecurePassword() (string, error) {
 	}
 	hash := sha512.Sum512(p)
 	for _, r := range string(hash[:]) {
-		if unicode.IsNumber(r) || unicode.IsLetter(r) {
+		if unicode.IsDigit(r) || strings.Contains(alpha, strings.ToLower(string(r))) {
 			pass = append(pass, r)
 		}
 	}
