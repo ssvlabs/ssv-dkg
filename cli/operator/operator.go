@@ -70,16 +70,20 @@ var StartDKGOperator = &cobra.Command{
 		}
 		if configPath != "" {
 			viper.SetConfigFile(configPath)
-		} else {
-			viper.AddConfigPath("./config")
 		}
 		if err := viper.ReadInConfig(); err != nil {
-			return err
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return err
+			}
+			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
 		logFilePath := viper.GetString("logFilePath")
+		if logFilePath == "" {
+			fmt.Print("⚠️ debug log path was not provided, using default: ./operator_debug.log \n")
+		}
 		// If the log file doesn't exist, create it
 		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {

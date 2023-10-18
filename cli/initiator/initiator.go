@@ -103,16 +103,21 @@ var StartDKG = &cobra.Command{
 		}
 		if configPath != "" {
 			viper.SetConfigFile(configPath)
-		} else {
-			viper.AddConfigPath("./config")
 		}
 		if err := viper.ReadInConfig(); err != nil {
-			return err
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return err
+			}
+			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
+		viper.SetDefault("logFilePath", "./initiator_debug.log")
 		logFilePath := viper.GetString("logFilePath")
+		if logFilePath == "" {
+			fmt.Print("⚠️ debug log path was not provided, using default: ./initiator_debug.log \n")
+		}
 		// If the log file doesn't exist, create it
 		if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
 			_, err := os.Create(logFilePath)
@@ -136,14 +141,14 @@ var StartDKG = &cobra.Command{
 		operatorsInfo := viper.GetString("operatorsInfo")
 		operatorsInfoPath := viper.GetString("operatorsInfoPath")
 		if operatorsInfo == "" && operatorsInfoPath == "" {
-			logger.Fatal("😥 Operators json string or path to info file have not provided")
+			logger.Fatal("😥 Operators string or path have not provided")
 		}
 		if operatorsInfo != "" && operatorsInfoPath != "" {
-			logger.Fatal("😥 Please provide either operator info json string, or path, not both")
+			logger.Fatal("😥 Please provide either operator info string or path, not both")
 		}
 		var opMap initiator.Operators
 		if operatorsInfo != "" {
-			logger.Info("📖 reading raw JSON string of operators info", zap.String("", operatorsInfo))
+			logger.Info("📖 reading raw JSON string of operators info")
 			opMap, err = initiator.LoadOperatorsJson([]byte(operatorsInfo))
 			if err != nil {
 				logger.Fatal("😥 Failed to load operators: ", zap.Error(err))

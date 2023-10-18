@@ -77,22 +77,22 @@ NOTE: ssv-dkg tool is using an ssv operator private key file. Both encrypted and
 ssv-dkg start-operator \
             --privKey ./examples/operator1/encrypted_private_key.json  \
             --port 3030 \
-            --password ./password \
+            --password ./examples/operator1/password \
             --storeShare true \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./operator1_logs/debug.log
+            --logFilePath ./examples/output/operator1_logs_debug.log
 
 ### where
 --privKey ./examples/operator1/encrypted_private_key.json # path to ssv operator`s private key
 --port 3030 # port for listening messages
---password: ./password # path to password file to decrypt the key
---storeShare: false # store created bls key share to a file for later reuse if needed
---logLevel: info # logger's log level (info/debug)
+--password: ./examples/operator1/password # path to password file to decrypt the key
+--storeShare: true # store created bls key share to a file for later reuse if needed
+--logLevel: info # logger's log level (info/debug/
 --logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
 --logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
---logFilePath: ./operator1_logs/debug.log # a file path to write logs into
+--logFilePath: ./examples/operator1_logs_debug.log # a file path to write logs into
 ```
 
 Its also possible to use yaml configuration file `./config/operator.yaml` for parameters. `ssv-dkg` will be looking for the config file `config.yaml` at `./config/` folder if only a folder path is provided.
@@ -100,14 +100,14 @@ Its also possible to use yaml configuration file `./config/operator.yaml` for pa
 Example:
 
 ```yaml
-privKey: ./encrypted_private_key.json
-password: ./password
+privKey: /data/operator1/encrypted_private_key.json
+password: /data/operator1/password
 port: 3030
 storeShare: false
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: ./operator1_logs/debug.log
+logFilePath: /data/output/operator1_logs_debug.log
 ```
 
 When using configuration file, run:
@@ -125,41 +125,38 @@ Run:
 ```sh
 ssv-dkg init \
           --operatorIDs 1,2,3,4 \
-          --operatorsInfoPath ./operators_integration.json \
+          --operatorsInfoPath ./examples/operators_integration.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0000000000000000000000000000000000000009  \
           --network "mainnet" \
           --outputPath ./output/ \
-          --initiatorPrivKey ./encrypted_private_key.json \
-          --initiatorPrivKeyPassword ./password \
+          --initiatorPrivKey ./examples/initiator/encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./examples/initiator/password \
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
-          --logFilePath ./initiator_logs/debug.log
+          --logFilePath ./examples/output/initiator_debug.log
 
 #### where
 --operatorIDs 1,2,3,4 # operator IDs which will be used for a DKG ceremony
-
 ###### Operators info data part.
 ###### operatorsInfoPath or operatorsInfo, not both.
 --operatorsInfoPath ./operators_integration.json # path to operators info file or directory.
---operatorsInfo '{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }' # raw JSON string containing operators info.
-
+--operatorsInfo '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]' # raw JSON string containing operators info.
+######
 --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 # owner address for the SSV contract
 --nonce 4 # owner nonce for the SSV contract
 --withdrawAddress # Reward payments of excess balance over 32 ETH will automatically and regularly be sent to a withdrawal address linked to each validator, once provided by the user. Users can also exit staking entirely, unlocking their full validator balance.
 --network "mainnet" # network name: mainnet, prater, or now_test_network
 --outputPath: ./output/ # path to store results
-
 ###### Initiator RSA key management part.
 ###### Use either key file (if password is provided, will try to decrypted, else plaintext) or generate a new key pair. Not both.
 --initiatorPrivKey ./encrypted_private_key.json # path to ssv initiators`s private key
 --initiatorPrivKeyPassword: ./password # path to password file to decrypt the key. If not provided key file considered contains plaintext key.
 ##
 --generateInitiatorKey: true # default false. If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
-
-
+#####
 --logLevel: info # logger's log level (info/debug/
 --logFormat: json # logger's encoding, valid values are 'json' (default) and 'console'
 --logLevelFormat: capitalColor # logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase''
