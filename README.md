@@ -223,6 +223,8 @@ The Initiator creates the initial details needed to run DKG between all operator
 ssv-dkg init \
           --operatorIDs 1,2,3,4 \
           --operatorsInfoPath ./examples/operators_integration.json \
+          # Alternatively:
+          # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
@@ -239,23 +241,23 @@ ssv-dkg init \
 
 Here's an explanation of each parameter:
 
-| Argument                   | type                                      | description                                                                          |
-| -------------------------- | :---------------------------------------- | :----------------------------------------------------------------------------------- |
-| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                   |
-| --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                            |
-| --operatorsInfo            | string                                    | Raw content of the JSON file with operators information                              |
-| --owner                    | address                                   | Owner address for the SSV contract                                                   |
-| --nonce                    | int                                       | Owner nonce for the SSV contract                                                     |
-| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                             |
-| --network                  | mainnet / prater / now_test_network       | Network name (default: `mainnet`)                                                    |
-| --outputPath               | string                                    | Path to store the output files                                                       |
-| --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                 |
-| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key) |
+| Argument                   | type                                      | description                                                                                        |
+| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                                 |
+| --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                                          |
+| --operatorsInfo            | string                                    | Raw content of the JSON file with operators information                                            |
+| --owner                    | address                                   | Owner address for the SSV contract                                                                 |
+| --nonce                    | int                                       | Owner nonce for the SSV contract                                                                   |
+| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                           |
+| --network                  | mainnet / prater / now_test_network       | Network name (default: `mainnet`)                                                                  |
+| --outputPath               | string                                    | Path to store the output files                                                                     |
+| --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
+| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |
 | --generateInitiatorKey     | boolean                                   | If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath` |
-| --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                |
-| --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                  |
-| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                      |
-| --logFilePath              | string                                    | Path to file where logs should be written (default: `./data/debug.log`)              |
+| --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                              |
+| --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                                |
+| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                    |
+| --logFilePath              | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                            |
 
 A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
 
@@ -287,6 +289,7 @@ owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the
 nonce: 0    # Owner nonce for the SSV contract
 fork: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: ./initiator-config/operators_info.json    # Path to the file containing operators information
+operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 depositResultsPath: ./initiator-config/    # Path to store the staking deposit file
 ssvPayloadResultsPath: ./initiator-config/    # Path to store ssv contract payload file
 initiatorPrivKey: ./initiator-config/encrypted_private_key.json    # Path to private key of ssv initiator
