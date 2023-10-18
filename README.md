@@ -538,7 +538,3 @@ It is important to briefly explain how the communication between DKG ceremony In
 5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
 
 More details in the [Flow Description](#flow-description) section.
-
----
-
-More info about how things are designed/work under the hood can be found [here](./design.md)
