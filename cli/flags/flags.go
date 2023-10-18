@@ -105,7 +105,7 @@ func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
 
 // NetworkFlag  adds the fork version of the network flag to the command
 func NetworkFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, or now_test_network", false)
+	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, or pyrmont", false)
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command

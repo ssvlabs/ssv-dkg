@@ -105,7 +105,7 @@ type LocalOwner struct {
 	Nonce       uint64
 	Done        chan struct{}
 }
-
+// OwnerOpts structure to pass parameters from Switch to LocalOwner structure
 type OwnerOpts struct {
 	Logger      *zap.Logger
 	ID          uint64
@@ -120,6 +120,7 @@ type OwnerOpts struct {
 	Nonce       uint64
 }
 
+// New creates a LocalOwner structure. We create it for each new DKG ceremony.
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:      opts.Logger,
@@ -141,7 +142,7 @@ func New(opts OwnerOpts) *LocalOwner {
 	return owner
 }
 
-// Function to initialize and start DKG protocol based on Pedersen schema (drand/kyber implementation)
+// StartDKG initializes and starts DKG protocol
 func (o *LocalOwner) StartDKG() error {
 	o.Logger.Info("Starting DKG")
 	nodes := make([]dkg.Node, 0)
@@ -210,7 +211,8 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	return o.BroadcastF(final)
 }
 
-// After the DKG result is formed we process it, store the result, convert to BLS points acceptable by ETH2
+// PostDKG stores the resulting key share, convert it to BLS points acceptable by ETH2 
+// and creates the Result structure to send back to initiator
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if res.Error != nil {
 		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
@@ -336,7 +338,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 }
 
 // Init function creates an interface for DKG (Board) which process protocol messages
-// Here we randomly create a point at G1 as a main entry for Pedersen schema
+// Here we randomly create a point at G1 as a DKG public key for the node
 func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
 	if o.Data == nil {
 		o.Data = &DKGData{}
@@ -379,6 +381,10 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	return ExchangeWireMessage(bts, reqID), nil
 }
 
+// processDKG after receiving a kyber message type at /dkg route
+// KyberDealBundleMessageType - message that contains all the deals and the public polynomial from participating party
+// KyberResponseBundleMessageType - status for the deals received at deal bundle
+// KyberJustificationBundleMessageType - all justifications for each complaint for received deals bundles
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
@@ -461,7 +467,7 @@ func InitSecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
 	return eciesSK, pk
 }
 
-// create an exchange message using operator DKG public point to be used in the DKG protocol
+// CreateExchange create an exchange message using operator DKG public point to be used in the DKG protocol
 func CreateExchange(pk kyber.Point) ([]byte, *wire.Exchange, error) {
 	pkByts, err := pk.MarshalBinary()
 	if err != nil {
@@ -478,6 +484,7 @@ func CreateExchange(pk kyber.Point) ([]byte, *wire.Exchange, error) {
 	return exchByts, &exch, nil
 }
 
+// ExchangeWireMessage creates a transport message with operator DKG public key
 func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 	return &wire.Transport{
 		Type:       wire.ExchangeMessageType,
@@ -498,7 +505,7 @@ func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	}
 }
 
-// if get an error we should send it to initiator also
+// broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
 	errMsgEnc, _ := json.Marshal(err.Error())
 	errMsg := &wire.Transport{
@@ -510,6 +517,7 @@ func (o *LocalOwner) broadcastError(err error) {
 	close(o.Done)
 }
 
+// checkOperators checks that operator received all participating parties DKG public keys 
 func (o *LocalOwner) checkOperators() bool {
 	for _, op := range o.Data.Init.Operators {
 		if o.Exchanges[op.ID] == nil {

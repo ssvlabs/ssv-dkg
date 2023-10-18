@@ -20,6 +20,7 @@ import (
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourdkg "github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 )
 
 var jsonStr = []byte(`[
@@ -142,8 +143,8 @@ func VerifySharesData(t *testing.T, ops map[uint64]Operator, keys []*rsa.Private
 	signature := sharesData[:signatureOffset]
 	msg := []byte("Hello")
 	require.NoError(t, ourcrypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce))
-	_ = operator.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	encryptedKeys := operator.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
+	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
 	sigs2 := make(map[uint64][]byte)
 	for i, enck := range encryptedKeys {
 		priv := keys[i]
@@ -161,9 +162,9 @@ func VerifySharesData(t *testing.T, ops map[uint64]Operator, keys []*rsa.Private
 		sig := secret.SignByte(msg)
 		sigs2[operatorID] = sig.Serialize()
 	}
-	recon, err := operator.ReconstructSignatures(sigs2)
+	recon, err := crypto.ReconstructSignatures(sigs2)
 	require.NoError(t, err)
-	require.NoError(t, operator.VerifyReconstructedSignature(recon, validatorPublicKey, msg))
+	require.NoError(t, crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg))
 }
 
 func TestLoadOperators(t *testing.T) {

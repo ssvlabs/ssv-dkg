@@ -119,11 +119,9 @@ var StartDKG = &cobra.Command{
 			fmt.Print("⚠️ debug log path was not provided, using default: ./initiator_debug.log \n")
 		}
 		// If the log file doesn't exist, create it
-		if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
-			_, err := os.Create(logFilePath)
-			if err != nil {
-				return err
-			}
+		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
 		}
 		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
@@ -272,10 +270,12 @@ var StartDKG = &cobra.Command{
 		switch network {
 		case "prater":
 			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20}
+		case "pyrmont":
+			forkHEX = [4]byte{0x00, 0x00, 0x20, 0x09}
 		case "mainnet":
 			forkHEX = [4]byte{0, 0, 0, 0}
 		default:
-			logger.Fatal("😥 Please provide a valid network name: mainnet or prater")
+			logger.Fatal("😥 Please provide a valid network name: mainnet/prater/pyrmont")
 		}
 		owner := viper.GetString("owner")
 		if owner == "" {
