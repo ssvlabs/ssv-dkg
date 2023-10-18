@@ -7,11 +7,10 @@
     - [DKG tool by SSV](#dkg-tool-by-ssv)
   - [Overview](#overview)
   - [Initiator Quick start](#initiator-quick-start)
-    - [Generate Initiator identity RSA key pair](#generate-initiator-identity-rsa-key-pair)
-      - [Generate Initiator key pair from source](#generate-initiator-key-pair-from-source)
     - [Obtaining Operators data](#obtaining-operators-data)
     - [Start DKG Initiator](#start-dkg-initiator)
       - [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file)
+      - [Generate Initiator identity RSA key pair](#generate-initiator-identity-rsa-key-pair)
       - [Build from source](#build-from-source)
         - [Build](#build)
         - [Launch with command line parameters](#launch-with-command-line-parameters)
@@ -49,7 +48,7 @@ For more information about DKG in general, [please visit this page](https://en.w
 
 The SSV team built this tool leveraging [drand](https://drand.love/)'s DKG protocol implementation ([please visit their documentation](https://drand.love/docs/cryptography/#setup-phase) for more details on it). This implementation operates under the assumption of a p2p network, allowing operators to communicate.
 The `ssv-dkg` was built to lift this assumption and provide a communication layer that centered on an Initiator figure, to facilitate communication between operators. The introduced potential risk for centralization and bad actors is handled with signatures and signature verifications, as explained in the Security notes section.
-Finally, the outcome of the DKG ceremony is a BLS key pair to be used for validator duties by operators on the ssv.network. As such, the tool ends the process by creating a deposit file to activate the newly created validator key pair, and proceeds to generating the payload for the transaction, and triggering the transaction itself.
+Finally, the outcome of the DKG ceremony is a BLS key pair to be used for validator duties by operators on the ssv.network. As such, the tool ends the process by creating a deposit file to activate the newly created validator key pair, and proceeds to generating the payload for the transaction.
 
 ## Overview
 
@@ -62,39 +61,14 @@ In order for the DKG protocol to execute successfully:
 For details on how to run the tool as an Operator, please head over [to this section containing the related instructions](#operator-quick-start).
 Similarly, head over to [this other section](#initiator-quick-start) for instructions on how to launch the tool as the Initiator of the DKG ceremony.
 
-> ℹ️ NOTE: Threshold is computed automatically using 3f+1 tolerance.
-> 
 ## Initiator Quick start
-
-### Generate Initiator identity RSA key pair
-
-The Initiator needs to sign all messages exchanged with DKG participants with an RSA key.
-First of all, write down your chosen password in a text file, for example `password`, replacing `<PASSWORD>` with a password of your choosing:
-
-```sh
-echo "<PASSWORD>" >> password
-```
-
-#### Generate Initiator key pair from source
-
-To generate Initiator RSA keys, launch the following command, replacing `<PASSWORD>` with the same one you used in the previous command:
-```sh
-docker run --name ssv-node-key-generation \
--v "$(pwd)/password":/password \
--it bloxstaking/ssv-node:latest \
-/go/bin/ssvnode generate-operator-keys --password-file=/password && \
-docker cp ssv-node-key-generation:/encrypted_private_key.json \
-./encrypted_private_key.json && docker rm ssv-node-key-generation
-```
-
-This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
 
 ### Obtaining Operators data
 
 The `ssv-dkg` tool does not provide Operators data for the operations described above (ID, endpoint, public key).
 Teams integrating with SSV are responsible for sourcing it however they see fit. This information can be collected in various ways, such as the [official SSV API](https://api.ssv.network/documentation/#/v4). Other suggested options are, for example, building an ad-hoc Operator data service, or a preset file where all Operators data is stored.
 
-Information about Operators can be collected in a json file and supplied to Initiator to be used use for the key generation ceremony, as shown above.
+Information about Operators must be collected in a JSON file and supplied to Initiator to be used use for the key generation ceremony, as shown above.
 
 Operators info file example:
 ```json
@@ -136,6 +110,7 @@ There are a couple of options to launch the DKG tool:
 It is advised launching the tool as a Docker image as it is the most convenient way and only requires to have Docker installed. The team builds a Docker image with every release of the tool.
 
 #### Launch with Docker and YAML file
+
 All of the necessary configuration information can be provided in a YAML file (referenced as `initiator.yaml` from now on).
 
 A good way to manage all the necessary files (`operators_info.json`, `encrypted_private_key.json`, `password`) is to store them in a single folder (in this case `initiator-config`) together with the `initiator.yaml` configuration file, like so:
@@ -161,7 +136,7 @@ nonce: 0    # Owner nonce for the SSV contract
 network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: /data/operators_info.json    # Path to the file containing operators information
 # alternatively:
-# operatorsInfo: '{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }'    # Raw content of the JSON file with operators information
+# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 outputPath: /data/    # Path to store the output files
 initiatorPrivKey: /data/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: /data/password    # Path to password file to decrypt the key
@@ -180,15 +155,45 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 > ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data section](#obtaining-operators-data) above
 
 Under the assumption that all the necessary files (`operators_info.json`, `encrypted_private_key.json`, `password`) are under the same folder (represented below with `<PATH_TO_FOLDER_WITH_CONFIG_FILES>`) you can run the tool using the command below:
+
 ```sh
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"ssv-dkg:latest" /app init --configPath /data/initiator.yaml && \
+"ssv-dkg:latest" /app init --generateInitiatorKey \
+--configPath /data/initiator.yaml && \
 docker rm ssv_dkg_initiator
 ```
 
 Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.
 You can, of course, change the configuration above to one that suits you better, just be mindful about changing the path references in the docker command **and** in the `operator.yaml` file as well.
+
+> ℹ️ Note: The Initiator needs to sign all messages exchanged with DKG participants with an RSA key. The `--generateInitiatorKey` option will automatically create it, and encrypt it with a random password. Both the key and the password will be returned as output.
+> 
+> If you already have a password-encrypted RSA key, make sure to omit this option.
+
+<details>
+  <summary><b>Click here if you want to generate an RSA with a password of your choosing</b></summary>
+  
+  First of all, write down your chosen password in a text file, for example `password`, replacing `<PASSWORD>` with a password of your choosing:
+
+  ```sh
+  echo "<PASSWORD>" >> password
+  ```
+
+  #### Generate Initiator identity RSA key pair
+
+  To generate Initiator RSA keys, launch the following command, replacing `<PASSWORD>` with the same one you used in the previous command:
+  ```sh
+  docker run --name ssv-node-key-generation \
+  -v "$(pwd)/password":/password \
+  -it bloxstaking/ssv-node:latest \
+  /go/bin/ssvnode generate-operator-keys --password-file=/password && \
+  docker cp ssv-node-key-generation:/encrypted_private_key.json \
+  ./encrypted_private_key.json && docker rm ssv-node-key-generation
+  ```
+
+  This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
+</details>
 
 #### Build from source
 
@@ -345,7 +350,6 @@ The `ssv-dkg` tool is separate from the `ssv-node`, and could be running on a di
 In order to successfully participate in DKG ceremonies initiated by stakers, you will need to possess and/or provide this information:
 
 * **operator ID** - the ID of the operator you want to receive keyshares created with DKG
-* **operator RSA public key** - the public key of the operator you want to receive keyshares created with DKG
 * **machine endpoint** - the endpoint (protocol:ip:port) of the machine where you intend to execute the `ssv-dkg` tool (if you have a domain name, instead of an `ip` that works as well)
 * **encrypted operator RSA private key** - this is a password-encrypted file, containing the operator's private key (follow [this guide to generate an encrypted private key file](https://docs.ssv.network/operator-user-guides/operator-node/installation#generate-operator-keys-encrypted) or [this migration guide to encrypt existing keys](https://docs.ssv.network/operator-user-guides/operator-node/installation#how-do-i-migrate-raw-deprecated-operator-keys))
 
@@ -513,6 +517,8 @@ Please head over to [the Operator User guide on how to update metadata](https://
 9. Initiator receives all messages from Operators with signatures/encrypted shares and prepares the deposit data with a signature and save it as JSON file
 10. Initiator prepares a payload for SSV contract
 11. After the deposit is successful and SSV contract transaction is accepted, Operators can continue with their duties using their share of the distributes key
+
+> ℹ️ NOTE: Threshold is computed automatically using 3f+1 tolerance.
 
 ### Note on DKG instance management
 
