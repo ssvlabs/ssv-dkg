@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build-image docker-operators docker-initiator docker-resharing mockgen-install lint-prepare lint 
+.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint 
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -45,7 +45,7 @@ docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
 
-docker-resharing:
+docker-demo-reshare:
 	@echo "Running resharing in docker demo"
 	docker-compose up --build resharing
 
@@ -67,6 +67,16 @@ docker-initiator:
 	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
 	  init --configPath /data/config/initiator.example.yaml
+
+docker-reshare:
+	@echo "Running initiator docker for key resharing to new operators, make sure to update ./examples/config/reshare.example.yaml"
+	docker run -d \
+	  --name ssv-dkg-reshare \
+	  -v $(shell pwd)/examples:/data \
+	  --entrypoint /app \
+	  $(DOCKER_IMAGE):latest \
+	  reshare --configPath /data/config/reshare.example.yaml
+
 
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0

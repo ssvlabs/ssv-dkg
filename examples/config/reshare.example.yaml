@@ -1,13 +1,14 @@
 operatorIDs: [1, 2, 3, 4]
 newOperatorIDs: [5, 6, 7, 8]
-oldID: "a866d319e6454c6cad4c7ce9dfbb5ae819a834c739ae4578"
+oldID: "dbd12b3155454666a6710a2262695bb82cda41948d612d98"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 4
-operatorsInfoPath: /data/docker_operators.json
-ssvPayloadResultsPath: /data/output/
+nonce: 0
+network: "mainnet"
+operatorsInfoPath: /data/operators_info.json
+outputPath: /data/output
 initiatorPrivKey: /data/initiator/encrypted_private_key.json
 initiatorPrivKeyPassword: /data/initiator/password
-logLevel: debug
+logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/initiator_logs/debug.log
+logFilePath: /data/output/initiator_debug.log

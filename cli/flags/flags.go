@@ -164,26 +164,6 @@ func GetInitiatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command
-func InitiatorPrivateKeyFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, initiatorPrivKey, "", "Path to initiator Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(initiatorPrivKey)
-}
-
-// OperatorPrivateKeyPassFlag  adds private key flag to the command
-func InitiatorPrivateKeyPassFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, initiatorPrivKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetInitiatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(initiatorPrivKeyPassword)
-}
-
-// OperatorPrivateKeyFlag  adds private key flag to the command
 func OperatorPrivateKeyFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorPrivKey, "", "Path to initiator Private Key file", false)
 }
@@ -281,9 +261,6 @@ func DBGCIntervalFlag(c *cobra.Command) {
 // GetDBGCIntervalFlagValue gets path for storage flag from the command
 func GetDBGCIntervalFlagValue(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(DBGCInterval)
-// LogFilePathFlag file path to write logs into
-func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./operator_debug.log", "Defines a file path to write logs into", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

@@ -2,8 +2,8 @@ privKey: /data/operator5/encrypted_private_key.json
 password: /data/operator5/password
 port: 3030
 storeShare: false
-logLevel: debug
+logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/operator5_logs/debug.log
+logFilePath: /data/output/operator5_logs_debug.log
 DBPath: /data/output/operator5_db/

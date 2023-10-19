@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"time"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
@@ -18,6 +16,8 @@ import (
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 // Server structure for operator to store http server and DKG ceremony instances
@@ -172,10 +172,14 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options) *Server {
 	r := chi.NewRouter()
 	db, err := setupDB(logger, dbOptions)
-	swtch := NewSwitch(key, logger)
+	// todo: handle error
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(key, logger, db)
 	s := &Server{
 		Logger: logger,
 		Router: r,

@@ -141,7 +141,24 @@ var StartDKGOperator = &cobra.Command{
 			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
 			return err
 		}
-		srv := operator.New(privateKey, logger)
+		var DBOptions basedb.Options
+		DBPath := viper.GetString("DBPath")
+		DBReporting := viper.GetBool("DBReporting")
+		DBGCInterval := viper.GetString("DBGCInterval")
+		if DBPath != "" {
+			_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return err
+			}
+		}
+		DBOptions.Path = DBPath
+		DBOptions.Reporting = DBReporting
+		DBOptions.GCInterval, err = time.ParseDuration(DBGCInterval)
+		DBOptions.Ctx = context.Background()
+		if err != nil {
+			return err
+		}
+		srv := operator.New(privateKey, logger, DBOptions)
 		port := viper.GetUint64("port")
 		if port == 0 {
 			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))

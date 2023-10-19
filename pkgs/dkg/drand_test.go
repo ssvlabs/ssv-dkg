@@ -9,22 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
-	"crypto/rand"
-	"crypto/rsa"
-	mrand "math/rand"
-	"testing"
-
-	"github.com/bloxapp/ssv/utils/rsaencryption"
-	"github.com/drand/kyber"
-	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/sirupsen/logrus"
@@ -149,7 +139,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
-		suite:     kyber_bls.NewBLS12381Suite(),
+		Suite:     kyber_bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
 		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
@@ -160,8 +150,8 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		EncryptFunc: encrypt,
 		DecryptFunc: decrypt,
 		RSAPub:      &pv.PublicKey,
-		done:        make(chan struct{}, 1),
-		startedDKG:  make(chan struct{}, 1),
+		Done:        make(chan struct{}, 1),
+		StartedDKG:  make(chan struct{}, 1),
 		DB:          db,
 	}
 }
@@ -181,7 +171,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
-		suite:     kyber_bls.NewBLS12381Suite(),
+		Suite:     kyber_bls.NewBLS12381Suite(),
 		Exchanges: make(map[uint64]*wire2.Exchange),
 		Deals:     make(map[uint64]*dkg.DealBundle),
 		BroadcastF: func(bytes []byte) error {
@@ -192,8 +182,8 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		EncryptFunc: owner.EncryptFunc,
 		DecryptFunc: owner.DecryptFunc,
 		RSAPub:      owner.RSAPub,
-		done:        make(chan struct{}, 1),
-		startedDKG:  make(chan struct{}, 1),
+		Done:        make(chan struct{}, 1),
+		StartedDKG:  make(chan struct{}, 1),
 		DB:          owner.DB,
 	}
 
@@ -380,7 +370,7 @@ func TestDKG(t *testing.T) {
 	newPubs := make(map[uint64]kyber.Point)
 	secretsNewNodes := make(map[uint64]*herumi_bls.SecretKey)
 	err = ts2.ForNew(func(o *LocalOwner) error {
-		<-o.done
+		<-o.Done
 		newPubs[o.ID] = o.SecretShare.Public()
 		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
 		if err != nil {

@@ -533,7 +533,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4
 	}
 	c.Logger = c.Logger.With(instanceIDField)
 
-	dkgResult, err := c.messageFlowHandlingInit(init, id, ops)
+	dkgResult, err := c.messageFlowHandling(init, id, ops)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -2,8 +2,8 @@ privKey: /data/operator8/encrypted_private_key.json
 password: /data/operator8/password
 port: 3030
 storeShare: false
-logLevel: debug
+logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/operator8_logs/debug.log
+logFilePath: /data/output/operator8_logs_debug.log
 DBPath: /data/output/operator8_db/

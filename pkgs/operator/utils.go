@@ -12,9 +12,6 @@ import (
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/go-chi/chi/v5"
-	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
-	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -101,4 +98,3 @@ func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
 		Srv:     s,
 	}
 }
-

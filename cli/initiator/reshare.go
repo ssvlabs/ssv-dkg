@@ -29,14 +29,12 @@ func init() {
 	flags.NewOperatorIDsFlag(StartReshare)
 	flags.OwnerAddressFlag(StartReshare)
 	flags.NonceFlag(StartReshare)
-	flags.ForkVersionFlag(StartReshare)
-	flags.AddDepositResultStorePathFlag(StartReshare)
-	flags.AddKeysharesOutputPathFlag(StartReshare)
 	flags.ConfigPathFlag(StartReshare)
 	flags.LogLevelFlag(StartReshare)
 	flags.LogFormatFlag(StartReshare)
 	flags.LogLevelFormatFlag(StartReshare)
 	flags.LogFilePathFlag(StartReshare)
+	flags.ResultPathFlag(StartReshare)
 	if err := viper.BindPFlag("withdrawAddress", StartReshare.PersistentFlags().Lookup("withdrawAddress")); err != nil {
 		panic(err)
 	}
@@ -49,7 +47,10 @@ func init() {
 	if err := viper.BindPFlag("oldID", StartReshare.PersistentFlags().Lookup("oldID")); err != nil {
 		panic(err)
 	}
-	if err := viper.BindPFlag("operatorsInfoPath", StartReshare.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+	if err := viper.BindPFlag("operatorsInfo", StartDKG.PersistentFlags().Lookup("operatorsInfo")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", StartDKG.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("owner", StartReshare.PersistentFlags().Lookup("owner")); err != nil {
@@ -58,7 +59,7 @@ func init() {
 	if err := viper.BindPFlag("nonce", StartReshare.PersistentFlags().Lookup("nonce")); err != nil {
 		panic(err)
 	}
-	if err := viper.BindPFlag("ssvPayloadResultsPath", StartReshare.PersistentFlags().Lookup("ssvPayloadResultsPath")); err != nil {
+	if err := viper.BindPFlag("outputPath", StartDKG.PersistentFlags().Lookup("outputPath")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("initiatorPrivKey", StartReshare.PersistentFlags().Lookup("initiatorPrivKey")); err != nil {
@@ -123,28 +124,60 @@ var StartReshare = &cobra.Command{
 		}
 		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
-		ssvPayloadResultsPath := viper.GetString("ssvPayloadResultsPath")
-		if ssvPayloadResultsPath == "" {
-			logger.Fatal("😥 Failed to get ssv payload path flag value: ", zap.Error(err))
+		outputPath := viper.GetString("outputPath")
+		if outputPath == "" {
+			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
 		}
-		_, err = os.Stat(ssvPayloadResultsPath)
-		if os.IsNotExist(err) {
-			logger.Fatal("😥 Folder to store SSV payload file does not exist: ", zap.Error(err))
+		if stat, err := os.Stat(outputPath); err != nil || !stat.IsDir() {
+			logger.Fatal("😥 Error to to open path to store results", zap.Error(err))
 		}
 		// Load operators TODO: add more sources.
-		operatorFile := viper.GetString("operatorsInfoPath")
-		if operatorFile == "" {
-			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))
+		operatorsInfo := viper.GetString("operatorsInfo")
+		operatorsInfoPath := viper.GetString("operatorsInfoPath")
+		if operatorsInfo == "" && operatorsInfoPath == "" {
+			logger.Fatal("😥 Operators string or path have not provided")
 		}
-
-		opsfile, err := os.ReadFile(operatorFile)
-		if err != nil {
-			logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+		if operatorsInfo != "" && operatorsInfoPath != "" {
+			logger.Fatal("😥 Please provide either operator info string or path, not both")
 		}
-
-		opMap, err := initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+		var opMap initiator.Operators
+		if operatorsInfo != "" {
+			logger.Info("📖 reading raw JSON string of operators info")
+			opMap, err = initiator.LoadOperatorsJson([]byte(operatorsInfo))
+			if err != nil {
+				logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+			}
+		}
+		if operatorsInfoPath != "" {
+			logger.Info("📖 looking operators info 'operators_info.json' file", zap.String("at path", operatorsInfoPath))
+			stat, err := os.Stat(operatorsInfoPath)
+			if os.IsNotExist(err) {
+				logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+			}
+			if stat.IsDir() {
+				filePath := operatorsInfoPath + "operators_info.json"
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					logger.Fatal("😥 Failed to find operator info file at provided path: ", zap.Error(err))
+				}
+				opsfile, err := os.ReadFile(filePath)
+				if err != nil {
+					logger.Fatal("😥 Failed to read operator info file:", zap.Error(err))
+				}
+				opMap, err = initiator.LoadOperatorsJson(opsfile)
+				if err != nil {
+					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+				}
+			} else {
+				logger.Info("📖 reading operators info JSON file")
+				opsfile, err := os.ReadFile(operatorsInfoPath)
+				if err != nil {
+					logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+				}
+				opMap, err = initiator.LoadOperatorsJson(opsfile)
+				if err != nil {
+					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+				}
+			}
 		}
 		oldParticipants := viper.GetStringSlice("operatorIDs")
 		if oldParticipants == nil {
@@ -168,30 +201,32 @@ var StartReshare = &cobra.Command{
 		}
 		var privateKey *rsa.PrivateKey
 		pass := viper.GetString("initiatorPrivKeyPassword")
+		logger.Info("🔑 opening initiator RSA private key file")
 		if pass != "" {
+			logger.Info("🔑 password for key provided - decrypting")
 			// check if a password string a valid path, then read password from the file
-			if _, err := os.Stat(pass); err != nil {
-				logger.Fatal("😥 Password file: ", zap.Error(err))
+			if _, err := os.Stat(pass); os.IsNotExist(err) {
+				logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
+			}
+			encryptedRSAJSON, err := os.ReadFile(privKeyPath)
+			if err != nil {
+				logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
 			}
 			keyStorePassword, err := os.ReadFile(pass)
 			if err != nil {
 				logger.Fatal("😥 Error reading password file: ", zap.Error(err))
 			}
-			encryptedJSON, err := os.ReadFile(privKeyPath)
-			if err != nil {
-				logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
-			}
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
 			if err != nil {
 				logger.Fatal(err.Error())
 			}
 		} else {
+			logger.Info("🔑 password for key NOT provided - trying to read plaintext key")
 			privateKey, err = crypto.PrivateKey(privKeyPath)
 			if err != nil {
-				logger.Fatal(err.Error())
+				logger.Fatal("😥 Error reading plaintext private key from file: ", zap.Error(err))
 			}
 		}
-
 		dkgInitiator := initiator.New(privateKey, opMap, logger)
 		owner := viper.GetString("owner")
 		if owner == "" {
@@ -203,9 +238,9 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		payloadFinalPath := fmt.Sprintf("%s/payload_%s_%s.json", ssvPayloadResultsPath, keyShares.Payload.PublicKey, hex.EncodeToString(id[:]))
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", payloadFinalPath))
-		err = utils.WriteJSON(payloadFinalPath, keyShares)
+		keysharesFinalPath := fmt.Sprintf("%s/keyshares-reshared-%v-%v.json", outputPath, keyShares.Payload.PublicKey, hex.EncodeToString(id[:]))
+		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+		err = utils.WriteJSON(keysharesFinalPath, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
 		}
