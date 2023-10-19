@@ -2,8 +2,7 @@ privKey: /data/operator3/encrypted_private_key.json
 password: /data/operator3/password
 port: 3030
 storeShare: false
-logLevel: debug
+logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/operator3_logs/debug.log
-DBPath: /data/output/operator3_db/
+logFilePath: /data/output/operator3_logs_debug.log

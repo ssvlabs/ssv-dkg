@@ -20,11 +20,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// Server structure for operator to store http server and DKG ceremony instances
 type Server struct {
-	Logger     *zap.Logger
-	HttpServer *http.Server
-	Router     chi.Router
-	State      *Switch
+	Logger     *zap.Logger  // logger
+	HttpServer *http.Server //http server
+	Router     chi.Router   // http router
+	State      *Switch      // structure to store instances of DKG ceremonies
 	DB         *kv.BadgerDB
 }
 
@@ -47,6 +48,7 @@ func (msg *KeySign) Decode(data []byte) error {
 const ErrTooManyOperatorRequests = `{"error": "too many requests to operator"}`
 const ErrTooManyDKGRequests = `{"error": "too many requests to initiate DKG"}`
 
+// RegisterRoutes creates routes at operator to process messages incoming from initiator
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
@@ -169,14 +171,11 @@ func RegisterRoutes(s *Server) {
 	})
 }
 
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options) *Server {
+// New creates Server structure using operator's RSA private key
+func New(key *rsa.PrivateKey, logger *zap.Logger) *Server {
 	r := chi.NewRouter()
 	db, err := setupDB(logger, dbOptions)
-	swtch := NewSwitch(key, logger, db)
-	// todo: handle error
-	if err != nil {
-		panic(err)
-	}
+	swtch := NewSwitch(key, logger)
 	s := &Server{
 		Logger: logger,
 		Router: r,
@@ -187,6 +186,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options) *Ser
 	return s
 }
 
+// Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16) error {
 	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
 	s.HttpServer = srv
@@ -198,14 +198,15 @@ func (s *Server) Start(port uint16) error {
 	return nil
 }
 
-func (s *Server) Stop() error {
-	return s.HttpServer.Close()
-}
-
 func setupDB(logger *zap.Logger, dbOptions basedb.Options) (*kv.BadgerDB, error) {
 	db, err := kv.New(logger, dbOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open db")
 	}
 	return db, nil
+}
+
+// Stop closes http server instance
+func (s *Server) Stop() error {
+	return s.HttpServer.Close()
 }

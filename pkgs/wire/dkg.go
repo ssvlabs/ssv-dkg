@@ -15,21 +15,22 @@ import (
 // NonceLength is the length of the nonce
 const NonceLength = 32
 
+// Config structure to configure a DKG protocol instance
 type Config struct {
-	Identifier []byte
-	// Secret session secret key
-	Secret       kyber.Scalar
-	OldNodes     []dkg.Node
-	NewNodes     []dkg.Node
-	Suite        pairing.Suite
-	T            int
-	NewT         int
-	Board        dkg.Board
+	Identifier []byte // DKG instance ID 24 bytes
+	Secret       kyber.Scalar // a secret key crated at Instance initiation
+	OldNodes     []dkg.Node // DKG operators participating at the ceremony
+	NewNodes     []dkg.Node // DKG operators participating at the ceremony
+	Suite        pairing.Suite // parameters on the fields being used
+	T            int // threshold - minimum number of participants needed to restore a master private key
+	NewT         int // threshold - minimum number of participants needed to restore a master private key
+	Board        dkg.Board // structure to process DKG messages from other participants
 	Share        *dkg.DistKeyShare
 	PublicCoeffs []kyber.Point
 	Logger       *zap.Logger
 }
 
+// LogWrapper is needed because drand/kyber uses dkg.Logger which differs from zap in some methods
 type LogWrapper struct {
 	Logger *zap.Logger
 }
@@ -45,6 +46,7 @@ func (l *LogWrapper) Error(vals ...interface{}) {
 	l.Logger.Error(fmt.Sprint(vals...))
 }
 
+// NewDKGProtocol initializes and starts phases of the DKG protocol
 func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 	dkgLogger := New(config.Logger)
 	dkgConfig := &dkg.Config{
@@ -57,7 +59,9 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 		Auth:      drand_bls.NewSchemeOnG2(config.Suite),
 		Log:       dkgLogger,
 	}
-
+	// Phaser must signal on its channel when the protocol should move to a next
+	// phase. Phase must be sequential: DealPhase (start), ResponsePhase,
+	// JustifPhase and then FinishPhase.
 	phaser := dkg.NewTimePhaser(time.Second * 5)
 
 	ret, err := dkg.NewProtocol(

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -614,13 +615,50 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 			return fmt.Errorf("shares order is incorrect")
 		}
 	}
-	recon, err := crypto.ReconstructSignatures(sigs2)
+	recon, err := ReconstructSignatures(sigs2)
 	if err != nil {
 		return err
 	}
-	err = crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg)
+	err = VerifyReconstructedSignature(recon, validatorPublicKey, msg)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
+// It then reconstructs the original threshold signature using lagrange interpolation
+func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
+	reconstructedSig := bls.Sign{}
+	idVec := make([]bls.ID, 0)
+	sigVec := make([]bls.Sign, 0)
+	for index, signature := range signatures {
+		blsID := bls.ID{}
+		err := blsID.SetDecString(fmt.Sprintf("%d", index))
+		if err != nil {
+			return nil, err
+		}
+		idVec = append(idVec, blsID)
+		blsSig := bls.Sign{}
+
+		err = blsSig.Deserialize(signature)
+		if err != nil {
+			return nil, err
+		}
+		sigVec = append(sigVec, blsSig)
+	}
+	err := reconstructedSig.Recover(sigVec, idVec)
+	return &reconstructedSig, err
+}
+
+func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
+	pk := &bls.PublicKey{}
+	if err := pk.Deserialize(validatorPubKey); err != nil {
+		return errors.Wrap(err, "could not deserialize validator pk")
+	}
+	// verify reconstructed sig
+	if res := sig.VerifyByte(pk, msg); !res {
+		return errors.New("could not reconstruct a valid signature")
 	}
 	return nil
 }
@@ -677,7 +715,7 @@ func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, wi
 }
 
 func contains(s []*rsa.PrivateKey, i int) bool {
-	for k, _ := range s {
+	for k := range s {
 		if k == i {
 			return true
 		}

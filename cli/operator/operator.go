@@ -23,7 +23,7 @@ func init() {
 	flags.OperatorPrivateKeyFlag(StartDKGOperator)
 	flags.OperatorPrivateKeyPassFlag(StartDKGOperator)
 	flags.OperatorPortFlag(StartDKGOperator)
-	flags.AddStoreShareFlag(StartDKGOperator)
+	flags.StoreShareFlag(StartDKGOperator)
 	flags.ConfigPathFlag(StartDKGOperator)
 	flags.LogLevelFlag(StartDKGOperator)
 	flags.LogFormatFlag(StartDKGOperator)
@@ -85,16 +85,25 @@ var StartDKGOperator = &cobra.Command{
 		}
 		if configPath != "" {
 			viper.SetConfigFile(configPath)
-		} else {
-			viper.AddConfigPath("./config")
 		}
 		if err := viper.ReadInConfig(); err != nil {
-			return err
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return err
+			}
+			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
 		logFilePath := viper.GetString("logFilePath")
+		if logFilePath == "" {
+			fmt.Print("⚠️ debug log path was not provided, using default: ./operator_debug.log \n")
+		}
+		// If the log file doesn't exist, create it
+		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
 		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
@@ -130,26 +139,9 @@ var StartDKGOperator = &cobra.Command{
 			}
 		} else {
 			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
-			logger.Fatal("Error reading Password file", zap.Error(err))
-		}
-
-		var DBOptions basedb.Options
-		DBPath := viper.GetString("DBPath")
-		DBReporting := viper.GetBool("DBReporting")
-		DBGCInterval := viper.GetString("DBGCInterval")
-		if DBPath != "" {
-			if _, err := os.Stat(DBPath); err != nil {
-					return err
-			}
-		}
-		DBOptions.Path = DBPath
-		DBOptions.Reporting = DBReporting
-		DBOptions.GCInterval, err = time.ParseDuration(DBGCInterval)
-		DBOptions.Ctx = context.Background()
-		if err != nil {
 			return err
 		}
-		srv := operator.New(privateKey, logger, DBOptions)
+		srv := operator.New(privateKey, logger)
 		port := viper.GetUint64("port")
 		if port == 0 {
 			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))

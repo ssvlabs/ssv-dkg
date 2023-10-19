@@ -43,40 +43,33 @@ var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool
 	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
 }
 
+// Operator structure represents operators info which is public
 type Operator struct {
-	Addr   string
-	ID     uint64
-	PubKey *rsa.PublicKey
+	Addr   string         // ip:port
+	ID     uint64         // operators ID
+	PubKey *rsa.PublicKey // operators RSA public key
 }
 
+// OperatorDataJson is used to store operators info ar JSON
 type OperatorDataJson struct {
 	Addr   string `json:"ip"`
 	ID     uint64 `json:"id"`
 	PubKey string `json:"public_key"`
 }
 
+// Operators mapping storage for operator structs [ID]operator
 type Operators map[uint64]Operator
 
-type MockInitiator interface {
-	SendAndCollect(op Operator, method string, data []byte) ([]byte, error)
-	SendToAll(method string, msg []byte) ([][]byte, error)
-	PakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error)
-	StartDKG(withdraw []byte, ids []uint64, threshold uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error)
-	CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error)
-	ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error)
-	SendKyberMsgs(kyberDeals [][]byte, id [24]byte) ([][]byte, error)
-	SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte) ([][]byte, error)
-	SendInitMsg(init *wire.Init, id [24]byte) ([][]byte, error)
-}
-
+// Initiator main structure for initiator
 type Initiator struct {
-	Logger     *zap.Logger
-	Client     *req.Client
-	Operators  Operators
-	VerifyFunc func(id uint64, msg, sig []byte) error
-	PrivateKey *rsa.PrivateKey
+	Logger     *zap.Logger                            // logger
+	Client     *req.Client                            // http client
+	Operators  Operators                              // operators info mapping
+	VerifyFunc func(id uint64, msg, sig []byte) error // function to verify signatures of incoming messages
+	PrivateKey *rsa.PrivateKey                        // a unique initiator's RSA private key used for signing messages and identity
 }
 
+// DepositDataJson structure to create a resulting deposit data JSON file according to ETH2 protocol
 type DepositDataJson struct {
 	PubKey                string      `json:"pubkey"`
 	WithdrawalCredentials string      `json:"withdrawal_credentials"`
@@ -89,6 +82,7 @@ type DepositDataJson struct {
 	DepositCliVersion     string      `json:"deposit_cli_version"`
 }
 
+// KeyShares structure to create an json file for ssv smart contract
 type KeyShares struct {
 	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -96,22 +90,25 @@ type KeyShares struct {
 	Payload   Payload   `json:"payload"`
 }
 
+// Data structure as a part of KeyShares representing BLS validator public key and information about validators
 type Data struct {
 	PublicKey string         `json:"publicKey"`
 	Operators []OperatorData `json:"operators"`
 }
 
+// OperatorData structure to represent information about operators participating in signing validator's duty
 type OperatorData struct {
 	ID          uint64 `json:"id"`
-	OperatorKey string `json:"operatorKey"`
+	OperatorKey string `json:"operatorKey"` // encoded RSA public key
 }
 
 type Payload struct {
-	PublicKey   string   `json:"publicKey"`
-	OperatorIDs []uint64 `json:"operatorIds"`
-	SharesData  string   `json:"sharesData"`
+	PublicKey   string   `json:"publicKey"`   // validator's public key
+	OperatorIDs []uint64 `json:"operatorIds"` // operators IDs
+	SharesData  string   `json:"sharesData"`  // encrypted with RSA keys private BLS shares of each operator participating in DKG
 }
 
+// GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
 func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, error) {
 	// order the results by operatorID
 	sort.SliceStable(result, func(i, j int) bool {
@@ -169,6 +166,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 	return ks, nil
 }
 
+// New creates a main initiator structure
 func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
@@ -182,12 +180,14 @@ func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger) *In
 	return c
 }
 
+// opReqResult structure to represent http communication messages incoming to initiator from operators
 type opReqResult struct {
 	operatorID uint64
 	err        error
 	result     []byte
 }
 
+// SendAndCollect ssends http message to operator and read the response
 func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
 	r.SetBodyBytes(data)
@@ -203,6 +203,7 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	return resdata, nil
 }
 
+// SendToAll sends http messages to all operators. Makes sure that all responses are received
 func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
 	resc := make(chan opReqResult, len(operatorsIDs))
 	for _, op := range operatorsIDs {
@@ -237,6 +238,7 @@ func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Op
 	return final, finalerr
 }
 
+// parseAsError parses the error from an operator
 func parseAsError(msg []byte) (error, error) {
 	sszerr := &wire.ErrSSZ{}
 	err := sszerr.UnmarshalSSZ(msg)
@@ -247,6 +249,8 @@ func parseAsError(msg []byte) (error, error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
+// VerifyAll verifies incoming to initiator messages from operators.
+// Incoming message from operator should have same DKG ceremony ID and a valid signature
 func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
 	for i := 0; i < len(allmsgs); i++ {
 		msg := allmsgs[i]
@@ -274,6 +278,7 @@ func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
 	return nil
 }
 
+// MakeMultiple creates a one combined message from operators with initiator signature
 func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
@@ -308,6 +313,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 	return final, nil
 }
 
+// validatedOperatorData validates operators information data before starting a DKG ceremony
 func validatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
 	if len(ids) < 4 {
 		return nil, fmt.Errorf("minimum supported amount of operators is 4")
@@ -343,7 +349,8 @@ func validatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 	return ops, nil
 }
 
-func (c *Initiator) messageFlowHandlingInit(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+// messageFlowHandling main steps of DKG at initiator
+func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
@@ -414,6 +421,7 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 	return dkgResult, nil
 }
 
+// reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
 func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, validatorPubKey *bls.PublicKey, fork [4]byte, forkName string, sigDepositShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey) (*DepositDataJson, error) {
 	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, getNetworkByFork(fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
@@ -488,6 +496,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	return depositDataJson, nil
 }
 
+// StartDKG starts DKG ceremony at initiator with requested parameters
 func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 
 	ops, err := validatedOperatorData(ids, c.Operators)
@@ -647,6 +656,7 @@ func (msg *KeySign) Decode(data []byte) error {
 	return json.Unmarshal(data, msg)
 }
 
+// CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
 func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
@@ -665,8 +675,11 @@ func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg 
 	}, nil
 }
 
+// getNetworkByFork finds a network name by fork id bytes
 func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	switch fork {
+	case [4]byte{0x00, 0x00, 0x20, 0x09}:
+		return eth2_key_manager_core.PyrmontNetwork
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
 		return eth2_key_manager_core.PraterNetwork
 	case [4]byte{0, 0, 0, 0}:
@@ -676,6 +689,7 @@ func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	}
 }
 
+// ProcessDKGResultResponse deserializes incoming DKG result messages from operators
 func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
 	dkgResults := make([]dkg.Result, 0)
 	validatorPubKey := bls.PublicKey{}
@@ -782,6 +796,7 @@ func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24
 	return dkgResults, &validatorPubKey, sharePks, ssvContractOwnerNonceSigShares, nil
 }
 
+// SendInitMsg sends initial DKG ceremony message to participating operators from initiator
 func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	sszInit, err := init.MarshalSSZ()
 	if err != nil {
@@ -852,6 +867,7 @@ func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wi
 	return results, nil
 }
 
+// SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
 func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
@@ -868,6 +884,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 	return results, nil
 }
 
+// SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
 func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
@@ -885,6 +902,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	return responseResult, nil
 }
 
+// LoadOperatorsJson deserialize operators data from JSON
 func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 	opmap := make(map[uint64]Operator)
 	var operators []OperatorDataJson
@@ -919,6 +937,7 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 	return opmap, nil
 }
 
+// GetThreshold computes threshold from amount of operators following 3f+1 tolerance
 func (c *Initiator) GetThreshold(ids []uint64) (int, error) {
 	if len(ids) < 4 {
 		return 0, fmt.Errorf("minimum supported amount of operators is 4")

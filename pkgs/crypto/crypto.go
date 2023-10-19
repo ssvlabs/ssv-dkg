@@ -2,10 +2,12 @@ package crypto
 
 import (
 	"crypto"
+	"unicode"
 
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -44,6 +46,7 @@ func init() {
 	_ = bls.SetETHmode(bls.EthModeDraft07)
 }
 
+// GenerateKeys creates a random RSA key pair
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	pv, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
@@ -54,6 +57,7 @@ func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 
 }
 
+// SignRSA create a RSA signature for incoming bytes
 func SignRSA(sk *rsa.PrivateKey, byts []byte) ([]byte, error) {
 	r := sha256.Sum256(byts)
 	return sk.Sign(rand.Reader, r[:], &rsa.PSSOptions{
@@ -71,11 +75,13 @@ func Encrypt(pk *rsa.PublicKey, plainText []byte) ([]byte, error) {
 	return encrypted, nil
 }
 
+// VerifyRSA verifies RSA signature for incoming message
 func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 	r := sha256.Sum256(msg)
 	return rsa.VerifyPSS(pk, crypto.SHA256, r[:], signature, nil)
 }
 
+// ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
 func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
 	share := result.Key.PriShare()
 	bytsSk, err := share.V.MarshalBinary()
@@ -89,6 +95,7 @@ func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
 	return sk, nil
 }
 
+// KyberShareToBLSKey converts a kyber private share to github.com/herumi/bls-eth-go-binary/bls private key
 func KyberShareToBLSKey(share *share.PriShare) (*bls.SecretKey, error) {
 	bytsSk, err := share.V.MarshalBinary()
 	if err != nil {
@@ -101,19 +108,7 @@ func KyberShareToBLSKey(share *share.PriShare) (*bls.SecretKey, error) {
 	return sk, nil
 }
 
-func ResultsToValidatorPK(results []*dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
-	exp := share.NewPubPoly(suite, suite.Point().Base(), results[0].Key.Commitments())
-	bytsPK, err := exp.Eval(0).V.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal share")
-	}
-	pk := &bls.PublicKey{}
-	if err := pk.Deserialize(bytsPK); err != nil {
-		return nil, err
-	}
-	return pk, nil
-}
-
+// ResultsToValidatorPK converts a public polynomial at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls public key
 func ResultToValidatorPK(result *dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
 	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Key.Commitments())
 	bytsPK, err := exp.Commit().MarshalBinary()
@@ -127,6 +122,7 @@ func ResultToValidatorPK(result *dkg.Result, suite dkg.Suite) (*bls.PublicKey, e
 	return pk, nil
 }
 
+// ParseRSAPubkey parses encoded to base64 x509 RSA public key
 func ParseRSAPubkey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))
 	if err != nil {
@@ -532,38 +528,26 @@ func PrivateKey(path string) (*rsa.PrivateKey, error) {
 func NewID() [24]byte {
 	var id [24]byte
 	b := uuid.New()
-	b2 := uuid.New()
-	copy(id[:16], b[:])
-	copy(id[16:], b2[:8])
+	copy(id[:12], b[:])
+	b = uuid.New()
+	copy(id[12:], b[:])
 	return id
 }
 
-func DecryptShare(operatorCount int, id uint64, key *rsa.PrivateKey, sharesData []byte) (*share.PriShare, error) {
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
-	if len(sharesData) != sharesExpectedLength {
-		return nil, fmt.Errorf("shares data len is not correct")
+func GenerateSecurePassword() (string, error) {
+	const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	var pass []rune
+	p := make([]byte, 64)
+	if _, err := rand.Reader.Read(p); err != nil {
+		return "", err
 	}
-	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
-	secretShare := &share.PriShare{}
-	for _, enck := range encryptedKeys {
-		share, err := rsaencryption.DecodeKey(key, enck)
-		if err != nil {
-			continue
+	hash := sha512.Sum512(p)
+	for _, r := range string(hash[:]) {
+		if unicode.IsDigit(r) || strings.Contains(alpha, strings.ToLower(string(r))) {
+			pass = append(pass, r)
 		}
-		secret := &bls.SecretKey{}
-		err = secret.SetHexString(string(share))
-		if err != nil {
-			return nil, err
-		}
-		secretPoint := bls3.NewBLS12381Suite().G1().Scalar()
-		err = secretPoint.UnmarshalBinary(secret.Serialize())
-		secretShare.I = int(id - 1)
-		secretShare.V = secretPoint
 	}
-	return secretShare, nil
+	return string(pass), nil
 }
 
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
@@ -601,4 +585,17 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []b
 		return errors.New("could not reconstruct a valid signature")
 	}
 	return nil
+}
+
+func SplitBytes(buf []byte, lim int) [][]byte {
+	var chunk []byte
+	chunks := make([][]byte, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
 }

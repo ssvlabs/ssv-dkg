@@ -6,15 +6,20 @@ import (
 	"go.uber.org/zap"
 )
 
+// Board is the interface between the dkg protocol and the external world. It
+// consists in pushing packets out to other nodes and receiving in packets from
+// the other nodes. A common board would use the network as the underlying
+// communication mechanism but one can also use a smart contract based
+// approach.
 type Board struct {
 	logger *zap.Logger
-
 	broadcastF     func(msg *wire2.KyberMessage) error
 	DealC          chan dkg.DealBundle
 	ResponseC      chan dkg.ResponseBundle
 	JustificationC chan dkg.JustificationBundle
 }
 
+// NewBoard creates a new instance of Board structure
 func NewBoard(
 	logger *zap.Logger,
 	broadcastF func(msg *wire2.KyberMessage) error,
@@ -28,6 +33,7 @@ func NewBoard(
 	}
 }
 
+// PushDeals implements a kyber DKG Board interface to broadcast deal bundle
 func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 	b.logger.Debug("Pushing deal bundle: ", zap.Int("num of deals", len(bundle.Deals)))
 
@@ -47,10 +53,12 @@ func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 	}
 }
 
+// IncomingDeal implements a kyber DKG Board interface function
 func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
 	return b.DealC
 }
 
+// PushResponses implements a kyber DKG Board interface to broadcast responses
 func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
 	b.logger.Info("Pushing response bundle: ", zap.Int("num of responses", len(bundle.Responses)))
 
@@ -71,10 +79,12 @@ func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
 	}
 }
 
+// IncomingResponse implements a kyber DKG Board interface function
 func (b *Board) IncomingResponse() <-chan dkg.ResponseBundle {
 	return b.ResponseC
 }
 
+// PushJustifications implements a kyber DKG interface to broadcast justifications
 func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.logger.Info("Pushing justification bundle: ", zap.Int("num of responses", len(bundle.Justifications)))
 
@@ -95,6 +105,7 @@ func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
 	}
 }
 
+// IncomingJustification implements a kyber DKG Board interface function
 func (b *Board) IncomingJustification() <-chan dkg.JustificationBundle {
 	return b.JustificationC
 }

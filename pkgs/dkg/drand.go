@@ -25,12 +25,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/board"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
 	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
-
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte = byte(0)
 )
@@ -40,6 +45,7 @@ var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool
 	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
 }
 
+// Operator structure contains information about external operator participating in the DKG ceremony
 type Operator struct {
 	IP     string
 	ID     uint64
@@ -107,14 +113,15 @@ func (msg *DistKeyShare) Decode(data []byte) error {
 
 var ErrAlreadyExists = errors.New("duplicate message")
 
+// LocalOwner as a main structure created for a new DKG initiation or resharing ceremony
 type LocalOwner struct {
 	Logger      *zap.Logger
-	startedDKG  chan struct{}
+	StartedDKG  chan struct{}
 	ErrorChan   chan error
 	ID          uint64
-	data        *DKGData
-	b           *board.Board
-	suite       pairing.Suite
+	Data        *DKGData
+	Board       *board.Board
+	Suite       pairing.Suite
 	BroadcastF  func([]byte) error
 	Exchanges   map[uint64]*wire.Exchange
 	Deals       map[uint64]*dkg.DealBundle
@@ -128,8 +135,12 @@ type LocalOwner struct {
 	done        chan struct{}
 	RSAPub      *rsa.PublicKey
 	DB          *kv.BadgerDB
+	RSAPub      *rsa.PublicKey
+	Owner       common.Address
+	Nonce       uint64
+	Done        chan struct{}
 }
-
+// OwnerOpts structure to pass parameters from Switch to LocalOwner structure
 type OwnerOpts struct {
 	Logger      *zap.Logger
 	ID          uint64
@@ -146,10 +157,11 @@ type OwnerOpts struct {
 	SecretShare *dkg.DistKeyShare
 }
 
+// New creates a LocalOwner structure. We create it for each new DKG ceremony.
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:      opts.Logger,
-		startedDKG:  make(chan struct{}, 1),
+		StartedDKG:  make(chan struct{}, 1),
 		ErrorChan:   make(chan error, 1),
 		ID:          opts.ID,
 		BroadcastF:  opts.BroadcastF,
@@ -160,20 +172,24 @@ func New(opts OwnerOpts) *LocalOwner {
 		EncryptFunc: opts.EncryptFunc,
 		DecryptFunc: opts.DecryptFunc,
 		done:        make(chan struct{}, 1),
-		suite:       opts.Suite,
+		DB:          opts.DB,
 		RSAPub:      opts.RSAPub,
+		Done:        make(chan struct{}, 1),
+		Suite:       opts.Suite,
 		Owner:       opts.Owner,
 		Nonce:       opts.Nonce,
-		DB:          opts.DB,
 	}
 	return owner
 }
 
+// StartDKG initializes and starts DKG protocol
 func (o *LocalOwner) StartDKG() error {
 	o.Logger.Info("Starting DKG")
 	nodes := make([]dkg.Node, 0)
+	// Create nodes using public points of all operators participating in the protocol
+	// Each operator creates a random secret/public points at G1 when initiating new LocalOwner instance
 	for id, e := range o.Exchanges {
-		p := o.suite.G1().Point()
+		p := o.Suite.G1().Point()
 		if err := p.UnmarshalBinary(e.PK); err != nil {
 			return err
 		}
@@ -192,20 +208,20 @@ func (o *LocalOwner) StartDKG() error {
 		Identifier: o.data.ReqID[:],
 		Secret:     o.data.Secret,
 		NewNodes:   nodes,
-		Suite:      o.suite,
+		Suite:      o.Suite,
 		T:          int(o.data.Init.T),
-		Board:      o.b,
-		Logger:     o.Logger,
+		Board:      o.Board,
+		Logger:     o.Logger
 	})
 	if err != nil {
 		return err
 	}
-
+	// Wait when the protocol exchanges finish and process the result
 	go func(p *dkg.Protocol, postF func(res *dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
 		postF(&res)
 	}(p, o.PostDKG)
-	close(o.startedDKG)
+	close(o.StartedDKG)
 	return nil
 }
 
@@ -363,6 +379,7 @@ func (o *LocalOwner) PushDealsOldNodes() error {
 	return nil
 }
 
+// Function to send signed messages back to initiator
 func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	bts, err := ts.MarshalSSZ()
 	if err != nil {
@@ -388,6 +405,8 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	return o.BroadcastF(final)
 }
 
+// PostDKG stores the resulting key share, convert it to BLS points acceptable by ETH2 
+// and creates the Result structure to send back to initiator
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if res.Error != nil {
 		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
@@ -428,7 +447,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 	// Get validator BLS public key from result
-	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.suite.G1().(dkg.Suite))
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(dkg.Suite))
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -451,7 +470,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 			ID:     o.ID,
 			Secret: hex.EncodeToString(encBin),
 		}
-		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.data.ReqID[:]), &data)
+		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.Data.ReqID[:]), &data)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -484,12 +503,12 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 
 	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
-	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.data.Init.WithdrawalCredentials)))
-	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.data.Init.Fork[:])))
+	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.Data.Init.WithdrawalCredentials)))
+	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.Data.Init.Fork[:])))
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.Init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.Init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -514,7 +533,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	out := Result{
-		RequestID:                  o.data.ReqID,
+		RequestID:                  o.Data.ReqID,
 		EncryptedShare:             ciphertext,
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
@@ -674,23 +693,25 @@ func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
 
 	tsMsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
-		Identifier: o.data.ReqID,
+		Identifier: o.Data.ReqID,
 		Data:       encodedOutput,
 	}
 
 	o.Broadcast(tsMsg)
-	close(o.done)
+	close(o.Done)
 	return nil
 }
 
+// Init function creates an interface for DKG (Board) which process protocol messages
+// Here we randomly create a point at G1 as a DKG public key for the node
 func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
-	if o.data == nil {
-		o.data = &DKGData{}
+	if o.Data == nil {
+		o.Data = &DKGData{}
 	}
-	o.data.Init = init
-	o.data.ReqID = reqID
-	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.ReqID[:])))
-	o.b = board.NewBoard(
+	o.Data.Init = init
+	o.Data.ReqID = reqID
+	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.Data.ReqID[:])))
+	o.Board = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
 			kyberLogger.Debug("server: broadcasting kyber message")
@@ -701,7 +722,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 
 			trsp := &wire.Transport{
 				Type:       wire.KyberMessageType,
-				Identifier: o.data.ReqID,
+				Identifier: o.Data.ReqID,
 				Data:       byts,
 			}
 
@@ -715,10 +736,10 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 			return nil
 		},
 	)
-
-	eciesSK, pk := InitSecret(o.suite)
-	o.data.Secret = eciesSK
-	bts, _, err := CreateExchange(pk, nil)
+	// Generate random k scalar (secret) and corresponding public key k*G where G is a G1 generator
+	eciesSK, pk := InitSecret(o.Suite)
+	o.Data.Secret = eciesSK
+	bts, _, err := CreateExchange(pk)
 	if err != nil {
 		return nil, err
 	}
@@ -767,22 +788,26 @@ func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare
 	return ReshareExchangeWireMessage(bts, reqID), nil
 }
 
+// processDKG after receiving a kyber message type at /dkg route
+// KyberDealBundleMessageType - message that contains all the deals and the public polynomial from participating party
+// KyberResponseBundleMessageType - status for the deals received at deal bundle
+// KyberJustificationBundleMessageType - all justifications for each complaint for received deals bundles
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
 		return err
 	}
 
-	o.Logger.Debug(fmt.Sprintf("operator: recieved kyber msg of type %v, from %v", kyberMsg.Type.String(), from))
+	o.Logger.Debug("operator: received kyber msg", zap.String("type", kyberMsg.Type.String()), zap.Uint64("from", from))
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
-		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.suite.G1().(dkg.Suite))
+		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(dkg.Suite))
 		if err != nil {
 			return err
 		}
 		o.Logger.Debug("operator: received deal bundle from", zap.Uint64("ID", from))
-		o.b.DealC <- *b
+		o.Board.DealC <- *b
 	case wire.KyberResponseBundleMessageType:
 
 		b, err := wire.DecodeResponseBundle(kyberMsg.Data)
@@ -790,20 +815,21 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 		o.Logger.Debug("operator: received response bundle from", zap.Uint64("ID", from))
-		o.b.ResponseC <- *b
+		o.Board.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
-		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.suite.G1().(dkg.Suite))
+		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.Suite.G1().(dkg.Suite))
 		if err != nil {
 			return err
 		}
 		o.Logger.Debug("operator: received justification bundle from", zap.Uint64("ID", from))
-		o.b.JustificationC <- *b
+		o.Board.JustificationC <- *b
 	default:
 		return fmt.Errorf("unknown kyber message type")
 	}
 	return nil
 }
 
+// Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
@@ -827,13 +853,11 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 		o.Exchanges[from] = exchMsg
 
-		for _, op := range o.data.Init.Operators {
-			if o.Exchanges[op.ID] == nil {
-				return nil
+		// check if have all participating operators pub keys, then start dkg protocol
+		if o.checkOperators() {
+			if err := o.StartDKG(); err != nil {
+				return err
 			}
-		}
-		if err := o.StartDKG(); err != nil {
-			return err
 		}
 	case wire.ReshareExchangeMessageType:
 		exchMsg := &wire.Exchange{}
@@ -917,7 +941,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		}
 
 	case wire.KyberMessageType:
-		<-o.startedDKG
+		<-o.StartedDKG
 		return o.processDKG(from, t)
 	default:
 		return fmt.Errorf("unknown message type")
@@ -925,6 +949,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	return nil
 }
 
+// InitSecret generates a random scalar and computes public point k*G where G is a generator of the field
 func InitSecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
 	eciesSK := suite.G1().Scalar().Pick(random.New())
 	pk := suite.G1().Point().Mul(eciesSK, nil)
@@ -948,6 +973,7 @@ func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, err
 	return exchByts, &exch, nil
 }
 
+// ExchangeWireMessage creates a transport message with operator DKG public key
 func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 	return &wire.Transport{
 		Type:       wire.ExchangeMessageType,
@@ -964,6 +990,7 @@ func ReshareExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport
 	}
 }
 
+// get network name by fork identity bytes
 func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	switch fork {
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
@@ -975,16 +1002,26 @@ func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	}
 }
 
+// broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
 	errMsgEnc, _ := json.Marshal(err.Error())
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
-		Identifier: o.data.ReqID,
+		Identifier: o.Data.ReqID,
 		Data:       errMsgEnc,
 	}
-
 	o.Broadcast(errMsg)
-	close(o.done)
+	close(o.Done)
+}
+
+// checkOperators checks that operator received all participating parties DKG public keys 
+func (o *LocalOwner) checkOperators() bool {
+	for _, op := range o.Data.Init.Operators {
+		if o.Exchanges[op.ID] == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (o *LocalOwner) GetLocalOwner() *LocalOwner {

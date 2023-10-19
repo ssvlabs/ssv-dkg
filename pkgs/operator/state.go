@@ -22,6 +22,9 @@ import (
 	bls3 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
+	bls3 "github.com/drand/kyber-bls12381"
 	"go.uber.org/zap"
 )
 
@@ -32,6 +35,7 @@ var ErrMissingInstance = errors.New("got message to instance that I don't have, 
 var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
+// Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error
 	ReadResponse() []byte
@@ -40,13 +44,15 @@ type Instance interface {
 	GetLocalOwner() *dkg.LocalOwner
 }
 
+// instWrapper wraps LocalOwner instance with RSA public key
 type instWrapper struct {
-	*dkg.LocalOwner
-	InitiatorPublicKey *rsa.PublicKey
-	respChan           chan []byte
-	errChan            chan error
+	*dkg.LocalOwner // main DKG ceremony instance 
+	InitiatorPublicKey *rsa.PublicKey // initiator's RSA public key to verify its identity. Makes sure that in the DKG process messages received only from one initiator who started it.
+	respChan           chan []byte // channel to receive response 
+	errChan            chan error // channel to receive error 
 }
 
+// VerifyInitiatorMessage verifies initiator message signature 
 func (iw *instWrapper) VerifyInitiatorMessage(msg []byte, sig []byte) error {
 	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
 	if err != nil {
@@ -59,9 +65,12 @@ func (iw *instWrapper) VerifyInitiatorMessage(msg []byte, sig []byte) error {
 	return nil
 }
 
+// ReadResponse reads from response channel
 func (iw *instWrapper) ReadResponse() []byte {
 	return <-iw.respChan
 }
+
+// ReadError reads from error channel
 func (iw *instWrapper) ReadError() error {
 	return <-iw.errChan
 }
@@ -69,10 +78,18 @@ func (iw *instWrapper) ReadError() error {
 type InstanceID [24]byte
 
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+// InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
+type InstanceID [24]byte
+
+// CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
+// new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies. 
+func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+
 	verify, err := s.CreateVerifyFunc(init.Operators)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	operatorID := uint64(0)
 	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
@@ -85,10 +102,13 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 			break
 		}
 	}
+
 	if operatorID == 0 {
 		return nil, nil, fmt.Errorf("my operator is missing inside the operators list at instance")
 	}
+
 	bchan := make(chan []byte, 1)
+
 	broadcast := func(msg []byte) error {
 		bchan <- msg
 		return nil
@@ -183,17 +203,22 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
 }
 
+// Sign creates a RSA signature for the message at operator before sending it to initiator
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
 	return crypto.SignRSA(s.PrivateKey, msg)
 }
 
+// Encrypt with RSA public key private DKG share key
 func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
 	return rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, msg)
 }
 
+// Decrypt with RSA private key private DKG share key
 func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
 }
+
+// CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
@@ -212,19 +237,18 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 	}, nil
 }
 
+// Switch structure to hold many instances created for separate DKG ceremonies
 type Switch struct {
 	Logger           *zap.Logger
-	Mtx              sync.RWMutex
-	InstanceInitTime map[InstanceID]time.Time
-	Instances        map[InstanceID]Instance
-
-	PrivateKey *rsa.PrivateKey
+	Mtx              sync.RWMutex 
+	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
+	Instances        map[InstanceID]Instance // mapping to store DKG instances
+	PrivateKey       *rsa.PrivateKey // operator RSA private key
 	DB         *kv.BadgerDB
-
-	//broadcastF func([]byte) error
 }
 
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB) *Switch {
+// NewSwitch creates a new Switch
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -235,6 +259,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB) *Switch 
 	}
 }
 
+// InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
@@ -422,6 +447,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	return resp, nil
 }
 
+// CleanInstances removes all instances at Switch
 func (s *Switch) CleanInstances() int {
 	count := 0
 	for id, instime := range s.InstanceInitTime {
@@ -434,6 +460,7 @@ func (s *Switch) CleanInstances() int {
 	return count
 }
 
+// ProcessMessage processes incoming message to /dkg route
 func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	// get instanceID
 	st := &wire.MultipleSignedTransports{}

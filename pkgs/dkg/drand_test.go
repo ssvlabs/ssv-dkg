@@ -17,11 +17,22 @@ import (
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
+	"crypto/rand"
+	"crypto/rsa"
+	mrand "math/rand"
+	"testing"
+
+	"github.com/bloxapp/ssv/utils/rsaencryption"
+	"github.com/drand/kyber"
+	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 type testVerify struct {
@@ -234,7 +245,7 @@ func TestDKG(t *testing.T) {
 	})
 	require.NoError(t, err)
 	err = ts.ForAll(func(o *LocalOwner) error {
-		<-o.startedDKG
+		<-o.StartedDKG
 		return nil
 	})
 
@@ -242,7 +253,7 @@ func TestDKG(t *testing.T) {
 
 	pubs := make(map[uint64]kyber.Point)
 	err = ts.ForAll(func(o *LocalOwner) error {
-		<-o.done
+		<-o.Done
 		pubs[o.ID] = o.SecretShare.Public()
 		return nil
 	})
