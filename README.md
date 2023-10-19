@@ -15,6 +15,7 @@
         - [Build](#build)
         - [Launch with command line parameters](#launch-with-command-line-parameters)
         - [Launch with YAML config file](#launch-with-yaml-config-file)
+      - [Key resharing](#Key-resharing)
     - [Deposit and register Validator](#deposit-and-register-validator)
     - [Troubleshooting](#troubleshooting)
       - [dial tcp timeout](#dial-tcp-timeout)
@@ -228,9 +229,8 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
-          --fork "mainnet" \
-          --depositResultsPath deposit.json \
-          --ssvPayloadResultsPath payload.json \
+          --network "mainnet" \
+          --outputPath /output \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
           --logLevel info \
@@ -249,7 +249,7 @@ Here's an explanation of each parameter:
 | --owner                    | address                                   | Owner address for the SSV contract                                                                 |
 | --nonce                    | int                                       | Owner nonce for the SSV contract                                                                   |
 | --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                           |
-| --network                  | mainnet / prater / now_test_network       | Network name (default: `mainnet`)                                                                  |
+| --network                  | mainnet / prater / pyrmont                | Network name (default: `mainnet`)                                                                  |
 | --outputPath               | string                                    | Path to store the output files                                                                     |
 | --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
 | --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |
@@ -312,6 +312,48 @@ ssv-dkg init --configPath ./initiator-config/initiator.yaml
 ```
 
 If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `config.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/config.yaml`)
+
+#### Key resharing
+
+Using DKG tool is possible to reshare existing validator key to a new set of operators. 
+
+The Initiator creates the initial details needed to run DKG between all operators via the init command. You can launch the following command with the appropriate values to each parameter:
+```sh
+ssv-dkg reshare \
+          --operatorIDs 1,2,3,4 \
+          --newOperatorIDs 5, 6, 7, 8 \
+          --oldID "dbd12b3155454666a6710a2262695bb82cda41948d612d98" \
+          --operatorsInfoPath ./examples/operators_integration.json \
+          # Alternatively:
+          # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
+          --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
+          --nonce 4 \
+          --network "mainnet" \
+          --outputPath /output \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
+```
+
+Here's an explanation of each parameter:
+
+| Argument                   | type                                      | description                                                                                        |
+| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| --operatorIDs              | int[]                                     | Old operator IDs participated at initial or resharing DKG ceremony                                 |
+| --newOperatorIDs           | int[]                                     | New operator IDs which will have private shares for an existing validator                          |
+| --oldID                    | string                                    | HEX of previous DKG ceremony ID. Can be found at the keyshares-[validator pk]-[ID].json            |
+
+
+Under the assumption that all the necessary files (`operators_info.json`, `encrypted_private_key.json`, `password`) are under the same folder (represented below with `<PATH_TO_FOLDER_WITH_CONFIG_FILES>`) you can run the tool using the command below:
+
+```sh
+docker run --name ssv_dkg_reshare \
+-v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+"ssv-dkg:latest" /app reshare --configPath /data/reshare.yaml
+```
 
 ### Deposit and register Validator
 
@@ -446,6 +488,7 @@ ssv-dkg start-operator \
             --logFormat json \
             --logLevelFormat capitalColor \
             --logFilePath ./operator-config/debug.log
+            --DBPath ./output/operator1_db/
 ```
 
 Here's an explanation of each parameter:
@@ -460,6 +503,7 @@ Here's an explanation of each parameter:
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
 | --logFilePath    | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                           |
+| --DBPath         | string                                    | Path to folder where Badger DB should be written (default: `./data/db.log`)                       |
 
 ##### Launch with YAML config file
 
