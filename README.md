@@ -20,6 +20,8 @@
       - [dial tcp timeout](#dial-tcp-timeout)
       - [invalid URI for request](#invalid-uri-for-request)
       - [connection refused](#connection-refused)
+      - [`Please provide either private key path or generate command`](#please-provide-either-private-key-path-or-generate-command)
+      - [`Please provide either operator info string or path`](#please-provide-either-operator-info-string-or-path)
   - [Operator Quick start](#operator-quick-start)
     - [Pre requisites](#pre-requisites)
     - [Start a DKG-operator](#start-a-dkg-operator)
@@ -159,7 +161,7 @@ Under the assumption that all the necessary files (`operators_info.json`, `encry
 ```sh
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"ssv-dkg:latest" /app init --generateInitiatorKey \
+"bloxstaking/ssv-dkg:latest" /app init --generateInitiatorKey \
 --configPath /data/initiator.yaml && \
 docker rm ssv_dkg_initiator
 ```
@@ -318,6 +320,7 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 When the `ssv-dkg` tool is launched as shown above, it will commence a DKG ceremony with the selected operators, which will end in the creation of two files:
 * a deposit JSON file - necessary to perform the transaction on the Deposit contract and activate the validator on the Beacon layer
 * a key shares JSON file - necessary to register the validator on the ssv.network
+
 ### Troubleshooting
 
 #### dial tcp timeout
@@ -339,6 +342,17 @@ You could manually verify the `operators_info.json` or the initiator command-gen
 When this error appears, it means that the `ssv-dkg` tool cannot connect to one of the selected operators, and the reason could be because their `ssv-dkg` operator node has shut down.
 This could be temporary, as they will likely start the node again, but if it persists, we recommend changing one of the operators.
 
+#### `Please provide either private key path or generate command`
+```sh
+2023-10-18T12:06:01.946194Z     FATAL   dkg-initiator   😥 Please provide either private key path or generate command, not both
+```
+This error appears when the `generateInitiatorKey` argument has been used in conjunction with the `initiatorPrivKey` and the `initiatorPrivKeyPassword`. These options are mutually exclusive, so please remove one or the other from your YAML config file, or from the command used to launch the initiator.
+
+#### `Please provide either operator info string or path`
+```sh
+2023-10-18T12:14:52.667985Z     FATAL   dkg-initiator   😥 Please provide either operator info string or path, not both
+```
+This error appears when the `operatorsInfo` argument has been used in conjunction with the `operatorsInfoPath`. These options are mutually exclusive, so please remove one or the other from your YAML config file, or from the command used to launch the initiator.
 
 ## Operator Quick start
 
@@ -402,7 +416,7 @@ Under the assumption that all the necessary files (`encrypted_private_key.json`,
 ```sh
 docker run --restart unless-stopped --name ssv_dkg -p 3030:3030  \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"ssv-dkg:latest" /app start-operator --configPath /data/operator.yaml
+"bloxstaking/ssv-dkg:latest" /app start-operator --configPath /data/operator.yaml
 ```
 
 Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.
