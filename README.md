@@ -29,6 +29,7 @@
         - [Launch with command line parameters](#launch-with-command-line-parameters-1)
         - [Launch with YAML config file](#launch-with-yaml-config-file-1)
     - [Update Operator metadata](#update-operator-metadata)
+  - [Example](#example)
   - [Flow Description:](#flow-description)
     - [Note on DKG instance management](#note-on-dkg-instance-management)
   - [Security notes](#security-notes)
@@ -135,12 +136,13 @@ owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the
 nonce: 0    # Owner nonce for the SSV contract
 network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: /data/operators_info.json    # Path to the file containing operators information
-# alternatively:
+# Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-outputPath: /data/    # Path to store the output files
+outputPath: /data/output   #  Path to store the resulting staking deposit and ssv contract payload files
 initiatorPrivKey: /data/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: /data/password    # Path to password file to decrypt the key
-generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
+# Alternatively:
+# generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
@@ -182,17 +184,22 @@ You can, of course, change the configuration above to one that suits you better,
 
   #### Generate Initiator identity RSA key pair
 
-  To generate Initiator RSA keys, launch the following command, replacing `<PASSWORD>` with the same one you used in the previous command:
+    To generate Initiator RSA keys, make sure to update `initiator.yaml`:
+  ```yaml
+  # initiatorPrivKey: /data/encrypted_private_key.json  
+  initiatorPrivKeyPassword: /data/password    # Path to password file
+  generateInitiatorKey: true 
+  ```
+  Run:
+
   ```sh
-  docker run --name ssv-node-key-generation \
-  -v "$(pwd)/password":/password \
-  -it bloxstaking/ssv-node:latest \
-  /go/bin/ssvnode generate-operator-keys --password-file=/password && \
-  docker cp ssv-node-key-generation:/encrypted_private_key.json \
-  ./encrypted_private_key.json && docker rm ssv-node-key-generation
+  docker run --name ssv_dkg_initiator \
+  -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+  "ssv-dkg:latest" /app init --configPath /data/initiator.yaml && \
+  docker rm ssv_dkg_initiator
   ```
 
-  This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
+  This will create `encrypted_private_key-<VALIDATOR_PUBKEY>.json` with encrypted by password RSA key pair.
 </details>
 
 #### Build from source
@@ -229,10 +236,11 @@ ssv-dkg init \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
           --fork "mainnet" \
-          --depositResultsPath deposit.json \
-          --ssvPayloadResultsPath payload.json \
+          --outputPath /output \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
+          # Alternatively:
+          # generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
@@ -253,7 +261,7 @@ Here's an explanation of each parameter:
 | --outputPath               | string                                    | Path to store the output files                                                                     |
 | --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
 | --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |
-| --generateInitiatorKey     | boolean                                   | If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath` |
+| --generateInitiatorKey     | boolean                                   | Generates a new RSA key pair + random secure password. Result stored at `outputPath` (default: `false`)|
 | --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                              |
 | --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                                |
 | --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                    |
@@ -289,11 +297,13 @@ owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the
 nonce: 0    # Owner nonce for the SSV contract
 fork: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: ./initiator-config/operators_info.json    # Path to the file containing operators information
-operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-depositResultsPath: ./initiator-config/    # Path to store the staking deposit file
-ssvPayloadResultsPath: ./initiator-config/    # Path to store ssv contract payload file
+# Alternatively:
+# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
+outputPath: ./output    # Path to store the resulting staking deposit and ssv contract payload files
 initiatorPrivKey: ./initiator-config/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: ./initiator-config/password    # Path to password file to decrypt the key
+# Alternatively:
+# generateInitiatorKey: true # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
@@ -502,6 +512,25 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 Once the DKG tool is up and running, please make sure to update your operator metadata, and provide your DKG Operator endpoint, in the form of `protocol:ip:port` (if you have a domain name, instead of an `ip` that works as well).
 
 Please head over to [the Operator User guide on how to update metadata](https://docs.ssv.network/operator-user-guides/operator-management/setting-operator-metadata) and follow the instructions
+
+## Example
+
+To run localy an example with 4 operators. Configuration files: `examples/config`
+
+1. Build the image
+```sh
+make docker-build-image # build the Docker image
+```
+2. Run 4 operators locally
+```sh
+make docker-demo-operators # run 4 local operators
+```
+3. In a separate terminal window, run inititator
+```sh
+make docker-demo-initiator # run 1 local initiator
+```
+
+Results will be placed to `examples/output`
 
 ## Flow Description:
 

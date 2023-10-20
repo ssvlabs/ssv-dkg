@@ -202,20 +202,20 @@ var StartDKG = &cobra.Command{
 		var privateKey *rsa.PrivateKey
 		var encryptedRSAJSON []byte
 		var password string
-		pass := viper.GetString("initiatorPrivKeyPassword")
+		passwordFilePath := viper.GetString("initiatorPrivKeyPassword")
 		if privKeyPath != "" && !generateInitiatorKey {
 			logger.Info("🔑 opening initiator RSA private key file")
-			if pass != "" {
-				logger.Info("🔑 password for key provided - decrypting")
+			if passwordFilePath != "" {
+				logger.Info("🔑 path to password file is provided - decrypting")
 				// check if a password string a valid path, then read password from the file
-				if _, err := os.Stat(pass); os.IsNotExist(err) {
+				if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
 					logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
 				}
 				encryptedRSAJSON, err := os.ReadFile(privKeyPath)
 				if err != nil {
 					logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
 				}
-				keyStorePassword, err := os.ReadFile(pass)
+				keyStorePassword, err := os.ReadFile(passwordFilePath)
 				if err != nil {
 					logger.Fatal("😥 Error reading password file: ", zap.Error(err))
 				}
@@ -237,16 +237,28 @@ var StartDKG = &cobra.Command{
 			if err != nil {
 				logger.Fatal("Failed to generate operator keys", zap.Error(err))
 			}
-			password, err = crypto.GenerateSecurePassword()
-			if err != nil {
-				logger.Fatal("Failed to generate operator keys", zap.Error(err))
+			if passwordFilePath != "" {
+				logger.Info("🔑 path to password file is provided")
+				// check if a password string a valid path, then read password from the file
+				if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
+					logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
+				}
+				keyStorePassword, err := os.ReadFile(passwordFilePath)
+				if err != nil {
+					logger.Fatal("😥 Error reading password file: ", zap.Error(err))
+				}
+				password = string(keyStorePassword)
+			} else {
+				password, err = crypto.GenerateSecurePassword()
+				if err != nil {
+					logger.Fatal("Failed to generate operator keys", zap.Error(err))
+				}
 			}
 			logger.Info("Generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
 			encryptedData, err := keystorev4.New().Encrypt(priv, password)
 			if err != nil {
 				logger.Fatal("Failed to encrypt private key", zap.Error(err))
 			}
-
 			encryptedRSAJSON, err = json.Marshal(encryptedData)
 			if err != nil {
 				logger.Fatal("Failed to marshal encrypted data to JSON", zap.Error(err))
@@ -315,10 +327,12 @@ var StartDKG = &cobra.Command{
 			if err != nil {
 				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
 			}
-			rsaKeyPasswordPath := fmt.Sprintf("%s/password-%v.txt", outputPath, depositData.PubKey)
-			err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0644)
-			if err != nil {
-				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+			if passwordFilePath == "" {
+				rsaKeyPasswordPath := fmt.Sprintf("%s/password-%v.txt", outputPath, depositData.PubKey)
+				err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0644)
+				if err != nil {
+					logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+				}
 			}
 			logger.Info("Private key encrypted and stored at", zap.String("path", outputPath))
 		}
