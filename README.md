@@ -235,6 +235,8 @@ ssv-dkg init \
           --ssvPayloadResultsPath payload.json \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
+          # Alternatively:
+          # --generateInitiatorKey
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
@@ -296,6 +298,7 @@ depositResultsPath: ./initiator-config/    # Path to store the staking deposit f
 ssvPayloadResultsPath: ./initiator-config/    # Path to store ssv contract payload file
 initiatorPrivKey: ./initiator-config/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: ./initiator-config/password    # Path to password file to decrypt the key
+generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
