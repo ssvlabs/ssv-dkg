@@ -296,7 +296,7 @@ operatorIDs: [143, 219, 33, 34]    # array of Operator IDs which will be used fo
 withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4"    # Address where reward payments for the validator are sent
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0    # Owner nonce for the SSV contract
-fork: "prater"    # Network name (default: mainnet)
+network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: ./initiator-config/operators_info.json    # Path to the file containing operators information
 # Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
