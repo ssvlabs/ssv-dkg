@@ -403,6 +403,7 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/debug.log
+outputPath: ./output
 ```
 
 > ℹ️ In the config file above, `/data/` represents the container's shared volume created by the docker command itself with the `-v` option.
@@ -455,7 +456,8 @@ ssv-dkg start-operator \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./operator-config/debug.log
+            --logFilePath ./operator-config/debug.log \
+            --outputPath /output
 ```
 
 Here's an explanation of each parameter:
@@ -466,10 +468,11 @@ Here's an explanation of each parameter:
 | --port           | int                                       | Port for listening messages (default: `3030`)                                                     |
 | --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)              |
 | --storeShare     | boolean                                   | Whether to store the created bls key share to a file for later reuse if needed (default: `false`) |
+| --outputPath              | string                                    | Path to store the output files (ecrypted share)                                                                     |
 | --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                             |
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
-| --logFilePath    | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                           |
+| --operatorLogFilePath    | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                          |
 
 ##### Launch with YAML config file
 
@@ -496,6 +499,7 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: ./operator-config/debug.log
+outputPath: ./output
 ```
 
 Then the tool can be launched from the root folder, by running this command:

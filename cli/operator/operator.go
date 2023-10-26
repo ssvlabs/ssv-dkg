@@ -8,6 +8,7 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 
 	"github.com/bloxapp/ssv/logging"
@@ -25,6 +26,7 @@ func init() {
 	flags.LogLevelFlag(StartDKGOperator)
 	flags.LogFormatFlag(StartDKGOperator)
 	flags.LogLevelFormatFlag(StartDKGOperator)
+	flags.ResultPathFlag(StartDKGOperator)
 	flags.LogFilePathFlag(StartDKGOperator)
 	if err := viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey")); err != nil {
 		panic(err)
@@ -36,6 +38,9 @@ func init() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("storeShare", StartDKGOperator.PersistentFlags().Lookup("storeShare")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("outputPath", StartDKGOperator.PersistentFlags().Lookup("outputPath")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("logLevel", StartDKGOperator.PersistentFlags().Lookup("logLevel")); err != nil {
@@ -77,9 +82,16 @@ var StartDKGOperator = &cobra.Command{
 			}
 			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath"))
+		viper.BindPFlag("storeShare", cmd.Flags().Lookup("storeShare"))
+		dkg.OutputPath = viper.GetString("outputPath")
+		dkg.StoreShare = viper.GetBool("storeShare")
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logFilePath := viper.GetString("logFilePath")
 		if logFilePath == "" {
 			fmt.Print("⚠️ debug log path was not provided, using default: ./operator_debug.log \n")

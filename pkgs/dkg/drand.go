@@ -17,7 +17,6 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/board"
@@ -26,6 +25,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
+
+var OutputPath string
+var StoreShare bool
 
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
@@ -105,6 +107,7 @@ type LocalOwner struct {
 	Nonce       uint64
 	Done        chan struct{}
 }
+
 // OwnerOpts structure to pass parameters from Switch to LocalOwner structure
 type OwnerOpts struct {
 	Logger      *zap.Logger
@@ -211,7 +214,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	return o.BroadcastF(final)
 }
 
-// PostDKG stores the resulting key share, convert it to BLS points acceptable by ETH2 
+// PostDKG stores the resulting key share, convert it to BLS points acceptable by ETH2
 // and creates the Result structure to send back to initiator
 func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	if res.Error != nil {
@@ -238,16 +241,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 	// Store secret if requested
-	if viper.GetBool("storeShare") {
-		type shareStorage struct {
-			Index  int    `json:"index"`
-			Secret string `json:"secret"`
-		}
-		data := shareStorage{
-			Index:  res.Result.Key.Share.I,
-			Secret: secretKeyBLS.SerializeToHexStr(),
-		}
-		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.Data.ReqID[:]), &data)
+	if StoreShare {
+		err := o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, secretKeyBLS, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -517,7 +512,7 @@ func (o *LocalOwner) broadcastError(err error) {
 	close(o.Done)
 }
 
-// checkOperators checks that operator received all participating parties DKG public keys 
+// checkOperators checks that operator received all participating parties DKG public keys
 func (o *LocalOwner) checkOperators() bool {
 	for _, op := range o.Data.Init.Operators {
 		if o.Exchanges[op.ID] == nil {
@@ -525,4 +520,26 @@ func (o *LocalOwner) checkOperators() bool {
 		}
 	}
 	return true
+}
+
+func (o *LocalOwner) storeSecretShareToFile(outputPath string, index int, secretKeyBLS *bls.SecretKey, validatorPubKey *bls.PublicKey) error {
+	type shareStorage struct {
+		Index  int    `json:"index"`
+		Secret string `json:"secret"`
+	}
+	// Encrypt before storing to file
+	rawKey := secretKeyBLS.SerializeToHexStr()
+	encryptedSecretShare, err := o.EncryptFunc([]byte(rawKey))
+	if err != nil {
+		return fmt.Errorf("cant encrypt private share")
+	}
+	data := shareStorage{
+		Index:  index,
+		Secret: hex.EncodeToString(encryptedSecretShare),
+	}
+	err = utils.WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
+	if err != nil {
+		return err
+	}
+	return nil
 }

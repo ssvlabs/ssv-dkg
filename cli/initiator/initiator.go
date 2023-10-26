@@ -113,7 +113,8 @@ var StartDKG = &cobra.Command{
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
-		viper.SetDefault("logFilePath", "./initiator_debug.log")
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logFilePath := viper.GetString("logFilePath")
 		if logFilePath == "" {
 			fmt.Print("⚠️ debug log path was not provided, using default: ./initiator_debug.log \n")
@@ -128,6 +129,8 @@ var StartDKG = &cobra.Command{
 		}
 		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath"))
 		outputPath := viper.GetString("outputPath")
 		if outputPath == "" {
 			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
