@@ -111,11 +111,22 @@ var StartDKG = &cobra.Command{
 			}
 			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
+		// workaround for https://github.com/spf13/viper/issues/233
+		if err:=viper.BindPFlag("logLevel", cmd.Flags().Lookup("logLevel")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logFormat", cmd.Flags().Lookup("logFormat")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logLevelFormat", cmd.Flags().Lookup("logLevelFormat")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath")); err != nil {
+			return err
+		}
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
-		// workaround for https://github.com/spf13/viper/issues/233
-		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logFilePath := viper.GetString("logFilePath")
 		if logFilePath == "" {
 			fmt.Print("⚠️ debug log path was not provided, using default: ./initiator_debug.log \n")
@@ -131,7 +142,9 @@ var StartDKG = &cobra.Command{
 		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
 		// workaround for https://github.com/spf13/viper/issues/233
-		viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath"))
+		if err:=viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath")); err != nil {
+			return err
+		}
 		outputPath := viper.GetString("outputPath")
 		if outputPath == "" {
 			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
