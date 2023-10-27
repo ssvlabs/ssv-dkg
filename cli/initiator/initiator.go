@@ -110,11 +110,14 @@ var StartDKG = &cobra.Command{
 			}
 			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("logLevel", cmd.Flags().Lookup("logLevel"))
+		viper.BindPFlag("logFormat", cmd.Flags().Lookup("logFormat"))
+		viper.BindPFlag("logLevelFormat", cmd.Flags().Lookup("logLevelFormat"))
+		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
-		// workaround for https://github.com/spf13/viper/issues/233
-		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logFilePath := viper.GetString("logFilePath")
 		if logFilePath == "" {
 			fmt.Print("⚠️ debug log path was not provided, using default: ./initiator_debug.log \n")
