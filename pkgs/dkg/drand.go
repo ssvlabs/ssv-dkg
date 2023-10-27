@@ -48,9 +48,13 @@ type Operator struct {
 	Pubkey *rsa.PublicKey
 }
 
+// DKGData structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGData struct {
+	// Request ID formed by initiator to identify DKG ceremony
 	ReqID  [24]byte
+	// Initial message from initiator
 	Init   *wire.Init
+	// Randomly generated scalar to be used for DKG ceremony
 	Secret kyber.Scalar
 }
 
@@ -225,7 +229,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
 	o.SecretShare = res.Result.Key
-
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(dkg.Suite))
 	if err != nil {
@@ -233,7 +236,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
-
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
@@ -242,43 +244,24 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	}
 	// Store secret if requested
 	if StoreShare {
-		err := o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, secretKeyBLS, validatorPubKey)
+		ciphertext, err := o.encryptSecretShare(secretKeyBLS)
+		err = o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, ciphertext, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
 			return err
 		}
 	}
-
 	// Encrypt BLS share for SSV contract
-	rawshare := secretKeyBLS.SerializeToHexStr()
-	ciphertext, err := o.EncryptFunc([]byte(rawshare))
-	if err != nil {
-		o.broadcastError(err)
-		return fmt.Errorf("cant encrypt private share")
-	}
-	// check that we encrypt correctly
-	shareSecretDecrypted := &bls.SecretKey{}
-	decryptedSharePrivateKey, err := o.DecryptFunc(ciphertext)
+	ciphertext, err := o.encryptSecretShare(secretKeyBLS)
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-	if err = shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
-		o.broadcastError(err)
-		return err
-	}
-
-	if !bytes.Equal(shareSecretDecrypted.Serialize(), secretKeyBLS.Serialize()) {
-		o.broadcastError(err)
-		return err
-	}
-
 	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
 	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.Data.Init.WithdrawalCredentials)))
 	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.Data.Init.Fork[:])))
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
-
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
@@ -294,10 +277,6 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debug("Owner, Nonce", zap.String("owner", o.Owner.String()), zap.Uint64("nonce", o.Nonce))
 	o.Logger.Debug("SSV Keccak 256 hash of owner + nonce", zap.String("hash", fmt.Sprintf("%x", hash)))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
-	if err != nil {
-		o.broadcastError(err)
-		return err
-	}
 	// Verify partial SSV owner + nonce signature
 	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
 	if !val {
@@ -314,19 +293,16 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
 	}
-
 	encodedOutput, err := out.Encode()
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-
 	tsMsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.Data.ReqID,
 		Data:       encodedOutput,
 	}
-
 	o.Broadcast(tsMsg)
 	close(o.Done)
 	return nil
@@ -522,24 +498,42 @@ func (o *LocalOwner) checkOperators() bool {
 	return true
 }
 
-func (o *LocalOwner) storeSecretShareToFile(outputPath string, index int, secretKeyBLS *bls.SecretKey, validatorPubKey *bls.PublicKey) error {
+// storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
+func (o *LocalOwner) storeSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, validatorPubKey *bls.PublicKey) error {
 	type shareStorage struct {
 		Index  int    `json:"index"`
 		Secret string `json:"secret"`
-	}
-	// Encrypt before storing to file
-	rawKey := secretKeyBLS.SerializeToHexStr()
-	encryptedSecretShare, err := o.EncryptFunc([]byte(rawKey))
-	if err != nil {
-		return fmt.Errorf("cant encrypt private share")
 	}
 	data := shareStorage{
 		Index:  index,
 		Secret: hex.EncodeToString(encryptedSecretShare),
 	}
-	err = utils.WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
+	err := utils.WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// encryptSecretShare encrypts with RSA private key resulting DKG private key share 
+func (o *LocalOwner) encryptSecretShare(secretKeyBLS *bls.SecretKey) ([]byte, error) {
+	rawshare := secretKeyBLS.SerializeToHexStr()
+	ciphertext, err := o.EncryptFunc([]byte(rawshare))
+	if err != nil {
+		return nil, fmt.Errorf("cant encrypt private share")
+	}
+	// check that we encrypt correctly
+	shareSecretDecrypted := &bls.SecretKey{}
+	decryptedSharePrivateKey, err := o.DecryptFunc(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	if err = shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+		return nil, err
+	}
+
+	if !bytes.Equal(shareSecretDecrypted.Serialize(), secretKeyBLS.Serialize()) {
+		return nil, err
+	}
+	return ciphertext, nil
 }

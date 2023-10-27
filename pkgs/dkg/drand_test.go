@@ -11,7 +11,6 @@ import (
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -48,9 +47,7 @@ func (tv *testVerify) Verify(id uint64, msg, sig []byte) error {
 }
 
 type testState struct {
-	globalLogger *logrus.Entry
 	T            *testing.T
-	info         map[uint64]rsa.PublicKey
 	ops          map[uint64]*LocalOwner
 	tv           *testVerify
 }

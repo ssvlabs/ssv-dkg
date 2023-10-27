@@ -83,15 +83,27 @@ var StartDKGOperator = &cobra.Command{
 			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
 		}
 		// workaround for https://github.com/spf13/viper/issues/233
-		viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath"))
-		viper.BindPFlag("storeShare", cmd.Flags().Lookup("storeShare"))
+		if err:=viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("storeShare", cmd.Flags().Lookup("storeShare")); err != nil {
+			return err
+		}
 		dkg.OutputPath = viper.GetString("outputPath")
 		dkg.StoreShare = viper.GetBool("storeShare")
 		// workaround for https://github.com/spf13/viper/issues/233
-		viper.BindPFlag("logLevel", cmd.Flags().Lookup("logLevel"))
-		viper.BindPFlag("logFormat", cmd.Flags().Lookup("logFormat"))
-		viper.BindPFlag("logLevelFormat", cmd.Flags().Lookup("logLevelFormat"))
-		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
+		if err:=viper.BindPFlag("logLevel", cmd.Flags().Lookup("logLevel")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logFormat", cmd.Flags().Lookup("logFormat")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logLevelFormat", cmd.Flags().Lookup("logLevelFormat")); err != nil {
+			return err
+		}
+		if err:=viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath")); err != nil {
+			return err
+		}
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
