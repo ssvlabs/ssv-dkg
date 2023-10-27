@@ -19,7 +19,6 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/board"
@@ -27,6 +26,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
+
+var OutputPath string
+var StoreShare bool
 
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
@@ -452,16 +454,8 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 		return err
 	}
 	// Store secret if requested
-	if viper.GetBool("storeShare") {
-		type shareStorage struct {
-			ID     uint64 `json:"ID"`
-			Secret string `json:"secret"`
-		}
-		data := shareStorage{
-			ID:     o.ID,
-			Secret: hex.EncodeToString(encBin),
-		}
-		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.Data.ReqID[:]), &data)
+	if StoreShare {
+		err := o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, secretKeyBLS, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -606,16 +600,8 @@ func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
 		return err
 	}
 	// Store secret if requested
-	if viper.GetBool("storeShare") {
-		type shareStorage struct {
-			ID     uint64 `json:"ID"`
-			Secret string `json:"secret"`
-		}
-		data := shareStorage{
-			ID:     o.ID,
-			Secret: hex.EncodeToString(encBin),
-		}
-		err = utils.WriteJSON("./secret_share_"+hex.EncodeToString(o.Data.ReqID[:]), &data)
+	if StoreShare {
+		err := o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, secretKeyBLS, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -1069,4 +1055,26 @@ func (o *LocalOwner) GetDisjointNewOperators(oldOperators []*wire.Operator, newO
 		set = append(set, op)
 	}
 	return set
+}
+
+func (o *LocalOwner) storeSecretShareToFile(outputPath string, index int, secretKeyBLS *bls.SecretKey, validatorPubKey *bls.PublicKey) error {
+	type shareStorage struct {
+		Index  int    `json:"index"`
+		Secret string `json:"secret"`
+	}
+	// Encrypt before storing to file
+	rawKey := secretKeyBLS.SerializeToHexStr()
+	encryptedSecretShare, err := o.EncryptFunc([]byte(rawKey))
+	if err != nil {
+		return fmt.Errorf("cant encrypt private share")
+	}
+	data := shareStorage{
+		Index:  index,
+		Secret: hex.EncodeToString(encryptedSecretShare),
+	}
+	err = utils.WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
