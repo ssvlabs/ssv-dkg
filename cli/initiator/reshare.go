@@ -113,6 +113,8 @@ var StartReshare = &cobra.Command{
 		logLevel := viper.GetString("logLevel")
 		logFormat := viper.GetString("logFormat")
 		logLevelFormat := viper.GetString("logLevelFormat")
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath"))
 		logFilePath := viper.GetString("logFilePath")
 		// If the log file doesn't exist, create it
 		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -124,6 +126,8 @@ var StartReshare = &cobra.Command{
 		}
 		logger := zap.L().Named("dkg-initiator")
 		// Check paths for results
+		// workaround for https://github.com/spf13/viper/issues/233
+		viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath"))
 		outputPath := viper.GetString("outputPath")
 		if outputPath == "" {
 			logger.Fatal("😥 Failed to get deposit result path flag value: ", zap.Error(err))
