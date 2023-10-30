@@ -27,6 +27,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -387,7 +388,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 
 func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators []*wire.Operator, newOperators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending reshare message to old operators")
-	allOps := c.JoinSets(oldOperators, newOperators)
+	allOps := utils.JoinSets(oldOperators, newOperators)
 	results, err := c.SendReshareMsg(reshare, newID, allOps)
 	if err != nil {
 		return nil, err
@@ -935,36 +936,4 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 		}
 	}
 	return opmap, nil
-}
-
-// GetThreshold computes threshold from amount of operators following 3f+1 tolerance
-func (c *Initiator) GetThreshold(ids []uint64) (int, error) {
-	if len(ids) < 4 {
-		return 0, fmt.Errorf("minimum supported amount of operators is 4")
-	}
-	// limit amount of operators
-	if len(ids) > 13 {
-		return 0, fmt.Errorf("maximum supported amount of operators is 13")
-	}
-	threshold := len(ids) - ((len(ids) - 1) / 3)
-	return threshold, nil
-}
-
-func (c *Initiator) JoinSets(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range oldOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
 }

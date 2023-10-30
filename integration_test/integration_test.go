@@ -26,6 +26,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 )
 
 const encryptedKeyLength = 256
@@ -194,7 +195,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := clnt.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
+		threshold, err := utils.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
 		require.NoError(t, err)
 		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
@@ -214,7 +215,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := clnt.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+		threshold, err := utils.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 		require.NoError(t, err)
 		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
@@ -234,7 +235,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := clnt.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7})
+		threshold, err := utils.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7})
 		require.NoError(t, err)
 		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
@@ -500,45 +501,6 @@ func TestReshareHappyFlow(t *testing.T) {
 		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-	})
-	t.Run("test reshare chain 4 new operators: initial 4 -> 4 new -> 5 new", func(t *testing.T) {
-		id := crypto.NewID()
-		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
-		reshareOpIds1 := []uint64{5, 6, 7, 8}
-		reshareId1 := crypto.NewID()
-		ks, err = i.StartReshare(reshareId1, id, ids, reshareOpIds1, owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Payload.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		reshareOpIds2 := []uint64{9, 10, 11, 12, 13}
-		reshareId2 := crypto.NewID()
-		ks, err = i.StartReshare(reshareId2, reshareId1, reshareOpIds1, reshareOpIds2, owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Payload.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
 	srv1.HttpSrv.Close()

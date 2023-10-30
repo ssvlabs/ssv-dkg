@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-//  WriteJSON writes data to JSON file
+// WriteJSON writes data to JSON file
 func WriteJSON(filepath string, data any) error {
 	file, err := os.Create(filepath)
 	if err != nil {
@@ -53,4 +54,37 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 		chunks = append(chunks, buf[:])
 	}
 	return chunks
+}
+
+// GetThreshold computes threshold from amount of operators following 3f+1 tolerance
+func GetThreshold(ids []uint64) (int, error) {
+	if len(ids) < 4 {
+		return 0, fmt.Errorf("minimum supported amount of operators is 4")
+	}
+	// limit amount of operators
+	if len(ids) > 13 {
+		return 0, fmt.Errorf("maximum supported amount of operators is 13")
+	}
+	threshold := len(ids) - ((len(ids) - 1) / 3)
+	return threshold, nil
+}
+
+// JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
+func JoinSets(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+	tmp := make(map[uint64]*wire.Operator)
+	var set []*wire.Operator
+	for _, op := range oldOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range tmp {
+		set = append(set, op)
+	}
+	return set
 }

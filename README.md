@@ -330,7 +330,9 @@ Using DKG tool is possible to reshare existing validator key to a new set of ope
 
 ⚠️ Note: all operators (ols set and new set) should be online to complete the resharing protocol. 
 
-⚠️ Note: new threshold will be computed based on new set of operators using 3f+1 tolerance. 
+⚠️ Note: new threshold will be computed based on a new set of operators using 3f+1 tolerance. 
+
+⚠️ Note: generating a new RSA key pair is not possible at resharing. It is assumed that the inititators RSA key is already exists. 
 
 The Initiator creates the initial details needed to run DKG between all operators via the init command. You can launch the following command with the appropriate values to each parameter:
 ```sh
@@ -343,7 +345,6 @@ ssv-dkg reshare \
           # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
-          --network "mainnet" \
           --outputPath /output \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
@@ -442,8 +443,8 @@ operator-config
 With this configuration, a typical configuration file would look like this:
 
 ```yaml
-privKey: /data/encrypted_private_key.json
-password: /data/password
+operatorPrivKey: /data/encrypted_private_key.json
+operatorPrivKeyPassword: /data/password
 port: 3030
 storeShare: true
 logLevel: info
@@ -496,9 +497,9 @@ To run the DKG tool as an operator, you can launch the following command with th
 
 ```sh
 ssv-dkg start-operator \
-            --privKey ./operator-config/encrypted_private_key.json  \
+            --operatorPrivKey ./operator-config/encrypted_private_key.json  \
+            --operatorPrivKeyPassword ./operator-config/password \
             --port 3030 \
-            --password ./operator-config/password \
             --storeShare true \
             --logLevel info \
             --logFormat json \

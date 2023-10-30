@@ -1,5 +1,5 @@
-privKey: /data/operator6/encrypted_private_key.json
-password: /data/operator6/password
+operatorPrivKey: /data/operator6/encrypted_private_key.json
+operatorPrivKeyPassword: /data/operator6/password
 port: 3030
 storeShare: false
 logLevel: info

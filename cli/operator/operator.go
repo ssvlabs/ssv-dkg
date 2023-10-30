@@ -2,22 +2,20 @@ package operator
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg/cli/flags"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg/pkgs/operator"
-
-	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/cli/flags"
+	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 )
 
 func init() {
@@ -34,10 +32,10 @@ func init() {
 	flags.DBPathFlag(StartDKGOperator)
 	flags.DBReportingFlag(StartDKGOperator)
 	flags.DBGCIntervalFlag(StartDKGOperator)
-	if err := viper.BindPFlag("privKey", StartDKGOperator.PersistentFlags().Lookup("privKey")); err != nil {
+	if err := viper.BindPFlag("operatorPrivKey", StartDKGOperator.PersistentFlags().Lookup("operatorPrivKey")); err != nil {
 		panic(err)
 	}
-	if err := viper.BindPFlag("password", StartDKGOperator.PersistentFlags().Lookup("password")); err != nil {
+	if err := viper.BindPFlag("operatorPrivKeyPassword", StartDKGOperator.PersistentFlags().Lookup("operatorPrivKeyPassword")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("port", StartDKGOperator.PersistentFlags().Lookup("port")); err != nil {
@@ -83,113 +81,48 @@ var StartDKGOperator = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		viper.SetConfigType("yaml")
-		configPath, err := flags.GetConfigPathFlagValue(cmd)
+		err := cli_utils.SetViperConfig(cmd)
 		if err != nil {
 			return err
 		}
-		if configPath != "" {
-			viper.SetConfigFile(configPath)
-		}
-		if err := viper.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return err
-			}
-			fmt.Print("⚠️ config file was not provided, using flag parameters \n")
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
+		if err != nil {
+			return err
 		}
 		// workaround for https://github.com/spf13/viper/issues/233
-		if err:=viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath")); err != nil {
-			return err
+		if err := viper.BindPFlag("outputPath", cmd.Flags().Lookup("outputPath")); err != nil {
+			logger.Fatal("😥 Failed to bind a flag: ", zap.Error(err))
 		}
-		if err:=viper.BindPFlag("storeShare", cmd.Flags().Lookup("storeShare")); err != nil {
-			return err
+		if err := viper.BindPFlag("storeShare", cmd.Flags().Lookup("storeShare")); err != nil {
+			logger.Fatal("😥 Failed to bind a flag: ", zap.Error(err))
 		}
 		dkg.OutputPath = viper.GetString("outputPath")
 		dkg.StoreShare = viper.GetBool("storeShare")
-		// workaround for https://github.com/spf13/viper/issues/233
-		if err:=viper.BindPFlag("logLevel", cmd.Flags().Lookup("logLevel")); err != nil {
-			return err
-		}
-		if err:=viper.BindPFlag("logFormat", cmd.Flags().Lookup("logFormat")); err != nil {
-			return err
-		}
-		if err:=viper.BindPFlag("logLevelFormat", cmd.Flags().Lookup("logLevelFormat")); err != nil {
-			return err
-		}
-		if err:=viper.BindPFlag("logFilePath", cmd.Flags().Lookup("logFilePath")); err != nil {
-			return err
-		}
-		logLevel := viper.GetString("logLevel")
-		logFormat := viper.GetString("logFormat")
-		logLevelFormat := viper.GetString("logLevelFormat")
-		logFilePath := viper.GetString("logFilePath")
-		if logFilePath == "" {
-			fmt.Print("⚠️ debug log path was not provided, using default: ./operator_debug.log \n")
-		}
-		// If the log file doesn't exist, create it
-		_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
-			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
-		}
-		logger := zap.L().Named("dkg-operator")
-		if err != nil {
-			logger.Warn("Couldn't find config file, its ok if you are using cli params")
-		}
-		privKeyPath := viper.GetString("privKey")
-		if privKeyPath == "" {
+		operatorPrivKey := viper.GetString("operatorPrivKey")
+		if operatorPrivKey == "" {
 			logger.Fatal("😥 Failed to get operator private key flag value: ", zap.Error(err))
 		}
-		var privateKey *rsa.PrivateKey
-		pass := viper.GetString("password")
-		if pass != "" {
-			// check if a password string a valid path, then read password from the file
-			if _, err := os.Stat(pass); err != nil {
-				logger.Fatal("Password file: ", zap.Error(err))
-			}
-			keyStorePassword, err := os.ReadFile(pass)
-			if err != nil {
-				logger.Fatal("😥 Error reading password file: ", zap.Error(err))
-				return err
-			}
-			encryptedJSON, err := os.ReadFile(privKeyPath)
-			if err != nil {
-				logger.Fatal("😥 Cant read operator`s key file: ", zap.Error(err))
-				return err
-			}
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedJSON, string(keyStorePassword))
-			if err != nil {
-				logger.Fatal("😥 Cant read operator`s key file: ", zap.Error(err))
-				return err
-			}
-		} else {
-			logger.Fatal("😥 Please provide password string or path to password file: ", zap.Error(err))
-			return err
-		}
+		operatorPrivKeyPassword := viper.GetString("operatorPrivKeyPassword")
+		privateKey := cli_utils.OpenPrivateKey(operatorPrivKey, operatorPrivKeyPassword, logger)
+		// Database
 		var DBOptions basedb.Options
 		DBPath := viper.GetString("DBPath")
 		DBReporting := viper.GetBool("DBReporting")
 		DBGCInterval := viper.GetString("DBGCInterval")
-		if DBPath != "" {
-			_, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				return err
-			}
-		}
 		DBOptions.Path = DBPath
 		DBOptions.Reporting = DBReporting
 		DBOptions.GCInterval, err = time.ParseDuration(DBGCInterval)
+		if err != nil {
+			logger.Fatal("😥 Failed to parse DBGCInterval: ", zap.Error(err))
+		}
 		DBOptions.Ctx = context.Background()
 		if err != nil {
-			return err
+			logger.Fatal("😥 Failed to open DB: ", zap.Error(err))
 		}
 		srv := operator.New(privateKey, logger, DBOptions)
 		port := viper.GetUint64("port")
 		if port == 0 {
 			logger.Fatal("😥 Failed to get operator info file path flag value: ", zap.Error(err))
-			return err
 		}
 		pubKey, err := crypto.EncodePublicKey(&privateKey.PublicKey)
 		if err != nil {

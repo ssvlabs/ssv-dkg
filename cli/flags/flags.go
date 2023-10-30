@@ -15,7 +15,8 @@ const (
 	oldID                    = "oldID"
 	operatorsInfo            = "operatorsInfo"
 	operatorsInfoPath        = "operatorsInfoPath"
-	operatorPrivKey          = "privKey"
+	operatorPrivKey          = "operatorPrivKey"
+	operatorPrivKeyPassword  = "operatorPrivKeyPassword"
 	configPath               = "configPath"
 	initiatorPrivKey         = "initiatorPrivKey"
 	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
@@ -26,7 +27,6 @@ const (
 	network                  = "network"
 	mnemonicFlag             = "mnemonic"
 	indexFlag                = "index"
-	password                 = "password"
 	outputPath               = "outputPath"
 	storeShare               = "storeShare"
 	logLevel                 = "logLevel"
@@ -175,12 +175,12 @@ func GetOperatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
 func OperatorPrivateKeyPassFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, password, "", "Password to decrypt operator Private Key file", false)
+	AddPersistentStringFlag(c, operatorPrivKeyPassword, "", "Password to decrypt operator Private Key file", false)
 }
 
 // GetOperatorPrivateKeyFlagValue gets private key flag from the command
 func GetOperatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(password)
+	return c.Flags().GetString(operatorPrivKeyPassword)
 }
 
 // OperatorPortFlag  adds operator listening port flag to the command
