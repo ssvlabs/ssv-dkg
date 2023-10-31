@@ -179,7 +179,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	owner := dkg.New(opts)
 	// wait for exchange msg
 	var commits []byte
-	if secretShare != nil {
+	if secretShare.Share != nil {
 		owner.SecretShare = secretShare
 		for _, point := range secretShare.Commits {
 			b, _ := point.MarshalBinary()
@@ -344,66 +344,10 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		return nil, err
 	}
 	if ok {
-		decBin, err := s.DecryptSecretDB(shareFromDB.Value)
+		secret, err = s.GetSecretShare(shareFromDB)
 		if err != nil {
 			return nil, err
 		}
-		var privShare dkg.DistKeyShare
-		err = privShare.Decode(decBin)
-		if err != nil {
-			return nil, err
-		}
-		var coefs []kyber.Point
-		coefsBytes := utils.SplitBytes(privShare.Commits, 48)
-		for _, c := range coefsBytes {
-			p := bls3.NewBLS12381Suite().G1().Point()
-			err := p.UnmarshalBinary(c)
-			if err != nil {
-				return nil, err
-			}
-			coefs = append(coefs, p)
-		}
-		secret.Commits = coefs
-		secretPoint := bls3.NewBLS12381Suite().G1().Scalar()
-		err = secretPoint.UnmarshalBinary(privShare.Share.V)
-		if err != nil {
-			return nil, err
-		}
-		secret.Share = &share.PriShare{V: secretPoint, I: privShare.Share.I}
-		s.Mtx.Lock()
-		l := len(s.Instances)
-		if l >= MaxInstances {
-			cleaned := s.CleanInstances() // not thread safe
-			if l-cleaned >= MaxInstances {
-				s.Mtx.Unlock()
-				return nil, ErrMaxInstances
-			}
-		}
-		_, ok = s.Instances[reqID]
-		if ok {
-			tm := s.InstanceInitTime[reqID]
-			if !time.Now().After(tm.Add(MaxInstanceTime)) {
-				s.Mtx.Unlock()
-				return nil, ErrAlreadyExists
-			}
-			delete(s.Instances, reqID)
-			delete(s.InstanceInitTime, reqID)
-		}
-		s.Mtx.Unlock()
-		inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, secret)
-		if err != nil {
-			return nil, err
-		}
-		s.Mtx.Lock()
-		_, ok = s.Instances[reqID]
-		if ok {
-			s.Mtx.Unlock()
-			return nil, ErrAlreadyExists
-		}
-		s.Instances[reqID] = inst
-		s.InstanceInitTime[reqID] = time.Now()
-		s.Mtx.Unlock()
-		return resp, nil
 	}
 	s.Mtx.Lock()
 	l := len(s.Instances)
@@ -425,16 +369,11 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		delete(s.InstanceInitTime, reqID)
 	}
 	s.Mtx.Unlock()
-	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, nil)
+	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, secret)
 	if err != nil {
 		return nil, err
 	}
 	s.Mtx.Lock()
-	_, ok = s.Instances[reqID]
-	if ok {
-		s.Mtx.Unlock()
-		return nil, ErrAlreadyExists
-	}
 	s.Instances[reqID] = inst
 	s.InstanceInitTime[reqID] = time.Now()
 	s.Mtx.Unlock()
@@ -496,6 +435,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	return resp, nil
 }
 
+// DecryptSecretDB decrypts a secret share using operator's private key
 func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
 	// brake to chunks of 256 byte
 	chuncks := utils.SplitBytes(bin, 256)
@@ -508,4 +448,36 @@ func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
 		decrypted = append(decrypted, decBin...)
 	}
 	return decrypted, nil
+}
+
+// GetSecretShare creates a secret share object from encrypted DB value
+func (s *Switch) GetSecretShare(shareFromDB basedb.Obj) (*kyber_dkg.DistKeyShare, error) {
+	secret := &kyber_dkg.DistKeyShare{}
+	decBin, err := s.DecryptSecretDB(shareFromDB.Value)
+	if err != nil {
+		return nil, err
+	}
+	var privShare dkg.DistKeyShare
+	err = privShare.Decode(decBin)
+	if err != nil {
+		return nil, err
+	}
+	var coefs []kyber.Point
+	coefsBytes := utils.SplitBytes(privShare.Commits, 48)
+	for _, c := range coefsBytes {
+		p := bls3.NewBLS12381Suite().G1().Point()
+		err := p.UnmarshalBinary(c)
+		if err != nil {
+			return nil, err
+		}
+		coefs = append(coefs, p)
+	}
+	secret.Commits = coefs
+	secretPoint := bls3.NewBLS12381Suite().G1().Scalar()
+	err = secretPoint.UnmarshalBinary(privShare.Share.V)
+	if err != nil {
+		return nil, err
+	}
+	secret.Share = &share.PriShare{V: secretPoint, I: privShare.Share.I}
+	return secret, nil
 }
