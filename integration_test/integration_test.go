@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 )
@@ -73,7 +73,7 @@ func TestHappyFlows(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "holesky", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 10 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 13 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 13 operators - random operators order", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestThreshold(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -208,7 +208,7 @@ func TestThreshold(t *testing.T) {
 	})
 	t.Run("test 10 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestThreshold(t *testing.T) {
 	})
 	t.Run("test 7 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -248,7 +248,7 @@ func TestThreshold(t *testing.T) {
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -321,7 +321,7 @@ func TestUnhappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
-	depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+	depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 	require.NoError(t, err)
@@ -334,7 +334,7 @@ func TestUnhappyFlows(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := crypto.NewID()
-		_, ks, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, ks, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -353,14 +353,14 @@ func TestUnhappyFlows(t *testing.T) {
 		require.ErrorContains(t, err, "shares order is incorrect")
 	})
 	t.Run("test same ID", func(t *testing.T) {
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "got init msg for existing instance")
 	})
 	t.Run("test wrong operator IDs", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := crypto.NewID()
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 	srv1.HttpSrv.Close()
@@ -518,13 +518,13 @@ func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, wi
 	// Check root
 	var fork [4]byte
 	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
-	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, dkg.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
+	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
 	require.NoError(t, err)
 	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
 	require.True(t, res)
-	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), dkg.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
+	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
 	require.NoError(t, err)
-	res, err = ourcrypto.VerifyDepositData(depositData, dkg.GetNetworkByFork(fork))
+	res, err = ourcrypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
 	require.NoError(t, err)
 	require.True(t, res)
 	depositMsg := &phase0.DepositMessage{

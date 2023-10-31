@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"os"
 	"strconv"
 
@@ -266,16 +267,9 @@ var StartDKG = &cobra.Command{
 		if network == "" {
 			logger.Fatal("😥 Failed to get fork version flag value: ", zap.Error(err))
 		}
-		var forkHEX [4]byte
-		switch network {
-		case "prater":
-			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20}
-		case "mainnet":
-			forkHEX = [4]byte{0, 0, 0, 0}
-		case "now_test_network":
-			forkHEX = [4]byte{0x99, 0x99, 0x99, 0x99}
-		default:
-			logger.Fatal("😥 Please provide a valid network name: mainnet, prater, or now_test_network")
+		ethnetwork := e2m_core.MainNetwork
+		if network != "now_test_network" {
+			ethnetwork = e2m_core.NetworkFromString(network)
 		}
 		owner := viper.GetString("owner")
 		if owner == "" {
@@ -291,7 +285,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to parse withdraw address: ", zap.Error(err))
 		}
 		id := crypto.NewID()
-		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawAddress.Bytes(), parts, forkHEX, network, ownerAddress, nonce)
+		depositData, keyShares, err := dkgInitiator.StartDKG(id, withdrawAddress.Bytes(), parts, ethnetwork, ownerAddress, nonce)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"encoding/hex"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"math/big"
 	"testing"
 
@@ -18,7 +19,6 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	ourdkg "github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 )
 
@@ -70,7 +70,7 @@ func TestStartDKG(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
 		id := crypto.NewID()
-		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		VerifySharesData(t, ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		VerifyDepositData(t, depositData, withdraw.Bytes(), owner, 0)
@@ -78,19 +78,19 @@ func TestStartDKG(t *testing.T) {
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, [4]byte{0, 0, 0, 0}, "mainnnet", owner, 0)
+		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 
@@ -110,13 +110,13 @@ func VerifyDepositData(t *testing.T, depsitDataJson *DepositDataJson, withdrawCr
 	// Check root
 	var fork [4]byte
 	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
-	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, ourdkg.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
+	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
 	require.NoError(t, err)
 	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
 	require.True(t, res)
-	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), ourdkg.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
+	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
 	require.NoError(t, err)
-	res, err = ourcrypto.VerifyDepositData(depositData, ourdkg.GetNetworkByFork(fork))
+	res, err = ourcrypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
 	require.NoError(t, err)
 	require.True(t, res)
 	depositMsg := &phase0.DepositMessage{

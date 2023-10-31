@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/board"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -33,11 +32,6 @@ const (
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte = byte(0)
 )
-
-// IsSupportedDepositNetwork returns true if the given network is supported
-var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
-	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
-}
 
 type Operator struct {
 	IP     string
@@ -277,7 +271,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials[:], validatorPubKey, utils.GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -473,17 +467,6 @@ func ExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport {
 		Type:       wire.ExchangeMessageType,
 		Identifier: reqID,
 		Data:       exchData,
-	}
-}
-
-func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
-	switch fork {
-	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork
-	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork
-	default:
-		return eth2_key_manager_core.MainNetwork
 	}
 }
 
