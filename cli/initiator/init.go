@@ -136,7 +136,10 @@ var StartDKG = &cobra.Command{
 			}
 		}
 		if operatorsInfoPath != "" {
-			opMap = cli_utils.ReadOperatorsInfoFile(operatorsInfoPath, logger)
+			opMap, err = cli_utils.ReadOperatorsInfoFile(operatorsInfoPath)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 		}
 		if err := viper.BindPFlag("operatorIDs", cmd.Flags().Lookup("operatorIDs")); err != nil {
 			logger.Fatal("😥 Failed to bind a flag: ", zap.Error(err))
@@ -168,10 +171,18 @@ var StartDKG = &cobra.Command{
 		}
 		initiatorPrivKeyPassword := viper.GetString("initiatorPrivKeyPassword")
 		if initiatorPrivKey != "" && !generateInitiatorKey {
-			privateKey = cli_utils.OpenPrivateKey(initiatorPrivKeyPassword, initiatorPrivKey, logger)
+			logger.Info("🔑 opening initiator RSA private key file")
+			privateKey, err = cli_utils.OpenPrivateKey(initiatorPrivKeyPassword, initiatorPrivKey)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 		}
 		if initiatorPrivKey == "" && generateInitiatorKey {
-			privateKey, encryptedRSAJSON = cli_utils.GenerateRSAKeyPair(initiatorPrivKeyPassword, initiatorPrivKey, logger)
+			logger.Info("🔑 generating new initiator RSA key pair + password")
+			privateKey, encryptedRSAJSON, err = cli_utils.GenerateRSAKeyPair(initiatorPrivKeyPassword, initiatorPrivKey)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 		}
 		dkgInitiator := initiator.New(privateKey, opMap, logger)
 		withdrawAddr := viper.GetString("withdrawAddress")

@@ -103,7 +103,10 @@ var StartDKGOperator = &cobra.Command{
 			logger.Fatal("😥 Failed to get operator private key flag value: ", zap.Error(err))
 		}
 		operatorPrivKeyPassword := viper.GetString("operatorPrivKeyPassword")
-		privateKey := cli_utils.OpenPrivateKey(operatorPrivKey, operatorPrivKeyPassword, logger)
+		privateKey, err := cli_utils.OpenPrivateKey(operatorPrivKey, operatorPrivKeyPassword)
+		if err != nil {
+			logger.Fatal(err.Error())
+		}
 		// Database
 		var DBOptions basedb.Options
 		DBPath := viper.GetString("DBPath")

@@ -139,7 +139,10 @@ var StartReshare = &cobra.Command{
 			}
 		}
 		if operatorsInfoPath != "" {
-			opMap = cli_utils.ReadOperatorsInfoFile(operatorsInfoPath, logger)
+			opMap, err = cli_utils.ReadOperatorsInfoFile(operatorsInfoPath)
+			if err != nil {
+				logger.Fatal(err.Error())
+			}
 		}
 		if err := viper.BindPFlag("operatorIDs", cmd.Flags().Lookup("operatorIDs")); err != nil {
 			logger.Fatal("😥 Failed to bind a flag: ", zap.Error(err))
@@ -175,7 +178,10 @@ var StartReshare = &cobra.Command{
 		}
 		initiatorPrivKeyPassword := viper.GetString("initiatorPrivKeyPassword")
 		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey = cli_utils.OpenPrivateKey(initiatorPrivKeyPassword, initiatorPrivKey, logger)
+		privateKey, err = cli_utils.OpenPrivateKey(initiatorPrivKeyPassword, initiatorPrivKey)
+		if err != nil {
+			logger.Fatal(err.Error())
+		}
 		// create initiator instance
 		dkgInitiator := initiator.New(privateKey, opMap, logger)
 		if err := viper.BindPFlag("owner", cmd.Flags().Lookup("owner")); err != nil {

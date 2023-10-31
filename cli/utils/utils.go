@@ -2,7 +2,6 @@ package utils
 
 import (
 	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -70,109 +69,106 @@ func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func OpenPrivateKey(passwordFilePath, privKeyPath string, logger *zap.Logger) *rsa.PrivateKey {
+func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
 	var privateKey *rsa.PrivateKey
 	var err error
-	logger.Info("🔑 opening initiator RSA private key file")
 	if passwordFilePath != "" {
-		logger.Info("🔑 path to password file is provided - decrypting")
+		fmt.Println("🔑 path to password file is provided - decrypting")
 		// check if a password string a valid path, then read password from the file
 		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
 		}
 		encryptedRSAJSON, err := os.ReadFile(privKeyPath)
 		if err != nil {
-			logger.Fatal("😥 Cant read operator`s key file", zap.Error(err))
+			return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
 		}
 		keyStorePassword, err := os.ReadFile(passwordFilePath)
 		if err != nil {
-			logger.Fatal("😥 Error reading password file: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 		}
 		privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
 		if err != nil {
-			logger.Fatal(err.Error())
+			return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 		}
 	} else {
-		logger.Info("🔑 password for key NOT provided - trying to read plaintext key")
+		fmt.Println("🔑 password for key NOT provided - trying to read plaintext key")
 		privateKey, err = crypto.PrivateKey(privKeyPath)
 		if err != nil {
-			logger.Fatal("😥 Error reading plaintext private key from file: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Error reading plaintext private key from file: %s", err)
 		}
 	}
-	return privateKey
+	return privateKey, nil
 }
 
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte) {
+func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, []byte, error) {
 	var privateKey *rsa.PrivateKey
 	var err error
 	var password string
-	logger.Info("🔑 generating new initiator RSA key pair + password")
-	pk, priv, err := rsaencryption.GenerateKeys()
+	_, priv, err := rsaencryption.GenerateKeys()
 	if err != nil {
-		logger.Fatal("Failed to generate operator keys", zap.Error(err))
+		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
 	}
 	if passwordFilePath != "" {
-		logger.Info("🔑 path to password file is provided")
+		fmt.Println("🔑 path to password file is provided")
 		// check if a password string a valid path, then read password from the file
 		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			logger.Fatal("😥 Password file doesn`t exist: ", zap.Error(err))
+			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
 		}
 		keyStorePassword, err := os.ReadFile(passwordFilePath)
 		if err != nil {
-			logger.Fatal("😥 Error reading password file: ", zap.Error(err))
+			return nil, nil, fmt.Errorf("😥 Error reading password file: %s", err)
 		}
 		password = string(keyStorePassword)
 	} else {
 		password, err = crypto.GenerateSecurePassword()
 		if err != nil {
-			logger.Fatal("Failed to generate operator keys", zap.Error(err))
+			return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
 		}
 	}
-	logger.Info("Generated public key (base64)", zap.String("pk", base64.StdEncoding.EncodeToString(pk)))
 	encryptedData, err := keystorev4.New().Encrypt(priv, password)
 	if err != nil {
-		logger.Fatal("Failed to encrypt private key", zap.Error(err))
+		return nil, nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
 	}
 	encryptedRSAJSON, err := json.Marshal(encryptedData)
 	if err != nil {
-		logger.Fatal("Failed to marshal encrypted data to JSON", zap.Error(err))
+		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 	}
 	privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, password)
 	if err != nil {
-		logger.Fatal(err.Error())
+		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
-	return privateKey, encryptedRSAJSON
+	return privateKey, encryptedRSAJSON, nil
 }
-func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) initiator.Operators {
+func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error) {
 	var opMap initiator.Operators
-	logger.Info("📖 looking operators info 'operators_info.json' file", zap.String("at path", operatorsInfoPath))
+	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	stat, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
-		logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
 	if stat.IsDir() {
 		filePath := operatorsInfoPath + "operators_info.json"
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			logger.Fatal("😥 Failed to find operator info file at provided path: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Failed to find operator info file at provided path: %s", err)
 		}
 		opsfile, err := os.ReadFile(filePath)
 		if err != nil {
-			logger.Fatal("😥 Failed to read operator info file:", zap.Error(err))
+			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 		}
 		opMap, err = initiator.LoadOperatorsJson(opsfile)
 		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 		}
 	} else {
-		logger.Info("📖 reading operators info JSON file")
+		fmt.Println("📖 reading operators info JSON file")
 		opsfile, err := os.ReadFile(operatorsInfoPath)
 		if err != nil {
-			logger.Fatal("😥 Failed to read operator info file: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 		}
 		opMap, err = initiator.LoadOperatorsJson(opsfile)
 		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 		}
 	}
-	return opMap
+	return opMap, nil
 }
