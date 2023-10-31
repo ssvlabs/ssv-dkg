@@ -30,8 +30,6 @@ import (
 	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 )
 
-const encryptedKeyLength = 256
-
 const (
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte  = byte(0)

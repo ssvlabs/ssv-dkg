@@ -30,7 +30,6 @@ import (
 )
 
 const encryptedKeyLength = 256
-const examplePath = "../examples/"
 
 func TestHappyFlows(t *testing.T) {
 	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
