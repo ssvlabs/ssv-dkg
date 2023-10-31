@@ -326,13 +326,13 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 
 #### Key resharing
 
-Using DKG tool is possible to reshare existing validator key to a new set of operators. For example, at initial DKG we created a validator with [1,2,3,4] operator shares, now we can use this operators to reshare this validator to a new set of disjoint operators [5,6,7,8] or to a joint set [1,2,5,6] etc. 
+Using DKG tool is possible to reshare existing validator key to a new set of operators. For example, at initial DKG we created a validator with [1,2,3,4] operator shares, now we can use these operators to reshare the validator to a new set of disjoint operators [5,6,7,8] or to a joint set [1,2,5,6] etc. 
 
-⚠️ Note: all operators (ols set and new set) should be online to complete the resharing protocol. 
+⚠️ All operators (old set and new set) should be online to complete the resharing protocol. 
 
-⚠️ Note: new threshold will be computed based on a new set of operators using 3f+1 tolerance. 
+⚠️ New threshold will be computed based on a new set of operators using 3f+1 tolerance. 
 
-⚠️ Note: generating a new RSA key pair is not possible at resharing. It is assumed that the inititators RSA key is already exists. 
+⚠️ Generating a new RSA key pair is not possible at resharing. It is assumed that the inititators RSA key is already exists. 
 
 The Initiator creates the initial details needed to run DKG between all operators via the init command. You can launch the following command with the appropriate values to each parameter:
 ```sh
