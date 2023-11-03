@@ -15,11 +15,9 @@ const (
 	oldID                    = "oldID"
 	operatorsInfo            = "operatorsInfo"
 	operatorsInfoPath        = "operatorsInfoPath"
-	operatorPrivKey          = "operatorPrivKey"
-	operatorPrivKeyPassword  = "operatorPrivKeyPassword"
+	privKey                  = "privKey"
+	privKeyPassword          = "privKeyPassword"
 	configPath               = "configPath"
-	initiatorPrivKey         = "initiatorPrivKey"
-	initiatorPrivKeyPassword = "initiatorPrivKeyPassword"
 	generateInitiatorKey     = "generateInitiatorKey"
 	operatorPort             = "port"
 	owner                    = "owner"
@@ -134,13 +132,8 @@ func NetworkFlag(c *cobra.Command) {
 }
 
 // OperatorPrivateKeyFlag  adds private key flag to the command
-func InitiatorPrivateKeyFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, initiatorPrivKey, "", "Path to initiator Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetInitiatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(initiatorPrivKey)
+func PrivateKeyFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, privKey, "", "Path to initiator Private Key file", false)
 }
 
 // GenerateInitiatorKeyFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
@@ -154,33 +147,8 @@ func GetGenerateInitiatorKeyFlagValue(c *cobra.Command) (bool, error) {
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
-func InitiatorPrivateKeyPassFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, initiatorPrivKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetInitiatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(initiatorPrivKeyPassword)
-}
-
-// OperatorPrivateKeyFlag  adds private key flag to the command
-func OperatorPrivateKeyFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorPrivKey, "", "Path to initiator Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetOperatorPrivateKeyFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorPrivKey)
-}
-
-// OperatorPrivateKeyPassFlag  adds private key flag to the command
-func OperatorPrivateKeyPassFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorPrivKeyPassword, "", "Password to decrypt operator Private Key file", false)
-}
-
-// GetOperatorPrivateKeyFlagValue gets private key flag from the command
-func GetOperatorPrivateKeyPassFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorPrivKeyPassword)
+func PrivateKeyPassFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, privKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
 }
 
 // OperatorPortFlag  adds operator listening port flag to the command

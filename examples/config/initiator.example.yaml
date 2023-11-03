@@ -26,8 +26,8 @@ network: "mainnet"
 # operatorsInfoPath: /data
 operatorsInfoPath: /data/operators_info.json
 outputPath: /data/output
-initiatorPrivKey: /data/initiator/encrypted_private_key.json
-initiatorPrivKeyPassword: /data/initiator/password
+privKey: /data/initiator/encrypted_private_key.json
+privKeyPassword: /data/initiator/password
 # generateInitiatorKey: true
 logLevel: info
 logFormat: json
