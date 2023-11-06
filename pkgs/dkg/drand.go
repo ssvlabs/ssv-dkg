@@ -39,7 +39,7 @@ const (
 
 // IsSupportedDepositNetwork returns true if the given network is supported
 var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
-	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
+	return network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork || network == eth2_key_manager_core.HoleskyNetwork
 }
 
 // Operator structure contains information about external operator participating in the DKG ceremony
@@ -483,7 +483,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.Data.Init.Fork[:])))
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials[:], validatorPubKey, GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials[:], validatorPubKey, utils.GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)

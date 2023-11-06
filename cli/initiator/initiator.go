@@ -3,6 +3,7 @@ package initiator
 import (
 	"encoding/hex"
 	"fmt"
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -54,21 +55,14 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
 		dkgInitiator := initiator.New(privateKey, opMap, logger)
-		var forkHEX [4]byte
-		switch cli_utils.Network {
-		case "prater":
-			forkHEX = [4]byte{0x00, 0x00, 0x10, 0x20}
-		case "pyrmont":
-			forkHEX = [4]byte{0x00, 0x00, 0x20, 0x09}
-		case "mainnet":
-			forkHEX = [4]byte{0, 0, 0, 0}
-		default:
-			logger.Fatal("😥 Please provide a valid network name: mainnet/prater/pyrmont")
+		ethnetwork := e2m_core.MainNetwork
+		if cli_utils.Network != "now_test_network" {
+			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
 		// create a new ID
 		id := crypto.NewID()
 		// start the ceremony
-		depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, forkHEX, cli_utils.Network, cli_utils.OwnerAddress, cli_utils.Nonce)
+		depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, cli_utils.Nonce)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}

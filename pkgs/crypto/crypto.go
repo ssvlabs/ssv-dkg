@@ -17,7 +17,8 @@ import (
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
+	e2m_deposit "github.com/bloxapp/eth2-key-manager/eth1_deposit"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
@@ -264,8 +265,8 @@ func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) 
 	return &reconstructedDepositMasterSig, nil
 }
 
-func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network eth2_key_manager_core.Network, amount phase0.Gwei) (*phase0.DepositData, [32]byte, error) {
-	if !IsSupportedDepositNetwork(network) {
+func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network e2m_core.Network, amount phase0.Gwei) (*phase0.DepositData, [32]byte, error) {
+	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, [32]byte{}, fmt.Errorf("network %s is not supported", network)
 	}
 
@@ -329,13 +330,8 @@ func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
-// IsSupportedDepositNetwork returns true if the given network is supported
-var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
-	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
-}
-
-func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network eth2_key_manager_core.Network, amount phase0.Gwei) ([]byte, error) {
-	if !IsSupportedDepositNetwork(network) {
+func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) ([]byte, error) {
+	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, fmt.Errorf("network %s is not supported", network)
 	}
 
@@ -370,7 +366,7 @@ func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network 
 	return root[:], nil
 }
 
-func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager_core.Network) (bool, error) {
+func VerifyDepositData(depositData *phase0.DepositData, network e2m_core.Network) (bool, error) {
 	depositMessage := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                depositData.Amount,
@@ -414,8 +410,8 @@ func VerifyDepositData(depositData *phase0.DepositData, network eth2_key_manager
 	return sig.Verify(signingRoot[:], pubkey), nil
 }
 
-func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network eth2_key_manager_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
-	if !IsSupportedDepositNetwork(network) {
+func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
+	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, nil, errors.Errorf("Network %s is not supported", network)
 	}
 

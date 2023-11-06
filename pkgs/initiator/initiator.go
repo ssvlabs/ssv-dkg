@@ -423,8 +423,8 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 }
 
 // reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
-func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, validatorPubKey *bls.PublicKey, fork [4]byte, forkName string, sigDepositShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey) (*DepositDataJson, error) {
-	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, getNetworkByFork(fork), MaxEffectiveBalanceInGwei)
+func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, validatorPubKey *bls.PublicKey, network eth2_key_manager_core.Network, sigDepositShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey) (*DepositDataJson, error) {
+	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, network, MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, err
 	}
@@ -453,12 +453,12 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 
-	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), withdrawCredentials, validatorPubKey.Serialize(), getNetworkByFork(fork), MaxEffectiveBalanceInGwei)
+	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), withdrawCredentials, validatorPubKey.Serialize(), network, MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, err
 	}
 	// Verify deposit data
-	depositVerRes, err := crypto.VerifyDepositData(depositData, getNetworkByFork(fork))
+	depositVerRes, err := crypto.VerifyDepositData(depositData, network)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +481,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
-
+	forkbytes := network.GenesisForkVersion()
 	depositDataJson := &DepositDataJson{
 		PubKey:                hex.EncodeToString(validatorPubKey.Serialize()),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
@@ -489,8 +489,8 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 		Signature:             hex.EncodeToString(reconstructedDepositMasterSig.Serialize()),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(root[:]),
-		ForkVersion:           hex.EncodeToString(fork[:]),
-		NetworkName:           forkName,
+		ForkVersion:           hex.EncodeToString(forkbytes[:]),
+		NetworkName:           string(network),
 		DepositCliVersion:     "2.5.0",
 	}
 
@@ -498,7 +498,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4]byte, forkName string, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 
 	ops, err := validatedOperatorData(ids, c.Operators)
 	if err != nil {
@@ -527,7 +527,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4
 		Operators:             ops,
 		T:                     uint64(threshold),
 		WithdrawalCredentials: withdraw,
-		Fork:                  fork,
+		Fork:                  network.GenesisForkVersion(),
 		Owner:                 owner,
 		Nonce:                 nonce,
 		InitiatorPublicKey:    pkBytes,
@@ -545,7 +545,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, fork [4
 	}
 	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
 
-	depositDataJson, err := c.reconstructAndVerifyDepositData(init.WithdrawalCredentials, validatorPubKey, fork, forkName, sigDepositShares, sharePks)
+	depositDataJson, err := c.reconstructAndVerifyDepositData(init.WithdrawalCredentials, validatorPubKey, network, sigDepositShares, sharePks)
 	if err != nil {
 		return nil, nil, err
 	}

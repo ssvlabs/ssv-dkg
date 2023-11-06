@@ -12,7 +12,6 @@ require (
 	github.com/herumi/bls-eth-go-binary v1.29.1
 	github.com/imroc/req/v3 v3.37.2
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/wealdtech/go-eth2-types/v2 v2.8.1
@@ -61,6 +60,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
@@ -86,7 +86,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/bloxapp/eth2-key-manager v1.3.1
+	github.com/bloxapp/eth2-key-manager v1.3.2-0.20231022162227-e2b8264a29a5
 	github.com/bloxapp/ssv v1.0.0-rc.2
 	github.com/bloxapp/ssv-spec v0.3.1
 	github.com/gaukas/godicttls v0.0.3 // indirect
