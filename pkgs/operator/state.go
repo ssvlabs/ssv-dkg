@@ -276,6 +276,14 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
 	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
+	// check if we already run with reqID
+	_, ok, err := s.DB.Get([]byte("secret"), reqID[:])
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return nil, ErrAlreadyExists
+	}
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
@@ -285,7 +293,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 			return nil, ErrMaxInstances
 		}
 	}
-	_, ok := s.Instances[reqID]
+	_, ok = s.Instances[reqID]
 	if ok {
 		tm := s.InstanceInitTime[reqID]
 		if !time.Now().After(tm.Add(MaxInstanceTime)) {
@@ -334,12 +342,19 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	}
 	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
 	s.Logger.Info("✅ reshare message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
-
+	// check if we already run with reqID
+	_, ok, err := s.DB.Get([]byte("secret"), reqID[:])
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return nil, ErrAlreadyExists
+	}
 	s.Logger.Info("Starting resharing protocol")
 	// try to get old share local owner first
 	var shareFromDB basedb.Obj
 	secret := &kyber_dkg.DistKeyShare{}
-	shareFromDB, ok, err := s.DB.Get([]byte("secret"), reshare.OldID[:])
+	shareFromDB, ok, err = s.DB.Get([]byte("secret"), reshare.OldID[:])
 	if err != nil {
 		return nil, err
 	}

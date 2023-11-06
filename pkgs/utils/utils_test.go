@@ -3,6 +3,7 @@ package utils
 import (
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,4 +44,13 @@ func TestHexToAddress(t *testing.T) {
 		_, err := HexToAddress(inValid4)
 		require.ErrorContains(t, err, "encoding/hex: invalid byte")
 	})
+}
+
+func TestGetDisjointOperators(t *testing.T) {
+	oldOperators := []*wire.Operator{{ID: 1, PubKey: []byte{}}, {ID: 2, PubKey: []byte{}}, {ID: 3, PubKey: []byte{}}, {ID: 4, PubKey: []byte{}}, {ID: 5, PubKey: []byte{}}}
+	newOperators := []*wire.Operator{{ID: 3, PubKey: []byte{}}, {ID: 4, PubKey: []byte{}}, {ID: 5, PubKey: []byte{}}, {ID: 6, PubKey: []byte{}}, {ID: 7, PubKey: []byte{}}}
+	disjointOldOps := GetDisjointNewOperators(oldOperators, newOperators)
+	require.Equal(t, []*wire.Operator{{ID: 6, PubKey: []byte{}}, {ID: 7, PubKey: []byte{}}}, disjointOldOps)
+	disjointOldOps = GetDisjointOldOperators(oldOperators, newOperators)
+	require.Equal(t, []*wire.Operator{{ID: 3, PubKey: []byte{}}, {ID: 4, PubKey: []byte{}}, {ID: 5, PubKey: []byte{}}}, disjointOldOps)
 }

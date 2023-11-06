@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"os"
+
+	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	"github.com/herumi/bls-eth-go-binary/bls"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
@@ -104,4 +106,60 @@ func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 	default:
 		return eth2_key_manager_core.MainNetwork
 	}
+}
+
+// GetDisjointOldOperators returns an old set of operators disjoint from new set
+// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
+func GetDisjointOldOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+	tmp := make(map[uint64]*wire.Operator)
+	var set []*wire.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			set = append(set, op)
+		}
+	}
+	return set
+}
+
+// GetDisjointNewOperators returns a new set of operators disjoint from old set
+// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
+func GetDisjointNewOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+	tmp := make(map[uint64]*wire.Operator)
+	var set []*wire.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			delete(tmp, op.ID)
+		}
+	}
+	for _, op := range tmp {
+		set = append(set, op)
+	}
+	return set
+}
+
+// storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
+func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, validatorPubKey *bls.PublicKey) error {
+	type shareStorage struct {
+		Index  int    `json:"index"`
+		Secret string `json:"secret"`
+	}
+	data := shareStorage{
+		Index:  index,
+		Secret: hex.EncodeToString(encryptedSecretShare),
+	}
+	err := WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
+	if err != nil {
+		return err
+	}
+	return nil
 }

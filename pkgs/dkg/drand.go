@@ -3,7 +3,6 @@ package dkg
 import (
 	"bytes"
 	"crypto/rsa"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -52,9 +51,9 @@ type Operator struct {
 // DKGData structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGData struct {
 	// Request ID formed by initiator to identify DKG ceremony
-	ReqID  [24]byte
+	ReqID [24]byte
 	// Initial message from initiator
-	Init   *wire.Init
+	Init *wire.Init
 	// Randomly generated scalar to be used for DKG ceremony
 	Secret kyber.Scalar
 	// Reshare message from initiator
@@ -225,41 +224,13 @@ func (o *LocalOwner) StartDKG() error {
 
 func (o *LocalOwner) StartReshareDKGOldNodes() error {
 	o.Logger.Info("Starting Resharing DKG ceremony at old nodes")
-	NewNodes := make([]dkg.Node, 0)
-	for _, op := range o.Data.Reshare.NewOperators {
-		if o.Exchanges[op.ID] == nil {
-			return fmt.Errorf("no operator at Exchanges")
-		}
-		e := o.Exchanges[op.ID]
-		p := o.Suite.G1().Point()
-		if err := p.UnmarshalBinary(e.PK); err != nil {
-			return err
-		}
-
-		NewNodes = append(NewNodes, dkg.Node{
-			Index:  dkg.Index(op.ID - 1),
-			Public: p,
-		})
+	NewNodes, err := o.GetDKGNodes(o.Data.Reshare.NewOperators)
+	if err != nil {
+		return err
 	}
-	OldNodes := make([]dkg.Node, 0)
-	for _, op := range o.Data.Reshare.OldOperators {
-		if o.Exchanges[op.ID] == nil {
-			return fmt.Errorf("no operator at Exchanges")
-		}
-		e := o.Exchanges[op.ID]
-		p := o.Suite.G1().Point()
-		if err := p.UnmarshalBinary(e.PK); err != nil {
-			return err
-		}
-
-		OldNodes = append(OldNodes, dkg.Node{
-			Index:  dkg.Index(op.ID - 1),
-			Public: p,
-		})
-	}
-	o.Logger.Debug("Staring DKG with nodes: ")
-	for _, n := range append(OldNodes, NewNodes...) {
-		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
+	OldNodes, err := o.GetDKGNodes(o.Data.Reshare.OldOperators)
+	if err != nil {
+		return err
 	}
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
@@ -289,25 +260,12 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 
 func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	o.Logger.Info("Starting Resharing DKG ceremony at new nodes")
-	NewNodes := make([]dkg.Node, 0)
-	for _, op := range o.Data.Reshare.NewOperators {
-		if o.Exchanges[op.ID] == nil {
-			return fmt.Errorf("no operator at Exchanges")
-		}
-		e := o.Exchanges[op.ID]
-		p := o.Suite.G1().Point()
-		if err := p.UnmarshalBinary(e.PK); err != nil {
-			return err
-		}
-
-		NewNodes = append(NewNodes, dkg.Node{
-			Index:  dkg.Index(op.ID - 1),
-			Public: p,
-		})
+	NewNodes, err := o.GetDKGNodes(o.Data.Reshare.NewOperators)
+	if err != nil {
+		return err
 	}
 	OldNodes := make([]dkg.Node, 0)
 	var commits []byte
-	var coefs []kyber.Point
 	for _, op := range o.Data.Reshare.OldOperators {
 		if o.Exchanges[op.ID] == nil {
 			return fmt.Errorf("no operator at Exchanges")
@@ -328,10 +286,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 			Public: p,
 		})
 	}
-	o.Logger.Debug("Staring resharing DKG with nodes: ")
-	for _, n := range append(OldNodes, NewNodes...) {
-		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
-	}
+	var coefs []kyber.Point
 	coefsBytes := utils.SplitBytes(commits, 48)
 	for _, c := range coefsBytes {
 		p := o.Suite.G1().Point()
@@ -366,7 +321,6 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		res := <-p.WaitEnd()
 		postF(&res)
 	}(p, o.PostReshare)
-	// close(o.startedDKG)
 	return nil
 }
 
@@ -465,7 +419,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 			o.broadcastError(err)
 			return err
 		}
-		err = o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, ciphertext, validatorPubKey)
+		err = utils.StoreSecretShareToFile(OutputPath, res.Result.Key.Share.I, ciphertext, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -593,7 +547,7 @@ func (o *LocalOwner) PostReshare(res *dkg.OptionResult) error {
 			o.broadcastError(err)
 			return err
 		}
-		err = o.storeSecretShareToFile(OutputPath, res.Result.Key.Share.I, ciphertext, validatorPubKey)
+		err = utils.StoreSecretShareToFile(OutputPath, res.Result.Key.Share.I, ciphertext, validatorPubKey)
 		if err != nil {
 			o.Logger.Error("Cant write secret share to file: ", zap.Error(err))
 			o.broadcastError(err)
@@ -813,43 +767,39 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		if _, ok := o.Exchanges[from]; ok {
 			return ErrAlreadyExists
 		}
-
 		o.Exchanges[from] = exchMsg
-		allOps := append(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators...)
-		for _, op := range allOps {
-			if o.Exchanges[op.ID] == nil {
-				return nil
-			}
-		}
-		for _, op := range o.Data.Reshare.OldOperators {
-			if o.ID == op.ID {
-				if err := o.StartReshareDKGOldNodes(); err != nil {
-					return err
+		allOps := utils.JoinSets(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators)
+		if len(o.Exchanges) == len(allOps) {
+			for _, op := range o.Data.Reshare.OldOperators {
+				if o.ID == op.ID {
+					if err := o.StartReshareDKGOldNodes(); err != nil {
+						return err
+					}
 				}
 			}
-		}
-		for _, op := range o.GetDisjointNewOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators) {
-			if o.ID == op.ID {
-				bundle := &dkg.DealBundle{}
-				b, err := wire.EncodeDealBundle(bundle)
-				if err != nil {
-					return err
-				}
-				msg := &wire.ReshareKyberMessage{
-					Type: wire.KyberDealBundleMessageType,
-					Data: b,
-				}
+			for _, op := range utils.GetDisjointNewOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators) {
+				if o.ID == op.ID {
+					bundle := &dkg.DealBundle{}
+					b, err := wire.EncodeDealBundle(bundle)
+					if err != nil {
+						return err
+					}
+					msg := &wire.ReshareKyberMessage{
+						Type: wire.KyberDealBundleMessageType,
+						Data: b,
+					}
 
-				byts, err := msg.MarshalSSZ()
-				if err != nil {
-					return err
+					byts, err := msg.MarshalSSZ()
+					if err != nil {
+						return err
+					}
+					trsp := &wire.Transport{
+						Type:       wire.ReshareKyberMessageType,
+						Identifier: o.Data.ReqID,
+						Data:       byts,
+					}
+					o.Broadcast(trsp)
 				}
-				trsp := &wire.Transport{
-					Type:       wire.ReshareKyberMessageType,
-					Identifier: o.Data.ReqID,
-					Data:       byts,
-				}
-				o.Broadcast(trsp)
 			}
 		}
 	case wire.ReshareKyberMessageType:
@@ -867,8 +817,8 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		if len(b.Deals) != 0 {
 			o.Deals[from] = b
 		}
-		oldNodes := o.GetDisjointOldOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators)
-		newNodes := o.GetDisjointNewOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators)
+		oldNodes := utils.GetDisjointOldOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators)
+		newNodes := utils.GetDisjointNewOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators)
 		if len(o.Deals) == len(o.Data.Reshare.OldOperators) {
 			for _, op := range oldNodes {
 				if o.ID == op.ID {
@@ -936,18 +886,6 @@ func ReshareExchangeWireMessage(exchData []byte, reqID [24]byte) *wire.Transport
 	}
 }
 
-// get network name by fork identity bytes
-func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
-	switch fork {
-	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork
-	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork
-	default:
-		return eth2_key_manager_core.MainNetwork
-	}
-}
-
 // broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
 	errMsgEnc, _ := json.Marshal(err.Error())
@@ -974,6 +912,7 @@ func (o *LocalOwner) GetLocalOwner() *LocalOwner {
 	return o
 }
 
+// EncryptSecretDB encrypts secret share object bytes using RSA key to store at DB
 func (o *LocalOwner) EncryptSecretDB(bin []byte) ([]byte, error) {
 	// brake to chunks of 256 byte
 	chuncks := utils.SplitBytes(bin, 128)
@@ -988,62 +927,7 @@ func (o *LocalOwner) EncryptSecretDB(bin []byte) ([]byte, error) {
 	return encrypted, nil
 }
 
-func (o *LocalOwner) GetDisjointOldOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			set = append(set, op)
-		}
-	}
-	// for _, op := range tmp {
-	// 	set = append(set, op)
-	// }
-	return set
-}
-
-func (o *LocalOwner) GetDisjointNewOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			delete(tmp, op.ID)
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
-}
-
-// storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
-func (o *LocalOwner) storeSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, validatorPubKey *bls.PublicKey) error {
-	type shareStorage struct {
-		Index  int    `json:"index"`
-		Secret string `json:"secret"`
-	}
-	data := shareStorage{
-		Index:  index,
-		Secret: hex.EncodeToString(encryptedSecretShare),
-	}
-	err := utils.WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// encryptSecretShare encrypts with RSA private key resulting DKG private key share 
+// encryptSecretShare encrypts with RSA private key resulting DKG private key share
 func (o *LocalOwner) encryptSecretShare(secretKeyBLS *bls.SecretKey) ([]byte, error) {
 	rawshare := secretKeyBLS.SerializeToHexStr()
 	ciphertext, err := o.EncryptFunc([]byte(rawshare))
@@ -1064,4 +948,25 @@ func (o *LocalOwner) encryptSecretShare(secretKeyBLS *bls.SecretKey) ([]byte, er
 		return nil, err
 	}
 	return ciphertext, nil
+}
+
+// GetDKGNodes returns a slice of DKG node instances used for the protocol
+func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]dkg.Node, error) {
+	nodes := make([]dkg.Node, 0)
+	for _, op := range ops {
+		if o.Exchanges[op.ID] == nil {
+			return nil, fmt.Errorf("no operator at Exchanges")
+		}
+		e := o.Exchanges[op.ID]
+		p := o.Suite.G1().Point()
+		if err := p.UnmarshalBinary(e.PK); err != nil {
+			return nil, err
+		}
+
+		nodes = append(nodes, dkg.Node{
+			Index:  dkg.Index(op.ID - 1),
+			Public: p,
+		})
+	}
+	return nodes, nil
 }
