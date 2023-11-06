@@ -3,9 +3,9 @@ package initiator
 import (
 	"encoding/hex"
 	"fmt"
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"os"
 
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -74,9 +74,9 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Warn("Failed writing deposit data file: ", zap.Error(err))
 		}
-		keysharesFinalPath := fmt.Sprintf("%s/keyshares-%v-%v.json", cli_utils.OutputPath, depositData.PubKey, hex.EncodeToString(id[:]))
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		err = utils.WriteJSON(keysharesFinalPath, keyShares)
+		// Save results
+		logger.Info("💾 Writing keyshares payload to file")
+		err = cli_utils.WriteKeyShares(id, keyShares.Payload.PublicKey, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
 		}

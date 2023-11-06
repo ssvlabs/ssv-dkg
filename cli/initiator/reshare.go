@@ -1,7 +1,6 @@
 package initiator
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -10,7 +9,6 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 )
 
 func init() {
@@ -70,9 +68,8 @@ var StartReshare = &cobra.Command{
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
 		// Save results
-		keysharesFinalPath := fmt.Sprintf("%s/keyshares-reshared-%v-%v.json", cli_utils.OutputPath, keyShares.Payload.PublicKey, hex.EncodeToString(id[:]))
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		err = utils.WriteJSON(keysharesFinalPath, keyShares)
+		logger.Info("💾 Writing keyshares payload to file")
+		err = cli_utils.WriteKeyShares(id, keyShares.Payload.PublicKey, keyShares)
 		if err != nil {
 			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
 		}

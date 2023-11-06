@@ -491,3 +491,12 @@ func GetOperatorDB() (basedb.Options, error) {
 	}
 	return DBOptions, nil
 }
+
+func WriteKeyShares(id [24]byte, PubKey string, keyShares *initiator.KeyShares) error {
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%v-%v.json", OutputPath, PubKey, hex.EncodeToString(id[:]))
+	err := utils.WriteJSON(keysharesFinalPath, keyShares)
+	if err != nil {
+		return err
+	}
+	return nil
+}
