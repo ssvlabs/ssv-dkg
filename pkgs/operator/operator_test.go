@@ -1,4 +1,4 @@
-package operator
+package operator_test
 
 import (
 	"crypto/sha256"
@@ -19,13 +19,15 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const examplePath = "../../examples/"
 
 func TestRateLimit(t *testing.T) {
-	srv := CreateTestOperatorFromFile(t, 1, examplePath)
+	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
 	t.Run("test init route rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
@@ -89,7 +91,7 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, ErrTooManyDKGRequests, string(errResp))
+			require.Equal(t, operator.ErrTooManyDKGRequests, string(errResp))
 		}
 		wg.Wait()
 	})
@@ -119,7 +121,7 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, ErrTooManyOperatorRequests, string(errResp))
+			require.Equal(t, operator.ErrTooManyOperatorRequests, string(errResp))
 		}
 		wg.Wait()
 	})
@@ -132,10 +134,10 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	}
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := CreateTestOperatorFromFile(t, 1, examplePath)
-	srv2 := CreateTestOperatorFromFile(t, 2, examplePath)
-	srv3 := CreateTestOperatorFromFile(t, 3, examplePath)
-	srv4 := CreateTestOperatorFromFile(t, 4, examplePath)
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
@@ -194,7 +196,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := parseAsError(msg)
+				errmsg, parseErr := test_utils.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}
@@ -269,7 +271,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := parseAsError(msg)
+				errmsg, parseErr := test_utils.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}

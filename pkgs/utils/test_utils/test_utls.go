@@ -1,33 +1,33 @@
-package operator
+package test_utils
 
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/go-chi/chi/v5"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 type TestOperator struct {
 	ID      uint64
 	PrivKey *rsa.PrivateKey
 	HttpSrv *httptest.Server
-	Srv     *Server
+	Srv     *operator.Server
 }
 
-func parseAsError(msg []byte) (error, error) {
+func ParseAsError(msg []byte) (error, error) {
 	sszerr := &wire.ErrSSZ{}
 	err := sszerr.UnmarshalSSZ(msg)
 	if err != nil {
@@ -51,13 +51,13 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(priv, logger, db)
-	s := &Server{
+	swtch := operator.NewSwitch(priv, logger, db)
+	s := &operator.Server{
 		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}
-	RegisterRoutes(s)
+	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
 	return &TestOperator{
 		ID:      id,
@@ -83,13 +83,13 @@ func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(priv, logger, db)
-	s := &Server{
+	swtch := operator.NewSwitch(priv, logger, db)
+	s := &operator.Server{
 		Logger: logger,
 		Router: r,
 		State:  swtch,
 	}
-	RegisterRoutes(s)
+	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
 	return &TestOperator{
 		ID:      id,

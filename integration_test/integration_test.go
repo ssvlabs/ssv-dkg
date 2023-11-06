@@ -24,8 +24,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 )
 
 const encryptedKeyLength = 256
@@ -36,31 +36,31 @@ func TestHappyFlows(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := operator.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2)
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := operator.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3)
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := operator.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4)
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := operator.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5)
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := operator.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6)
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := operator.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7)
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := operator.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8)
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := operator.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9)
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := operator.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10)
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := operator.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11)
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := operator.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12)
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := operator.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13)
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -151,31 +151,31 @@ func TestThreshold(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := operator.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2)
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := operator.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3)
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := operator.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4)
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := operator.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5)
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := operator.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6)
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := operator.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7)
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := operator.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8)
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := operator.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9)
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := operator.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10)
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := operator.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11)
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := operator.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12)
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := operator.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13)
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -285,31 +285,31 @@ func TestUnhappyFlows(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := operator.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2)
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := operator.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3)
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := operator.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4)
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := operator.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5)
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := operator.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6)
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := operator.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7)
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := operator.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8)
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := operator.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9)
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := operator.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10)
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := operator.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11)
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := operator.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12)
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := operator.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13)
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -383,31 +383,31 @@ func TestReshareHappyFlow(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := operator.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := operator.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2)
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := operator.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3)
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := operator.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4)
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := operator.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5)
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := operator.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6)
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := operator.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7)
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := operator.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8)
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := operator.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9)
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := operator.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10)
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := operator.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11)
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := operator.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12)
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := operator.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13)
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()

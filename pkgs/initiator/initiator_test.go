@@ -18,8 +18,8 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 )
 
 var jsonStr = []byte(`[
@@ -53,10 +53,10 @@ func TestStartDKG(t *testing.T) {
 	}
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]Operator)
-	srv1 := operator.CreateTestOperatorFromFile(t, 1, examplePath)
-	srv2 := operator.CreateTestOperatorFromFile(t, 2, examplePath)
-	srv3 := operator.CreateTestOperatorFromFile(t, 3, examplePath)
-	srv4 := operator.CreateTestOperatorFromFile(t, 4, examplePath)
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
 	ops[1] = Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
 	ops[2] = Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
 	ops[3] = Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
