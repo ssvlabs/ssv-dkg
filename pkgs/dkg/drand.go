@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/drand/kyber"
@@ -32,14 +31,7 @@ var StoreShare bool
 const (
 	// MaxEffectiveBalanceInGwei is the max effective balance
 	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
-	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
-	BLSWithdrawalPrefixByte = byte(0)
 )
-
-// IsSupportedDepositNetwork returns true if the given network is supported
-var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
-	return network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork || network == eth2_key_manager_core.HoleskyNetwork
-}
 
 // Operator structure contains information about external operator participating in the DKG ceremony
 type Operator struct {

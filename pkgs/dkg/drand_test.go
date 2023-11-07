@@ -53,9 +53,9 @@ func (tv *testVerify) Verify(id uint64, msg, sig []byte) error {
 }
 
 type testState struct {
-	T            *testing.T
-	ops          map[uint64]*LocalOwner
-	tv           *testVerify
+	T   *testing.T
+	ops map[uint64]*LocalOwner
+	tv  *testVerify
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
@@ -199,7 +199,7 @@ func TestDKG(t *testing.T) {
 		ts.ops[op.ID] = op
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
-	for id, _ := range ts.ops {
+	for id := range ts.ops {
 		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &wire2.Operator{

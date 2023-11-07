@@ -17,12 +17,10 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
@@ -80,7 +78,8 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
@@ -92,7 +91,8 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	t.Run("test 10 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
@@ -104,7 +104,8 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 10, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	t.Run("test 13 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
@@ -116,7 +117,8 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	t.Run("test 13 operators - random operators order", func(t *testing.T) {
 		id := crypto.NewID()
@@ -128,7 +130,8 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
@@ -328,7 +331,8 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 	require.NoError(t, err)
-	testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+	err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+	require.NoError(t, err)
 	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
@@ -341,8 +345,8 @@ func TestUnhappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		signatureOffset := phase0.SignatureLength
 		pubKeysOffset := phase0.PublicKeyLength*13 + signatureOffset
-		_ = splitBytes(sharesDataSigned[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-		encryptedKeys := splitBytes(sharesDataSigned[pubKeysOffset:], len(sharesDataSigned[pubKeysOffset:])/13)
+		_ = utils.SplitBytes(sharesDataSigned[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+		encryptedKeys := utils.SplitBytes(sharesDataSigned[pubKeysOffset:], len(sharesDataSigned[pubKeysOffset:])/13)
 		wrongOrderSharesData := make([]byte, 0)
 		wrongOrderSharesData = append(wrongOrderSharesData, sharesDataSigned[:pubKeysOffset]...)
 		for i := len(encryptedKeys) - 1; i >= 0; i-- {
@@ -428,7 +432,8 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 		newIds := []uint64{5, 6, 7, 8, 9}
 		newId := crypto.NewID()
 		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
@@ -457,7 +462,8 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 		newIds := []uint64{1, 2, 7, 8, 9}
 		newId := crypto.NewID()
 		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
@@ -486,7 +492,8 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 5, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		testDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 		newIds := []uint64{1, 2, 3, 4, 5, 8, 9}
 		newId := crypto.NewID()
 		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
@@ -525,17 +532,17 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 	}
 	signature := sharesData[:signatureOffset]
 	msg := []byte("Hello")
-	err := ourcrypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce)
+	err := crypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce)
 	if err != nil {
 		return err
 	}
-	_ = splitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	encryptedKeys := splitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
+	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
 	sigs2 := make(map[uint64][]byte)
 	opsIDs := make([]uint64, 0)
 	for i, enck := range encryptedKeys {
 		var priv *rsa.PrivateKey
-		if contains(keys, i) {
+		if utils.Contains(keys, i) {
 			priv = keys[i]
 		} else {
 			continue
@@ -631,54 +638,4 @@ func newEthAddress(t *testing.T) common.Address {
 	require.True(t, ok)
 	address := eth_crypto.PubkeyToAddress(*publicKeyECDSA)
 	return address
-}
-
-func splitBytes(buf []byte, lim int) [][]byte {
-	var chunk []byte
-	chunks := make([][]byte, 0, len(buf)/lim+1)
-	for len(buf) >= lim {
-		chunk, buf = buf[:lim], buf[lim:]
-		chunks = append(chunks, chunk)
-	}
-	if len(buf) > 0 {
-		chunks = append(chunks, buf[:])
-	}
-	return chunks
-}
-
-func testDepositData(t *testing.T, depsitDataJson *initiator.DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
-	require.True(t, bytes.Equal(ourcrypto.ETH1WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
-	masterSig := &bls.Sign{}
-	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
-	valdatorPubKey := &bls.PublicKey{}
-	require.NoError(t, valdatorPubKey.DeserializeHexStr(depsitDataJson.PubKey))
-
-	// Check root
-	var fork [4]byte
-	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
-	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
-	require.NoError(t, err)
-	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
-	require.True(t, res)
-	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), initiator.MaxEffectiveBalanceInGwei)
-	require.NoError(t, err)
-	res, err = ourcrypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
-	require.NoError(t, err)
-	require.True(t, res)
-	depositMsg := &phase0.DepositMessage{
-		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                initiator.MaxEffectiveBalanceInGwei,
-	}
-	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
-	depositMsgRoot, _ := depositMsg.HashTreeRoot()
-	require.True(t, bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)))
-}
-
-func contains(s []*rsa.PrivateKey, i int) bool {
-	for k := range s {
-		if k == i {
-			return true
-		}
-	}
-	return false
 }

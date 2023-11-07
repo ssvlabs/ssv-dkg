@@ -20,7 +20,7 @@ import (
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	e2m_deposit "github.com/bloxapp/eth2-key-manager/eth1_deposit"
 	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
+	drand_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
@@ -32,6 +32,8 @@ import (
 )
 
 const (
+	// b64 encrypted key length is 256
+	EncryptedKeyLength = 256
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte  = byte(0)
 	ETH1WithdrawalPrefixByte = byte(1)
@@ -78,7 +80,7 @@ func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 }
 
 // ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
-func ResultToShareSecretKey(result *dkg.Result) (*bls.SecretKey, error) {
+func ResultToShareSecretKey(result *drand_dkg.Result) (*bls.SecretKey, error) {
 	share := result.Key.PriShare()
 	bytsSk, err := share.V.MarshalBinary()
 	if err != nil {
@@ -105,7 +107,7 @@ func KyberShareToBLSKey(share *share.PriShare) (*bls.SecretKey, error) {
 }
 
 // ResultsToValidatorPK converts a public polynomial at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls public key
-func ResultToValidatorPK(result *dkg.Result, suite dkg.Suite) (*bls.PublicKey, error) {
+func ResultToValidatorPK(result *drand_dkg.Result, suite drand_dkg.Suite) (*bls.PublicKey, error) {
 	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Key.Commitments())
 	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {
@@ -222,6 +224,7 @@ func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
 	return parsePrivateKey(b)
 }
 
+// parsePrivateKey parses an encoded x509 RSA private key
 func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 	parsedSk, err := x509.ParsePKCS1PrivateKey(derBytes)
 	if err != nil {
@@ -230,6 +233,7 @@ func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 	return parsedSk, nil
 }
 
+// RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
 func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicKey, error) {
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
@@ -247,6 +251,8 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 	}
 	return &validatorRecoveredPK, nil
 }
+
+// RecoverMasterSig recovers a BLS master signature from T-threshold partial signatures
 func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) {
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
@@ -265,6 +271,7 @@ func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) 
 	return &reconstructedDepositMasterSig, nil
 }
 
+// DepositData crates and signs a ETH2 deposit message
 func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network e2m_core.Network, amount phase0.Gwei) (*phase0.DepositData, [32]byte, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, [32]byte{}, fmt.Errorf("network %s is not supported", network)
@@ -330,6 +337,7 @@ func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
+// DepositDataRoot computes a deposit root used for ETH2 deposit message
 func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) ([]byte, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, fmt.Errorf("network %s is not supported", network)
@@ -366,6 +374,7 @@ func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network 
 	return root[:], nil
 }
 
+// VerifyDepositData reconstructs and checks BLS signatures for ETH2 deposit message
 func VerifyDepositData(depositData *phase0.DepositData, network e2m_core.Network) (bool, error) {
 	depositMessage := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
@@ -410,6 +419,7 @@ func VerifyDepositData(depositData *phase0.DepositData, network e2m_core.Network
 	return sig.Verify(signingRoot[:], pubkey), nil
 }
 
+// SignDepositData creates a BLS signature for ETH2 deposit message
 func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, nil, errors.Errorf("Network %s is not supported", network)
@@ -451,6 +461,7 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 	return sig, root[:], nil
 }
 
+// VerifyPartialSigs verifies provided partial BLS signatures
 func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
 	res := make(map[uint64]bool)
 	for index, pub := range sharePks {
@@ -473,6 +484,7 @@ func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.
 	return nil
 }
 
+// EncryptedPrivateKey reads  an encoded RSA priv key from path encrypted with password
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -487,6 +499,7 @@ func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
+// PrivateKey reads an encoded RSA priv key from path
 func PrivateKey(path string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -516,6 +529,7 @@ func PrivateKey(path string) (*rsa.PrivateKey, error) {
 	return parsedSk, nil
 }
 
+// NewID generates a random ID from 2 random concat UUIDs
 func NewID() [24]byte {
 	var id [24]byte
 	b := uuid.New()
@@ -525,6 +539,7 @@ func NewID() [24]byte {
 	return id
 }
 
+// GenerateSecurePassword randomly generates a password consisting of digits + english letters
 func GenerateSecurePassword() (string, error) {
 	const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var pass []rune
@@ -566,6 +581,7 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 	return &reconstructedSig, err
 }
 
+// VerifyReconstructedSignature checks a reconstructed msg master signature against validator public key
 func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(validatorPubKey); err != nil {
@@ -576,17 +592,4 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []b
 		return errors.New("could not reconstruct a valid signature")
 	}
 	return nil
-}
-
-func SplitBytes(buf []byte, lim int) [][]byte {
-	var chunk []byte
-	chunks := make([][]byte, 0, len(buf)/lim+1)
-	for len(buf) >= lim {
-		chunk, buf = buf[:lim], buf[lim:]
-		chunks = append(chunks, chunk)
-	}
-	if len(buf) > 0 {
-		chunks = append(chunks, buf[:])
-	}
-	return chunks
 }

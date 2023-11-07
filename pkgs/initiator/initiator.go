@@ -18,7 +18,9 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
@@ -30,19 +32,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
-
-// b64 encrypted key length is 256
-const encryptedKeyLength = 256
-
-const (
-	// MaxEffectiveBalanceInGwei is the max effective balance
-	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
-)
-
-// IsSupportedDepositNetwork returns true if the given network is supported
-var IsSupportedDepositNetwork = func(network eth2_key_manager_core.Network) bool {
-	return network == eth2_key_manager_core.PyrmontNetwork || network == eth2_key_manager_core.PraterNetwork || network == eth2_key_manager_core.MainNetwork
-}
 
 // Operator structure represents operators info which is public
 type Operator struct {
@@ -148,7 +137,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 	operatorCount := len(result)
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
 
 	if sharesExpectedLength != len(sharesDataSigned) {
 		return nil, fmt.Errorf("malformed ssv share data")
@@ -424,7 +413,7 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 
 // reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
 func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, validatorPubKey *bls.PublicKey, network eth2_key_manager_core.Network, sigDepositShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey) (*DepositDataJson, error) {
-	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, network, MaxEffectiveBalanceInGwei)
+	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, network, dkg.MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +442,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 
-	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), withdrawCredentials, validatorPubKey.Serialize(), network, MaxEffectiveBalanceInGwei)
+	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), withdrawCredentials, validatorPubKey.Serialize(), network, dkg.MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +456,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	}
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                MaxEffectiveBalanceInGwei,
+		Amount:                dkg.MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, _ := depositMsg.HashTreeRoot()
@@ -478,14 +467,14 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 	if !bytes.Equal(depositData.WithdrawalCredentials, crypto.ETH1WithdrawalCredentialsHash(withdrawCredentials)) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositData.WithdrawalCredentials)
 	}
-	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
+	if !(dkg.MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
 	forkbytes := network.GenesisForkVersion()
 	depositDataJson := &DepositDataJson{
 		PubKey:                hex.EncodeToString(validatorPubKey.Serialize()),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                MaxEffectiveBalanceInGwei,
+		Amount:                dkg.MaxEffectiveBalanceInGwei,
 		Signature:             hex.EncodeToString(reconstructedDepositMasterSig.Serialize()),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(root[:]),
@@ -674,20 +663,6 @@ func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg 
 		}
 		return crypto.VerifyRSA(pk, msg, sig)
 	}, nil
-}
-
-// getNetworkByFork finds a network name by fork id bytes
-func getNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
-	switch fork {
-	case [4]byte{0x00, 0x00, 0x20, 0x09}:
-		return eth2_key_manager_core.PyrmontNetwork
-	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork
-	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork
-	default:
-		return eth2_key_manager_core.MainNetwork
-	}
 }
 
 // ProcessDKGResultResponse deserializes incoming DKG result messages from operators
@@ -936,4 +911,104 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 		}
 	}
 	return opmap, nil
+}
+
+func VerifyDepositData(depsitDataJson *DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) error {
+	if !bytes.Equal(crypto.ETH1WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)) {
+		return fmt.Errorf("wrong WithdrawalCredentials at result")
+	}
+	masterSig := &bls.Sign{}
+	if err := masterSig.DeserializeHexStr(depsitDataJson.Signature); err != nil {
+		return err
+	}
+	valdatorPubKey := &bls.PublicKey{}
+	if err := valdatorPubKey.DeserializeHexStr(depsitDataJson.PubKey); err != nil {
+		return err
+	}
+	// Check root
+	var fork [4]byte
+	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
+	depositDataRoot, err := crypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), dkg.MaxEffectiveBalanceInGwei)
+	if err != nil {
+		return err
+	}
+	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
+	if !res {
+		return fmt.Errorf("wrong master sig at result")
+	}
+	depositData, _, err := crypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), dkg.MaxEffectiveBalanceInGwei)
+	if err != nil {
+		return err
+	}
+	res, err = crypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
+	if err != nil {
+		return err
+	}
+	if !res {
+		return fmt.Errorf("wrong deposit data")
+	}
+	depositMsg := &phase0.DepositMessage{
+		WithdrawalCredentials: depositData.WithdrawalCredentials,
+		Amount:                dkg.MaxEffectiveBalanceInGwei,
+	}
+	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
+	depositMsgRoot, _ := depositMsg.HashTreeRoot()
+	if !bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)) {
+		return fmt.Errorf("wrong DepositMessageRoot at result")
+	}
+	return nil
+}
+
+func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeyShares, owner common.Address, nonce uint16) error {
+	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
+	if err != nil {
+		return err
+	}
+	validatorPublicKey, err := hex.DecodeString(ks.Payload.PublicKey[2:])
+	if err != nil {
+		return err
+	}
+	operatorCount := len(keys)
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
+	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
+	if len(sharesData) != sharesExpectedLength {
+		return fmt.Errorf("wrong sharesData length")
+	}
+	signature := sharesData[:signatureOffset]
+	msg := []byte("Hello")
+	if err := crypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce); err != nil {
+		return err
+	}
+	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
+	sigs2 := make(map[uint64][]byte)
+	for i, enck := range encryptedKeys {
+		priv := keys[i]
+		share, err := rsaencryption.DecodeKey(priv, enck)
+		if err != nil {
+			return err
+		}
+		secret := &bls.SecretKey{}
+		if err := secret.SetHexString(string(share)); err != nil {
+			return err
+		}
+		// Find operator ID by PubKey
+		var operatorID uint64
+		for id, op := range ops {
+			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
+				operatorID = id
+			}
+		}
+		sig := secret.SignByte(msg)
+		sigs2[operatorID] = sig.Serialize()
+	}
+	recon, err := crypto.ReconstructSignatures(sigs2)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg); err != nil {
+		return err
+	}
+	return nil
 }

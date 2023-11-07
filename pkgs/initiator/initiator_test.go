@@ -1,24 +1,17 @@
 package initiator
 
 import (
-	"bytes"
 	"crypto/rsa"
-	"encoding/hex"
 	"math/big"
 	"testing"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	ourcrypto "github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 )
 
@@ -72,8 +65,10 @@ func TestStartDKG(t *testing.T) {
 		id := crypto.NewID()
 		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		VerifySharesData(t, ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
-		VerifyDepositData(t, depositData, withdraw.Bytes(), owner, 0)
+		err = VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
+		require.NoError(t, err)
+		err = VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		initiator := New(priv, ops, logger)
@@ -98,72 +93,6 @@ func TestStartDKG(t *testing.T) {
 	srv2.HttpSrv.Close()
 	srv3.HttpSrv.Close()
 	srv4.HttpSrv.Close()
-}
-
-func VerifyDepositData(t *testing.T, depsitDataJson *DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) {
-	require.True(t, bytes.Equal(ourcrypto.ETH1WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)))
-	masterSig := &bls.Sign{}
-	require.NoError(t, masterSig.DeserializeHexStr(depsitDataJson.Signature))
-	valdatorPubKey := &bls.PublicKey{}
-	require.NoError(t, valdatorPubKey.DeserializeHexStr(depsitDataJson.PubKey))
-
-	// Check root
-	var fork [4]byte
-	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
-	depositDataRoot, err := ourcrypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
-	require.NoError(t, err)
-	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
-	require.True(t, res)
-	depositData, _, err := ourcrypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), MaxEffectiveBalanceInGwei)
-	require.NoError(t, err)
-	res, err = ourcrypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
-	require.NoError(t, err)
-	require.True(t, res)
-	depositMsg := &phase0.DepositMessage{
-		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                MaxEffectiveBalanceInGwei,
-	}
-	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
-	depositMsgRoot, _ := depositMsg.HashTreeRoot()
-	require.True(t, bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)))
-}
-
-func VerifySharesData(t *testing.T, ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeyShares, owner common.Address, nonce uint16) {
-	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
-	require.NoError(t, err)
-	validatorPublicKey, err := hex.DecodeString(ks.Payload.PublicKey[2:])
-	require.NoError(t, err)
-
-	operatorCount := len(keys)
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
-	require.Len(t, sharesData, sharesExpectedLength)
-	signature := sharesData[:signatureOffset]
-	msg := []byte("Hello")
-	require.NoError(t, ourcrypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce))
-	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
-	sigs2 := make(map[uint64][]byte)
-	for i, enck := range encryptedKeys {
-		priv := keys[i]
-		share, err := rsaencryption.DecodeKey(priv, enck)
-		require.NoError(t, err)
-		secret := &bls.SecretKey{}
-		require.NoError(t, secret.SetHexString(string(share)))
-		// Find operator ID by PubKey
-		var operatorID uint64
-		for id, op := range ops {
-			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
-				operatorID = id
-			}
-		}
-		sig := secret.SignByte(msg)
-		sigs2[operatorID] = sig.Serialize()
-	}
-	recon, err := crypto.ReconstructSignatures(sigs2)
-	require.NoError(t, err)
-	require.NoError(t, crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg))
 }
 
 func TestLoadOperators(t *testing.T) {
