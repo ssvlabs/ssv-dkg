@@ -1,9 +1,10 @@
 package board
 
 import (
-	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
+
+	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 // Board is the interface between the dkg protocol and the external world. It
@@ -12,7 +13,7 @@ import (
 // communication mechanism but one can also use a smart contract based
 // approach.
 type Board struct {
-	logger *zap.Logger
+	logger         *zap.Logger
 	broadcastF     func(msg *wire2.KyberMessage) error
 	DealC          chan dkg.DealBundle
 	ResponseC      chan dkg.ResponseBundle

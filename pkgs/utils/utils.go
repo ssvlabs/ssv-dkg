@@ -1,16 +1,17 @@
 package utils
 
 import (
+	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
+	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // WriteJSON writes data to JSON file
@@ -162,4 +163,13 @@ func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare [
 		return err
 	}
 	return nil
+}
+
+func Contains(s []*rsa.PrivateKey, i int) bool {
+	for k := range s {
+		if k == i {
+			return true
+		}
+	}
+	return false
 }

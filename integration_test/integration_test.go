@@ -8,22 +8,20 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/herumi/bls-eth-go-binary/bls"
-
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 const encryptedKeyLength = 256

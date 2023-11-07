@@ -16,9 +16,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -26,11 +23,14 @@ import (
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
 
+	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // Operator structure represents operators info which is public

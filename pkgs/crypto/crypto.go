@@ -2,8 +2,6 @@ package crypto
 
 import (
 	"crypto"
-	"unicode"
-
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -15,10 +13,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	e2m_deposit "github.com/bloxapp/eth2-key-manager/eth1_deposit"
 	"github.com/drand/kyber/share"
 	drand_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
@@ -29,6 +26,9 @@ import (
 	types "github.com/wealdtech/go-eth2-types/v2"
 	util "github.com/wealdtech/go-eth2-util"
 	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
+
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
+	e2m_deposit "github.com/bloxapp/eth2-key-manager/eth1_deposit"
 )
 
 const (

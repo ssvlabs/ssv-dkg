@@ -3,10 +3,11 @@ package cli
 import (
 	"log"
 
-	"github.com/bloxapp/ssv-dkg/cli/initiator"
-	"github.com/bloxapp/ssv-dkg/cli/operator"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/cli/initiator"
+	"github.com/bloxapp/ssv-dkg/cli/operator"
 )
 
 func init() {

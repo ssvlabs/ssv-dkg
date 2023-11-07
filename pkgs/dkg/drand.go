@@ -7,8 +7,6 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share/dkg"
@@ -23,6 +21,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/storage/kv"
 )
 
 var OutputPath string

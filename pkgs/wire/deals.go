@@ -3,6 +3,7 @@ package wire
 import (
 	"encoding/hex"
 	"encoding/json"
+
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )

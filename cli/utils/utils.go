@@ -10,9 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,6 +21,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // global base flags

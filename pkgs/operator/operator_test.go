@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/imroc/req/v3"
 	"github.com/stretchr/testify/require"
@@ -22,6 +20,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 const examplePath = "../../examples/"

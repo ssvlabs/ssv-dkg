@@ -3,8 +3,9 @@ package utils
 import (
 	"testing"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 func TestHexToAddress(t *testing.T) {

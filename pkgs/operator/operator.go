@@ -9,15 +9,15 @@ import (
 	"net/http"
 	"time"
 
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	ssvspec_types "github.com/bloxapp/ssv-spec/types"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/storage/kv"
 )
 
 // Server structure for operator to store http server and DKG ceremony instances

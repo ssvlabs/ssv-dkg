@@ -8,6 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -15,9 +19,6 @@ import (
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 type TestOperator struct {

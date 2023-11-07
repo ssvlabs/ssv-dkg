@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bloxapp/ssv-spec/types"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -16,6 +15,8 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bloxapp/ssv-spec/types"
 )
 
 func TestDKGFull(t *testing.T) {

@@ -9,15 +9,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {

@@ -17,14 +17,14 @@ const NonceLength = 32
 
 // Config structure to configure a DKG protocol instance
 type Config struct {
-	Identifier []byte // DKG instance ID 24 bytes
-	Secret       kyber.Scalar // a secret key crated at Instance initiation
-	OldNodes     []dkg.Node // DKG operators participating at the ceremony
-	NewNodes     []dkg.Node // DKG operators participating at the ceremony
+	Identifier   []byte        // DKG instance ID 24 bytes
+	Secret       kyber.Scalar  // a secret key crated at Instance initiation
+	OldNodes     []dkg.Node    // DKG operators participating at the ceremony
+	NewNodes     []dkg.Node    // DKG operators participating at the ceremony
 	Suite        pairing.Suite // parameters on the fields being used
-	T            int // threshold - minimum number of participants needed to restore a master private key
-	NewT         int // threshold - minimum number of participants needed to restore a master private key
-	Board        dkg.Board // structure to process DKG messages from other participants
+	T            int           // threshold - minimum number of participants needed to restore a master private key
+	NewT         int           // threshold - minimum number of participants needed to restore a master private key
+	Board        dkg.Board     // structure to process DKG messages from other participants
 	Share        *dkg.DistKeyShare
 	PublicCoeffs []kyber.Point
 	Logger       *zap.Logger

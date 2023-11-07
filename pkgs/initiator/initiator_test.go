@@ -5,14 +5,14 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 var jsonStr = []byte(`[

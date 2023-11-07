@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"

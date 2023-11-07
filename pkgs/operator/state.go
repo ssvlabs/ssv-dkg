@@ -11,6 +11,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/kyber"
+	bls3 "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
+	kyber_dkg "github.com/drand/kyber/share/dkg"
+	"go.uber.org/zap"
+
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -18,11 +24,6 @@ import (
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	"github.com/drand/kyber"
-	bls3 "github.com/drand/kyber-bls12381"
-	"github.com/drand/kyber/share"
-	kyber_dkg "github.com/drand/kyber/share/dkg"
-	"go.uber.org/zap"
 )
 
 const MaxInstances = 1024

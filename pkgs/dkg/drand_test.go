@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
@@ -22,6 +19,9 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/storage/kv"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 type testVerify struct {
