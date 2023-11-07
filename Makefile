@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint 
+.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -92,3 +92,8 @@ lint:
 		echo "Some files requires formatting, please run 'go fmt ./...'"; \
 		exit 1; \
 	fi
+critic-prepare:
+	@echo "Preparing GoCritic"
+	go install -v github.com/go-critic/go-critic/cmd/gocritic@latest
+critic:
+	gocritic check -enableAll ./...

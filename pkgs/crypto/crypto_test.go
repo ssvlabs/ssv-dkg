@@ -186,11 +186,11 @@ func SetupNodes(nodes []*TestNode, c *dkg.Config) {
 		c2 := *c
 		c2.Longterm = n.Private
 		c2.Nonce = nonce
-		dkg, err := dkg.NewDistKeyHandler(&c2)
+		dkgProto, err := dkg.NewDistKeyHandler(&c2)
 		if err != nil {
 			panic(err)
 		}
-		n.dkg = dkg
+		n.dkg = dkgProto
 	}
 }
 
@@ -205,11 +205,11 @@ func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
 		} else {
 			c2.PublicCoeffs = coeffs
 		}
-		dkg, err := dkg.NewDistKeyHandler(&c2)
+		dkgProto, err := dkg.NewDistKeyHandler(&c2)
 		if err != nil {
 			panic(err)
 		}
-		n.dkg = dkg
+		n.dkg = dkgProto
 	}
 }
 

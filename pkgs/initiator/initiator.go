@@ -235,7 +235,6 @@ func parseAsError(msg []byte) (error, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return errors.New(string(sszerr.Error)), nil
 }
 
@@ -375,7 +374,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	return dkgResult, nil
 }
 
-func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators []*wire.Operator, newOperators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators, newOperators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending reshare message to old operators")
 	allOps := utils.JoinSets(oldOperators, newOperators)
 	results, err := c.SendReshareMsg(reshare, newID, allOps)
@@ -685,7 +684,7 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}
-			return nil, nil, nil, nil, nil, fmt.Errorf(msgErr)
+			return nil, nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
@@ -740,7 +739,7 @@ func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24
 			if err != nil {
 				return nil, nil, nil, nil, err
 			}
-			return nil, nil, nil, nil, fmt.Errorf(msgErr)
+			return nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
@@ -932,7 +931,7 @@ func VerifyDepositData(depsitDataJson *DepositDataJson, withdrawCred []byte, own
 	if err != nil {
 		return err
 	}
-	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot[:])
+	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot)
 	if !res {
 		return fmt.Errorf("wrong master sig at result")
 	}

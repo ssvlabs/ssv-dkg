@@ -429,7 +429,7 @@ func (o *LocalOwner) PostDKG(res *dkg.OptionResult) error {
 	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.Data.Init.Fork[:])))
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials[:], validatorPubKey, utils.GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
+	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.Data.Init.WithdrawalCredentials, validatorPubKey, utils.GetNetworkByFork(o.Data.Init.Fork), MaxEffectiveBalanceInGwei)
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -770,28 +770,29 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				}
 			}
 			for _, op := range utils.GetDisjointNewOperators(o.Data.Reshare.OldOperators, o.Data.Reshare.NewOperators) {
-				if o.ID == op.ID {
-					bundle := &dkg.DealBundle{}
-					b, err := wire.EncodeDealBundle(bundle)
-					if err != nil {
-						return err
-					}
-					msg := &wire.ReshareKyberMessage{
-						Type: wire.KyberDealBundleMessageType,
-						Data: b,
-					}
-
-					byts, err := msg.MarshalSSZ()
-					if err != nil {
-						return err
-					}
-					trsp := &wire.Transport{
-						Type:       wire.ReshareKyberMessageType,
-						Identifier: o.Data.ReqID,
-						Data:       byts,
-					}
-					o.Broadcast(trsp)
+				if o.ID != op.ID {
+					continue
 				}
+				bundle := &dkg.DealBundle{}
+				b, err := wire.EncodeDealBundle(bundle)
+				if err != nil {
+					return err
+				}
+				msg := &wire.ReshareKyberMessage{
+					Type: wire.KyberDealBundleMessageType,
+					Data: b,
+				}
+
+				byts, err := msg.MarshalSSZ()
+				if err != nil {
+					return err
+				}
+				trsp := &wire.Transport{
+					Type:       wire.ReshareKyberMessageType,
+					Identifier: o.Data.ReqID,
+					Data:       byts,
+				}
+				o.Broadcast(trsp)
 			}
 		}
 	case wire.ReshareKyberMessageType:
@@ -932,7 +933,7 @@ func (o *LocalOwner) encryptSecretShare(secretKeyBLS *bls.SecretKey) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	if err = shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
+	if err := shareSecretDecrypted.SetHexString(string(decryptedSharePrivateKey)); err != nil {
 		return nil, err
 	}
 

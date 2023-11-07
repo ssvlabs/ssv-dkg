@@ -76,6 +76,16 @@ func (iw *instWrapper) ReadError() error {
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
 type InstanceID [24]byte
 
+// Switch structure to hold many instances created for separate DKG ceremonies
+type Switch struct {
+	Logger           *zap.Logger
+	Mtx              sync.RWMutex
+	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
+	Instances        map[InstanceID]Instance  // mapping to store DKG instances
+	PrivateKey       *rsa.PrivateKey          // operator RSA private key
+	DB               *kv.BadgerDB
+}
+
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
@@ -230,16 +240,6 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 		}
 		return crypto.VerifyRSA(pk, msg, sig)
 	}, nil
-}
-
-// Switch structure to hold many instances created for separate DKG ceremonies
-type Switch struct {
-	Logger           *zap.Logger
-	Mtx              sync.RWMutex
-	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
-	Instances        map[InstanceID]Instance  // mapping to store DKG instances
-	PrivateKey       *rsa.PrivateKey          // operator RSA private key
-	DB               *kv.BadgerDB
 }
 
 // NewSwitch creates a new Switch

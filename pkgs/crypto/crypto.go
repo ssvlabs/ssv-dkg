@@ -81,8 +81,8 @@ func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 
 // ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
 func ResultToShareSecretKey(result *drand_dkg.Result) (*bls.SecretKey, error) {
-	share := result.Key.PriShare()
-	bytsSk, err := share.V.MarshalBinary()
+	privShare := result.Key.PriShare()
+	bytsSk, err := privShare.V.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +94,8 @@ func ResultToShareSecretKey(result *drand_dkg.Result) (*bls.SecretKey, error) {
 }
 
 // KyberShareToBLSKey converts a kyber private share to github.com/herumi/bls-eth-go-binary/bls private key
-func KyberShareToBLSKey(share *share.PriShare) (*bls.SecretKey, error) {
-	bytsSk, err := share.V.MarshalBinary()
+func KyberShareToBLSKey(privShare *share.PriShare) (*bls.SecretKey, error) {
+	bytsSk, err := privShare.V.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network e2m_core
 	signingData := phase0.SigningData{
 		ObjectRoot: objRoot,
 	}
-	copy(signingData.Domain[:], domain[:])
+	copy(signingData.Domain[:], domain)
 
 	signedDepositData := &phase0.DepositData{
 		Amount:                amount,
@@ -332,7 +332,7 @@ func BLSWithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
 func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
 	withdrawalCredentials := make([]byte, 32)
 	copy(withdrawalCredentials[:1], []byte{ETH1WithdrawalPrefixByte})
-	//withdrawalCredentials[1:12] == b'\x00' * 11 // this is not needed since cells are zeroed anyway
+	// withdrawalCredentials[1:12] == b'\x00' * 11 // this is not needed since cells are zeroed anyway
 	copy(withdrawalCredentials[12:], withdrawalAddr)
 	return withdrawalCredentials
 }
@@ -364,7 +364,7 @@ func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network 
 	signingData := phase0.SigningData{
 		ObjectRoot: objRoot,
 	}
-	copy(signingData.Domain[:], domain[:])
+	copy(signingData.Domain[:], domain)
 
 	root, err := signingData.HashTreeRoot()
 	if err != nil {
@@ -403,7 +403,7 @@ func VerifyDepositData(depositData *phase0.DepositData, network e2m_core.Network
 	if err != nil {
 		return false, err
 	}
-	copy(container.Domain[:], domain[:])
+	copy(container.Domain[:], domain)
 	signingRoot, err := container.HashTreeRoot()
 	if err != nil {
 		return false, err
@@ -446,7 +446,7 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 	signingData := phase0.SigningData{
 		ObjectRoot: objRoot,
 	}
-	copy(signingData.Domain[:], domain[:])
+	copy(signingData.Domain[:], domain)
 
 	root, err := signingData.HashTreeRoot()
 	if err != nil {
@@ -582,7 +582,7 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 }
 
 // VerifyReconstructedSignature checks a reconstructed msg master signature against validator public key
-func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
+func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) error {
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(validatorPubKey); err != nil {
 		return errors.Wrap(err, "could not deserialize validator pk")

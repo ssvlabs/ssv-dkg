@@ -232,7 +232,7 @@ func GetDBGCIntervalFlagValue(c *cobra.Command) (string, error) {
 }
 
 // AddPersistentStringFlag adds a string flag to the command
-func AddPersistentStringFlag(c *cobra.Command, flag string, value string, description string, isRequired bool) {
+func AddPersistentStringFlag(c *cobra.Command, flag, value, description string, isRequired bool) {
 	req := ""
 	if isRequired {
 		req = " (required)"

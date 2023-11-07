@@ -55,7 +55,7 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 		chunks = append(chunks, chunk)
 	}
 	if len(buf) > 0 {
-		chunks = append(chunks, buf[:])
+		chunks = append(chunks, buf)
 	}
 	return chunks
 }
@@ -74,7 +74,7 @@ func GetThreshold(ids []uint64) (int, error) {
 }
 
 // JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
-func JoinSets(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+func JoinSets(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
 	tmp := make(map[uint64]*wire.Operator)
 	var set []*wire.Operator
 	for _, op := range oldOperators {
@@ -111,7 +111,7 @@ func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
 
 // GetDisjointOldOperators returns an old set of operators disjoint from new set
 // For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
-func GetDisjointOldOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+func GetDisjointOldOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
 	tmp := make(map[uint64]*wire.Operator)
 	var set []*wire.Operator
 	for _, op := range newOperators {
@@ -129,7 +129,7 @@ func GetDisjointOldOperators(oldOperators []*wire.Operator, newOperators []*wire
 
 // GetDisjointNewOperators returns a new set of operators disjoint from old set
 // For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
-func GetDisjointNewOperators(oldOperators []*wire.Operator, newOperators []*wire.Operator) []*wire.Operator {
+func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
 	tmp := make(map[uint64]*wire.Operator)
 	var set []*wire.Operator
 	for _, op := range newOperators {

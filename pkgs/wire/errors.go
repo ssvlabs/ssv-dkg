@@ -17,5 +17,5 @@ func GetErr(msg []byte) (error, error) {
 	if err := msgerr.UnmarshalSSZ(msg); err != nil {
 		return nil, err
 	}
-	return errors.New(string(msgerr.Error[:])), nil
+	return errors.New(string(msgerr.Error)), nil
 }

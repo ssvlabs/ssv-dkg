@@ -86,7 +86,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 // SetGlobalLogger creates a logger
 func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -492,8 +492,8 @@ func GetOperatorDB() (basedb.Options, error) {
 	return DBOptions, nil
 }
 
-func WriteKeyShares(id [24]byte, PubKey string, keyShares *initiator.KeyShares) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%v-%v.json", OutputPath, PubKey, hex.EncodeToString(id[:]))
+func WriteKeyShares(id [24]byte, pubKey string, keyShares *initiator.KeyShares) error {
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%v-%v.json", OutputPath, pubKey, hex.EncodeToString(id[:]))
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return err

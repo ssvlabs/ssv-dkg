@@ -82,7 +82,7 @@ var StartDKG = &cobra.Command{
 		}
 		if cli_utils.PrivKey == "" && cli_utils.GenerateInitiatorKey {
 			rsaKeyPath := fmt.Sprintf("%s/encrypted_private_key-%v.json", cli_utils.OutputPath, depositData.PubKey)
-			err = os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0644)
+			err = os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0o644)
 			if err != nil {
 				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
 			}
@@ -92,7 +92,7 @@ var StartDKG = &cobra.Command{
 				if err != nil {
 					logger.Fatal("Failed to generate secure password", zap.Error(err))
 				}
-				err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0644)
+				err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0o644)
 				if err != nil {
 					logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
 				}

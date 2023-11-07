@@ -521,7 +521,7 @@ func TestReshareHappyFlow(t *testing.T) {
 	srv13.HttpSrv.Close()
 }
 
-func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys []*rsa.PrivateKey, sharesData []byte, validatorPublicKey []byte, owner common.Address, nonce uint16) error {
+func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint16) error {
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
@@ -616,7 +616,7 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 	return &reconstructedSig, err
 }
 
-func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey []byte, msg []byte) error {
+func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) error {
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(validatorPubKey); err != nil {
 		return errors.Wrap(err, "could not deserialize validator pk")

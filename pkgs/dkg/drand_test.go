@@ -26,29 +26,23 @@ import (
 
 type testVerify struct {
 	ops map[uint64]*rsa.PublicKey
-	//mtx sync.Mutex
 }
 
 func newTestVerify() *testVerify {
 	return &testVerify{
 		ops: make(map[uint64]*rsa.PublicKey),
-		//mtx: sync.Mutex{},
 	}
 }
 
 func (tv *testVerify) Add(id uint64, pk *rsa.PublicKey) {
-	//tv.mtx.Lock()
 	tv.ops[id] = pk
-	//tv.mtx.Unlock()
 }
 
 func (tv *testVerify) Verify(id uint64, msg, sig []byte) error {
-	//tv.mtx.Lock()
 	op, ok := tv.ops[id]
 	if !ok {
 		panic("test shouldn't do this")
 	}
-	//tv.mtx.Unlock()
 	return crypto.VerifyRSA(op, msg, sig)
 }
 
@@ -60,7 +54,6 @@ type testState struct {
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
 	return ts.ForAll(func(o *LocalOwner) error {
-		//if o.info.ID != id {
 		st := &wire2.SignedTransport{}
 		if err := st.UnmarshalSSZ(data); err != nil {
 			return err
@@ -68,7 +61,6 @@ func (ts *testState) Broadcast(id uint64, data []byte) error {
 		if err := o.Process(id, st); err != nil {
 			return err
 		}
-		//}
 		return nil
 	})
 }
@@ -299,7 +291,6 @@ func TestDKG(t *testing.T) {
 	}
 
 	for _, opid := range newops {
-		//ops[id] = own.info
 		pktobytes, err := crypto.EncodePublicKey(ts2.tv.ops[opid])
 		require.NoError(t, err)
 		newopsArr = append(newopsArr, &wire2.Operator{
@@ -355,14 +346,6 @@ func TestDKG(t *testing.T) {
 	err = ts2.ForAll(func(o *LocalOwner) error {
 		return o.Broadcast(exch2[o.ID])
 	})
-
-	require.NoError(t, err)
-
-	// err = ts2.ForAll(func(o *LocalOwner) error {
-	// 	<-o.startedDKG
-	// 	return nil
-	// })
-
 	require.NoError(t, err)
 	newPubs := make(map[uint64]kyber.Point)
 	secretsNewNodes := make(map[uint64]*herumi_bls.SecretKey)
@@ -390,7 +373,7 @@ func TestDKG(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	// check that old nodes sigs cannot be used
+	// Check that old nodes sigs cannot be used
 	bytesToSign := []byte("Hello World")
 	// Sign with old nodes
 	oldNodesSigs := make(map[uint64][]byte)
@@ -452,7 +435,7 @@ func TestDKG(t *testing.T) {
 	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKOldNodes.SerializeToHexStr())
 	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKNewNodes.SerializeToHexStr())
 
-	// check threshold holds at new nodes
+	// Check threshold holds at new nodes
 	nodeSigs := make(map[uint64][]byte)
 	nodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
 	for id, n := range secretsNewNodes {
