@@ -302,8 +302,8 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 	return final, nil
 }
 
-// validatedOperatorData validates operators information data before starting a DKG ceremony
-func validatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
+// ValidatedOperatorData validates operators information data before starting a DKG ceremony
+func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
 	if len(ids) < 4 {
 		return nil, fmt.Errorf("minimum supported amount of operators is 4")
 	}
@@ -488,7 +488,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 // StartDKG starts DKG ceremony at initiator with requested parameters
 func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataJson, *KeyShares, error) {
 
-	ops, err := validatedOperatorData(ids, c.Operators)
+	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -569,11 +569,11 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 
 func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64, owner common.Address, nonce uint64) (*KeyShares, error) {
 
-	oldOps, err := validatedOperatorData(oldIDs, c.Operators)
+	oldOps, err := ValidatedOperatorData(oldIDs, c.Operators)
 	if err != nil {
 		return nil, err
 	}
-	newOps, err := validatedOperatorData(newIDs, c.Operators)
+	newOps, err := ValidatedOperatorData(newIDs, c.Operators)
 	if err != nil {
 		return nil, err
 	}

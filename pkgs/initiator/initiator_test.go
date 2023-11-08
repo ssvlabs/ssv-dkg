@@ -1,4 +1,4 @@
-package initiator
+package initiator_test
 
 import (
 	"crypto/rsa"
@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
@@ -45,15 +46,15 @@ func TestStartDKG(t *testing.T) {
 		panic(err)
 	}
 	logger := zap.L().Named("operator-tests")
-	ops := make(map[uint64]Operator)
+	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
-	ops[1] = Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
-	ops[2] = Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
-	ops[3] = Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
-	ops[4] = Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey}
+	ops[1] = initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
+	ops[2] = initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
+	ops[3] = initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
+	ops[4] = initiator.Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey}
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
@@ -61,29 +62,29 @@ func TestStartDKG(t *testing.T) {
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		initiator := New(priv, ops, logger)
+		intr := initiator.New(priv, ops, logger)
 		id := crypto.NewID()
-		depositData, keyshares, err := initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		err = VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
+		err = initiator.VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
-		err = VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		initiator := New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger)
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		initiator := New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger)
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		initiator := New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger)
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
@@ -97,7 +98,7 @@ func TestStartDKG(t *testing.T) {
 
 func TestLoadOperators(t *testing.T) {
 	t.Run("test load happy flow", func(t *testing.T) {
-		ops, err := LoadOperatorsJson(jsonStr)
+		ops, err := initiator.LoadOperatorsJson(jsonStr)
 		require.NoError(t, err)
 		require.Len(t, ops, 4)
 		require.Equal(t, ops[4].Addr, "http://localhost:3033", "addr not equal")
@@ -106,7 +107,7 @@ func TestLoadOperators(t *testing.T) {
 		require.True(t, ops[3].PubKey.Equal(key3), "pubkey not equal")
 	})
 	t.Run("test wrong pub key encoding", func(t *testing.T) {
-		_, err := LoadOperatorsJson([]byte(`[
+		_, err := initiator.LoadOperatorsJson([]byte(`[
       {
         "id": 1,
         "public_key": "LS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdkFXRFppc1d4TUV5MGNwdjhoanAKQThDMWNYZ3VseHkyK0tDNldpWGo3NThuMjl4b1NsNHV1SjgwQ2NqQXJqbGQrWkNEWmxvSlhtMk51L0FFOFRaMgpQRW1UZFcxcGp5TmV1N2RDUWtGTHF3b3JGZ1AzVWdxczdQSEpqSE1mOUtTb1Y0eUxlbkxwYlR0L2tEczJ1Y1c3CnUrY3hvZFJ4d01RZHZiN29mT0FhbVhxR1haZ0NhNHNvdHZmSW9RS1dDaW9MczcvUkM3dHJrUGJONW4rbHQyZWEKd1J1SFRTTlNZcEdmbi9ud0FROHVDaW55SnNQV0Q0NUhldG9GekNKSlBnNjYzVzE1K1VsWU9tQVJCcWtaSVBISAp5V25ORjZTS2tRalI2MDJwQ3RXTkZRMi9wUVFqblJXbUkrU2FjMHhXRVQ3UUlsVmYxSGZ2NWRnWE9OT05hTTlFClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
@@ -116,7 +117,7 @@ func TestLoadOperators(t *testing.T) {
 		require.ErrorContains(t, err, "wrong pub key string")
 	})
 	t.Run("test wrong operator URL", func(t *testing.T) {
-		_, err := LoadOperatorsJson([]byte(`[
+		_, err := initiator.LoadOperatorsJson([]byte(`[
       {
         "id": 1,
         "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdkFXRFppc1d4TUV5MGNwdjhoanAKQThDMWNYZ3VseHkyK0tDNldpWGo3NThuMjl4b1NsNHV1SjgwQ2NqQXJqbGQrWkNEWmxvSlhtMk51L0FFOFRaMgpQRW1UZFcxcGp5TmV1N2RDUWtGTHF3b3JGZ1AzVWdxczdQSEpqSE1mOUtTb1Y0eUxlbkxwYlR0L2tEczJ1Y1c3CnUrY3hvZFJ4d01RZHZiN29mT0FhbVhxR1haZ0NhNHNvdHZmSW9RS1dDaW9MczcvUkM3dHJrUGJONW4rbHQyZWEKd1J1SFRTTlNZcEdmbi9ud0FROHVDaW55SnNQV0Q0NUhldG9GekNKSlBnNjYzVzE1K1VsWU9tQVJCcWtaSVBISAp5V25ORjZTS2tRalI2MDJwQ3RXTkZRMi9wUVFqblJXbUkrU2FjMHhXRVQ3UUlsVmYxSGZ2NWRnWE9OT05hTTlFClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
@@ -127,10 +128,10 @@ func TestLoadOperators(t *testing.T) {
 	})
 }
 
-func generateOperators(ids []uint64) Operators {
-	m := make(map[uint64]Operator)
+func generateOperators(ids []uint64) initiator.Operators {
+	m := make(map[uint64]initiator.Operator)
 	for _, i := range ids {
-		m[i] = Operator{
+		m[i] = initiator.Operator{
 			Addr: "",
 			ID:   i,
 			PubKey: &rsa.PublicKey{
@@ -151,7 +152,7 @@ func TestValidateDKGParams(t *testing.T) {
 	tests := []struct {
 		name    string
 		ids     []uint64
-		ops     Operators
+		ops     initiator.Operators
 		wantErr bool
 		errMsg  string
 	}{
@@ -199,7 +200,7 @@ func TestValidateDKGParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := validatedOperatorData(tt.ids, tt.ops)
+			res, err := initiator.ValidatedOperatorData(tt.ids, tt.ops)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error but got none")
