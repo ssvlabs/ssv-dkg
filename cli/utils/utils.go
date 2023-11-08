@@ -18,7 +18,6 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv/logging"
@@ -416,7 +415,7 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if Port <= 0 {
 		return fmt.Errorf("😥 Wrong port provided")
 	}
-	dkg.StoreShare = viper.GetBool("storeShare")
+	StoreShare = viper.GetBool("storeShare")
 	DBPath = viper.GetString("DBPath")
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")

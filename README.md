@@ -258,7 +258,7 @@ Here's an explanation of each parameter:
 | --owner                    | address                                   | Owner address for the SSV contract                                                                 |
 | --nonce                    | int                                       | Owner nonce for the SSV contract                                                                   |
 | --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                           |
-| --network                  | mainnet / prater / pyrmont                | Network name (default: `mainnet`)                                                                  |
+| --network                  | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                  |
 | --outputPath               | string                                    | Path to store the output files                                                                     |
 | --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
 | --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |

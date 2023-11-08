@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/herumi/bls-eth-go-binary/bls"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -149,7 +149,7 @@ func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wir
 }
 
 // storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
-func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, validatorPubKey *bls.PublicKey) error {
+func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, id [24]byte) error {
 	type shareStorage struct {
 		Index  int    `json:"index"`
 		Secret string `json:"secret"`
@@ -158,7 +158,8 @@ func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare [
 		Index:  index,
 		Secret: hex.EncodeToString(encryptedSecretShare),
 	}
-	err := WriteJSON(outputPath+"secret_share_"+fmt.Sprintf("%d", data.Index)+"_"+validatorPubKey.SerializeToHexStr(), &data)
+	outputFile := fmt.Sprintf("%s/secret_share_%d_%x", outputPath, data.Index, id)
+	err := WriteJSON(outputFile, &data)
 	if err != nil {
 		return err
 	}
@@ -172,4 +173,13 @@ func Contains(s []*rsa.PrivateKey, i int) bool {
 		}
 	}
 	return false
+}
+
+func CommitsToBytes(cs []kyber.Point) []byte {
+	var commits []byte
+	for _, point := range cs {
+		b, _ := point.MarshalBinary()
+		commits = append(commits, b...)
+	}
+	return commits
 }

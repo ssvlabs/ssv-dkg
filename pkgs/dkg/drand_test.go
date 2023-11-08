@@ -12,12 +12,14 @@ import (
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
+	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/storage/kv"
@@ -125,23 +127,47 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	if err != nil {
 		ts.T.Error(err)
 	}
+	storeSecretShare := func(reqID [24]byte, key *kyber_dkg.DistKeyShare) error {
+		// encode priv share
+		secret := &DistKeyShare{}
+		secret.Commits = utils.CommitsToBytes(key.Commits)
+		secterPoint, err := key.Share.V.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		secret.Share.V = secterPoint
+		secret.Share.I = key.Share.I
+		bin, err := secret.Encode()
+		if err != nil {
+			return err
+		}
+		encBin, err := encrypt(bin)
+		if err != nil {
+			return err
+		}
+		err = db.Set([]byte("secret_share"), reqID[:], encBin)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
 		Suite:     kyber_bls.NewBLS12381Suite(),
-		Exchanges: make(map[uint64]*wire2.Exchange),
-		Deals:     make(map[uint64]*dkg.DealBundle),
-		BroadcastF: func(bytes []byte) error {
+		exchanges: make(map[uint64]*wire2.Exchange),
+		deals:     make(map[uint64]*dkg.DealBundle),
+		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		SignFunc:    sign,
-		VerifyFunc:  ver,
-		EncryptFunc: encrypt,
-		DecryptFunc: decrypt,
-		RSAPub:      &pv.PublicKey,
-		Done:        make(chan struct{}, 1),
-		StartedDKG:  make(chan struct{}, 1),
-		DB:          db,
+		signFunc:         sign,
+		verifyFunc:       ver,
+		encryptFunc:      encrypt,
+		decryptFunc:      decrypt,
+		storeSecretShare: storeSecretShare,
+		RSAPub:           &pv.PublicKey,
+		done:             make(chan struct{}, 1),
+		startedDKG:       make(chan struct{}, 1),
 	}
 }
 
@@ -150,7 +176,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 	ts.tv.Add(id, owner.RSAPub)
 
 	sign := func(d []byte) ([]byte, error) {
-		return owner.SignFunc(d)
+		return owner.signFunc(d)
 	}
 
 	ver := ts.tv.Verify
@@ -161,19 +187,18 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		Logger:    logger,
 		ID:        id,
 		Suite:     kyber_bls.NewBLS12381Suite(),
-		Exchanges: make(map[uint64]*wire2.Exchange),
-		Deals:     make(map[uint64]*dkg.DealBundle),
-		BroadcastF: func(bytes []byte) error {
+		exchanges: make(map[uint64]*wire2.Exchange),
+		deals:     make(map[uint64]*dkg.DealBundle),
+		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		SignFunc:    sign,
-		VerifyFunc:  ver,
-		EncryptFunc: owner.EncryptFunc,
-		DecryptFunc: owner.DecryptFunc,
+		signFunc:    sign,
+		verifyFunc:  ver,
+		encryptFunc: owner.encryptFunc,
+		decryptFunc: owner.decryptFunc,
 		RSAPub:      owner.RSAPub,
-		Done:        make(chan struct{}, 1),
-		StartedDKG:  make(chan struct{}, 1),
-		DB:          owner.DB,
+		done:        make(chan struct{}, 1),
+		startedDKG:  make(chan struct{}, 1),
 	}
 
 }
@@ -224,7 +249,7 @@ func TestDKG(t *testing.T) {
 	})
 	require.NoError(t, err)
 	err = ts.ForAll(func(o *LocalOwner) error {
-		<-o.StartedDKG
+		<-o.startedDKG
 		return nil
 	})
 
@@ -232,7 +257,7 @@ func TestDKG(t *testing.T) {
 
 	pubs := make(map[uint64]kyber.Point)
 	err = ts.ForAll(func(o *LocalOwner) error {
-		<-o.Done
+		<-o.done
 		pubs[o.ID] = o.SecretShare.Public()
 		return nil
 	})
@@ -350,7 +375,7 @@ func TestDKG(t *testing.T) {
 	newPubs := make(map[uint64]kyber.Point)
 	secretsNewNodes := make(map[uint64]*herumi_bls.SecretKey)
 	err = ts2.ForNew(func(o *LocalOwner) error {
-		<-o.Done
+		<-o.done
 		newPubs[o.ID] = o.SecretShare.Public()
 		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
 		if err != nil {

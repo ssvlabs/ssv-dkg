@@ -68,7 +68,7 @@ var StartDKG = &cobra.Command{
 		}
 		// Save deposit file
 		logger.Info("🎯  All data is validated.")
-		depositFinalPath := fmt.Sprintf("%s/deposit_%s-%v.json", cli_utils.OutputPath, depositData.PubKey, hex.EncodeToString(id[:]))
+		depositFinalPath := fmt.Sprintf("%s/deposit-%s-%v.json", cli_utils.OutputPath, depositData.PubKey, hex.EncodeToString(id[:]))
 		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
 		err = utils.WriteJSON(depositFinalPath, []initiator.DepositDataJson{*depositData})
 		if err != nil {

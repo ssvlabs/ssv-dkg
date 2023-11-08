@@ -317,14 +317,13 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Len(t, swtch.Instances, 1)
-	o := swtch.Instances[reqID].GetLocalOwner()
-	bin, err := o.EncryptSecretDB([]byte("Hello World"))
+	bin, err := swtch.EncryptSecretDB([]byte("Hello World"))
 	require.NoError(t, err)
 	t.Logf("Encrypted len %d", len(bin))
 
-	err = o.DB.Set([]byte("secret"), reqID[:], bin)
+	err = swtch.DB.Set([]byte("secret"), reqID[:], bin)
 	require.NoError(t, err)
-	binFromDB, ok, err := o.DB.Get([]byte("secret"), reqID[:])
+	binFromDB, ok, err := swtch.DB.Get([]byte("secret"), reqID[:])
 	require.NoError(t, err)
 	if !ok {
 		t.Fatal("Cant get from db")
