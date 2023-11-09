@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -904,7 +905,7 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 		}
 
 		opmap[opdata.ID] = Operator{
-			Addr:   opdata.Addr,
+			Addr:   strings.TrimRight(opdata.Addr, "/"),
 			ID:     opdata.ID,
 			PubKey: pbKey.(*rsa.PublicKey),
 		}
