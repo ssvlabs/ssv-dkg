@@ -217,7 +217,7 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
 }
 
-// StoreSecret stores to Badger DB a secret share encrypted with RSA priv key
+// StoreSecretShare stores to Badger DB a secret share encrypted with RSA priv key
 func (s *Switch) StoreSecretShare(reqID [24]byte, key *kyber_dkg.DistKeyShare) error {
 	// encode priv share
 	secret := &dkg.DistKeyShare{}
@@ -260,7 +260,7 @@ func (s *Switch) StoreSecretShare(reqID [24]byte, key *kyber_dkg.DistKeyShare) e
 	return nil
 }
 
-// EncryptsecretDB encrypts secret share object bytes using RSA key to store at DB
+// EncryptSecretDB encrypts secret share object bytes using RSA key to store at DB
 func (s *Switch) EncryptSecretDB(bin []byte) ([]byte, error) {
 	// brake to chunks of 256 byte
 	chuncks := utils.SplitBytes(bin, 128)
