@@ -243,7 +243,7 @@ func TestRemoveTrailSlash(t *testing.T) {
 	}
 	]`)
 
-	ops, err := LoadOperatorsJson(jsonStr)
+	ops, err := initiator.LoadOperatorsJson(jsonStr)
 
 	require.Nil(t, err)
 	require.Equal(t, "http://localhost:3030", ops[1].Addr)
