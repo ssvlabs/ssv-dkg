@@ -191,7 +191,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 			commits = append(commits, b...)
 		}
 	}
-	resp, err := owner.CreateInstanceReshare(reqID, reshare, commits)
+	resp, err := owner.InitReshare(reqID, reshare, commits)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -360,7 +360,7 @@ func TestDKG(t *testing.T) {
 				commits = append(commits, b...)
 			}
 		}
-		ts, err := o.CreateInstanceReshare(newuid, reshare, commits)
+		ts, err := o.InitReshare(newuid, reshare, commits)
 		if err != nil {
 			t.Error(t, err)
 		}

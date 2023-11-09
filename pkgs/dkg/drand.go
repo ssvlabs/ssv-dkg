@@ -507,7 +507,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 	return nil
 }
 
-// init function creates an interface for DKG (board) which process protocol messages
+// Init function creates an interface for DKG (board) which process protocol messages
 // Here we randomly create a point at G1 as a DKG public key for the node
 func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
 	if o.data == nil {
@@ -551,7 +551,8 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	return ExchangeWireMessage(bts, reqID), nil
 }
 
-func (o *LocalOwner) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, commits []byte) (*wire.Transport, error) {
+// InitReshare initiates a resharing owner of dkg protocol
+func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits []byte) (*wire.Transport, error) {
 	if o.data == nil {
 		o.data = &DKGdata{}
 	}
