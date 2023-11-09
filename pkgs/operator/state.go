@@ -126,7 +126,6 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		RSAPub:               &s.PrivateKey.PublicKey,
 		Owner:                init.Owner,
 		Nonce:                init.Nonce,
-		DB:                   s.DB,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -181,7 +180,6 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		RSAPub:               &s.PrivateKey.PublicKey,
 		Owner:                reshare.Owner,
 		Nonce:                reshare.Nonce,
-		DB:                   s.DB,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg

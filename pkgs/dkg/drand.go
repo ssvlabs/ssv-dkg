@@ -23,7 +23,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/storage/kv"
 )
 
 const (
@@ -96,7 +95,6 @@ type OwnerOpts struct {
 	RSAPub               *rsa.PublicKey
 	Owner                [20]byte
 	Nonce                uint64
-	DB                   *kv.BadgerDB
 }
 
 type PriShare struct {
