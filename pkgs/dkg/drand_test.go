@@ -5,10 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	mrand "math/rand"
-	"testing"
-	"time"
-
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
@@ -17,6 +13,8 @@ import (
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	mrand "math/rand"
+	"testing"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -275,26 +273,16 @@ func TestDKG(t *testing.T) {
 	})
 	require.NoError(t, err)
 	commitsbytes := make([]byte, 0, 48*3)
-	fmt.Println("################ commits #####################################################################")
 	for _, comm := range commits {
 		bin, err := comm.MarshalBinary()
 		require.NoError(t, err)
-		fmt.Println(len(bin))
+		t.Logf("commits num : %v", len(bin))
 		commitsbytes = append(commitsbytes, bin...)
 	}
 
 	// Start resharing
 
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
-	time.Sleep(1 * time.Second)
-	fmt.Println("######################################START OF RESHARE#####################################################")
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
-	fmt.Println("###########################################################################################")
+	t.Log("Starting resharing")
 
 	ts2 := &testState{
 		T:   t,
@@ -324,16 +312,17 @@ func TestDKG(t *testing.T) {
 		})
 	}
 
-	fmt.Println("############################################## OPERATOPR ")
-	fmt.Println("############################################## OLD OPERATOPR ")
+	oldopstr := "Old operators \n"
 	for _, i := range opsarr {
-		fmt.Println(i.ID)
+		oldopstr += fmt.Sprintln(i.ID)
 	}
-	fmt.Println("############################################## NEW OPERATOPR ")
+	t.Logf(oldopstr)
+
+	newopstr := "new operators \n"
 	for _, i := range newopsArr {
-		fmt.Println(i.ID)
+		newopstr += fmt.Sprintln(i.ID)
 	}
-	fmt.Println("############################################## OPERATOPR ")
+	t.Logf(newopstr)
 
 	reshare := &wire2.Reshare{
 		OldOperators: opsarr,
