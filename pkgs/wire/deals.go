@@ -3,6 +3,7 @@ package wire
 import (
 	"encoding/hex"
 	"encoding/json"
+
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -12,6 +13,7 @@ type encodedDeals struct {
 	Public []string
 }
 
+// EncodeDealBundle encodes a DKG deal bundle
 func EncodeDealBundle(bundle *dkg.DealBundle) ([]byte, error) {
 	var publics []string
 	for _, p := range bundle.Public {
@@ -34,6 +36,7 @@ func EncodeDealBundle(bundle *dkg.DealBundle) ([]byte, error) {
 	return json.MarshalIndent(obj, "", " ")
 }
 
+// EncodeDealBundle decodes a DKG deal bundle
 func DecodeDealBundle(byts []byte, suite dkg.Suite) (*dkg.DealBundle, error) {
 	obj := &encodedDeals{}
 	if err := json.Unmarshal(byts, &obj); err != nil {

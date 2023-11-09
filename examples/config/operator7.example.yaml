@@ -1,0 +1,9 @@
+privKey: /data/operator7/encrypted_private_key.json
+privKeyPassword: /data/operator7/password
+port: 3030
+storeShare: false
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/output/operator7_logs_debug.log
+DBPath: /data/output/operator7_db/

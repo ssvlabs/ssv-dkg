@@ -15,6 +15,7 @@
         - [Build](#build)
         - [Launch with command line parameters](#launch-with-command-line-parameters)
         - [Launch with YAML config file](#launch-with-yaml-config-file)
+      - [Key resharing](#Key-resharing)
     - [Deposit and register Validator](#deposit-and-register-validator)
     - [Troubleshooting](#troubleshooting)
       - [dial tcp timeout](#dial-tcp-timeout)
@@ -29,6 +30,7 @@
         - [Launch with command line parameters](#launch-with-command-line-parameters-1)
         - [Launch with YAML config file](#launch-with-yaml-config-file-1)
     - [Update Operator metadata](#update-operator-metadata)
+  - [Example](#example)
   - [Flow Description:](#flow-description)
     - [Note on DKG instance management](#note-on-dkg-instance-management)
   - [Security notes](#security-notes)
@@ -135,12 +137,13 @@ owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the
 nonce: 0    # Owner nonce for the SSV contract
 network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: /data/operators_info.json    # Path to the file containing operators information
-# alternatively:
+# Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-outputPath: /data/    # Path to store the output files
+outputPath: /data/output   #  Path to store the resulting staking deposit and ssv contract payload files
 initiatorPrivKey: /data/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: /data/password    # Path to password file to decrypt the key
-generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath`
+# Alternatively:
+# generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
@@ -182,17 +185,22 @@ You can, of course, change the configuration above to one that suits you better,
 
   #### Generate Initiator identity RSA key pair
 
-  To generate Initiator RSA keys, launch the following command, replacing `<PASSWORD>` with the same one you used in the previous command:
+    To generate Initiator RSA keys, make sure to update `initiator.yaml`:
+  ```yaml
+  # initiatorPrivKey: /data/encrypted_private_key.json  
+  initiatorPrivKeyPassword: /data/password    # Path to password file
+  generateInitiatorKey: true 
+  ```
+  Run:
+
   ```sh
-  docker run --name ssv-node-key-generation \
-  -v "$(pwd)/password":/password \
-  -it bloxstaking/ssv-node:latest \
-  /go/bin/ssvnode generate-operator-keys --password-file=/password && \
-  docker cp ssv-node-key-generation:/encrypted_private_key.json \
-  ./encrypted_private_key.json && docker rm ssv-node-key-generation
+  docker run --name ssv_dkg_initiator \
+  -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+  "ssv-dkg:latest" /app init --configPath /data/initiator.yaml && \
+  docker rm ssv_dkg_initiator
   ```
 
-  This will create `encrypted_private_key.json` with encrypted by password RSA key pair.
+  This will create `encrypted_private_key-<VALIDATOR_PUBKEY>.json` with encrypted by password RSA key pair.
 </details>
 
 #### Build from source
@@ -228,11 +236,12 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
-          --fork "mainnet" \
-          --depositResultsPath deposit.json \
-          --ssvPayloadResultsPath payload.json \
+          --network "mainnet" \
+          --outputPath /output \
           --initiatorPrivKey ./encrypted_private_key.json \
           --initiatorPrivKeyPassword ./password \
+          # Alternatively:
+          # generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
@@ -249,11 +258,11 @@ Here's an explanation of each parameter:
 | --owner                    | address                                   | Owner address for the SSV contract                                                                 |
 | --nonce                    | int                                       | Owner nonce for the SSV contract                                                                   |
 | --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                           |
-| --network                  | mainnet / prater / now_test_network       | Network name (default: `mainnet`)                                                                  |
+| --network                  | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                  |
 | --outputPath               | string                                    | Path to store the output files                                                                     |
 | --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
 | --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |
-| --generateInitiatorKey     | boolean                                   | If set true - generates a new RSA key pair + random secure password. Result stored at `outputPath` |
+| --generateInitiatorKey     | boolean                                   | Generates a new RSA key pair + random secure password. Result stored at `outputPath` (default: `false`)|
 | --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                              |
 | --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                                |
 | --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                    |
@@ -287,13 +296,15 @@ operatorIDs: [143, 219, 33, 34]    # array of Operator IDs which will be used fo
 withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4"    # Address where reward payments for the validator are sent
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c"    # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0    # Owner nonce for the SSV contract
-fork: "prater"    # Network name (default: mainnet)
+network: "prater"    # Network name (default: mainnet)
 operatorsInfoPath: ./initiator-config/operators_info.json    # Path to the file containing operators information
-operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-depositResultsPath: ./initiator-config/    # Path to store the staking deposit file
-ssvPayloadResultsPath: ./initiator-config/    # Path to store ssv contract payload file
+# Alternatively:
+# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
+outputPath: ./output    # Path to store the resulting staking deposit and ssv contract payload files
 initiatorPrivKey: ./initiator-config/encrypted_private_key.json    # Path to private key of ssv initiator
 initiatorPrivKeyPassword: ./initiator-config/password    # Path to password file to decrypt the key
+# Alternatively:
+# generateInitiatorKey: true # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
 logLevel: info    # Logger's log level (default: debug)
 logFormat: json    # Logger's encoding (default: json)
 logLevelFormat: capitalColor    # Logger's level format (default: capitalColor)
@@ -312,6 +323,53 @@ ssv-dkg init --configPath ./initiator-config/initiator.yaml
 ```
 
 If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `config.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/config.yaml`)
+
+#### Key resharing
+
+Using DKG tool is possible to reshare existing validator key to a new set of operators. For example, at initial DKG we created a validator with [1,2,3,4] operator shares, now we can use these operators to reshare the validator to a new set of disjoint operators [5,6,7,8] or to a joint set [1,2,5,6] etc. 
+
+⚠️ All operators (old set and new set) should be online to complete the resharing protocol. 
+
+⚠️ New threshold will be computed based on a new set of operators using 3f+1 tolerance. 
+
+⚠️ Generating a new RSA key pair is not possible at resharing. It is assumed that the inititators RSA key is already exists. 
+
+The Initiator creates the initial details needed to run DKG between all operators via the init command. You can launch the following command with the appropriate values to each parameter:
+```sh
+ssv-dkg reshare \
+          --operatorIDs 1,2,3,4 \
+          --newOperatorIDs 5, 6, 7, 8 \
+          --oldID "dbd12b3155454666a6710a2262695bb82cda41948d612d98" \
+          --operatorsInfoPath ./examples/operators_integration.json \
+          # Alternatively:
+          # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
+          --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
+          --nonce 4 \
+          --outputPath /output \
+          --initiatorPrivKey ./encrypted_private_key.json \
+          --initiatorPrivKeyPassword ./password \
+          --logLevel info \
+          --logFormat json \
+          --logLevelFormat capitalColor \
+          --logFilePath ./initiator_logs/debug.log
+```
+
+Here's an explanation of each parameter:
+
+| Argument                   | type                                      | description                                                                                        |
+| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| --operatorIDs              | int[]                                     | Old operator IDs participated at initial or resharing DKG ceremony                                 |
+| --newOperatorIDs           | int[]                                     | New operator IDs which will have private shares for an existing validator                          |
+| --oldID                    | string                                    | HEX of previous DKG ceremony ID. Can be found at the keyshares-[validator pk]-[ID].json            |
+
+
+Under the assumption that all the necessary files (`operators_info.json`, `encrypted_private_key.json`, `password`) are under the same folder (represented below with `<PATH_TO_FOLDER_WITH_CONFIG_FILES>`) you can run the tool using the command below:
+
+```sh
+docker run --name ssv_dkg_reshare \
+-v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+"ssv-dkg:latest" /app reshare --configPath /data/reshare.yaml
+```
 
 ### Deposit and register Validator
 
@@ -385,14 +443,15 @@ operator-config
 With this configuration, a typical configuration file would look like this:
 
 ```yaml
-privKey: /data/encrypted_private_key.json
-password: /data/password
+operatorPrivKey: /data/encrypted_private_key.json
+operatorPrivKeyPassword: /data/password
 port: 3030
 storeShare: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/debug.log
+outputPath: ./output
 ```
 
 > ℹ️ In the config file above, `/data/` represents the container's shared volume created by the docker command itself with the `-v` option.
@@ -438,14 +497,16 @@ To run the DKG tool as an operator, you can launch the following command with th
 
 ```sh
 ssv-dkg start-operator \
-            --privKey ./operator-config/encrypted_private_key.json  \
+            --operatorPrivKey ./operator-config/encrypted_private_key.json  \
+            --operatorPrivKeyPassword ./operator-config/password \
             --port 3030 \
-            --password ./operator-config/password \
             --storeShare true \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
             --logFilePath ./operator-config/debug.log
+            --DBPath ./output/operator1_db/
+            --outputPath /output
 ```
 
 Here's an explanation of each parameter:
@@ -456,10 +517,12 @@ Here's an explanation of each parameter:
 | --port           | int                                       | Port for listening messages (default: `3030`)                                                     |
 | --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)              |
 | --storeShare     | boolean                                   | Whether to store the created bls key share to a file for later reuse if needed (default: `false`) |
+| --outputPath              | string                                    | Path to store the output files (ecrypted share)                                                                     |
 | --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                             |
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
 | --logFilePath    | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                           |
+| --DBPath         | string                                    | Path to folder where Badger DB should be written (default: `./data/db.log`)                       |
 
 ##### Launch with YAML config file
 
@@ -486,6 +549,7 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: ./operator-config/debug.log
+outputPath: ./output
 ```
 
 Then the tool can be launched from the root folder, by running this command:
@@ -502,6 +566,25 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 Once the DKG tool is up and running, please make sure to update your operator metadata, and provide your DKG Operator endpoint, in the form of `protocol:ip:port` (if you have a domain name, instead of an `ip` that works as well).
 
 Please head over to [the Operator User guide on how to update metadata](https://docs.ssv.network/operator-user-guides/operator-management/setting-operator-metadata) and follow the instructions
+
+## Example
+
+To run localy an example with 4 operators. Configuration files: `examples/config`
+
+1. Build the image
+```sh
+make docker-build-image # build the Docker image
+```
+2. Run 4 operators locally
+```sh
+make docker-demo-operators # run 4 local operators
+```
+3. In a separate terminal window, run inititator
+```sh
+make docker-demo-initiator # run 1 local initiator
+```
+
+Results will be placed to `examples/output`
 
 ## Flow Description:
 
@@ -537,7 +620,6 @@ It is important to briefly explain how the communication between DKG ceremony In
 4. Operators verify each of the messages from other Operators participating in the ceremony and verifies Initiator's signature of the combined message.
 5. During the DKG protocol execution, the BLS auth scheme is used - G2 for its signature space and G1 for its public keys
 
-More details in the [Flow Description](#flow-description) section.
 
 ---
 

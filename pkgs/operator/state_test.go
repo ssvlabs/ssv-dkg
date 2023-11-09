@@ -1,19 +1,24 @@
 package operator
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/storage/basedb"
+	"github.com/bloxapp/ssv/storage/kv"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -51,9 +56,15 @@ func TestCreateInstance(t *testing.T) {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		s := NewSwitch(privateKey, logger)
+		s := NewSwitch(privateKey, logger, db)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -102,7 +113,13 @@ func TestInitInstance(t *testing.T) {
 	}
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
-	swtch := NewSwitch(privateKey, logger)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -175,7 +192,13 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		panic(err)
 	}
 	logger := zap.L().Named("state-tests")
-	swtch := NewSwitch(privateKey, logger)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -216,4 +239,96 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.Equal(t, swtch.CleanInstances(), 1)
 	require.Len(t, swtch.Instances, 0)
 
+}
+
+func TestEncryptDercyptDB(t *testing.T) {
+	privateKey, _ := generateOperatorsData(t, 4)
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("state-tests")
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
+	id := crypto.NewID()
+
+	bin, err := swtch.Encrypt([]byte("Hello World"))
+	require.NoError(t, err)
+	err = swtch.DB.Set([]byte("secret"), id[:], bin)
+	require.NoError(t, err)
+	binFromDB, ok, err := swtch.DB.Get([]byte("secret"), id[:])
+	require.NoError(t, err)
+	if !ok {
+		t.Fatal("Cant get from db")
+	}
+	decrBin, err := swtch.Decrypt(binFromDB.Value)
+	require.NoError(t, err)
+	require.True(t, bytes.Equal([]byte("Hello World"), decrBin))
+}
+
+func TestEncryptDercyptDBInstance(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("state-tests")
+	privateKey, ops := generateOperatorsData(t, 4)
+	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
+		Reporting: true,
+		Ctx:       context.Background(),
+		Path:      t.TempDir(),
+	})
+	require.NoError(t, err)
+	swtch := NewSwitch(privateKey, logger, db)
+	var reqID [24]byte
+	copy(reqID[:], "testRequestID1234567890") // Just a sample value
+
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+	require.NoError(t, err)
+
+	init := &wire.Init{
+		// Populate the Init message fields as needed for testing
+		// For example:
+		Operators:          ops,
+		Owner:              common.HexToAddress("0x0000000"),
+		Nonce:              1,
+		InitiatorPublicKey: encPubKey,
+	}
+
+	initmsg, err := init.MarshalSSZ()
+	require.NoError(t, err)
+	initMessage := &wire.Transport{
+		Type:       wire.InitMessageType,
+		Identifier: reqID,
+		Data:       initmsg,
+	}
+	tsssz, err := initMessage.MarshalSSZ()
+	require.NoError(t, err)
+	sig, err := crypto.SignRSA(priv, tsssz)
+	require.NoError(t, err)
+	resp, err := swtch.InitInstance(reqID, initMessage, sig)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Len(t, swtch.Instances, 1)
+	bin, err := swtch.EncryptSecretDB([]byte("Hello World"))
+	require.NoError(t, err)
+	t.Logf("Encrypted len %d", len(bin))
+
+	err = swtch.DB.Set([]byte("secret"), reqID[:], bin)
+	require.NoError(t, err)
+	binFromDB, ok, err := swtch.DB.Get([]byte("secret"), reqID[:])
+	require.NoError(t, err)
+	if !ok {
+		t.Fatal("Cant get from db")
+	}
+	decrBin, err := swtch.DecryptSecretDB(binFromDB.Value)
+	require.NoError(t, err)
+	require.True(t, bytes.Equal([]byte("Hello World"), decrBin))
 }
