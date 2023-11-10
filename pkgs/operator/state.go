@@ -129,7 +129,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	resp, err := owner.Init(reqID, init)
+	resp, err := owner.Init(reqID, init, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -191,7 +191,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 			commits = append(commits, b...)
 		}
 	}
-	resp, err := owner.InitReshare(reqID, reshare, commits)
+	resp, err := owner.Init(reqID, reshare, commits)
 	if err != nil {
 		return nil, nil, err
 	}

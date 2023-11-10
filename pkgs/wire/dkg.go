@@ -50,14 +50,17 @@ func (l *LogWrapper) Error(vals ...interface{}) {
 func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 	dkgLogger := New(config.Logger)
 	dkgConfig := &dkg.Config{
-		Longterm:  config.Secret,
-		Nonce:     GetNonce(config.Identifier),
-		Suite:     config.Suite.G1().(dkg.Suite),
-		NewNodes:  config.NewNodes,
-		OldNodes:  config.NewNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
-		Threshold: config.T,
-		Auth:      drand_bls.NewSchemeOnG2(config.Suite),
-		Log:       dkgLogger,
+		Longterm:     config.Secret,
+		Nonce:        GetNonce(config.Identifier),
+		Suite:        config.Suite.G1().(dkg.Suite),
+		NewNodes:     config.NewNodes,
+		OldNodes:     config.OldNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
+		Threshold:    config.NewT,
+		OldThreshold: config.T,
+		Auth:         drand_bls.NewSchemeOnG2(config.Suite),
+		Log:          dkgLogger,
+		Share:        config.Share,
+		PublicCoeffs: config.PublicCoeffs,
 	}
 	// Phaser must signal on its channel when the protocol should move to a next
 	// phase. Phase must be sequential: DealPhase (start), ResponsePhase,
@@ -76,68 +79,6 @@ func NewDKGProtocol(config *Config) (*dkg.Protocol, error) {
 
 	go phaser.Start()
 
-	return ret, nil
-}
-
-func NewReshareProtocolOldNodes(config *Config) (*dkg.Protocol, error) {
-	dkgLogger := New(config.Logger)
-	dkgConfig := &dkg.Config{
-		Longterm:     config.Secret,
-		Nonce:        GetNonce(config.Identifier),
-		Suite:        config.Suite.G1().(dkg.Suite),
-		NewNodes:     config.NewNodes,
-		OldNodes:     config.OldNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
-		Threshold:    config.NewT,
-		OldThreshold: config.T,
-		Auth:         drand_bls.NewSchemeOnG2(config.Suite),
-		Log:          dkgLogger,
-		Share:        config.Share,
-	}
-
-	phaser := dkg.NewTimePhaser(time.Second * 5)
-
-	ret, err := dkg.NewProtocol(
-		dkgConfig,
-		config.Board,
-		phaser,
-		false,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	go phaser.Start()
-
-	return ret, nil
-}
-func NewReshareProtocolNewNodes(config *Config) (*dkg.Protocol, error) {
-	dkgLogger := New(config.Logger)
-	dkgConfig := &dkg.Config{
-		Longterm:     config.Secret,
-		Nonce:        GetNonce(config.Identifier),
-		Suite:        config.Suite.G1().(dkg.Suite),
-		NewNodes:     config.NewNodes,
-		OldNodes:     config.OldNodes, // in new dkg we consider the old nodes the new nodes (taken from kyber)
-		Threshold:    config.NewT,
-		OldThreshold: config.T,
-		Auth:         drand_bls.NewSchemeOnG2(config.Suite),
-		Log:          dkgLogger,
-		PublicCoeffs: config.PublicCoeffs,
-	}
-
-	phaser := dkg.NewTimePhaser(time.Second * 5)
-
-	ret, err := dkg.NewProtocol(
-		dkgConfig,
-		config.Board,
-		phaser,
-		false,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	go phaser.Start()
 	return ret, nil
 }
 

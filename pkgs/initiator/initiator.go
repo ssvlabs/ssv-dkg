@@ -527,7 +527,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, err
 	}
 
-	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
+	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -612,7 +612,7 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 	if err != nil {
 		return nil, err
 	}
-	dkgResults, _, _, ssvContractOwnerNonceSigShares, err := c.ProcessReshareResultResponse(dkgResult, newId)
+	dkgResults, _, _, _, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, newId, true)
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +665,7 @@ func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg 
 }
 
 // ProcessDKGResultResponse deserializes incoming DKG result messages from operators
-func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
+func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte, reshare bool) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, map[ssvspec_types.OperatorID]*bls.Sign, error) {
 	dkgResults := make([]dkg.Result, 0)
 	validatorPubKey := bls.PublicKey{}
 	sharePks := make(map[ssvspec_types.OperatorID]*bls.PublicKey)
@@ -707,8 +707,10 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		}
 		sharePks[result.OperatorID] = sharePubKey
 		depositShareSig := &bls.Sign{}
-		if err := depositShareSig.Deserialize(result.DepositPartialSignature); err != nil {
-			return nil, nil, nil, nil, nil, err
+		if !reshare {
+			if err := depositShareSig.Deserialize(result.DepositPartialSignature); err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
 		}
 		sigDepositShares[result.OperatorID] = depositShareSig
 		ownerNonceShareSig := &bls.Sign{}
@@ -719,56 +721,6 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		c.Logger.Debug("Received DKG result from operator", zap.Uint64("ID", result.OperatorID))
 	}
 	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
-}
-
-func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, map[ssvspec_types.OperatorID]*bls.PublicKey, map[ssvspec_types.OperatorID]*bls.Sign, error) {
-	dkgResults := make([]dkg.Result, 0)
-	validatorPubKey := bls.PublicKey{}
-	sharePks := make(map[ssvspec_types.OperatorID]*bls.PublicKey)
-	ssvContractOwnerNonceSigShares := make(map[ssvspec_types.OperatorID]*bls.Sign)
-	for i := 0; i < len(responseResult); i++ {
-		msg := responseResult[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			return nil, nil, nil, nil, err
-		}
-		// check message type
-		if tsp.Message.Type == wire.ErrorMessageType {
-			var msgErr string
-			err := json.Unmarshal(tsp.Message.Data, &msgErr)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			return nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
-		}
-		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
-		}
-		result := &dkg.Result{}
-		if err := result.Decode(tsp.Message.Data); err != nil {
-			return nil, nil, nil, nil, err
-		}
-		// If incoming result is with wrong ID, bail
-		if !bytes.Equal(result.RequestID[:], id[:]) {
-			return nil, nil, nil, nil, fmt.Errorf("DKG result has wrong ID")
-		}
-		dkgResults = append(dkgResults, *result)
-		if err := validatorPubKey.Deserialize(result.ValidatorPubKey); err != nil {
-			return nil, nil, nil, nil, err
-		}
-		sharePubKey := &bls.PublicKey{}
-		if err := sharePubKey.Deserialize(result.SharePubKey); err != nil {
-			return nil, nil, nil, nil, err
-		}
-		sharePks[result.OperatorID] = sharePubKey
-		ownerNonceShareSig := &bls.Sign{}
-		if err := ownerNonceShareSig.Deserialize(result.OwnerNoncePartialSignature); err != nil {
-			return nil, nil, nil, nil, err
-		}
-		ssvContractOwnerNonceSigShares[result.OperatorID] = ownerNonceShareSig
-		c.Logger.Debug("Received DKG result from operator", zap.Uint64("ID", result.OperatorID))
-	}
-	return dkgResults, &validatorPubKey, sharePks, ssvContractOwnerNonceSigShares, nil
 }
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
