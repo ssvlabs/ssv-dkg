@@ -252,23 +252,23 @@ ssv-dkg init \
 
 Here's an explanation of each parameter:
 
-| Argument                   | type                                      | description                                                                                        |
-| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                                 |
-| --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                                          |
-| --operatorsInfo            | string                                    | Raw content of the JSON file with operators information                                            |
-| --owner                    | address                                   | Owner address for the SSV contract                                                                 |
-| --nonce                    | int                                       | Owner nonce for the SSV contract                                                                   |
-| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                           |
-| --network                  | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                  |
-| --outputPath               | string                                    | Path to store the output files                                                                     |
-| --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                               |
-| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)               |
-| --generateInitiatorKey     | boolean                                   | Generates a new RSA key pair + random secure password. Result stored at `outputPath` (default: `false`)|
-| --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                              |
-| --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                                |
-| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                    |
-| --logFilePath              | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                            |
+| Argument                   | type                                      | description                                                                                             |
+| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| --operatorIDs              | int[]                                     | Operator IDs which will be used for a DKG ceremony                                                      |
+| --operatorsInfoPath        | string                                    | Path to operators info: ID, base64(RSA pub key), endpoint                                               |
+| --operatorsInfo            | string                                    | Raw content of the JSON file with operators information                                                 |
+| --owner                    | address                                   | Owner address for the SSV contract                                                                      |
+| --nonce                    | int                                       | Owner nonce for the SSV contract                                                                        |
+| --withdrawAddress          | address                                   | Address where reward payments for the validator are sent                                                |
+| --network                  | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                       |
+| --outputPath               | string                                    | Path to store the output files                                                                          |
+| --initiatorPrivKey         | string                                    | Private key of ssv initiator (path, or plain text, if not encrypted)                                    |
+| --initiatorPrivKeyPassword | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)                    |
+| --generateInitiatorKey     | boolean                                   | Generates a new RSA key pair + random secure password. Result stored at `outputPath` (default: `false`) |
+| --logLevel                 | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                                   |
+| --logFormat                | json / console                            | Logger's encoding (default: `json`)                                                                     |
+| --logLevelFormat           | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                         |
+| --logFilePath              | string                                    | Path to file where logs should be written (default: `./data/debug.log`)                                 |
 
 A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
 
@@ -328,15 +328,14 @@ If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a
 
 #### Key resharing
 
-Using DKG tool is possible to reshare existing validator key to a new set of operators. For example, at initial DKG we created a validator with [1,2,3,4] operator shares, now we can use these operators to reshare the validator to a new set of disjoint operators [5,6,7,8] or to a joint set [1,2,5,6] etc. 
+Using DKG tool is possible to reshare existing validator key to a new set of operators. 
 
-⚠️ All operators (old set and new set) should be online to complete the resharing protocol. 
+For example, if an initial DKG ceremony created a cluster with operator IDs [1,2,3,4], the resharing ceremony can create a new cluster, with a completely different set of operators, for example with IDs [5,6,7,8] or a set with partial overlap, for example [1,2,5,6]. The new threshold will be computed based on a new set of operators, using 3f+1 tolerance. 
 
-⚠️ New threshold will be computed based on a new set of operators using 3f+1 tolerance. 
-
-⚠️ Generating a new RSA key pair is not possible at resharing. It is assumed that the inititators RSA key is already exists. 
+> ⚠️ All operators (**old set and new set**) must be online to complete the resharing ceremony. 
 
 The Initiator creates the initial details needed to run DKG between all operators via the init command. You can launch the following command with the appropriate values to each parameter:
+
 ```sh
 ssv-dkg reshare \
           --operatorIDs 1,2,3,4 \
@@ -358,11 +357,11 @@ ssv-dkg reshare \
 
 Here's an explanation of each parameter:
 
-| Argument                   | type                                      | description                                                                                        |
-| -------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| --operatorIDs              | int[]                                     | Old operator IDs participated at initial or resharing DKG ceremony                                 |
-| --newOperatorIDs           | int[]                                     | New operator IDs which will have private shares for an existing validator                          |
-| --oldID                    | string                                    | HEX of previous DKG ceremony ID. Can be found at the keyshares-[validator pk]-[ID].json            |
+| Argument         | type   | description                                                                             |
+| ---------------- | :----- | :-------------------------------------------------------------------------------------- |
+| --operatorIDs    | int[]  | Old operator IDs participated at initial or resharing DKG ceremony                      |
+| --newOperatorIDs | int[]  | New operator IDs which will have private shares for an existing validator               |
+| --oldID          | string | HEX of previous DKG ceremony ID. Can be found at the keyshares-[validator pk]-[ID].json |
 
 
 Under the assumption that all the necessary files (`operators_info.json`, `encrypted_private_key.json`, `password`) are under the same folder (represented below with `<PATH_TO_FOLDER_WITH_CONFIG_FILES>`) you can run the tool using the command below:
@@ -372,6 +371,8 @@ docker run --name ssv_dkg_reshare \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
 "ssv-dkg:latest" /app reshare --configPath /data/reshare.yaml
 ```
+
+> ⚠️ Note: It is not possible to create a new key pair during resharing. The same key used during `init` ceremony must be used. 
 
 ### Deposit and register Validator
 
@@ -531,7 +532,7 @@ Here's an explanation of each parameter:
 | --port           | int                                       | Port for listening messages (default: `3030`)                                                     |
 | --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key)              |
 | --storeShare     | boolean                                   | Whether to store the created bls key share to a file for later reuse if needed (default: `false`) |
-| --outputPath              | string                                    | Path to store the output files (ecrypted share)                                                                     |
+| --outputPath     | string                                    | Path to store the output files (ecrypted share)                                                   |
 | --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                             |
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                               |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                   |
