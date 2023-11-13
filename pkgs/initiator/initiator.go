@@ -73,6 +73,8 @@ type DepositDataJson struct {
 	DepositCliVersion     string      `json:"deposit_cli_version"`
 }
 
+const DepositCliVersion = "2.7.0" // latest version accepted by launchpad
+
 // KeyShares structure to create an json file for ssv smart contract
 type KeyShares struct {
 	Version   string    `json:"version"`
@@ -480,7 +482,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(withdrawCredentials []byte, 
 		DepositDataRoot:       hex.EncodeToString(root[:]),
 		ForkVersion:           hex.EncodeToString(forkbytes[:]),
 		NetworkName:           string(network),
-		DepositCliVersion:     "2.5.0",
+		DepositCliVersion:     DepositCliVersion,
 	}
 
 	return depositDataJson, nil
