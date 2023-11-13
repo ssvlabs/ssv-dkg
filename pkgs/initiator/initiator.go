@@ -73,7 +73,8 @@ type DepositDataJson struct {
 	DepositCliVersion     string      `json:"deposit_cli_version"`
 }
 
-const DepositCliVersion = "2.7.0" // latest version accepted by launchpad
+// DepositCliVersion is last version accepted by launchpad
+const DepositCliVersion = "2.7.0"
 
 // KeyShares structure to create an json file for ssv smart contract
 type KeyShares struct {
