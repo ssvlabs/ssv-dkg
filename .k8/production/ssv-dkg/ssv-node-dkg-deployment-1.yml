@@ -80,3 +80,4 @@ spec:
         - effect: NoSchedule
           key: kubernetes.io/role
           operator: Exists
+      hostNetwork: true

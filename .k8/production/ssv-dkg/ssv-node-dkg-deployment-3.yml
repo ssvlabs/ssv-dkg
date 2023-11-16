@@ -44,10 +44,6 @@ spec:
                     operator: In
                     values:
                       - ssv-main
-                  - key: beta.kubernetes.io/instance-type
-                    operator: In
-                    values:
-                      - m5a.4xlarge
       containers:
       - name: ssv-dkg-3
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
@@ -80,3 +76,4 @@ spec:
         - effect: NoSchedule
           key: kubernetes.io/role
           operator: Exists
+      hostNetwork: true
