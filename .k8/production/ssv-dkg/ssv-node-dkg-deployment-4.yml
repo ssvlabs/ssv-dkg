@@ -50,7 +50,7 @@ spec:
                       - m5a.4xlarge
       containers:
       - name: ssv-dkg-4
-        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
+        image: bloxstaking/ssv-dkg:latest
         imagePullPolicy: Always
         resources:
           limits:
@@ -58,7 +58,7 @@ spec:
             memory: REPLACE_NODES_MEM_LIMIT
         ports:
         - containerPort: 3030
-        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op4.json"]
+        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--password=/data/password", "--privKey=/data/encrypted_private_key_op4.json"]
         volumeMounts:
         - name: secrets-file
           mountPath: "/data/encrypted_private_key_op4.json"

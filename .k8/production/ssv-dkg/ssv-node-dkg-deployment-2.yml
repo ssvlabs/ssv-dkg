@@ -46,7 +46,7 @@ spec:
                       - ssv-main
       containers:
       - name: ssv-dkg-2
-        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
+        image: bloxstaking/ssv-dkg:latest
         imagePullPolicy: Always
         resources:
           limits:
@@ -54,7 +54,7 @@ spec:
             memory: REPLACE_NODES_MEM_LIMIT
         ports:
         - containerPort: 3030
-        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op2.json"]
+        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--password=/data/password", "--privKey=/data/encrypted_private_key_op2.json"]
         volumeMounts:
         - name: secrets-file
           mountPath: "/data/encrypted_private_key_op2.json"
