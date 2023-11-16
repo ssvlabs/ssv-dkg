@@ -42,12 +42,12 @@ if [[ -z ${8} ]]; then
   exit 1
 fi
 
-if [[ -z ${10} ]]; then
+if [[ -z ${9} ]]; then
   echo "Please provide nodes cpu limit"
   exit 1
 fi
 
-if [[ -z ${11} ]]; then
+if [[ -z ${10} ]]; then
   echo "Please provide nodes mem limit"
   exit 1
 fi
