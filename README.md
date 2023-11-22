@@ -203,7 +203,7 @@ You can, of course, change the configuration above to one that suits you better,
   ```sh
   docker run --name ssv_dkg_initiator \
   -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-  "ssv-dkg:latest" /app init --configPath /data/initiator.yaml && \
+  "bloxstaking/ssv-dkg:latest" /app init --configPath /data/initiator.yaml && \
   docker rm ssv_dkg_initiator
   ```
 
@@ -404,7 +404,7 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 ```sh
 docker run --name ssv_dkg_reshare \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"ssv-dkg:latest" /app reshare --configPath /data/reshare.yaml && \
+"bloxstaking/ssv-dkg:latest" /app reshare --configPath /data/reshare.yaml && \
 docker rm ssv_dkg_initiator
 ```
 
