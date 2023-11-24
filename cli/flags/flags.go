@@ -34,6 +34,7 @@ const (
 	DBPath               = "DBPath"
 	DBReporting          = "DBReporting"
 	DBGCInterval         = "DBGCInterval"
+	validators           = "validators"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -335,4 +336,9 @@ func StoreShareFlag(c *cobra.Command) {
 
 func GetStoreShareFlag(c *cobra.Command) (bool, error) {
 	return c.Flags().GetBool(storeShare)
+}
+
+// ValidatorsFlag add number of validators to create flag to the command
+func ValidatorsFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, validators, 1, "Number of validators", false)
 }

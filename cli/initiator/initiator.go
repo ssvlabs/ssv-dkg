@@ -1,9 +1,8 @@
 package initiator
 
 import (
-	"encoding/hex"
 	"fmt"
-	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -12,7 +11,6 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 )
 
 func init() {
@@ -59,47 +57,48 @@ var StartDKG = &cobra.Command{
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
-		// create a new ID
-		id := crypto.NewID()
 		// start the ceremony
-		depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, cli_utils.Nonce)
-		if err != nil {
-			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
+		nonce := cli_utils.Nonce
+		var wg sync.WaitGroup
+		resultChan := make(chan *Result)
+		for i := 0; i < int(cli_utils.Validators); i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// create a new ID
+				id := crypto.NewID()
+				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				resultChan <- &Result{
+					id:          id,
+					depositData: depositData,
+					keyShares:   keyShares,
+					nonce:       nonce,
+					err:         err,
+				}
+			}()
+			nonce++
+		}
+		go func() {
+			wg.Wait()
+			close(resultChan)
+		}()
+		var depositDataArr []*initiator.DepositDataJson
+		var keySharesArr []*initiator.KeyShares
+		var ids [][24]byte
+		var nonces []uint64
+		for res := range resultChan {
+			if res.err != nil {
+				logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(res.err))
+			}
+			logger.Info("🎯  Received result.")
+			depositDataArr = append(depositDataArr, res.depositData)
+			keySharesArr = append(keySharesArr, res.keyShares)
+			ids = append(ids, res.id)
+			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file
 		logger.Info("🎯  All data is validated.")
-		depositFinalPath := fmt.Sprintf("%s/deposit-%s-%v.json", cli_utils.OutputPath, depositData.PubKey, hex.EncodeToString(id[:]))
-		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
-		err = utils.WriteJSON(depositFinalPath, []initiator.DepositDataJson{*depositData})
-		if err != nil {
-			logger.Warn("Failed writing deposit data file: ", zap.Error(err))
-		}
-		// Save results
-		logger.Info("💾 Writing keyshares payload to file")
-		err = cli_utils.WriteKeyShares(id, keyShares.Payload.PublicKey, keyShares)
-		if err != nil {
-			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
-		}
-		if cli_utils.PrivKey == "" && cli_utils.GenerateInitiatorKey {
-			rsaKeyPath := fmt.Sprintf("%s/encrypted_private_key-%v.json", cli_utils.OutputPath, depositData.PubKey)
-			err = os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0o644)
-			if err != nil {
-				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
-			}
-			if cli_utils.PrivKeyPassword == "" {
-				rsaKeyPasswordPath := fmt.Sprintf("%s/password-%v.txt", cli_utils.OutputPath, depositData.PubKey)
-				password, err := crypto.GenerateSecurePassword()
-				if err != nil {
-					logger.Fatal("Failed to generate secure password", zap.Error(err))
-				}
-				err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0o644)
-				if err != nil {
-					logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
-				}
-			}
-			logger.Info("Private key encrypted and stored at", zap.String("path", cli_utils.OutputPath))
-		}
-
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, encryptedRSAJSON, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
@@ -118,4 +117,12 @@ var StartDKG = &cobra.Command{
 		 `)
 		return nil
 	},
+}
+
+type Result struct {
+	id          [24]byte
+	nonce       uint64
+	depositData *initiator.DepositDataJson
+	keyShares   *initiator.KeyShares
+	err         error
 }

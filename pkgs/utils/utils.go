@@ -16,7 +16,7 @@ import (
 
 // WriteJSON writes data to JSON file
 func WriteJSON(filepath string, data any) error {
-	file, err := os.Create(filepath)
+	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

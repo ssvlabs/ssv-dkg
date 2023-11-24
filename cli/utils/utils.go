@@ -46,6 +46,7 @@ var (
 	Network              string
 	OwnerAddress         common.Address
 	Nonce                uint64
+	Validators           uint64
 )
 
 // reshare flags
@@ -228,6 +229,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.GenerateInitiatorKeyFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
+	flags.ValidatorsFlag(cmd)
 }
 
 func SetReshareFlags(cmd *cobra.Command) {
@@ -350,6 +352,9 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("validators", cmd.Flags().Lookup("validators")); err != nil {
+		return err
+	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
 		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
@@ -362,6 +367,10 @@ func BindInitFlags(cmd *cobra.Command) error {
 	Network = viper.GetString("network")
 	if Network == "" {
 		return fmt.Errorf("😥 Failed to get fork version flag value")
+	}
+	Validators = viper.GetUint64("validators")
+	if Validators > 100 || Validators == 0 {
+		return fmt.Errorf("🚨 Amount of generated validators should be less 0<x<100")
 	}
 	return nil
 }
@@ -491,11 +500,84 @@ func GetOperatorDB() (basedb.Options, error) {
 	return DBOptions, nil
 }
 
-func WriteKeyShares(id [24]byte, pubKey string, keyShares *initiator.KeyShares) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%v-%v.json", OutputPath, pubKey, hex.EncodeToString(id[:]))
-	err := utils.WriteJSON(keysharesFinalPath, keyShares)
-	if err != nil {
-		return err
+func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, encryptedRSAJSON []byte, logger *zap.Logger) {
+	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
+		logger.Fatal("")
 	}
-	return nil
+	timestamp := time.Now().Format(time.RFC3339)
+	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
+	err := os.Mkdir(dir, os.ModePerm)
+	if err != nil {
+		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+	}
+	if Validators > 1 {
+		for i := 0; i < int(Validators); i++ {
+			nestedDir := fmt.Sprintf("%s/%s", dir, depositDataArr[i].PubKey)
+			err := os.Mkdir(nestedDir, os.ModePerm)
+			if err != nil {
+				logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+			}
+			depositFinalPath := fmt.Sprintf("%s/deposit_data-%s.json", nestedDir, depositDataArr[i].PubKey)
+			logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
+			err = utils.WriteJSON(depositFinalPath, depositDataArr[i])
+			if err != nil {
+				logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
+			}
+			// Save results
+			keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", nestedDir, keySharesArr[i].Payload.PublicKey, OwnerAddress.String(), nonces[i], hex.EncodeToString(ids[i][:]))\
+			logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+			err = utils.WriteJSON(keysharesFinalPath, keySharesArr[i])
+			if err != nil {
+				logger.Warn("Failed writing keyshares file: ", zap.Error(err))
+			}
+		}
+		// Write all to one JSON file
+		depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
+		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
+		err := utils.WriteJSON(depositFinalPath, depositDataArr)
+		if err != nil {
+			logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
+		}
+		// Save results
+		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
+		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+		err = utils.WriteJSON(keysharesFinalPath, keySharesArr)
+		if err != nil {
+			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
+		}
+	} else if Validators == 1 {
+		depositFinalPath := fmt.Sprintf("%s/deposit_data-%s.json", dir, depositDataArr[0].PubKey)
+		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
+		err = utils.WriteJSON(depositFinalPath, depositDataArr[0])
+		if err != nil {
+			logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
+		}
+		// Save results
+		keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keySharesArr[0].Payload.PublicKey, OwnerAddress.String(), Nonce, hex.EncodeToString(ids[0][:]))
+		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+		err = utils.WriteJSON(keysharesFinalPath, keySharesArr[0])
+		if err != nil {
+			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
+		}
+	}
+	if encryptedRSAJSON != nil {
+		rsaKeyPath := fmt.Sprintf("%s/ceremony_encrypted_key.json", dir)
+		err := os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0o644)
+		if err != nil {
+			logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+		}
+		if PrivKeyPassword == "" {
+			rsaKeyPasswordPath := fmt.Sprintf("%s/ceremony_password.json", dir)
+			password, err := crypto.GenerateSecurePassword()
+			if err != nil {
+				logger.Fatal("Failed to generate secure password", zap.Error(err))
+			}
+			err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0o644)
+			if err != nil {
+				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
+			}
+		}
+		logger.Info("Private key encrypted and stored at", zap.String("path", rsaKeyPath))
+		logger.Info("Password stored at", zap.String("path", rsaKeyPasswordPath))
+	}
 }
