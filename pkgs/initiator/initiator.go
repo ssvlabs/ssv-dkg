@@ -217,7 +217,7 @@ func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Op
 	for i := 0; i < len(operatorsIDs); i++ {
 		res := <-resc
 		if res.err != nil {
-			errarr = append(errarr, fmt.Errorf("operator ID: %d, %s", res.operatorID, res.err))
+			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
 			continue
 		}
 		final = append(final, res.result)
