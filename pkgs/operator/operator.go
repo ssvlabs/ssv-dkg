@@ -52,7 +52,7 @@ const ErrTooManyDKGRequests = `{"error": "too many requests to initiate DKG"}`
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
-		500,
+		5000,
 		1*time.Minute,
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -62,7 +62,7 @@ func RegisterRoutes(s *Server) {
 	))
 	s.Router.Route("/init", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			5,
+			1000,
 			time.Minute,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -126,7 +126,7 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/reshare", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			5,
+			1000,
 			time.Minute,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")

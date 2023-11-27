@@ -58,15 +58,15 @@ var StartDKG = &cobra.Command{
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
 		// start the ceremony
-		nonce := cli_utils.Nonce
 		var wg sync.WaitGroup
 		resultChan := make(chan *Result)
 		for i := 0; i < int(cli_utils.Validators); i++ {
 			wg.Add(1)
-			go func() {
+			go func(i int) {
 				defer wg.Done()
 				// create a new ID
 				id := crypto.NewID()
+				nonce := cli_utils.Nonce + uint64(i)
 				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				resultChan <- &Result{
 					id:          id,
@@ -75,8 +75,7 @@ var StartDKG = &cobra.Command{
 					nonce:       nonce,
 					err:         err,
 				}
-			}()
-			nonce++
+			}(i)
 		}
 		go func() {
 			wg.Wait()

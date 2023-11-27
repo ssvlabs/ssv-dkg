@@ -524,7 +524,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 				logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
 			}
 			// Save results
-			keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", nestedDir, keySharesArr[i].Payload.PublicKey, OwnerAddress.String(), nonces[i], hex.EncodeToString(ids[i][:]))\
+			keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", nestedDir, keySharesArr[i].Payload.PublicKey, OwnerAddress.String(), nonces[i], hex.EncodeToString(ids[i][:]))
 			logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
 			err = utils.WriteJSON(keysharesFinalPath, keySharesArr[i])
 			if err != nil {
@@ -576,8 +576,8 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 			if err != nil {
 				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
 			}
+			logger.Info("Private key encrypted and stored at", zap.String("path", rsaKeyPath))
+			logger.Info("Password stored at", zap.String("path", rsaKeyPasswordPath))
 		}
-		logger.Info("Private key encrypted and stored at", zap.String("path", rsaKeyPath))
-		logger.Info("Password stored at", zap.String("path", rsaKeyPasswordPath))
 	}
 }
