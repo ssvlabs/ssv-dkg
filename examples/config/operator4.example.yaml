@@ -7,4 +7,4 @@ logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/output/operator4_logs_debug.log
 DBPath: /data/output/operator4_db/
-outputPath: /data/output
+configPath: /data/config

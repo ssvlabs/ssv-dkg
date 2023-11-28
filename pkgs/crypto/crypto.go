@@ -593,3 +593,19 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) er
 	}
 	return nil
 }
+
+func ReadEncryptedRSAKey(privKeyPath, privKeyPassPath string) (*rsa.PrivateKey, error) {
+	keyStorePassword, err := os.ReadFile(privKeyPassPath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+	}
+	return EncryptedPrivateKey(privKeyPath, string(keyStorePassword))
+}
+
+func EncryptPrivateKey(priv []byte, keyStorePassword string) ([]byte, error) {
+	encryptedData, err := keystorev4.New().Encrypt(priv, keyStorePassword)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
+	}
+	return json.Marshal(encryptedData)
+}

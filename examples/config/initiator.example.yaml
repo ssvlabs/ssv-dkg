@@ -27,10 +27,9 @@ validators: 4
 # operatorsInfoPath: /data
 operatorsInfoPath: /data/operators_info.json
 outputPath: /data/output
-# privKey: /data/initiator/encrypted_private_key.json
-# privKeyPassword: /data/initiator/password
-generateInitiatorKey: true
+generateInitiatorKeyIfNotExisting: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/output/initiator_debug.log
+configPath: /data/config

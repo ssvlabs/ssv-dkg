@@ -37,7 +37,7 @@ var StartDKGOperator = &cobra.Command{
 			return err
 		}
 		logger.Info("🔑 opening operator RSA private key file")
-		privateKey, _, err := cli_utils.LoadRSAPrivKey()
+		privateKey, err := cli_utils.OpenPrivateKey(cli_utils.PrivKeyPassword, cli_utils.PrivKey)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}

@@ -17,7 +17,6 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
 
-	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -239,23 +238,6 @@ func (s *Switch) StoreSecretShare(reqID [24]byte, key *kyber_dkg.DistKeyShare) e
 	err = s.DB.Set([]byte("secret_share"), reqID[:], encBin)
 	if err != nil {
 		return err
-	}
-	// Write secret to file if requested
-	if cli_utils.StoreShare {
-		secretKeyBLS, err := crypto.KyberShareToBLSKey(key.Share)
-		if err != nil {
-			return err
-		}
-		rawshare := secretKeyBLS.SerializeToHexStr()
-		ciphertext, err := s.Encrypt([]byte(rawshare))
-		if err != nil {
-			return fmt.Errorf("cant encrypt private share")
-		}
-		err = utils.StoreSecretShareToFile(cli_utils.OutputPath, key.Share.I, ciphertext, reqID)
-		if err != nil {
-			s.Logger.Error("Cant write secret share to file: ", zap.Error(err))
-			return err
-		}
 	}
 	return nil
 }

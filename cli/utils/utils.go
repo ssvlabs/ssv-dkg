@@ -27,26 +27,25 @@ import (
 
 // global base flags
 var (
-	PrivKey         string
-	PrivKeyPassword string
-	OutputPath      string
-	LogLevel        string
-	LogFormat       string
-	LogLevelFormat  string
-	LogFilePath     string
+	ConfigPath     string
+	OutputPath     string
+	LogLevel       string
+	LogFormat      string
+	LogLevelFormat string
+	LogFilePath    string
 )
 
 // init flags
 var (
-	OperatorsInfo        string
-	OperatorsInfoPath    string
-	OperatorIDs          []string
-	GenerateInitiatorKey bool
-	WithdrawAddress      common.Address
-	Network              string
-	OwnerAddress         common.Address
-	Nonce                uint64
-	Validators           uint64
+	OperatorsInfo                     string
+	OperatorsInfoPath                 string
+	OperatorIDs                       []string
+	GenerateInitiatorKeyIfNotExisting bool
+	WithdrawAddress                   common.Address
+	Network                           string
+	OwnerAddress                      common.Address
+	Nonce                             uint64
+	Validators                        uint64
 )
 
 // reshare flags
@@ -57,27 +56,34 @@ var (
 
 // operator flags
 var (
-	Port         uint64
-	StoreShare   bool
-	DBPath       string
-	DBReporting  bool
-	DBGCInterval string
+	PrivKey         string
+	PrivKeyPassword string
+	Port            uint64
+	DBPath          string
+	DBReporting     bool
+	DBGCInterval    string
 )
 
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
-	viper.SetConfigType("yaml")
-	configPath, err := flags.GetConfigPathFlagValue(cmd)
-	if err != nil {
+	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
 		return err
 	}
-	if configPath != "" {
-		viper.SetConfigFile(configPath)
-	}
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+	configYAML := viper.GetString("configYAML")
+	if configYAML != "" {
+		if _, err := os.Stat(configYAML); os.IsNotExist(err) {
 			return err
 		}
+		viper.SetConfigType("yaml")
+		viper.SetConfigFile(configYAML)
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return err
+			}
+		}
+		fmt.Printf("⚠️ config yaml file found at %s, using it \n", configYAML)
+		return nil
+	} else {
 		fmt.Println("⚠️ config file was not provided, using flag parameters")
 	}
 	return nil
@@ -208,9 +214,8 @@ func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error
 }
 
 func SetBaseFlags(cmd *cobra.Command) {
+	flags.ConfigYAMLFlag(cmd)
 	flags.ConfigPathFlag(cmd)
-	flags.PrivateKeyFlag(cmd)
-	flags.PrivateKeyPassFlag(cmd)
 	flags.ResultPathFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
@@ -227,7 +232,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
-	flags.GenerateInitiatorKeyFlag(cmd)
+	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
 }
@@ -240,8 +245,9 @@ func SetReshareFlags(cmd *cobra.Command) {
 
 func SetOperatorFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
+	flags.PrivateKeyFlag(cmd)
+	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
-	flags.StoreShareFlag(cmd)
 	flags.DBPathFlag(cmd)
 	flags.DBReportingFlag(cmd)
 	flags.DBGCIntervalFlag(cmd)
@@ -249,10 +255,7 @@ func SetOperatorFlags(cmd *cobra.Command) {
 
 // BindFlags binds flags to yaml config parameters
 func BindBaseFlags(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("privKey", cmd.PersistentFlags().Lookup("privKey")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("privKeyPassword", cmd.PersistentFlags().Lookup("privKeyPassword")); err != nil {
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("outputPath", cmd.PersistentFlags().Lookup("outputPath")); err != nil {
@@ -270,8 +273,10 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
 		return err
 	}
-	PrivKey = viper.GetString("privKey")
-	PrivKeyPassword = viper.GetString("privKeyPassword")
+	ConfigPath = viper.GetString("configPath")
+	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
+		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
+	}
 	OutputPath = viper.GetString("outputPath")
 	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
 		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
@@ -290,9 +295,6 @@ func BindBaseFlags(cmd *cobra.Command) error {
 func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	var err error
 	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("generateInitiatorKey", cmd.PersistentFlags().Lookup("generateInitiatorKey")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
@@ -322,13 +324,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if OperatorsInfo != "" && OperatorsInfoPath != "" {
 		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
 	}
-	GenerateInitiatorKey = viper.GetBool("generateInitiatorKey")
-	if PrivKey == "" && !GenerateInitiatorKey {
-		return fmt.Errorf("😥 Initiator key flag should be provided")
-	}
-	if PrivKey != "" && GenerateInitiatorKey {
-		return fmt.Errorf("😥 Please provide either private key path or generate command, not both")
-	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
@@ -344,6 +339,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 // BindInitFlags binds flags to yaml config parameters for the initial DKG
 func BindInitFlags(cmd *cobra.Command) error {
 	if err := BindInitiatorBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("generateInitiatorKeyIfNotExisting", cmd.PersistentFlags().Lookup("generateInitiatorKeyIfNotExisting")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
@@ -372,6 +370,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be less 0<x<100")
 	}
+	GenerateInitiatorKeyIfNotExisting = viper.GetBool("generateInitiatorKeyIfNotExisting")
 	return nil
 }
 
@@ -405,10 +404,13 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("port", cmd.PersistentFlags().Lookup("port")); err != nil {
+	if err := viper.BindPFlag("privKey", cmd.PersistentFlags().Lookup("privKey")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("storeShare", cmd.PersistentFlags().Lookup("storeShare")); err != nil {
+	if err := viper.BindPFlag("privKeyPassword", cmd.PersistentFlags().Lookup("privKeyPassword")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("port", cmd.PersistentFlags().Lookup("port")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("DBPath", cmd.PersistentFlags().Lookup("DBPath")); err != nil {
@@ -420,11 +422,18 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("DBGCInterval", cmd.PersistentFlags().Lookup("DBGCInterval")); err != nil {
 		return err
 	}
+	PrivKey = viper.GetString("privKey")
+	PrivKeyPassword = viper.GetString("privKeyPassword")
+	if PrivKey == "" {
+		return fmt.Errorf("😥 Failed to get private key path flag value")
+	}
+	if PrivKeyPassword == "" {
+		return fmt.Errorf("😥 Failed to get password for private key flag value")
+	}
 	Port = viper.GetUint64("port")
 	if Port <= 0 {
 		return fmt.Errorf("😥 Wrong port provided")
 	}
-	StoreShare = viper.GetBool("storeShare")
 	DBPath = viper.GetString("DBPath")
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")
@@ -463,24 +472,57 @@ func LoadOperators() (initiator.Operators, error) {
 	return opmap, nil
 }
 
-// LoadRSAPrivKey loads RSA private key from path or generates a new key pair
-func LoadRSAPrivKey() (*rsa.PrivateKey, []byte, error) {
+// LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
+func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	var privateKey *rsa.PrivateKey
-	var encryptedRSAJSON []byte
-	var err error
-	if PrivKey != "" && !GenerateInitiatorKey {
-		privateKey, err = OpenPrivateKey(PrivKeyPassword, PrivKey)
-		if err != nil {
-			return nil, nil, err
+	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", ConfigPath)
+	privKeyPassPath := fmt.Sprintf("%s/initiator_password", ConfigPath)
+	if generate {
+		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
+			_, priv, err := rsaencryption.GenerateKeys()
+			if err != nil {
+				return nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
+			}
+			if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
+				password, err := crypto.GenerateSecurePassword()
+				if err != nil {
+					return nil, err
+				}
+				err = os.WriteFile(privKeyPassPath, []byte(password), 0o644)
+				if err != nil {
+					return nil, err
+				}
+			}
+			keyStorePassword, err := os.ReadFile(privKeyPassPath)
+			if err != nil {
+				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+			}
+			encryptedRSAJSON, err := crypto.EncryptPrivateKey(priv, string(keyStorePassword))
+			if err != nil {
+				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
+			}
+			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+			if err != nil {
+				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
+			}
+			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o644)
+			if err != nil {
+				return nil, err
+			}
+		} else if err == nil {
+			return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
 		}
-	}
-	if PrivKey == "" && GenerateInitiatorKey {
-		privateKey, encryptedRSAJSON, err = GenerateRSAKeyPair(PrivKeyPassword, PrivKey)
-		if err != nil {
-			return nil, nil, err
+	} else {
+		// check if a password string a valid path, then read password from the file
+		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("🔑 private key file: %s", err)
 		}
+		if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("🔑 password file: %s", err)
+		}
+		return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
 	}
-	return privateKey, encryptedRSAJSON, nil
+	return privateKey, nil
 }
 
 // GetOperatorDB creates a new Badger DB instance at provided path
@@ -500,7 +542,7 @@ func GetOperatorDB() (basedb.Options, error) {
 	return DBOptions, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, encryptedRSAJSON []byte, logger *zap.Logger) {
+func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, logger *zap.Logger) {
 	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
 		logger.Fatal("")
 	}
@@ -560,24 +602,20 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
 		}
 	}
-	if encryptedRSAJSON != nil {
-		rsaKeyPath := fmt.Sprintf("%s/ceremony_encrypted_key.json", dir)
-		err := os.WriteFile(rsaKeyPath, encryptedRSAJSON, 0o644)
-		if err != nil {
-			logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
-		}
-		if PrivKeyPassword == "" {
-			rsaKeyPasswordPath := fmt.Sprintf("%s/ceremony_password.json", dir)
-			password, err := crypto.GenerateSecurePassword()
-			if err != nil {
-				logger.Fatal("Failed to generate secure password", zap.Error(err))
-			}
-			err = os.WriteFile(rsaKeyPasswordPath, []byte(password), 0o644)
-			if err != nil {
-				logger.Fatal("Failed to write encrypted private key to file", zap.Error(err))
-			}
-			logger.Info("Private key encrypted and stored at", zap.String("path", rsaKeyPath))
-			logger.Info("Password stored at", zap.String("path", rsaKeyPasswordPath))
-		}
+}
+
+func WriteReshareResults(keyShares *initiator.KeyShares, id [24]byte, logger *zap.Logger) {
+	timestamp := time.Now().Format(time.RFC3339)
+	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
+	err := os.Mkdir(dir, os.ModePerm)
+	if err != nil {
+		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+	}
+	// Save results
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Payload.PublicKey, OwnerAddress.String(), Nonce, hex.EncodeToString(id[:]))
+	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+	err = utils.WriteJSON(keysharesFinalPath, keyShares)
+	if err != nil {
+		logger.Warn("Failed writing keyshares file: ", zap.Error(err))
 	}
 }

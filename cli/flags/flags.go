@@ -8,33 +8,33 @@ import (
 
 // Flag names.
 const (
-	threshold            = "threshold"
-	withdrawAddress      = "withdrawAddress"
-	operatorIDs          = "operatorIDs"
-	newOperatorIDs       = "newOperatorIDs"
-	oldID                = "oldID"
-	operatorsInfo        = "operatorsInfo"
-	operatorsInfoPath    = "operatorsInfoPath"
-	privKey              = "privKey"
-	privKeyPassword      = "privKeyPassword"
-	configPath           = "configPath"
-	generateInitiatorKey = "generateInitiatorKey"
-	operatorPort         = "port"
-	owner                = "owner"
-	nonce                = "nonce"
-	network              = "network"
-	mnemonicFlag         = "mnemonic"
-	indexFlag            = "index"
-	outputPath           = "outputPath"
-	storeShare           = "storeShare"
-	logLevel             = "logLevel"
-	logFormat            = "logFormat"
-	logLevelFormat       = "logLevelFormat"
-	logFilePath          = "logFilePath"
-	DBPath               = "DBPath"
-	DBReporting          = "DBReporting"
-	DBGCInterval         = "DBGCInterval"
-	validators           = "validators"
+	threshold                         = "threshold"
+	withdrawAddress                   = "withdrawAddress"
+	operatorIDs                       = "operatorIDs"
+	newOperatorIDs                    = "newOperatorIDs"
+	oldID                             = "oldID"
+	operatorsInfo                     = "operatorsInfo"
+	operatorsInfoPath                 = "operatorsInfoPath"
+	privKey                           = "privKey"
+	privKeyPassword                   = "privKeyPassword"
+	configPath                        = "configPath"
+	configYAML                        = "configYAML"
+	generateInitiatorKeyIfNotExisting = "generateInitiatorKeyIfNotExisting"
+	operatorPort                      = "port"
+	owner                             = "owner"
+	nonce                             = "nonce"
+	network                           = "network"
+	mnemonicFlag                      = "mnemonic"
+	indexFlag                         = "index"
+	outputPath                        = "outputPath"
+	logLevel                          = "logLevel"
+	logFormat                         = "logFormat"
+	logLevelFormat                    = "logLevelFormat"
+	logFilePath                       = "logFilePath"
+	DBPath                            = "DBPath"
+	DBReporting                       = "DBReporting"
+	DBGCInterval                      = "DBGCInterval"
+	validators                        = "validators"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -137,14 +137,14 @@ func PrivateKeyFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, privKey, "", "Path to initiator Private Key file", false)
 }
 
-// GenerateInitiatorKeyFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
-func GenerateInitiatorKeyFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKey, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+// GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // GetGenerateInitiatorKeyFlagValue gets flag to generate a random secure password and initiator RSA key pair encrypted with this password
 func GetGenerateInitiatorKeyFlagValue(c *cobra.Command) (bool, error) {
-	return c.Flags().GetBool(generateInitiatorKey)
+	return c.Flags().GetBool(generateInitiatorKeyIfNotExisting)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -157,9 +157,14 @@ func OperatorPortFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
 }
 
-// OperatorConfigPathFlag config path flag to the command
+// ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
+	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder", false)
+}
+
+// ConfigYAMLFlag config YAML file flag to the command
+func ConfigYAMLFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, configYAML, "", "Path to YAML config file", false)
 }
 
 // GetConfigPathFlagValue gets config path flag from the command
@@ -328,14 +333,6 @@ func ResultPathFlag(c *cobra.Command) {
 
 func GetResultPathFlag(c *cobra.Command) (string, error) {
 	return c.Flags().GetString(outputPath)
-}
-
-func StoreShareFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, storeShare, false, "Store BLS share as json", false)
-}
-
-func GetStoreShareFlag(c *cobra.Command) (bool, error) {
-	return c.Flags().GetBool(storeShare)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command

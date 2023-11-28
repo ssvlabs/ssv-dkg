@@ -8,7 +8,7 @@ services:
       - "3030:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator1.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -20,7 +20,7 @@ services:
       - "3031:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator2.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -32,7 +32,7 @@ services:
       - "3032:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator3.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -44,7 +44,7 @@ services:
       - "3033:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator4.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -56,7 +56,7 @@ services:
       - "3034:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator5.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator5.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -68,7 +68,7 @@ services:
       - "3035:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator6.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator6.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -80,7 +80,7 @@ services:
       - "3036:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator7.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator7.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -92,7 +92,7 @@ services:
       - "3037:3030"
     entrypoint: /app
     command:
-      ["start-operator", "--configPath", "/data/config/operator8.example.yaml"]
+      ["start-operator", "--configYAML", "/data/config/operator8.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -106,7 +106,7 @@ services:
     networks:
       - shared_network
     entrypoint: /app
-    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
+    command: ["init", "--configYAML", "/data/config/initiator.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -124,7 +124,7 @@ services:
     networks:
       - shared_network
     entrypoint: /app
-    command: ["reshare", "--configPath", "/data/config/reshare.example.yaml"]
+    command: ["reshare", "--configYAML", "/data/config/reshare.example.yaml"]
     volumes:
       - ./examples:/data
 

@@ -48,7 +48,7 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
 		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey, encryptedRSAJSON, err := cli_utils.LoadRSAPrivKey()
+		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(cli_utils.GenerateInitiatorKeyIfNotExisting)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
@@ -89,15 +89,15 @@ var StartDKG = &cobra.Command{
 			if res.err != nil {
 				logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(res.err))
 			}
-			logger.Info("🎯  Received result.")
+			logger.Info("🎯 Received result.")
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			ids = append(ids, res.id)
 			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file
-		logger.Info("🎯  All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, encryptedRSAJSON, logger)
+		logger.Info("🎯 All data is validated.")
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒

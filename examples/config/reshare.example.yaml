@@ -1,14 +1,13 @@
 operatorIDs: [1, 2, 3, 4]
 newOperatorIDs: [5, 6, 7, 8]
-oldID: "e7f0f344d66b43489aa60918f388fa8c14cb479daf8ae2fb"
+oldID: "6f102607bc9f483ba776309470947d11443f4942a316c681"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 0
 network: "mainnet"
 operatorsInfoPath: /data/operators_info.json
 outputPath: /data/output
-privKey: /data/initiator/encrypted_private_key.json
-privKeyPassword: /data/initiator/password
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/output/initiator_debug.log
+configPath: /data/config

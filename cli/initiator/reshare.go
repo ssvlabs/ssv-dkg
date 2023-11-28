@@ -1,9 +1,7 @@
 package initiator
 
 import (
-	"encoding/hex"
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -11,7 +9,6 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 )
 
 func init() {
@@ -57,7 +54,7 @@ var StartReshare = &cobra.Command{
 			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
 		}
 		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey, _, err := cli_utils.LoadRSAPrivKey()
+		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(false)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
@@ -72,12 +69,7 @@ var StartReshare = &cobra.Command{
 		}
 		// Save results
 		logger.Info("💾 Writing keyshares payload to file")
-		timestamp := time.Now().Format(time.RFC3339)
-		keysharesFinalPath := fmt.Sprintf("%s/ceremony-%s/keyshares-%s-%s-%d-%v.json", cli_utils.OutputPath, timestamp, keyShares.Payload.PublicKey, cli_utils.OwnerAddress, cli_utils.Nonce, hex.EncodeToString(id[:]))
-		err = utils.WriteJSON(keysharesFinalPath, keyShares)
-		if err != nil {
-			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
-		}
+		cli_utils.WriteReshareResults(keyShares, cli_utils.CeremonyID, logger)
 
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
