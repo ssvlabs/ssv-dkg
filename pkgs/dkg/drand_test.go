@@ -5,6 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	mrand "math/rand"
+	"testing"
+
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
@@ -13,8 +16,6 @@ import (
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	mrand "math/rand"
-	"testing"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -125,7 +126,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	if err != nil {
 		ts.T.Error(err)
 	}
-	storeSecretShare := func(reqID [24]byte, key *kyber_dkg.DistKeyShare) error {
+	storeSecretShare := func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error {
 		// encode priv share
 		secret := &DistKeyShare{}
 		secret.Commits = utils.CommitsToBytes(key.Commits)
@@ -143,7 +144,7 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		if err != nil {
 			return err
 		}
-		err = db.Set([]byte("secret_share"), reqID[:], encBin)
+		err = db.Set(pubKey, reqID[:], encBin)
 		if err != nil {
 			return err
 		}

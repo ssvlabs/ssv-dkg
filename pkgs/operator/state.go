@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -139,7 +138,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
 }
 
-func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, initiatorPublicKey *rsa.PublicKey, secretShare *kyber_dkg.DistKeyShare) (Instance, []byte, error) {
+func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
 	allOps := append(reshare.OldOperators, reshare.NewOperators...)
 	verify, err := s.CreateVerifyFunc(allOps)
 	if err != nil {
@@ -182,12 +181,24 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
+	var secretShare *kyber_dkg.DistKeyShare
 	var commits []byte
-	if secretShare != nil {
-		owner.SecretShare = secretShare
-		for _, point := range secretShare.Commits {
-			b, _ := point.MarshalBinary()
-			commits = append(commits, b...)
+	for _, op := range reshare.OldOperators {
+		if owner.ID == op.ID {
+			// try to get old share local owner first
+			pub, err := crypto.EncodePublicKey(initiatorPublicKey)
+			if err != nil {
+				return nil, nil, err
+			}
+			secretShare, err = s.GetSecretShare(reshare.OldID, pub)
+			if err != nil {
+				return nil, nil, err
+			}
+			owner.SecretShare = secretShare
+			for _, point := range secretShare.Commits {
+				b, _ := point.MarshalBinary()
+				commits = append(commits, b...)
+			}
 		}
 	}
 	resp, err := owner.InitReshare(reqID, reshare, commits)
@@ -217,7 +228,7 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 }
 
 // StoreSecretShare stores to Badger DB a secret share encrypted with RSA priv key
-func (s *Switch) StoreSecretShare(reqID [24]byte, key *kyber_dkg.DistKeyShare) error {
+func (s *Switch) StoreSecretShare(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error {
 	// encode priv share
 	secret := &dkg.DistKeyShare{}
 	secret.Commits = utils.CommitsToBytes(key.Commits)
@@ -235,7 +246,7 @@ func (s *Switch) StoreSecretShare(reqID [24]byte, key *kyber_dkg.DistKeyShare) e
 	if err != nil {
 		return err
 	}
-	err = s.DB.Set([]byte("secret_share"), reqID[:], encBin)
+	err = s.DB.Set(pubKey, reqID[:], encBin)
 	if err != nil {
 		return err
 	}
@@ -309,8 +320,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err != nil {
 		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
 	}
-	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
-	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
+	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes()[:])))
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
@@ -332,8 +342,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	s.Mtx.Unlock()
 	// check if we already run with reqID
-	_, err = s.GetSecretShare(reqID)
-	if err == nil { // we already had initial ceremony with reqID
+	if _, err := s.GetSecretShare(reqID, init.InitiatorPublicKey); err == nil { // we already had initial ceremony with reqID
 		return nil, ErrAlreadyExists
 	}
 	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
@@ -367,8 +376,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	if err != nil {
 		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
 	}
-	initiatorID := sha256.Sum256(initiatorPubKey.N.Bytes())
-	s.Logger.Info("✅ reshare message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorID[:])))
+	s.Logger.Info("✅ reshare message signature is successfully verified", zap.String("from initiator pub key", fmt.Sprintf("%x", initiatorPubKey.N.Bytes()[:])))
 	s.Logger.Info("Starting resharing protocol")
 	s.Mtx.Lock()
 	l := len(s.Instances)
@@ -391,13 +399,10 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	}
 	s.Mtx.Unlock()
 	// check if we already run with reqID
-	_, err = s.GetSecretShare(reqID)
-	if err == nil { // we already had initial ceremony with reqID
+	if _, err := s.GetSecretShare(reqID, reshare.InitiatorPublicKey); err == nil { // we already had initial ceremony with reqID
 		return nil, ErrAlreadyExists
 	}
-	// try to get old share local owner first
-	secret, _ := s.GetSecretShare(reshare.OldID)
-	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey, secret)
+	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey)
 	if err != nil {
 		return nil, err
 	}
@@ -479,13 +484,13 @@ func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
 }
 
 // GetSecretShare creates a secret share object from encrypted DB value
-func (s *Switch) GetSecretShare(id [24]byte) (*kyber_dkg.DistKeyShare, error) {
-	shareFromDB, ok, err := s.DB.Get([]byte("secret_share"), id[:])
+func (s *Switch) GetSecretShare(id [24]byte, pubKey []byte) (*kyber_dkg.DistKeyShare, error) {
+	shareFromDB, ok, err := s.DB.Get(pubKey, id[:])
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("secret share for ID not found at DB")
+		return nil, fmt.Errorf("secret share for pub key and ID not found")
 	}
 	decBin, err := s.DecryptSecretDB(shareFromDB.Value)
 	if err != nil {

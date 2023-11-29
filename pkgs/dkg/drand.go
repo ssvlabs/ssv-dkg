@@ -91,7 +91,7 @@ type OwnerOpts struct {
 	SignFunc             func([]byte) ([]byte, error)
 	EncryptFunc          func([]byte) ([]byte, error)
 	DecryptFunc          func([]byte) ([]byte, error)
-	StoreSecretShareFunc func(reqID [24]byte, key *kyber_dkg.DistKeyShare) error
+	StoreSecretShareFunc func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
 	RSAPub               *rsa.PublicKey
 	Owner                [20]byte
 	Nonce                uint64
@@ -135,8 +135,9 @@ type LocalOwner struct {
 	signFunc         func([]byte) ([]byte, error)
 	encryptFunc      func([]byte) ([]byte, error)
 	decryptFunc      func([]byte) ([]byte, error)
-	storeSecretShare func(reqID [24]byte, key *kyber_dkg.DistKeyShare) error
+	storeSecretShare func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
 	SecretShare      *kyber_dkg.DistKeyShare
+	initiatorRSAPub  *rsa.PublicKey
 	RSAPub           *rsa.PublicKey
 	owner            common.Address
 	nonce            uint64
@@ -356,7 +357,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
 	o.SecretShare = res.Result.Key
-	if err := o.storeSecretShare(o.data.reqID, res.Result.Key); err != nil {
+	if err := o.storeSecretShare(o.data.reqID, o.data.init.InitiatorPublicKey, res.Result.Key); err != nil {
 		o.broadcastError(err)
 		return err
 	}
@@ -442,7 +443,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 	o.Logger.Info("DKG resharing ceremony finished successfully")
 	// Store result share a instance
 	o.SecretShare = res.Result.Key
-	if err := o.storeSecretShare(o.data.reqID, res.Result.Key); err != nil {
+	if err := o.storeSecretShare(o.data.reqID, o.data.reshare.InitiatorPublicKey, res.Result.Key); err != nil {
 		o.broadcastError(err)
 		return err
 	}
