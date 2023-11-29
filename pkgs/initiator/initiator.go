@@ -86,8 +86,10 @@ type KeyShares struct {
 
 // Data structure as a part of KeyShares representing BLS validator public key and information about validators
 type Data struct {
-	PublicKey string         `json:"publicKey"`
-	Operators []OperatorData `json:"operators"`
+	OwnerNonce   uint64         `json:"ownerNonce"`
+	OwnerAddress string         `json:"ownerAddress "`
+	PublicKey    string         `json:"publicKey"`
+	Operators    []OperatorData `json:"operators"`
 }
 
 // OperatorData structure to represent information about operators participating in signing validator's duty
@@ -103,7 +105,7 @@ type Payload struct {
 }
 
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
-func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, error) {
+func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Address, nonce uint64) (*KeyShares, error) {
 	// order the results by operatorID
 	sort.SliceStable(result, func(i, j int) bool {
 		return result[i].OperatorID < result[j].OperatorID
@@ -131,8 +133,10 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 	}
 
 	data := Data{
-		PublicKey: "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
-		Operators: operatorData,
+		OwnerNonce:   nonce,
+		OwnerAddress: owner.Hex(),
+		PublicKey:    "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
+		Operators:    operatorData,
 	}
 	// Create share string for ssv contract
 	sharesData := append(pubkeys, encryptedShares...)
@@ -153,7 +157,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte) (*KeyShares, err
 		SharesData:  "0x" + hex.EncodeToString(sharesDataSigned),
 	}
 	ks := &KeyShares{}
-	ks.Version = "v4"
+	ks.Version = "v1.1.0"
 	ks.Data = data
 	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
@@ -563,7 +567,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, err
 	}
 	c.Logger.Info("✅ verified owner and nonce master signature")
-	keyshares, err := GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize())
+	keyshares, err := GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize(), owner, nonce)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -626,7 +630,7 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 	if err != nil {
 		return nil, err
 	}
-	keyshares, err := GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize())
+	keyshares, err := GeneratePayload(dkgResults, reconstructedOwnerNonceMasterSig.Serialize(), owner, nonce)
 	if err != nil {
 		return nil, err
 	}
