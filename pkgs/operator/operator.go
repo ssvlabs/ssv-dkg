@@ -168,6 +168,36 @@ func RegisterRoutes(s *Server) {
 			writer.WriteHeader(http.StatusOK)
 			writer.Write(b)
 		})
+		s.Router.Route("/health_check", func(r chi.Router) {
+			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+				rawdata, _ := io.ReadAll(request.Body)
+				signedPintMsg := &wire.SignedTransport{}
+				if err := signedPintMsg.UnmarshalSSZ(rawdata); err != nil {
+					s.Logger.Error("parsing failed: ", zap.Error(err))
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(err))
+					return
+				}
+	
+				// Validate that incoming message is an ping message
+				if signedPintMsg.Message.Type != wire.PingMessageType {
+					s.Logger.Error("received bad msg non ping message sent to ping route")
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(errors.New("not ping message to ping route")))
+					return
+				}
+				s.Logger.Debug("received a health check message")
+				b, err := s.State.Pong(signedPintMsg.Message, signedPintMsg.Signature)
+				if err != nil {
+					s.Logger.Error(fmt.Sprintf("failed to create pong message:%v", err))
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(err))
+					return
+				}
+				writer.WriteHeader(http.StatusOK)
+				writer.Write(b)
+			})
+		})
 	})
 }
 

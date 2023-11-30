@@ -518,3 +518,74 @@ func (s *Switch) GetSecretShare(id [24]byte, pubKey []byte) (*kyber_dkg.DistKeyS
 	}
 	return &kyber_dkg.DistKeyShare{Share: &share.PriShare{V: secretPoint, I: privShare.Share.I}, Commits: coefs}, nil
 }
+
+func (s *Switch) Pong(pingMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
+	ping := &wire.Ping{}
+	if err := ping.UnmarshalSSZ(pingMsg.Data); err != nil {
+		return nil, err
+	}
+	// Check that incoming init message signature is valid
+	initiatorPubKey, err := crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	marshalledWireMsg, err := pingMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	if err != nil {
+		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+	}
+
+	operatorID := uint64(0)
+	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		return nil, err
+	}
+	for _, op := range ping.Operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			operatorID = op.ID
+			break
+		}
+	}
+	if operatorID == 0 {
+		return nil, fmt.Errorf("wrong operator")
+	}
+	pong := &wire.Pong{
+		ID:     operatorID,
+		PubKey: pkBytes,
+	}
+	pongBytes, err := pong.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	ts := &wire.Transport{
+		Type:       wire.PongMessageType,
+		Identifier: [24]byte{},
+		Data:       pongBytes,
+	}
+
+	bts, err := ts.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	// Sign message with RSA private key
+	sign, err := s.Sign(bts)
+	if err != nil {
+		return nil, err
+	}
+
+	signed := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    operatorID,
+		Signature: sign,
+	}
+
+	final, err := signed.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
+}

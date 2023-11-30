@@ -14,6 +14,7 @@ func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
 	RootCmd.AddCommand(initiator.StartReshare)
 	RootCmd.AddCommand(operator.StartDKGOperator)
+	RootCmd.AddCommand(initiator.HealthCheck)
 }
 
 // RootCmd represents the root command of DKG-tool CLI

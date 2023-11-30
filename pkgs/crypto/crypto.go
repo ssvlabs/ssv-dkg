@@ -149,6 +149,7 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }
 
+// VerifyOwnerNoceSignature check that owner + nonce correctly signed
 func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
 	data := fmt.Sprintf("%s:%d", owner.String(), nonce)
 	hash := eth_crypto.Keccak256([]byte(data))

@@ -26,6 +26,8 @@ const (
 	KyberJustificationBundleMessageType
 	BlsSignRequestType
 	ErrorMessageType
+	PingMessageType
+	PongMessageType
 )
 
 func (t TransportType) String() string {
@@ -54,6 +56,10 @@ func (t TransportType) String() string {
 		return "BlsSignRequestType"
 	case ErrorMessageType:
 		return "ErrorMessageType"
+	case PingMessageType:
+		return "PingMessageType"
+	case PongMessageType:
+		return "PongMessageType"
 	default:
 		return "no type impl"
 	}
@@ -133,4 +139,16 @@ type Output struct {
 	SharePK                     []byte `ssz-max:"4096"`
 	ValidatorPK                 []byte `ssz-size:"48"`
 	DepositDataPartialSignature []byte `ssz-size:"96"`
+}
+
+type Ping struct {
+	// Operators involved in the DKG
+	Operators []*Operator `ssz-max:"13"`
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
+}
+
+type Pong struct {
+	ID     uint64
+	PubKey []byte `ssz-max:"2048"`
 }

@@ -253,6 +253,13 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.DBGCIntervalFlag(cmd)
 }
 
+func SetHealthCheckFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+}
+
 // BindFlags binds flags to yaml config parameters
 func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -437,6 +444,34 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	DBPath = viper.GetString("DBPath")
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")
+	return nil
+}
+
+func BindHealthCheckFlags(cmd *cobra.Command) error {
+	if err := BindBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
+	OperatorIDs = viper.GetStringSlice("operatorIDs")
+	if len(OperatorIDs) == 0 {
+		return fmt.Errorf("😥 Operator IDs flag cant be empty")
+	}
+	OperatorsInfo = viper.GetString("operatorsInfo")
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfo == "" && OperatorsInfoPath == "" {
+		return fmt.Errorf("😥 Operators string or path have not provided")
+	}
+	if OperatorsInfo != "" && OperatorsInfoPath != "" {
+		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
+	}
 	return nil
 }
 

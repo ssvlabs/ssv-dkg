@@ -885,6 +885,41 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	return responseResult, nil
 }
 
+func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([][]byte, error) {
+	sszPing, err := ping.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	pingMessage := &wire.Transport{
+		Type:       wire.PingMessageType,
+		Identifier: [24]byte{},
+		Data:       sszPing,
+	}
+	tsssz, err := pingMessage.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
+	if err != nil {
+		return nil, err
+	}
+	// Create signed ping message
+	signedPingtMsg := &wire.SignedTransport{
+		Message:   pingMessage,
+		Signer:    0,
+		Signature: sig,
+	}
+	signedPingMsgBts, err := signedPingtMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	results, err := c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 // LoadOperatorsJson deserialize operators data from JSON
 func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 	opmap := make(map[uint64]Operator)
@@ -1018,4 +1053,56 @@ func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeySh
 		return err
 	}
 	return nil
+}
+
+func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, error) {
+	ops, err := ValidatedOperatorData(ids, c.Operators)
+	if err != nil {
+		return nil, err
+	}
+	// Add messages verification coming form operators
+	verify, err := c.CreateVerifyFunc(ops)
+	if err != nil {
+		return nil, err
+	}
+	c.VerifyFunc = verify
+
+	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	// make PING message
+	ping := &wire.Ping{
+		Operators:          ops,
+		InitiatorPublicKey: pkBytes,
+	}
+	results, err := c.SendPingMsg(ping, ops)
+	if err != nil {
+		return nil, err
+	}
+	err = c.VerifyAll([24]byte{}, results)
+	if err != nil {
+		return nil, err
+	}
+	var pongs []*wire.Pong
+	for _, res := range results {
+		signedPongMsg := &wire.SignedTransport{}
+		if err := signedPongMsg.UnmarshalSSZ(res); err != nil {
+			return nil, err
+		}
+		// Validate that incoming message is an ping message
+		if signedPongMsg.Message.Type != wire.PongMessageType {
+			return nil, fmt.Errorf("Wrong incoming message type from operator")
+		}
+		pong := &wire.Pong{}
+		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
+			return nil, err
+		}
+		for _, op := range ops {
+			if op.ID == pong.ID && bytes.Equal(op.PubKey, pong.PubKey) {
+				pongs = append(pongs, pong)
+			}
+		}
+	}
+	return pongs, nil
 }
