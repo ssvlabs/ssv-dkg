@@ -28,6 +28,7 @@ const (
 	ErrorMessageType
 	PingMessageType
 	PongMessageType
+	ResultMessageType
 )
 
 func (t TransportType) String() string {
@@ -60,6 +61,8 @@ func (t TransportType) String() string {
 		return "PingMessageType"
 	case PongMessageType:
 		return "PongMessageType"
+	case ResultMessageType:
+		return "ResultMessageType"
 	default:
 		return "no type impl"
 	}
@@ -151,4 +154,13 @@ type Ping struct {
 type Pong struct {
 	ID     uint64
 	PubKey []byte `ssz-max:"2048"`
+}
+
+type ResultData struct {
+	// Operators involved in the DKG
+	Operators []*Operator `ssz-max:"13"`
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
+	DepositData               []byte `ssz-max:"8388608"` // 2^23
+	KeysharesData               []byte `ssz-max:"8388608"` // 2^23
 }

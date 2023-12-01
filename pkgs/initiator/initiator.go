@@ -572,6 +572,25 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
+	// sending back to operators results
+	depositData, err := json.Marshal(depositDataJson)
+	if err != nil {
+		return nil, nil, err
+	}
+	keysharesData, err := json.Marshal(keyshares)
+	if err != nil {
+		return nil, nil, err
+	}
+	resultMsg := &wire.ResultData{
+		Operators:          ops,
+		InitiatorPublicKey: pkBytes,
+		DepositData:        depositData,
+		KeysharesData:      keysharesData,
+	}
+	err = c.sendResult(consts.API_RESULTS_URL, id, ops, resultMsg)
+	if err != nil {
+		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
+	}
 	return depositDataJson, keyshares, nil
 }
 
@@ -918,6 +937,41 @@ func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([]
 		return nil, err
 	}
 	return results, nil
+}
+
+func (c *Initiator) sendResult(method string, id [24]byte, operators []*wire.Operator, resData *wire.ResultData) error {
+	data, err := resData.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	resDataMessage := &wire.Transport{
+		Type:       wire.ResultMessageType,
+		Identifier: id,
+		Data:       data,
+	}
+	tsssz, err := resDataMessage.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
+	if err != nil {
+		return err
+	}
+	// Create signed resre message
+	signedMsg := &wire.SignedTransport{
+		Message:   resDataMessage,
+		Signer:    0,
+		Signature: sig,
+	}
+	signedMsgBts, err := signedMsg.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	_, err = c.SendToAll(method, signedMsgBts, operators)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // LoadOperatorsJson deserialize operators data from JSON

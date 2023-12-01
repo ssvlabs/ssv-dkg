@@ -178,8 +178,7 @@ func RegisterRoutes(s *Server) {
 					writer.Write(wire.MakeErr(err))
 					return
 				}
-	
-				// Validate that incoming message is an ping message
+				// Validate that incoming message is a ping message
 				if signedPintMsg.Message.Type != wire.PingMessageType {
 					s.Logger.Error("received bad msg non ping message sent to ping route")
 					writer.WriteHeader(http.StatusBadRequest)
@@ -196,6 +195,35 @@ func RegisterRoutes(s *Server) {
 				}
 				writer.WriteHeader(http.StatusOK)
 				writer.Write(b)
+			})
+		})
+		s.Router.Route("/results", func(r chi.Router) {
+			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+				rawdata, _ := io.ReadAll(request.Body)
+				signedResultMsg := &wire.SignedTransport{}
+				if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
+					s.Logger.Error("parsing failed: ", zap.Error(err))
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(err))
+					return
+				}
+
+				// Validate that incoming message is an ping message
+				if signedResultMsg.Message.Type != wire.ResultMessageType {
+					s.Logger.Error("received wrong message type")
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(errors.New("received wrong message type")))
+					return
+				}
+				s.Logger.Debug("received a result message")
+				err := s.State.SaveResultData(signedResultMsg.Message, signedResultMsg.Signature)
+				if err != nil {
+					s.Logger.Error(fmt.Sprintf("failed to store result data:%v", err))
+					writer.WriteHeader(http.StatusBadRequest)
+					writer.Write(wire.MakeErr(err))
+					return
+				}
+				writer.WriteHeader(http.StatusOK)
 			})
 		})
 	})

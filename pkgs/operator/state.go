@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -16,8 +18,10 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
 
+	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/storage/kv"
@@ -588,4 +592,73 @@ func (s *Switch) Pong(pingMsg *wire.Transport, initiatorSignature []byte) ([]byt
 		return nil, err
 	}
 	return final, nil
+}
+
+func (s *Switch) SaveResultData(msg *wire.Transport, initiatorSignature []byte) error {
+	resData := &wire.ResultData{}
+	if err := resData.UnmarshalSSZ(msg.Data); err != nil {
+		return err
+	}
+	// Check that incoming init message signature is valid
+	initiatorPubKey, err := crypto.ParseRSAPubkey(resData.InitiatorPublicKey)
+	if err != nil {
+		return err
+	}
+	marshalledWireMsg, err := msg.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	if err != nil {
+		return fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+	}
+	operatorID := uint64(0)
+	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		return err
+	}
+	for _, op := range resData.Operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			operatorID = op.ID
+			break
+		}
+	}
+	if operatorID == 0 {
+		return fmt.Errorf("wrong operator")
+	}
+	// store deposit result
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	dir := fmt.Sprintf("%s/ceremony-%s", cli_utils.OutputPath, timestamp)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.Mkdir(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	var depJson *initiator.DepositDataJson
+	err = json.Unmarshal(resData.DepositData, &depJson)
+	if err != nil {
+		return err
+	}
+	err = cli_utils.WriteDepositResult(depJson, dir)
+	if err != nil {
+		return err
+	}
+	// store keyshares result
+	var ksJson *initiator.KeyShares
+	err = json.Unmarshal(resData.KeysharesData, &ksJson)
+	if err != nil {
+		return err
+	}
+	err = cli_utils.WriteKeysharesResult(ksJson, dir, msg.Identifier)
+	if err != nil {
+		return err
+	}
+	// store instance ID
+	err = cli_utils.WriteInstanceID(dir, msg.Identifier)
+	if err != nil {
+		return err
+	}
+	return nil
 }

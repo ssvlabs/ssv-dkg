@@ -2,6 +2,8 @@ package initiator
 
 import (
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -69,8 +71,16 @@ var StartReshare = &cobra.Command{
 		}
 		// Save results
 		logger.Info("💾 Writing keyshares payload to file")
-		cli_utils.WriteReshareResults(keyShares, cli_utils.CeremonyID, logger)
-
+		timestamp := time.Now().Format(time.RFC3339)
+		dir := fmt.Sprintf("%s/ceremony-%s", cli_utils.OutputPath, timestamp)
+		err = os.Mkdir(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		err = cli_utils.WriteKeysharesResult(keyShares, dir, cli_utils.CeremonyID)
+		if err != nil {
+			logger.Fatal("😥 Failed to write new keyshares: ", zap.Error(err))
+		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
