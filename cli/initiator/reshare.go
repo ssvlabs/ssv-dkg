@@ -61,7 +61,7 @@ var StartReshare = &cobra.Command{
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
 		// create initiator instance
-		dkgInitiator := initiator.New(privateKey, opMap, logger)
+		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		// create a new ID for resharing
 		id := crypto.NewID()
 		// Start the ceremony

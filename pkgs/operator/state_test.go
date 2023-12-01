@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/storage/basedb"
@@ -64,7 +65,7 @@ func TestCreateInstance(t *testing.T) {
 	require.NoError(t, err)
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		s := NewSwitch(privateKey, logger, db)
+		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -119,7 +120,7 @@ func TestInitInstance(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -157,7 +158,7 @@ func TestInitInstance(t *testing.T) {
 	require.Len(t, swtch.Instances, 1)
 
 	resp2, err2 := swtch.InitInstance(reqID, initMessage, sig)
-	require.Equal(t, err2, ErrAlreadyExists)
+	require.Equal(t, err2, utils.ErrAlreadyExists)
 	require.Nil(t, resp2)
 
 	var tested = false
@@ -167,7 +168,7 @@ func TestInitInstance(t *testing.T) {
 		copy(reqIDx[:], fmt.Sprintf("testRequestID111111%v1", i)) // Just a sample value
 		respx, errx := swtch.InitInstance(reqIDx, initMessage, sig)
 		if i == MaxInstances-1 {
-			require.Equal(t, errx, ErrMaxInstances)
+			require.Equal(t, errx, utils.ErrMaxInstances)
 			require.Nil(t, respx)
 			tested = true
 			break
@@ -198,7 +199,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -253,7 +254,7 @@ func TestEncryptDercyptDB(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
 	id := crypto.NewID()
 
 	bin, err := swtch.Encrypt([]byte("Hello World"))
@@ -282,7 +283,7 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 

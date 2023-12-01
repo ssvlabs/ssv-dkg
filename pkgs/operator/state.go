@@ -31,10 +31,6 @@ import (
 const MaxInstances = 1024
 const MaxInstanceTime = 5 * time.Minute
 
-var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
-var ErrAlreadyExists = errors.New("got init msg for existing instance")
-var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
-
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error
@@ -86,6 +82,7 @@ type Switch struct {
 	Instances        map[InstanceID]Instance  // mapping to store DKG instances
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key
 	DB               *kv.BadgerDB
+	Version          []byte
 }
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -128,6 +125,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		RSAPub:               &s.PrivateKey.PublicKey,
 		Owner:                init.Owner,
 		Nonce:                init.Nonce,
+		Version:              s.Version,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -182,6 +180,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		RSAPub:               &s.PrivateKey.PublicKey,
 		Owner:                reshare.Owner,
 		Nonce:                reshare.Nonce,
+		Version:              s.Version,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -292,7 +291,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 // NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []byte) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -300,11 +299,15 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB) *Switch 
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
 		PrivateKey:       pv,
 		DB:               db,
+		Version:          ver,
 	}
 }
 
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
+	if bytes.Compare(initMsg.Version, s.Version) != 0 {
+		return nil, utils.ErrVersion
+	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
 	init := &wire.Init{}
@@ -331,7 +334,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		cleaned := s.CleanInstances()
 		if l-cleaned >= MaxInstances {
 			s.Mtx.Unlock()
-			return nil, ErrMaxInstances
+			return nil, utils.ErrMaxInstances
 		}
 	}
 	_, ok := s.Instances[reqID]
@@ -339,7 +342,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		tm := s.InstanceInitTime[reqID]
 		if !time.Now().After(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()
-			return nil, ErrAlreadyExists
+			return nil, utils.ErrAlreadyExists
 		}
 		delete(s.Instances, reqID)
 		delete(s.InstanceInitTime, reqID)
@@ -347,7 +350,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	s.Mtx.Unlock()
 	// check if we already run with reqID
 	if _, err := s.GetSecretShare(reqID, init.InitiatorPublicKey); err == nil { // we already had initial ceremony with reqID
-		return nil, ErrAlreadyExists
+		return nil, utils.ErrAlreadyExists
 	}
 	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
 	if err != nil {
@@ -361,6 +364,9 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 }
 
 func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
+	if bytes.Compare(reshareMsg.Version, s.Version) != 0 {
+		return nil, utils.ErrVersion
+	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
 	reshare := &wire.Reshare{}
@@ -388,7 +394,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		cleaned := s.CleanInstances() // not thread safe
 		if l-cleaned >= MaxInstances {
 			s.Mtx.Unlock()
-			return nil, ErrMaxInstances
+			return nil, utils.ErrMaxInstances
 		}
 	}
 	_, ok := s.Instances[reqID]
@@ -396,7 +402,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 		tm := s.InstanceInitTime[reqID]
 		if !time.Now().After(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()
-			return nil, ErrAlreadyExists
+			return nil, utils.ErrAlreadyExists
 		}
 		delete(s.Instances, reqID)
 		delete(s.InstanceInitTime, reqID)
@@ -404,7 +410,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	s.Mtx.Unlock()
 	// check if we already run with reqID
 	if _, err := s.GetSecretShare(reqID, reshare.InitiatorPublicKey); err == nil { // we already had initial ceremony with reqID
-		return nil, ErrAlreadyExists
+		return nil, utils.ErrAlreadyExists
 	}
 	inst, resp, err := s.CreateInstanceReshare(reqID, reshare, initiatorPubKey)
 	if err != nil {
@@ -446,7 +452,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	s.Mtx.RUnlock()
 
 	if !ok {
-		return nil, ErrMissingInstance
+		return nil, utils.ErrMissingInstance
 	}
 	var mltplMsgsBytes []byte
 	for _, ts := range st.Messages {

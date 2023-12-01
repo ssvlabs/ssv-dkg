@@ -63,7 +63,7 @@ func TestHappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	clnt := initiator.New(priv, ops, logger)
+	clnt := initiator.New(priv, ops, logger, "v1.0.2")
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
@@ -183,7 +183,7 @@ func TestThreshold(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	clnt := initiator.New(priv, ops, logger)
+	clnt := initiator.New(priv, ops, logger, "v1.0.2")
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
@@ -317,7 +317,7 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	clnt := initiator.New(priv, ops, logger)
+	clnt := initiator.New(priv, ops, logger, "v1.0.2")
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
@@ -418,7 +418,7 @@ func TestReshareHappyFlow(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	i := initiator.New(priv, ops, logger)
+	i := initiator.New(priv, ops, logger, "v1.0.2")
 	t.Run("test reshare 5 new disjoint operators", func(t *testing.T) {
 		id := crypto.NewID()
 		ids := []uint64{1, 2, 3, 4}

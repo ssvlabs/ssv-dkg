@@ -151,7 +151,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops, logger)
+		c := initiator.New(priv, ops, logger, "v1.0.2")
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
@@ -215,7 +215,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops, logger)
+		c := initiator.New(priv, ops, logger, "v1.0.2")
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)

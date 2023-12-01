@@ -46,7 +46,7 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load DB: ", zap.Error(err))
 		}
-		srv := operator.New(privateKey, logger, DBOptions)
+		srv := operator.New(privateKey, logger, DBOptions, []byte(cmd.Version))
 		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", cli_utils.Port))
 		if err := srv.Start(uint16(cli_utils.Port)); err != nil {
 			log.Fatalf("Error in operator %v", err)

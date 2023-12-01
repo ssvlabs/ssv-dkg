@@ -72,6 +72,7 @@ type Transport struct {
 	Type       TransportType
 	Identifier [24]byte `ssz-size:"24"`
 	Data       []byte   `ssz-max:"8388608"` // 2^23
+	Version    []byte   `ssz-max:"2048"`
 }
 
 type SignedTransport struct {
@@ -161,6 +162,6 @@ type ResultData struct {
 	Operators []*Operator `ssz-max:"13"`
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
-	DepositData               []byte `ssz-max:"8388608"` // 2^23
-	KeysharesData               []byte `ssz-max:"8388608"` // 2^23
+	DepositData        []byte `ssz-max:"8388608"` // 2^23
+	KeysharesData      []byte `ssz-max:"8388608"` // 2^23
 }
