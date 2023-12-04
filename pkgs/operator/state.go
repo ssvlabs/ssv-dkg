@@ -202,6 +202,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 				b, _ := point.MarshalBinary()
 				commits = append(commits, b...)
 			}
+			break
 		}
 	}
 	resp, err := owner.InitReshare(reqID, reshare, commits)

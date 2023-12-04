@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -188,4 +190,10 @@ func CommitsToBytes(cs []kyber.Point) []byte {
 		commits = append(commits, b...)
 	}
 	return commits
+}
+
+func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
+    logger.Error(err.Error())
+    writer.WriteHeader(statusCode)
+    writer.Write(wire.MakeErr(err))
 }

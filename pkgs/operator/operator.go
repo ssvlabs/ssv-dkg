@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 	"github.com/bloxapp/ssv/storage/basedb"
@@ -75,17 +76,13 @@ func RegisterRoutes(s *Server) {
 			rawdata, _ := io.ReadAll(request.Body)
 			signedInitMsg := &wire.SignedTransport{}
 			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
-				s.Logger.Error("parsing failed: ", zap.Error(err))
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 
 			// Validate that incoming message is an init message
 			if signedInitMsg.Message.Type != wire.InitMessageType {
-				s.Logger.Error("received bad msg non init message sent to init route")
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
+				utils.WriteErrorResponse(s.Logger, writer, errors.New("not init message to init route"), http.StatusBadRequest)
 				return
 			}
 			reqid := signedInitMsg.Message.Identifier
@@ -93,10 +90,7 @@ func RegisterRoutes(s *Server) {
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
 			if err != nil {
-				logger.Error(fmt.Sprintf("failed to initiate instance err:%v", err))
-
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 			logger.Info("✅ Instance started successfully")
@@ -110,14 +104,12 @@ func RegisterRoutes(s *Server) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 			b, err := s.State.ProcessMessage(rawdata)
 			if err != nil {
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 			writer.WriteHeader(http.StatusOK)
@@ -139,17 +131,13 @@ func RegisterRoutes(s *Server) {
 			rawdata, _ := io.ReadAll(request.Body)
 			signedReshareMsg := &wire.SignedTransport{}
 			if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
-				s.Logger.Error("parsing failed: ", zap.Error(err))
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 
 			// Validate that incoming message is an init message
 			if signedReshareMsg.Message.Type != wire.ReshareMessageType {
-				s.Logger.Error("received bad msg non init message sent to init route")
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(errors.New("not init message to init route")))
+				utils.WriteErrorResponse(s.Logger, writer, errors.New("not init message to init route"), http.StatusBadRequest)
 				return
 			}
 			reqid := signedReshareMsg.Message.Identifier
@@ -157,10 +145,7 @@ func RegisterRoutes(s *Server) {
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstanceReshare(reqid, signedReshareMsg.Message, signedReshareMsg.Signature)
 			if err != nil {
-				logger.Error(fmt.Sprintf("failed to initiate instance err:%v", err))
-
-				writer.WriteHeader(http.StatusBadRequest)
-				writer.Write(wire.MakeErr(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 			logger.Info("✅ Instance started successfully")
@@ -173,24 +158,18 @@ func RegisterRoutes(s *Server) {
 				rawdata, _ := io.ReadAll(request.Body)
 				signedPintMsg := &wire.SignedTransport{}
 				if err := signedPintMsg.UnmarshalSSZ(rawdata); err != nil {
-					s.Logger.Error("parsing failed: ", zap.Error(err))
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(err))
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
 				}
 				// Validate that incoming message is a ping message
 				if signedPintMsg.Message.Type != wire.PingMessageType {
-					s.Logger.Error("received bad msg non ping message sent to ping route")
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(errors.New("not ping message to ping route")))
+					utils.WriteErrorResponse(s.Logger, writer, errors.New("not ping message to ping route"), http.StatusBadRequest)
 					return
 				}
 				s.Logger.Debug("received a health check message")
 				b, err := s.State.Pong(signedPintMsg.Message, signedPintMsg.Signature)
 				if err != nil {
-					s.Logger.Error(fmt.Sprintf("failed to create pong message:%v", err))
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(err))
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
 				}
 				writer.WriteHeader(http.StatusOK)
@@ -202,25 +181,19 @@ func RegisterRoutes(s *Server) {
 				rawdata, _ := io.ReadAll(request.Body)
 				signedResultMsg := &wire.SignedTransport{}
 				if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
-					s.Logger.Error("parsing failed: ", zap.Error(err))
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(err))
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
 				}
 
-				// Validate that incoming message is an ping message
+				// Validate that incoming message is a result message
 				if signedResultMsg.Message.Type != wire.ResultMessageType {
-					s.Logger.Error("received wrong message type")
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(errors.New("received wrong message type")))
+					utils.WriteErrorResponse(s.Logger, writer, errors.New("received wrong message type"), http.StatusBadRequest)
 					return
 				}
 				s.Logger.Debug("received a result message")
 				err := s.State.SaveResultData(signedResultMsg.Message, signedResultMsg.Signature)
 				if err != nil {
-					s.Logger.Error(fmt.Sprintf("failed to store result data:%v", err))
-					writer.WriteHeader(http.StatusBadRequest)
-					writer.Write(wire.MakeErr(err))
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
 				}
 				writer.WriteHeader(http.StatusOK)
