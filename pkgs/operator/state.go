@@ -305,7 +305,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []by
 
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	if bytes.Compare(initMsg.Version, s.Version) != 0 {
+	if !bytes.Equal(initMsg.Version, s.Version) {
 		return nil, utils.ErrVersion
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
@@ -364,7 +364,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 }
 
 func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	if bytes.Compare(reshareMsg.Version, s.Version) != 0 {
+	if !bytes.Equal(reshareMsg.Version, s.Version) {
 		return nil, utils.ErrVersion
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
