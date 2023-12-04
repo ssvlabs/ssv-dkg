@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,6 +14,11 @@ import (
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
+
+var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
+var ErrAlreadyExists = errors.New("got init msg for existing instance")
+var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
+var ErrVersion = errors.New("wrong version")
 
 // WriteJSON writes data to JSON file
 func WriteJSON(filepath string, data any) error {

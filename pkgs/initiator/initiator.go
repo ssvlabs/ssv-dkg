@@ -58,6 +58,7 @@ type Initiator struct {
 	Operators  Operators                              // operators info mapping
 	VerifyFunc func(id uint64, msg, sig []byte) error // function to verify signatures of incoming messages
 	PrivateKey *rsa.PrivateKey                        // a unique initiator's RSA private key used for signing messages and identity
+	Version    []byte
 }
 
 // DepositDataJson structure to create a resulting deposit data JSON file according to ETH2 protocol
@@ -165,7 +166,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 }
 
 // New creates a main initiator structure
-func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger) *Initiator {
+func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger, ver string) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
@@ -174,6 +175,7 @@ func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger) *In
 		Client:     client,
 		Operators:  operatorMap,
 		PrivateKey: privKey,
+		Version:    []byte(ver),
 	}
 	return c
 }
@@ -808,6 +810,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 		Type:       wire.InitMessageType,
 		Identifier: id,
 		Data:       sszInit,
+		Version:    c.Version,
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	if err != nil {
@@ -843,6 +846,7 @@ func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wi
 		Type:       wire.ReshareMessageType,
 		Identifier: id,
 		Data:       sszReshare,
+		Version:    c.Version,
 	}
 	tsssz, err := reshareMessage.MarshalSSZ()
 	if err != nil {
@@ -913,6 +917,7 @@ func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([]
 		Type:       wire.PingMessageType,
 		Identifier: [24]byte{},
 		Data:       sszPing,
+		Version:    c.Version,
 	}
 	tsssz, err := pingMessage.MarshalSSZ()
 	if err != nil {
@@ -948,6 +953,7 @@ func (c *Initiator) sendResult(method string, id [24]byte, operators []*wire.Ope
 		Type:       wire.ResultMessageType,
 		Identifier: id,
 		Data:       data,
+		Version:    c.Version,
 	}
 	tsssz, err := resDataMessage.MarshalSSZ()
 	if err != nil {

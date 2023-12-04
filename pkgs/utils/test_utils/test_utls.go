@@ -52,7 +52,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db)
+	swtch := operator.NewSwitch(priv, logger, db, []byte("v1.0.2"))
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -68,7 +68,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 	}
 }
 
-func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
+func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
@@ -84,7 +84,7 @@ func CreateTestOperator(t *testing.T, id uint64) *TestOperator {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db)
+	swtch := operator.NewSwitch(priv, logger, db, []byte(version))
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,

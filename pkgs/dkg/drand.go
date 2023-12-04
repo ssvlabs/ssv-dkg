@@ -95,6 +95,7 @@ type OwnerOpts struct {
 	RSAPub               *rsa.PublicKey
 	Owner                [20]byte
 	Nonce                uint64
+	Version              []byte
 }
 
 type PriShare struct {
@@ -142,6 +143,7 @@ type LocalOwner struct {
 	owner            common.Address
 	nonce            uint64
 	done             chan struct{}
+	version          []byte
 }
 
 // New creates a LocalOwner structure. We create it for each new DKG ceremony.
@@ -164,6 +166,7 @@ func New(opts OwnerOpts) *LocalOwner {
 		Suite:            opts.Suite,
 		owner:            opts.Owner,
 		nonce:            opts.Nonce,
+		version:          opts.Version,
 	}
 	return owner
 }
@@ -427,6 +430,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.reqID,
 		Data:       encodedOutput,
+		Version:    o.version,
 	}
 
 	o.Broadcast(tsMsg)
@@ -502,6 +506,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.reqID,
 		Data:       encodedOutput,
+		Version:    o.version,
 	}
 	o.Broadcast(tsMsg)
 	close(o.done)
@@ -530,6 +535,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 				Type:       wire.KyberMessageType,
 				Identifier: o.data.reqID,
 				Data:       byts,
+				Version:    o.version,
 			}
 
 			// todo not loop with channels
@@ -549,7 +555,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	if err != nil {
 		return nil, err
 	}
-	return ExchangeWireMessage(bts, reqID), nil
+	return o.exchangeWireMessage(bts, reqID), nil
 }
 
 // InitReshare initiates a resharing owner of dkg protocol
@@ -573,6 +579,7 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits 
 				Type:       wire.ReshareKyberMessageType,
 				Identifier: o.data.reqID,
 				Data:       byts,
+				Version:    o.version,
 			}
 
 			// todo not loop with channels
@@ -592,7 +599,7 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits 
 	if err != nil {
 		return nil, err
 	}
-	return reshareExchangeWireMessage(bts, reqID), nil
+	return o.reshareExchangeWireMessage(bts, reqID), nil
 }
 
 // processDKG after receiving a kyber message type at /dkg route
@@ -600,6 +607,9 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits 
 // KyberResponseBundleMessageType - status for the deals received at deal bundle
 // KyberJustificationBundleMessageType - all justifications for each complaint for received deals bundles
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
+	if !bytes.Equal(msg.Version, o.version) {
+		return utils.ErrVersion
+	}
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
 		return err
@@ -638,6 +648,9 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
+	if !bytes.Equal(st.Message.Version, o.version) {
+		return utils.ErrVersion
+	}
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
 		return err
@@ -706,6 +719,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 					Type:       wire.ReshareKyberMessageType,
 					Identifier: o.data.reqID,
 					Data:       byts,
+					Version:    o.version,
 				}
 				o.Broadcast(trsp)
 			}
@@ -778,19 +792,21 @@ func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, err
 }
 
 // ExchangeWireMessage creates a transport message with operator DKG public key
-func ExchangeWireMessage(exchdata []byte, reqID [24]byte) *wire.Transport {
+func (o *LocalOwner) exchangeWireMessage(exchdata []byte, reqID [24]byte) *wire.Transport {
 	return &wire.Transport{
 		Type:       wire.ExchangeMessageType,
 		Identifier: reqID,
 		Data:       exchdata,
+		Version:    o.version,
 	}
 }
 
-func reshareExchangeWireMessage(exchdata []byte, reqID [24]byte) *wire.Transport {
+func (o *LocalOwner) reshareExchangeWireMessage(exchdata []byte, reqID [24]byte) *wire.Transport {
 	return &wire.Transport{
 		Type:       wire.ReshareExchangeMessageType,
 		Identifier: reqID,
 		Data:       exchdata,
+		Version:    o.version,
 	}
 }
 
@@ -801,6 +817,7 @@ func (o *LocalOwner) broadcastError(err error) {
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,
 		Data:       errMsgEnc,
+		Version:    o.version,
 	}
 	o.Broadcast(errMsg)
 	close(o.done)

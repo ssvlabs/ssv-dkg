@@ -49,7 +49,7 @@ var HealthCheck = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger)
+		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		pongs, err := dkgInitiator.HealthCheck(operatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Operators not healthy: ", zap.Error(err))

@@ -230,14 +230,14 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte) *Server {
 	r := chi.NewRouter()
 	db, err := setupDB(logger, dbOptions)
 	// todo: handle error
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(key, logger, db)
+	swtch := NewSwitch(key, logger, db, ver)
 	s := &Server{
 		Logger: logger,
 		Router: r,

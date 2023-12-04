@@ -52,7 +52,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger)
+		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		ethnetwork := e2m_core.MainNetwork
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
