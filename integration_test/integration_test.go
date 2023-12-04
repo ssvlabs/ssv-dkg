@@ -32,31 +32,31 @@ func TestHappyFlows(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := test_utils.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := test_utils.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := test_utils.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := test_utils.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5, "v1.0.2")
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := test_utils.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6, "v1.0.2")
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := test_utils.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7, "v1.0.2")
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := test_utils.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8, "v1.0.2")
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := test_utils.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9, "v1.0.2")
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := test_utils.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10, "v1.0.2")
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := test_utils.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := test_utils.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12, "v1.0.2")
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := test_utils.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13, "v1.0.2")
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -152,31 +152,31 @@ func TestThreshold(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := test_utils.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := test_utils.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := test_utils.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := test_utils.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5, "v1.0.2")
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := test_utils.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6, "v1.0.2")
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := test_utils.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7, "v1.0.2")
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := test_utils.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8, "v1.0.2")
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := test_utils.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9, "v1.0.2")
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := test_utils.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10, "v1.0.2")
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := test_utils.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := test_utils.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12, "v1.0.2")
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := test_utils.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13, "v1.0.2")
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -286,31 +286,31 @@ func TestUnhappyFlows(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := test_utils.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := test_utils.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := test_utils.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := test_utils.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5, "v1.0.2")
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := test_utils.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6, "v1.0.2")
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := test_utils.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7, "v1.0.2")
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := test_utils.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8, "v1.0.2")
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := test_utils.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9, "v1.0.2")
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := test_utils.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10, "v1.0.2")
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := test_utils.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := test_utils.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12, "v1.0.2")
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := test_utils.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13, "v1.0.2")
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -385,31 +385,31 @@ func TestReshareHappyFlow(t *testing.T) {
 	}
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperator(t, 1)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := test_utils.CreateTestOperator(t, 2)
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := test_utils.CreateTestOperator(t, 3)
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := test_utils.CreateTestOperator(t, 4)
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
 	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := test_utils.CreateTestOperator(t, 5)
+	srv5 := test_utils.CreateTestOperator(t, 5, "v1.0.2")
 	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := test_utils.CreateTestOperator(t, 6)
+	srv6 := test_utils.CreateTestOperator(t, 6, "v1.0.2")
 	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := test_utils.CreateTestOperator(t, 7)
+	srv7 := test_utils.CreateTestOperator(t, 7, "v1.0.2")
 	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := test_utils.CreateTestOperator(t, 8)
+	srv8 := test_utils.CreateTestOperator(t, 8, "v1.0.2")
 	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := test_utils.CreateTestOperator(t, 9)
+	srv9 := test_utils.CreateTestOperator(t, 9, "v1.0.2")
 	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := test_utils.CreateTestOperator(t, 10)
+	srv10 := test_utils.CreateTestOperator(t, 10, "v1.0.2")
 	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := test_utils.CreateTestOperator(t, 11)
+	srv11 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
 	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := test_utils.CreateTestOperator(t, 12)
+	srv12 := test_utils.CreateTestOperator(t, 12, "v1.0.2")
 	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := test_utils.CreateTestOperator(t, 13)
+	srv13 := test_utils.CreateTestOperator(t, 13, "v1.0.2")
 	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -519,6 +519,68 @@ func TestReshareHappyFlow(t *testing.T) {
 	srv11.HttpSrv.Close()
 	srv12.HttpSrv.Close()
 	srv13.HttpSrv.Close()
+}
+
+func TestWrongInitiatorVersion(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("integration-tests")
+	ops := make(map[uint64]initiator.Operator)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
+	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
+	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
+	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
+	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
+	// Initiator priv key
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	clnt := initiator.New(priv, ops, logger, "v1.0.0")
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	id := crypto.NewID()
+	_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	require.ErrorContains(t, err, "wrong version")
+	srv1.HttpSrv.Close()
+	srv2.HttpSrv.Close()
+	srv3.HttpSrv.Close()
+	srv4.HttpSrv.Close()
+}
+
+func TestWrongOperatorVersion(t *testing.T) {
+	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
+		panic(err)
+	}
+	logger := zap.L().Named("integration-tests")
+	ops := make(map[uint64]initiator.Operator)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0")
+	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
+	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
+	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
+	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
+	// Initiator priv key
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	clnt := initiator.New(priv, ops, logger, "v1.0.2")
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	id := crypto.NewID()
+	_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	require.ErrorContains(t, err, "wrong version")
+	srv1.HttpSrv.Close()
+	srv2.HttpSrv.Close()
+	srv3.HttpSrv.Close()
+	srv4.HttpSrv.Close()
 }
 
 func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint16) error {

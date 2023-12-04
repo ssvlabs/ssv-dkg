@@ -72,7 +72,7 @@ type Transport struct {
 	Type       TransportType
 	Identifier [24]byte `ssz-size:"24"`
 	Data       []byte   `ssz-max:"8388608"` // 2^23
-	Version    []byte   `ssz-max:"2048"`
+	Version    []byte   `ssz-max:"128"`
 }
 
 type SignedTransport struct {
