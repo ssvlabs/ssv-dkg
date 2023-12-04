@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -30,6 +29,8 @@ import (
 
 const MaxInstances = 1024
 const MaxInstanceTime = 5 * time.Minute
+
+type OperatorID *uint64
 
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
@@ -92,20 +93,14 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err != nil {
 		return nil, nil, err
 	}
-	operatorID := uint64(0)
 	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, op := range init.Operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return nil, nil, fmt.Errorf("my operator is missing inside the operators list at instance")
+	operatorID, err := GetOperatorID(init.Operators, pkBytes)
+	if err != nil {
+		return nil, nil, err
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
@@ -146,22 +141,15 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	if err != nil {
 		return nil, nil, err
 	}
-	operatorID := uint64(0)
 	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, op := range allOps {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
+	operatorID, err := GetOperatorID(allOps, pkBytes)
+	if err != nil {
+		return nil, nil, err
 	}
-	if operatorID == 0 {
-		return nil, nil, errors.New("my operator is missing inside the old operators list at instance")
-	}
-
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
 		bchan <- msg
@@ -530,109 +518,26 @@ func (s *Switch) GetSecretShare(id [24]byte, pubKey []byte) (*kyber_dkg.DistKeyS
 	return &kyber_dkg.DistKeyShare{Share: &share.PriShare{V: secretPoint, I: privShare.Share.I}, Commits: coefs}, nil
 }
 
-func (s *Switch) Pong(pingMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	ping := &wire.Ping{}
-	if err := ping.UnmarshalSSZ(pingMsg.Data); err != nil {
-		return nil, err
-	}
-	// Check that incoming init message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
+func (s *Switch) Pong(incMsg *wire.SignedTransport) ([]byte, error) {
+	pkBytes, operatorID, err := s.VerifyIncomingMessage(incMsg)
 	if err != nil {
 		return nil, err
-	}
-	marshalledWireMsg, err := pingMsg.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
-	if err != nil {
-		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
-	}
-
-	operatorID := uint64(0)
-	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		return nil, err
-	}
-	for _, op := range ping.Operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return nil, fmt.Errorf("wrong operator")
 	}
 	pong := &wire.Pong{
 		ID:     operatorID,
 		PubKey: pkBytes,
 	}
-	pongBytes, err := pong.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	ts := &wire.Transport{
-		Type:       wire.PongMessageType,
-		Identifier: [24]byte{},
-		Data:       pongBytes,
-	}
-
-	bts, err := ts.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	// Sign message with RSA private key
-	sign, err := s.Sign(bts)
-	if err != nil {
-		return nil, err
-	}
-
-	signed := &wire.SignedTransport{
-		Message:   ts,
-		Signer:    operatorID,
-		Signature: sign,
-	}
-
-	final, err := signed.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	return final, nil
+	return s.MarshallAndSign(pong, wire.PongMessageType, operatorID, [24]byte{})
 }
 
-func (s *Switch) SaveResultData(msg *wire.Transport, initiatorSignature []byte) error {
+func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	resData := &wire.ResultData{}
-	if err := resData.UnmarshalSSZ(msg.Data); err != nil {
+	if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
 		return err
 	}
-	// Check that incoming init message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPubkey(resData.InitiatorPublicKey)
+	_, _, err := s.VerifyIncomingMessage(incMsg)
 	if err != nil {
 		return err
-	}
-	marshalledWireMsg, err := msg.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
-	if err != nil {
-		return fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
-	}
-	operatorID := uint64(0)
-	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		return err
-	}
-	for _, op := range resData.Operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return fmt.Errorf("wrong operator")
 	}
 	// store deposit result
 	timestamp := time.Now().Format(time.RFC3339Nano)
@@ -658,14 +563,114 @@ func (s *Switch) SaveResultData(msg *wire.Transport, initiatorSignature []byte) 
 	if err != nil {
 		return err
 	}
-	err = cli_utils.WriteKeysharesResult(ksJson, dir, msg.Identifier)
+	err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
 	if err != nil {
 		return err
 	}
 	// store instance ID
-	err = cli_utils.WriteInstanceID(dir, msg.Identifier)
+	err = cli_utils.WriteInstanceID(dir, incMsg.Message.Identifier)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) ([]byte, uint64, error) {
+	var initiatorPubKey *rsa.PublicKey
+	var ops []*wire.Operator
+	var err error
+	switch incMsg.Message.Type {
+	case wire.PingMessageType:
+		ping := &wire.Ping{}
+		if err := ping.UnmarshalSSZ(incMsg.Message.Data); err != nil {
+			return nil, 0, err
+		}
+		// Check that incoming init message signature is valid
+		initiatorPubKey, err = crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
+		if err != nil {
+			return nil, 0, err
+		}
+		ops = ping.Operators
+	case wire.ResultMessageType:
+		resData := &wire.ResultData{}
+		if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
+			return nil, 0, err
+		}
+		// Check that incoming init message signature is valid
+		initiatorPubKey, err = crypto.ParseRSAPubkey(resData.InitiatorPublicKey)
+		if err != nil {
+			return nil, 0, err
+		}
+		ops = resData.Operators
+	}
+	pkBytes, err := s.VerifySig(incMsg, initiatorPubKey)
+	if err != nil {
+		return nil, 0, err
+	}
+	operatorID, err := GetOperatorID(ops, pkBytes)
+	if err != nil {
+		return nil, 0, err
+	}
+	return pkBytes, operatorID, nil
+}
+
+func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) ([]byte, error) {
+	marshalledWireMsg, err := incMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+	}
+	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		return nil, err
+	}
+	return pkBytes, nil
+}
+
+func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
+	operatorID := uint64(0)
+	for _, op := range operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			operatorID = op.ID
+			break
+		}
+	}
+	if operatorID == 0 {
+		return 0, fmt.Errorf("wrong operator")
+	}
+	return operatorID, nil
+}
+
+func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
+	data, err := msg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	ts := &wire.Transport{
+		Type:       msgType,
+		Identifier: id,
+		Data:       data,
+	}
+
+	bts, err := ts.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	// Sign message with RSA private key
+	sign, err := s.Sign(bts)
+	if err != nil {
+		return nil, err
+	}
+
+	signed := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    operatorID,
+		Signature: sign,
+	}
+
+	return signed.MarshalSSZ()
 }

@@ -167,7 +167,7 @@ func RegisterRoutes(s *Server) {
 					return
 				}
 				s.Logger.Debug("received a health check message")
-				b, err := s.State.Pong(signedPintMsg.Message, signedPintMsg.Signature)
+				b, err := s.State.Pong(signedPintMsg)
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
@@ -191,7 +191,7 @@ func RegisterRoutes(s *Server) {
 					return
 				}
 				s.Logger.Debug("received a result message")
-				err := s.State.SaveResultData(signedResultMsg.Message, signedResultMsg.Signature)
+				err := s.State.SaveResultData(signedResultMsg)
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
