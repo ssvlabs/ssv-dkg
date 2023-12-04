@@ -589,7 +589,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		DepositData:        depositData,
 		KeysharesData:      keysharesData,
 	}
-	err = c.sendResult(consts.API_RESULTS_URL, id, ops, resultMsg)
+	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {
 		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
 	}
@@ -802,75 +802,19 @@ func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
 func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
-	sszInit, err := init.MarshalSSZ()
+	signedInitMsgBts, err := c.prepareAndSignMessage(init, wire.InitMessageType, id, c.Version)
 	if err != nil {
 		return nil, err
 	}
-	initMessage := &wire.Transport{
-		Type:       wire.InitMessageType,
-		Identifier: id,
-		Data:       sszInit,
-		Version:    c.Version,
-	}
-	tsssz, err := initMessage.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
-	if err != nil {
-		return nil, err
-	}
-	// Create signed init message
-	signedInitMsg := &wire.SignedTransport{
-		Message:   initMessage,
-		Signer:    0,
-		Signature: sig,
-	}
-	signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
+	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
 }
 
 func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wire.Operator) ([][]byte, error) {
-	sszReshare, err := reshare.MarshalSSZ()
+	signedReshareMsgBts, err := c.prepareAndSignMessage(reshare, wire.ReshareMessageType, id, c.Version)
 	if err != nil {
 		return nil, err
 	}
-	reshareMessage := &wire.Transport{
-		Type:       wire.ReshareMessageType,
-		Identifier: id,
-		Data:       sszReshare,
-		Version:    c.Version,
-	}
-	tsssz, err := reshareMessage.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
-	if err != nil {
-		return nil, err
-	}
-	// Create signed resre message
-	signedReshareMsg := &wire.SignedTransport{
-		Message:   reshareMessage,
-		Signer:    0,
-		Signature: sig,
-	}
-	signedReshareMsgBts, err := signedReshareMsg.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	results, err := c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
+	return c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
@@ -883,11 +827,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 	if err != nil {
 		return nil, err
 	}
-	results, err := c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
+	return c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
 }
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
@@ -901,75 +841,22 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	if err != nil {
 		return nil, err
 	}
-	responseResult, err := c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
-	if err != nil {
-		return nil, err
-	}
-	return responseResult, nil
+	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
 }
 
 func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([][]byte, error) {
-	sszPing, err := ping.MarshalSSZ()
+	signedPingMsgBts, err := c.prepareAndSignMessage(ping, wire.PingMessageType, [24]byte{}, c.Version)
 	if err != nil {
 		return nil, err
 	}
-	pingMessage := &wire.Transport{
-		Type:       wire.PingMessageType,
-		Identifier: [24]byte{},
-		Data:       sszPing,
-		Version:    c.Version,
-	}
-	tsssz, err := pingMessage.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
-	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
-	if err != nil {
-		return nil, err
-	}
-	// Create signed ping message
-	signedPingtMsg := &wire.SignedTransport{
-		Message:   pingMessage,
-		Signer:    0,
-		Signature: sig,
-	}
-	signedPingMsgBts, err := signedPingtMsg.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	results, err := c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
+	return c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
 }
 
-func (c *Initiator) sendResult(method string, id [24]byte, operators []*wire.Operator, resData *wire.ResultData) error {
-	data, err := resData.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	resDataMessage := &wire.Transport{
-		Type:       wire.ResultMessageType,
-		Identifier: id,
-		Data:       data,
-		Version:    c.Version,
-	}
-	tsssz, err := resDataMessage.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	sig, err := crypto.SignRSA(c.PrivateKey, tsssz)
-	if err != nil {
-		return err
-	}
-	// Create signed resre message
-	signedMsg := &wire.SignedTransport{
-		Message:   resDataMessage,
-		Signer:    0,
-		Signature: sig,
-	}
-	signedMsgBts, err := signedMsg.MarshalSSZ()
+func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {
+	signedMsgBts, err := c.prepareAndSignMessage(resData, wire.ResultMessageType, id, c.Version)
 	if err != nil {
 		return err
 	}
@@ -1165,4 +1052,40 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, error) {
 		}
 	}
 	return pongs, nil
+}
+
+func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, version []byte) ([]byte, error) {
+	// Marshal the provided message
+	marshaledMsg, err := msg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the transport message
+	transportMsg := &wire.Transport{
+		Type:       msgType,
+		Identifier: identifier,
+		Data:       marshaledMsg,
+		Version:    version,
+	}
+
+	// Marshal the transport message
+	tssz, err := transportMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+
+	// Sign the message
+	sig, err := crypto.SignRSA(c.PrivateKey, tssz)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create and marshal the signed transport message
+	signedTransportMsg := &wire.SignedTransport{
+		Message:   transportMsg,
+		Signer:    0, // Ensure this value is correctly set as per your application logic
+		Signature: sig,
+	}
+	return signedTransportMsg.MarshalSSZ()
 }

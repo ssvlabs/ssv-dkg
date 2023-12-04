@@ -1,5 +1,9 @@
 package wire
 
+type SSZMarshaller interface {
+	MarshalSSZ() ([]byte, error)
+	UnmarshalSSZ(buf []byte) error 
+}
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators

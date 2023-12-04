@@ -1,7 +1,6 @@
 package operator_test
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -176,7 +175,9 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		wrongPub, err := crypto.EncodePublicKey(&newPriv.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
+		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
@@ -235,7 +236,9 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		c.VerifyFunc = verify
 		wrongPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
+		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
