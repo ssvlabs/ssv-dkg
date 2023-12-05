@@ -65,7 +65,12 @@ func TestCreateInstance(t *testing.T) {
 	require.NoError(t, err)
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
+		operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+		pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+		if err != nil {
+			panic(err)
+		}
+		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -120,7 +125,12 @@ func TestInitInstance(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
+	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -199,7 +209,12 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
+	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -254,7 +269,12 @@ func TestEncryptDercyptDB(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
+	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
 	id := crypto.NewID()
 
 	bin, err := swtch.Encrypt([]byte("Hello World"))
@@ -283,7 +303,12 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"))
+	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 

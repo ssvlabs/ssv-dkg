@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
@@ -210,7 +211,12 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver 
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(key, logger, db, ver)
+	operatorPubKey := key.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := NewSwitch(key, logger, db, ver, pkBytes)
 	s := &Server{
 		Logger: logger,
 		Router: r,

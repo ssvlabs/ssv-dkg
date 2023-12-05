@@ -84,6 +84,7 @@ type Switch struct {
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key
 	DB               *kv.BadgerDB
 	Version          []byte
+	PubKeyBytes      []byte
 }
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -93,12 +94,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err != nil {
 		return nil, nil, err
 	}
-	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	operatorID, err := GetOperatorID(init.Operators, pkBytes)
+	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -141,12 +137,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	if err != nil {
 		return nil, nil, err
 	}
-	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	operatorID, err := GetOperatorID(allOps, pkBytes)
+	operatorID, err := GetOperatorID(allOps, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -280,7 +271,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 // NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []byte) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []byte, pkBytes []byte) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -289,6 +280,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []by
 		PrivateKey:       pv,
 		DB:               db,
 		Version:          ver,
+		PubKeyBytes:      pkBytes,
 	}
 }
 
@@ -519,13 +511,13 @@ func (s *Switch) GetSecretShare(id [24]byte, pubKey []byte) (*kyber_dkg.DistKeyS
 }
 
 func (s *Switch) Pong(incMsg *wire.SignedTransport) ([]byte, error) {
-	pkBytes, operatorID, err := s.VerifyIncomingMessage(incMsg)
+	operatorID, err := s.VerifyIncomingMessage(incMsg)
 	if err != nil {
 		return nil, err
 	}
 	pong := &wire.Pong{
 		ID:     operatorID,
-		PubKey: pkBytes,
+		PubKey: s.PubKeyBytes,
 	}
 	return s.MarshallAndSign(pong, wire.PongMessageType, operatorID, [24]byte{})
 }
@@ -535,7 +527,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
 		return err
 	}
-	_, _, err := s.VerifyIncomingMessage(incMsg)
+	_, err := s.VerifyIncomingMessage(incMsg)
 	if err != nil {
 		return err
 	}
@@ -575,7 +567,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	return nil
 }
 
-func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) ([]byte, uint64, error) {
+func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
 	var initiatorPubKey *rsa.PublicKey
 	var ops []*wire.Operator
 	var err error
@@ -583,52 +575,47 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) ([]byte, ui
 	case wire.PingMessageType:
 		ping := &wire.Ping{}
 		if err := ping.UnmarshalSSZ(incMsg.Message.Data); err != nil {
-			return nil, 0, err
+			return 0, err
 		}
 		// Check that incoming init message signature is valid
 		initiatorPubKey, err = crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
 		if err != nil {
-			return nil, 0, err
+			return 0, err
 		}
 		ops = ping.Operators
 	case wire.ResultMessageType:
 		resData := &wire.ResultData{}
 		if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
-			return nil, 0, err
+			return 0, err
 		}
 		// Check that incoming init message signature is valid
 		initiatorPubKey, err = crypto.ParseRSAPubkey(resData.InitiatorPublicKey)
 		if err != nil {
-			return nil, 0, err
+			return 0, err
 		}
 		ops = resData.Operators
 	}
-	pkBytes, err := s.VerifySig(incMsg, initiatorPubKey)
+	err = s.VerifySig(incMsg, initiatorPubKey)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
-	operatorID, err := GetOperatorID(ops, pkBytes)
+	operatorID, err := GetOperatorID(ops, s.PubKeyBytes)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
-	return pkBytes, operatorID, nil
+	return operatorID, nil
 }
 
-func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) ([]byte, error) {
+func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {
 	marshalledWireMsg, err := incMsg.MarshalSSZ()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+		return fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
 	}
-	operatorPubKey := s.PrivateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		return nil, err
-	}
-	return pkBytes, nil
+	return nil
 }
 
 func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {

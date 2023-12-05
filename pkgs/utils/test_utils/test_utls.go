@@ -52,7 +52,12 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db, []byte("v1.0.2"))
+	operatorPubKey := priv.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := operator.NewSwitch(priv, logger, db, []byte("v1.0.2"), pkBytes)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -84,7 +89,12 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 		Path:      t.TempDir(),
 	})
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version))
+	operatorPubKey := priv.Public().(*rsa.PublicKey)
+	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	if err != nil {
+		panic(err)
+	}
+	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
