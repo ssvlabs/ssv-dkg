@@ -38,7 +38,7 @@ func ParseAsError(msg []byte) (error, error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
-func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, version string) *TestOperator {
 	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string) *Te
 	if err != nil {
 		panic(err)
 	}
-	swtch := operator.NewSwitch(priv, logger, db, []byte("v1.0.2"), pkBytes)
+	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,

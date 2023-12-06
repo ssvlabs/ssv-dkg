@@ -175,6 +175,7 @@ func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger, ver
 		Client:     client,
 		Operators:  operatorMap,
 		PrivateKey: privKey,
+		VerifyFunc: CreateVerifyFunc(operatorMap),
 		Version:    []byte(ver),
 	}
 	return c
@@ -503,13 +504,6 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, err
 	}
 
-	// Add messages verification coming form operators
-	verify, err := c.CreateVerifyFunc(ops)
-	if err != nil {
-		return nil, nil, err
-	}
-	c.VerifyFunc = verify
-
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, err
@@ -607,14 +601,6 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 		return nil, err
 	}
 
-	allOps := append(oldOps, newOps...)
-	// Add messages verification coming form operators
-	verify, err := c.CreateVerifyFunc(allOps)
-	if err != nil {
-		return nil, err
-	}
-	c.VerifyFunc = verify
-
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
@@ -675,14 +661,10 @@ func (msg *KeySign) Decode(data []byte) error {
 }
 
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
-func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
+func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) error {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
-		pk, err := crypto.ParseRSAPubkey(op.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		inst_ops[op.ID] = pk
+		inst_ops[op.ID] = op.PubKey
 	}
 	return func(id uint64, msg []byte, sig []byte) error {
 		pk, ok := inst_ops[id]
@@ -690,7 +672,7 @@ func (c *Initiator) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg 
 			return fmt.Errorf("cant find operator, was it provided at operators information file %d", id)
 		}
 		return crypto.VerifyRSA(pk, msg, sig)
-	}, nil
+	}
 }
 
 // ProcessDKGResultResponse deserializes incoming DKG result messages from operators
@@ -1007,12 +989,6 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Add messages verification coming form operators
-	verify, err := c.CreateVerifyFunc(ops)
-	if err != nil {
-		return nil, err
-	}
-	c.VerifyFunc = verify
 
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {

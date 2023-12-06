@@ -48,14 +48,18 @@ func (msg *KeySign) Decode(data []byte) error {
 
 // TODO: either do all json or all SSZ
 const ErrTooManyOperatorRequests = `{"error": "too many requests to operator"}`
-const ErrTooManyDKGRequests = `{"error": "too many requests to initiate DKG"}`
+const ErrTooManyDKGRequests = `{"error": "too many requests to /dkg"}`
+const ErrTooManyInitRequests = `{"error": "too many requests to /init"}`
+const ErrTooManyReshareRequests = `{"error": "too many requests to /reshare"}`
+const ErrTooManyHealthCheckRequests = `{"error": "too many requests to /health_check"}`
+const ErrTooManyResultRequests = `{"error": "too many requests to /results"}`
 
 // RegisterRoutes creates routes at operator to process messages incoming from initiator
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
 		5000,
-		1*time.Minute,
+		time.Minute,
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -64,12 +68,12 @@ func RegisterRoutes(s *Server) {
 	))
 	s.Router.Route("/init", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			1000,
+			500,
 			time.Minute,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(ErrTooManyDKGRequests))
+				w.Write([]byte(ErrTooManyInitRequests))
 			}),
 		))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
@@ -101,6 +105,15 @@ func RegisterRoutes(s *Server) {
 		})
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
+		r.Use(httprate.Limit(
+			500,
+			time.Minute,
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte(ErrTooManyDKGRequests))
+			}),
+		))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
@@ -119,12 +132,12 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/reshare", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			1000,
+			500,
 			time.Minute,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(ErrTooManyDKGRequests))
+				w.Write([]byte(ErrTooManyReshareRequests))
 			}),
 		))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
@@ -155,6 +168,15 @@ func RegisterRoutes(s *Server) {
 			writer.Write(b)
 		})
 		s.Router.Route("/health_check", func(r chi.Router) {
+			r.Use(httprate.Limit(
+				1000,
+				time.Minute,
+				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusTooManyRequests)
+					w.Write([]byte(ErrTooManyHealthCheckRequests))
+				}),
+			))
 			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 				rawdata, _ := io.ReadAll(request.Body)
 				signedPingMsg := &wire.SignedTransport{}
