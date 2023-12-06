@@ -152,10 +152,12 @@ func TestInitInstance(t *testing.T) {
 
 	initmsg, err := init.MarshalSSZ()
 	require.NoError(t, err)
+	version := "v1.0.2"
 	initMessage := &wire.Transport{
 		Type:       wire.InitMessageType,
 		Identifier: reqID,
 		Data:       initmsg,
+		Version:    []byte(version),
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	require.NoError(t, err)
@@ -235,10 +237,12 @@ func TestSwitch_cleanInstances(t *testing.T) {
 
 	initmsg, err := init.MarshalSSZ()
 	require.NoError(t, err)
+	version := "v1.0.2"
 	initMessage := &wire.Transport{
 		Type:       wire.InitMessageType,
 		Identifier: reqID,
 		Data:       initmsg,
+		Version:    []byte(version),
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	require.NoError(t, err)
@@ -330,10 +334,12 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 
 	initmsg, err := init.MarshalSSZ()
 	require.NoError(t, err)
+	version := "v1.0.2"
 	initMessage := &wire.Transport{
 		Type:       wire.InitMessageType,
 		Identifier: reqID,
 		Data:       initmsg,
+		Version:    []byte(version),
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	require.NoError(t, err)

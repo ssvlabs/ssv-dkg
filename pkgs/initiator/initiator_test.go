@@ -47,10 +47,11 @@ func TestStartDKG(t *testing.T) {
 	}
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
+	version := "v1.0.2"
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops[1] = initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
 	ops[2] = initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
 	ops[3] = initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
