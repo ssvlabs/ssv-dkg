@@ -1,0 +1,7 @@
+operatorIDs: [1, 2, 3, 4]
+operatorsInfoPath: /data/operators_info.json
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/output/initiator_debug.log
+configPath: /data/config

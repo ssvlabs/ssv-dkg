@@ -49,6 +49,10 @@ docker-demo-reshare:
 	@echo "Running resharing in docker demo"
 	docker-compose up --build resharing
 
+docker-demo-ping:
+	@echo "Running resharing in docker demo"
+	docker-compose up --build ping
+
 docker-operator:
 	@echo "Running operator docker, make sure to update ./examples/config/operator1.example.yaml"
 	docker run -d \

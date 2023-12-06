@@ -128,5 +128,19 @@ services:
     volumes:
       - ./examples:/data
 
+  ping:
+    image: ssv-dkg:latest
+    depends_on:
+      - operator1
+      - operator2
+      - operator3
+      - operator4
+    networks:
+      - shared_network
+    entrypoint: /app
+    command: ["ping", "--configYAML", "/data/config/ping.example.yaml"]
+    volumes:
+      - ./examples:/data
+
 networks:
   shared_network:

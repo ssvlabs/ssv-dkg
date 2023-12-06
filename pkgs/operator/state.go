@@ -516,8 +516,7 @@ func (s *Switch) Pong(incMsg *wire.SignedTransport) ([]byte, error) {
 		return nil, err
 	}
 	pong := &wire.Pong{
-		ID:     operatorID,
-		PubKey: s.PubKeyBytes,
+		ID: operatorID,
 	}
 	return s.MarshallAndSign(pong, wire.PongMessageType, operatorID, [24]byte{})
 }
@@ -583,21 +582,30 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 			return 0, err
 		}
 		ops = ping.Operators
+		err = s.VerifySig(incMsg, initiatorPubKey)
+		if err != nil {
+			return 0, err
+		}
 	case wire.ResultMessageType:
 		resData := &wire.ResultData{}
 		if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
 			return 0, err
 		}
-		// Check that incoming init message signature is valid
-		initiatorPubKey, err = crypto.ParseRSAPubkey(resData.InitiatorPublicKey)
+		s.Mtx.RLock()
+		inst, ok := s.Instances[resData.Identifier]
+		s.Mtx.RUnlock()
+		if !ok {
+			return 0, utils.ErrMissingInstance
+		}
+		msgBytes, err := incMsg.Message.MarshalSSZ()
+		if err != nil {
+			return 0, err
+		}
+		err = inst.VerifyInitiatorMessage(msgBytes, incMsg.Signature)
 		if err != nil {
 			return 0, err
 		}
 		ops = resData.Operators
-	}
-	err = s.VerifySig(incMsg, initiatorPubKey)
-	if err != nil {
-		return 0, err
 	}
 	operatorID, err := GetOperatorID(ops, s.PubKeyBytes)
 	if err != nil {
@@ -607,13 +615,13 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 }
 
 func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {
-	marshalledWireMsg, err := incMsg.MarshalSSZ()
+	marshalledWireMsg, err := incMsg.Message.MarshalSSZ()
 	if err != nil {
 		return err
 	}
 	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
 	if err != nil {
-		return fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
+		return fmt.Errorf("signature isn't valid: %s", err.Error())
 	}
 	return nil
 }

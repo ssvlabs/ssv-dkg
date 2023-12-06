@@ -578,10 +578,10 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
-		Operators:          ops,
-		InitiatorPublicKey: pkBytes,
-		DepositData:        depositData,
-		KeysharesData:      keysharesData,
+		Operators:     ops,
+		Identifier:    id,
+		DepositData:   depositData,
+		KeysharesData: keysharesData,
 	}
 	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {
@@ -1021,8 +1021,13 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, error) {
 		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
 			return nil, err
 		}
+		pongBytes, err := signedPongMsg.Message.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
 		for _, op := range ops {
-			if op.ID == pong.ID && bytes.Equal(op.PubKey, pong.PubKey) {
+			if op.ID == signedPongMsg.Signer {
+				c.VerifyFunc(signedPongMsg.Signer, pongBytes, signedPongMsg.Signature)
 				pongs = append(pongs, pong)
 			}
 		}

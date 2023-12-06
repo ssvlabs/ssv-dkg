@@ -2,7 +2,7 @@ package wire
 
 type SSZMarshaller interface {
 	MarshalSSZ() ([]byte, error)
-	UnmarshalSSZ(buf []byte) error 
+	UnmarshalSSZ(buf []byte) error
 }
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
@@ -158,14 +158,13 @@ type Ping struct {
 
 type Pong struct {
 	ID     uint64
-	PubKey []byte `ssz-max:"2048"`
 }
 
 type ResultData struct {
 	// Operators involved in the DKG
 	Operators []*Operator `ssz-max:"13"`
 	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
-	DepositData        []byte `ssz-max:"8388608"` // 2^23
-	KeysharesData      []byte `ssz-max:"8388608"` // 2^23
+	Identifier    [24]byte `ssz-size:"24"`
+	DepositData   []byte   `ssz-max:"8388608"` // 2^23
+	KeysharesData []byte   `ssz-max:"8388608"` // 2^23
 }

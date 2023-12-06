@@ -255,6 +255,7 @@ func SetOperatorFlags(cmd *cobra.Command) {
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
+	flags.ConfigPathFlag(cmd)
 	flags.OperatorsInfoFlag(cmd)
 	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
@@ -451,6 +452,9 @@ func BindHealthCheckFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
 		return err
 	}
@@ -459,6 +463,10 @@ func BindHealthCheckFlags(cmd *cobra.Command) error {
 	}
 	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		return err
+	}
+	ConfigPath = viper.GetString("configPath")
+	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
+		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
