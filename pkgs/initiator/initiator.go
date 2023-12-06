@@ -81,12 +81,16 @@ const DepositCliVersion = "2.7.0"
 type KeyShares struct {
 	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"createdAt"`
-	Data      Data      `json:"data"`
+	Shares    []Data    `json:"shares"`
 	Payload   Payload   `json:"payload"`
 }
 
 // Data structure as a part of KeyShares representing BLS validator public key and information about validators
 type Data struct {
+	ShareData `json:"data"`
+}
+
+type ShareData struct {
 	OwnerNonce   uint64         `json:"ownerNonce"`
 	OwnerAddress string         `json:"ownerAddress "`
 	PublicKey    string         `json:"publicKey"`
@@ -133,12 +137,12 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 		operatorIds = append(operatorIds, operatorResult.OperatorID)
 	}
 
-	data := Data{
+	data := []Data{{ShareData{
 		OwnerNonce:   nonce,
 		OwnerAddress: owner.Hex(),
 		PublicKey:    "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		Operators:    operatorData,
-	}
+	}}}
 	// Create share string for ssv contract
 	sharesData := append(pubkeys, encryptedShares...)
 	sharesDataSigned := append(sigOwnerNonce, sharesData...)
@@ -159,7 +163,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 	}
 	ks := &KeyShares{}
 	ks.Version = "v1.1.0"
-	ks.Data = data
+	ks.Shares = data
 	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
 	return ks, nil
@@ -700,6 +704,10 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
 		}
+		// check version
+		if !bytes.Equal(tsp.Message.Version, c.Version) {
+			return nil, nil, nil, nil, nil, utils.ErrVersion
+		}
 		result := &dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
 			return nil, nil, nil, nil, nil, err
@@ -751,6 +759,10 @@ func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24
 				return nil, nil, nil, nil, err
 			}
 			return nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
+		}
+		// check version
+		if !bytes.Equal(tsp.Message.Version, c.Version) {
+			return nil, nil, nil, nil, utils.ErrVersion
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
@@ -1015,7 +1027,10 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, error) {
 		}
 		// Validate that incoming message is an ping message
 		if signedPongMsg.Message.Type != wire.PongMessageType {
-			return nil, fmt.Errorf("Wrong incoming message type from operator")
+			return nil, fmt.Errorf("wrong incoming message type from operator")
+		}
+		if !bytes.Equal(signedPongMsg.Message.Version, c.Version) {
+			return nil, utils.ErrVersion
 		}
 		pong := &wire.Pong{}
 		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {

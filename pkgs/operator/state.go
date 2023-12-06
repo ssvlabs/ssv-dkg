@@ -649,6 +649,7 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 		Type:       msgType,
 		Identifier: id,
 		Data:       data,
+		Version:    s.Version,
 	}
 
 	bts, err := ts.MarshalSSZ()

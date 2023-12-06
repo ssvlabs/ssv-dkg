@@ -645,7 +645,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byte) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Payload.PublicKey, keyShares.Data.OwnerAddress, keyShares.Data.OwnerNonce, hex.EncodeToString(id[:]))
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
