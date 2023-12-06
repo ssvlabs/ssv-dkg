@@ -89,7 +89,6 @@ var StartDKG = &cobra.Command{
 			if res.err != nil {
 				logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(res.err))
 			}
-			logger.Info("🎯 Received result.")
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			ids = append(ids, res.id)

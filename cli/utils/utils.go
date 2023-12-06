@@ -591,22 +591,22 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		nestedDir := fmt.Sprintf("%s/%s", dir, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
-			logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
 		}
 		logger.Info("💾 Writing deposit data json to file", zap.String("path", nestedDir))
 		err = WriteDepositResult(depositDataArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
+			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
 		}
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", nestedDir))
 		err = WriteKeysharesResult(keySharesArr[i], nestedDir, ids[i])
 		if err != nil {
-			logger.Fatal("Failed writing keyshares file: ", zap.Error(err))
+			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
 		logger.Info("💾 Writing instance ID to file", zap.String("path", nestedDir))
 		err = WriteInstanceID(nestedDir, ids[i])
 		if err != nil {
-			logger.Fatal("Failed writing instance ID file: ", zap.Error(err))
+			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", nestedDir), zap.String("ID", hex.EncodeToString(ids[i][:])))
 		}
 	}
 	if Validators > 1 {
@@ -615,13 +615,13 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
 		err := utils.WriteJSON(depositFinalPath, depositDataArr)
 		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err))
+			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
 		}
 		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
 		err = utils.WriteJSON(keysharesFinalPath, keySharesArr)
 		if err != nil {
-			logger.Fatal("Failed writing keyshares file: ", zap.Error(err))
+			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		}
 		instanceIdsPath := fmt.Sprintf("%s/instance_id.json", dir)
 		logger.Info("💾 Writing instance IDs to file", zap.String("path", keysharesFinalPath))
@@ -631,7 +631,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		}
 		err = utils.WriteJSON(instanceIdsPath, idsArr)
 		if err != nil {
-			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err))
+			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", instanceIdsPath), zap.Strings("IDs", idsArr))
 		}
 	}
 }
@@ -640,7 +640,7 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byt
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Payload.PublicKey, keyShares.Data.OwnerAddress, keyShares.Data.OwnerNonce, hex.EncodeToString(id[:]))
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
-		return fmt.Errorf("Failed writing keyshares file: %w", err)
+		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
 	}
 	return nil
 }
@@ -649,7 +649,7 @@ func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) erro
 	depositFinalPath := fmt.Sprintf("%s/deposit_data-%s.json", dir, depositData.PubKey)
 	err := utils.WriteJSON(depositFinalPath, depositData)
 	if err != nil {
-		return fmt.Errorf("Failed writing deposit data file: %w", err)
+		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
 	}
 	return nil
 }
@@ -658,7 +658,7 @@ func WriteInstanceID(dir string, id [24]byte) error {
 	instanceIdPath := fmt.Sprintf("%s/instance_id.json", dir)
 	err := utils.WriteJSON(instanceIdPath, hex.EncodeToString(id[:]))
 	if err != nil {
-		return fmt.Errorf("Failed writing instance ID file: %w", err)
+		return fmt.Errorf("failed writing instance ID file: %w, %s", err, hex.EncodeToString(id[:]))
 	}
 	return nil
 }
