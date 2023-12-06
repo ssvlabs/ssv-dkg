@@ -157,18 +157,18 @@ func RegisterRoutes(s *Server) {
 		s.Router.Route("/health_check", func(r chi.Router) {
 			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 				rawdata, _ := io.ReadAll(request.Body)
-				signedPintMsg := &wire.SignedTransport{}
-				if err := signedPintMsg.UnmarshalSSZ(rawdata); err != nil {
+				signedPingMsg := &wire.SignedTransport{}
+				if err := signedPingMsg.UnmarshalSSZ(rawdata); err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
 				}
 				// Validate that incoming message is a ping message
-				if signedPintMsg.Message.Type != wire.PingMessageType {
+				if signedPingMsg.Message.Type != wire.PingMessageType {
 					utils.WriteErrorResponse(s.Logger, writer, errors.New("not ping message to ping route"), http.StatusBadRequest)
 					return
 				}
 				s.Logger.Debug("received a health check message")
-				b, err := s.State.Pong(signedPintMsg)
+				b, err := s.State.Pong(signedPingMsg)
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
