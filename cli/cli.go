@@ -29,7 +29,10 @@ var RootCmd = &cobra.Command{
 func Execute(appName, version string) {
 	RootCmd.Short = appName
 	RootCmd.Version = version
-
+	initiator.HealthCheck.Version = version
+	initiator.StartDKG.Version = version
+	initiator.StartReshare.Version = version
+	operator.StartDKGOperator.Version = version
 	if err := RootCmd.Execute(); err != nil {
 		log.Fatal("failed to execute root command", zap.Error(err))
 	}

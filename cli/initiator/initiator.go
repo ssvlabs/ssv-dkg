@@ -38,6 +38,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		logger.Info("🪛 VERSION", zap.String("INITIATOR", cmd.Version))
 		// Load operators TODO: add more sources.
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {

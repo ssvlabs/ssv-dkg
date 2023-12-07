@@ -15,8 +15,8 @@ func init() {
 }
 
 var HealthCheck = &cobra.Command{
-	Use:   "ping",
-	Short: "Ping DKG operators",
+	Use:     "ping",
+	Short:   "Ping DKG operators",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(`
 		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
@@ -35,6 +35,7 @@ var HealthCheck = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		logger.Info("🪛 VERSION", zap.String("INITIATOR", cmd.Version))
 		// Load operators TODO: add more sources.
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
@@ -50,14 +51,14 @@ var HealthCheck = &cobra.Command{
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
 		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
-		pongs, urls, err := dkgInitiator.HealthCheck(operatorIDs)
+		pongs, urls, vers, err := dkgInitiator.HealthCheck(operatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Operators not healthy: ", zap.Error(err))
 		}
 		for i, pong := range pongs {
-			logger.Info("🍎 operator online", zap.String("ID", fmt.Sprint(pong.ID)), zap.String("URL", urls[i]))
+			logger.Info("🍎 operator online", zap.String("ID", fmt.Sprint(pong.ID)), zap.String("URL", urls[i]), zap.String("Version", string(vers[i])))
 		}
-		logger.Info("🌞All operators are up and ready for DKG ceremony")
+		logger.Info("🌞 All operators are up and ready for DKG ceremony")
 		return nil
 	},
 }

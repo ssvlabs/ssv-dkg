@@ -42,6 +42,7 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		logger.Info("🪛 VERSION", zap.String("INITIATOR", cmd.Version))
 		opMap, err := cli_utils.LoadOperators()
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))

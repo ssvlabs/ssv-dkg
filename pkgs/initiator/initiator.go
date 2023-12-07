@@ -996,15 +996,15 @@ func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeySh
 	return nil
 }
 
-func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, []string, error) {
+func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, []string, [][]byte, error) {
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// make PING message
 	ping := &wire.Ping{
@@ -1013,43 +1013,45 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, []string, error) {
 	}
 	results, err := c.SendPingMsg(ping, ops)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	err = c.VerifyAll([24]byte{}, results)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var pongs []*wire.Pong
 	var urls []string
+	var vers [][]byte
 	for _, res := range results {
 		signedPongMsg := &wire.SignedTransport{}
 		if err := signedPongMsg.UnmarshalSSZ(res); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		// Validate that incoming message is an ping message
 		if signedPongMsg.Message.Type != wire.PongMessageType {
-			return nil, nil, fmt.Errorf("wrong incoming message type from operator")
+			return nil, nil, nil, fmt.Errorf("wrong incoming message type from operator")
 		}
 		if !bytes.Equal(signedPongMsg.Message.Version, c.Version) {
-			return nil, nil, utils.ErrVersion
+			return nil, nil, nil, utils.ErrVersion
 		}
 		pong := &wire.Pong{}
 		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		pongBytes, err := signedPongMsg.Message.MarshalSSZ()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		for _, op := range ops {
 			if op.ID == signedPongMsg.Signer && op.ID == pong.ID {
 				c.VerifyFunc(signedPongMsg.Signer, pongBytes, signedPongMsg.Signature)
 				pongs = append(pongs, pong)
 				urls = append(urls, c.Operators[op.ID].Addr)
+				vers = append(vers, signedPongMsg.Message.Version)
 			}
 		}
 	}
-	return pongs, urls, nil
+	return pongs, urls, vers, nil
 }
 
 func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, version []byte) ([]byte, error) {
