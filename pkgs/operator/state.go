@@ -295,7 +295,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
-	// Check that incoming init message signature is valid
+	// Check that incoming message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
@@ -354,7 +354,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
 		return nil, err
 	}
-	// Check that incoming init message signature is valid
+	// Check that incoming message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(reshare.InitiatorPublicKey)
 	if err != nil {
 		return nil, err
@@ -576,7 +576,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		if err := ping.UnmarshalSSZ(incMsg.Message.Data); err != nil {
 			return 0, err
 		}
-		// Check that incoming init message signature is valid
+		// Check that incoming message signature is valid
 		initiatorPubKey, err = crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
 		if err != nil {
 			return 0, err
@@ -601,6 +601,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		if err != nil {
 			return 0, err
 		}
+		// Check that incoming message signature is valid
 		err = inst.VerifyInitiatorMessage(msgBytes, incMsg.Signature)
 		if err != nil {
 			return 0, err

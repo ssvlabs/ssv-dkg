@@ -200,6 +200,15 @@ func RegisterRoutes(s *Server) {
 			})
 		})
 		s.Router.Route("/results", func(r chi.Router) {
+			r.Use(httprate.Limit(
+				500,
+				time.Minute,
+				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusTooManyRequests)
+					w.Write([]byte(ErrTooManyResultRequests))
+				}),
+			))
 			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 				rawdata, _ := io.ReadAll(request.Body)
 				signedResultMsg := &wire.SignedTransport{}
