@@ -376,7 +376,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	}
 	Validators = viper.GetUint64("validators")
 	if Validators > 100 || Validators == 0 {
-		return fmt.Errorf("🚨 Amount of generated validators should be less 0<x<100")
+		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
 	GenerateInitiatorKeyIfNotExisting = viper.GetBool("generateInitiatorKeyIfNotExisting")
 	return nil

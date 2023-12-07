@@ -50,12 +50,12 @@ var HealthCheck = &cobra.Command{
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
 		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
-		pongs, err := dkgInitiator.HealthCheck(operatorIDs)
+		pongs, urls, err := dkgInitiator.HealthCheck(operatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Operators not healthy: ", zap.Error(err))
 		}
-		for _, pong := range pongs {
-			logger.Info("🍎 operator online", zap.String("ID", fmt.Sprint(pong.ID)))
+		for i, pong := range pongs {
+			logger.Info("🍎 operator online", zap.String("ID", fmt.Sprint(pong.ID)), zap.String("URL", urls[i]))
 		}
 		logger.Info("🌞All operators are up and ready for DKG ceremony")
 		return nil
