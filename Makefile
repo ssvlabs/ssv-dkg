@@ -2,7 +2,8 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic
+.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare
+.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -30,7 +31,8 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go test -v -p 1 ./...
+	go install gotest.tools/gotestsum@latest
+	gotestsum --format testname
 
 # Recipe to build the Docker image
 docker-build-image:
@@ -81,7 +83,6 @@ docker-reshare:
 	  $(DOCKER_IMAGE):latest \
 	  reshare --configPath /data/config/reshare.example.yaml
 
-
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
 	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"
@@ -96,8 +97,10 @@ lint:
 		echo "Some files requires formatting, please run 'go fmt ./...'"; \
 		exit 1; \
 	fi
+
 critic-prepare:
 	@echo "Preparing GoCritic"
 	go install -v github.com/go-critic/go-critic/cmd/gocritic@latest
+
 critic:
 	gocritic check -enableAll ./...
