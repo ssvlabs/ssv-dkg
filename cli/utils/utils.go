@@ -627,7 +627,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		}
 		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		err = utils.WriteJSON(keysharesFinalPath, keySharesArr)
+		err = utils.WriteJSON(keysharesFinalPath, initiator.GenerateAggregatesKeyshares(keySharesArr))
 		if err != nil {
 			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		}
@@ -645,7 +645,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byte) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)

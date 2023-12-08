@@ -82,12 +82,12 @@ type KeyShares struct {
 	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"createdAt"`
 	Shares    []Data    `json:"shares"`
-	Payload   Payload   `json:"payload"`
 }
 
 // Data structure as a part of KeyShares representing BLS validator public key and information about validators
 type Data struct {
 	ShareData `json:"data"`
+	Payload   Payload `json:"payload"`
 }
 
 type ShareData struct {
@@ -137,12 +137,6 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 		operatorIds = append(operatorIds, operatorResult.OperatorID)
 	}
 
-	data := []Data{{ShareData{
-		OwnerNonce:   nonce,
-		OwnerAddress: owner.Hex(),
-		PublicKey:    "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
-		Operators:    operatorData,
-	}}}
 	// Create share string for ssv contract
 	sharesData := append(pubkeys, encryptedShares...)
 	sharesDataSigned := append(sigOwnerNonce, sharesData...)
@@ -156,17 +150,38 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	payload := Payload{
+	data := []Data{{ShareData{
+		OwnerNonce:   nonce,
+		OwnerAddress: owner.Hex(),
+		PublicKey:    "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
+		Operators:    operatorData,
+	}, Payload{
 		PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		OperatorIDs: operatorIds,
 		SharesData:  "0x" + hex.EncodeToString(sharesDataSigned),
+	}}}
+
+	ks := &KeyShares{}
+	ks.Version = "v1.1.0"
+	ks.Shares = data
+	ks.CreatedAt = time.Now().UTC()
+	return ks, nil
+}
+
+func GenerateAggregatesKeyshares(keySharesArr []*KeyShares) *KeyShares {
+	// order the keyshares by nonce
+	sort.SliceStable(keySharesArr, func(i, j int) bool {
+		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
+	})
+	var data []Data
+	for _, keyShares := range keySharesArr {
+		data = append(data, keyShares.Shares...)
 	}
 	ks := &KeyShares{}
 	ks.Version = "v1.1.0"
 	ks.Shares = data
-	ks.Payload = payload
 	ks.CreatedAt = time.Now().UTC()
-	return ks, nil
+	return ks
 }
 
 // New creates a main initiator structure
@@ -943,11 +958,11 @@ func VerifyDepositData(depsitDataJson *DepositDataJson, withdrawCred []byte, own
 }
 
 func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeyShares, owner common.Address, nonce uint16) error {
-	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
+	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return err
 	}
-	validatorPublicKey, err := hex.DecodeString(ks.Payload.PublicKey[2:])
+	validatorPublicKey, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 	if err != nil {
 		return err
 	}
