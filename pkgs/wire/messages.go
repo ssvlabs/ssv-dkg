@@ -157,7 +157,7 @@ type Ping struct {
 }
 
 type Pong struct {
-	ID     uint64
+	PubKey []byte `ssz-max:"2048"`
 }
 
 type ResultData struct {

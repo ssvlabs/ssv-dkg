@@ -70,7 +70,7 @@ func TestCreateInstance(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
+		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
@@ -130,7 +130,7 @@ func TestInitInstance(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -216,7 +216,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -278,7 +278,7 @@ func TestEncryptDercyptDB(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	id := crypto.NewID()
 
 	bin, err := swtch.Encrypt([]byte("Hello World"))
@@ -312,7 +312,7 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes)
+	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 

@@ -57,7 +57,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, ver
 	if err != nil {
 		panic(err)
 	}
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes)
+	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -94,7 +94,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	if err != nil {
 		panic(err)
 	}
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes)
+	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,

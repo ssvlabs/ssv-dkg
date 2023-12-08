@@ -85,6 +85,7 @@ type Switch struct {
 	DB               *kv.BadgerDB
 	Version          []byte
 	PubKeyBytes      []byte
+	OperatorID       uint64
 }
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -271,7 +272,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 // NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []byte, pkBytes []byte) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []byte, pkBytes []byte, id uint64) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -281,6 +282,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, db *kv.BadgerDB, ver []by
 		DB:               db,
 		Version:          ver,
 		PubKeyBytes:      pkBytes,
+		OperatorID:       id,
 	}
 }
 
@@ -510,15 +512,11 @@ func (s *Switch) GetSecretShare(id [24]byte, pubKey []byte) (*kyber_dkg.DistKeyS
 	return &kyber_dkg.DistKeyShare{Share: &share.PriShare{V: secretPoint, I: privShare.Share.I}, Commits: coefs}, nil
 }
 
-func (s *Switch) Pong(incMsg *wire.SignedTransport) ([]byte, error) {
-	operatorID, err := s.VerifyIncomingMessage(incMsg)
-	if err != nil {
-		return nil, err
-	}
+func (s *Switch) Pong() ([]byte, error) {
 	pong := &wire.Pong{
-		ID: operatorID,
+		PubKey: s.PubKeyBytes,
 	}
-	return s.MarshallAndSign(pong, wire.PongMessageType, operatorID, [24]byte{})
+	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }
 
 func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {

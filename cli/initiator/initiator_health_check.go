@@ -8,6 +8,7 @@ import (
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv/logging"
 )
 
 func init() {
@@ -25,40 +26,16 @@ var HealthCheck = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
-			return err
+		if err := logging.SetGlobalLogger("debug", "json", "capitalColor", nil); err != nil {
+			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
 		}
-		if err := cli_utils.BindHealthCheckFlags(cmd); err != nil {
-			return err
-		}
-		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
-		if err != nil {
-			return err
-		}
+		logger := zap.L().Named("dkg-initiator")
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
-		// Load operators TODO: add more sources.
-		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
+		ips, err := cmd.Flags().GetStringSlice("ip")
 		if err != nil {
-			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
+			logger.Fatal("😥", zap.Error(err))
 		}
-		opMap, err := cli_utils.LoadOperators()
-		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
-		}
-		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(cli_utils.GenerateInitiatorKeyIfNotExisting)
-		if err != nil {
-			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
-		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
-		pongs, urls, vers, err := dkgInitiator.HealthCheck(operatorIDs)
-		if err != nil {
-			logger.Fatal("😥 Operators not healthy: ", zap.Error(err))
-		}
-		for i, pong := range pongs {
-			logger.Info("🍎 operator online", zap.String("ID", fmt.Sprint(pong.ID)), zap.String("URL", urls[i]), zap.String("Version", string(vers[i])))
-		}
-		logger.Info("🌞 All operators are up and ready for DKG ceremony")
+		initiator.Ping(ips, logger)
 		return nil
 	},
 }

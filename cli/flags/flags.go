@@ -35,6 +35,7 @@ const (
 	DBReporting                       = "DBReporting"
 	DBGCInterval                      = "DBGCInterval"
 	validators                        = "validators"
+	operatorID                        = "operatorID"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -134,7 +135,7 @@ func LogLevelFormatFlag(c *cobra.Command) {
 
 // LogFilePathFlag file path to write logs into
 func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./data/debug.log", "Defines a file path to write logs into", false)
+	AddPersistentStringFlag(c, logFilePath, "./logs/debug.log", "Defines a file path to write logs into", false)
 }
 
 // DBPathFlag adds path for storage flag to the command
@@ -159,6 +160,11 @@ func ResultPathFlag(c *cobra.Command) {
 // ValidatorsFlag add number of validators to create flag to the command
 func ValidatorsFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, validators, 1, "Number of validators", false)
+}
+
+// OperatorIDFlag add operator ID flag to the command
+func OperatorIDFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

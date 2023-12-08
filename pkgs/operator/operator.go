@@ -177,20 +177,9 @@ func RegisterRoutes(s *Server) {
 					w.Write([]byte(ErrTooManyHealthCheckRequests))
 				}),
 			))
-			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-				rawdata, _ := io.ReadAll(request.Body)
-				signedPingMsg := &wire.SignedTransport{}
-				if err := signedPingMsg.UnmarshalSSZ(rawdata); err != nil {
-					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
-					return
-				}
-				// Validate that incoming message is a ping message
-				if signedPingMsg.Message.Type != wire.PingMessageType {
-					utils.WriteErrorResponse(s.Logger, writer, errors.New("not ping message to ping route"), http.StatusBadRequest)
-					return
-				}
+			r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 				s.Logger.Debug("received a health check message")
-				b, err := s.State.Pong(signedPingMsg)
+				b, err := s.State.Pong()
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
@@ -235,7 +224,7 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) *Server {
 	r := chi.NewRouter()
 	db, err := setupDB(logger, dbOptions)
 	// todo: handle error
@@ -247,7 +236,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver 
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(key, logger, db, ver, pkBytes)
+	swtch := NewSwitch(key, logger, db, ver, pkBytes, id)
 	s := &Server{
 		Logger: logger,
 		Router: r,

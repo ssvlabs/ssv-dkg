@@ -1011,59 +1011,78 @@ func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeySh
 	return nil
 }
 
-func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, []string, [][]byte, error) {
-	ops, err := ValidatedOperatorData(ids, c.Operators)
-	if err != nil {
-		return nil, nil, nil, err
+func Ping(ips []string, logger *zap.Logger) {
+	client := req.C()
+	// Set timeout for operator responses
+	client.SetTimeout(30 * time.Second)
+	type opReqResult struct {
+		ip     string
+		err    error
+		result []byte
 	}
-
-	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
+	resc := make(chan opReqResult, len(ips))
+	for _, ip := range ips {
+		go func(ip string) {
+			r := client.R()
+			res, err := r.Get(fmt.Sprintf("%v/%v", ip, "/health_check"))
+			if err != nil {
+				resc <- opReqResult{
+					ip:     ip,
+					err:    err,
+					result: nil,
+				}
+			} else {
+				resdata, err := io.ReadAll(res.Body)
+				resc <- opReqResult{
+					ip:     ip,
+					err:    err,
+					result: resdata,
+				}
+			}
+		}(ip)
 	}
-	// make PING message
-	ping := &wire.Ping{
-		Operators:          ops,
-		InitiatorPublicKey: pkBytes,
-	}
-	results, err := c.SendPingMsg(ping, ops)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	err = c.VerifyAll([24]byte{}, results)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	var pongs []*wire.Pong
-	var urls []string
-	var vers [][]byte
-	for _, res := range results {
+	for i := 0; i < len(ips); i++ {
+		res := <-resc
+		if res.err != nil {
+			logger.Error("😥 Operator not healthy: ", zap.Error(res.err), zap.String("IP", res.ip))
+			continue
+		}
 		signedPongMsg := &wire.SignedTransport{}
-		if err := signedPongMsg.UnmarshalSSZ(res); err != nil {
-			return nil, nil, nil, err
+		if err := signedPongMsg.UnmarshalSSZ(res.result); err != nil {
+			errmsg, parseErr := parseAsError(res.result)
+			if parseErr == nil {
+				logger.Error("😥 Operator not healthy: ", zap.Error(fmt.Errorf("operator %d returned err: %v", i, errmsg)), zap.String("IP", res.ip))
+			}
+			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
+			continue
 		}
 		// Validate that incoming message is an ping message
 		if signedPongMsg.Message.Type != wire.PongMessageType {
-			return nil, nil, nil, fmt.Errorf("wrong incoming message type from operator")
+			logger.Error("😥 Operator not healthy: ", zap.Error(fmt.Errorf("wrong incoming message type from operator")), zap.String("IP", res.ip))
+			continue
 		}
 		pong := &wire.Pong{}
 		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
-			return nil, nil, nil, err
+			logger.Error("😥 Operator not healthy: unmarshall pong message", zap.Error(err), zap.String("IP", res.ip))
+			continue
 		}
 		pongBytes, err := signedPongMsg.Message.MarshalSSZ()
 		if err != nil {
-			return nil, nil, nil, err
+			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
+			continue
 		}
-		for _, op := range ops {
-			if op.ID == signedPongMsg.Signer && op.ID == pong.ID {
-				c.VerifyFunc(signedPongMsg.Signer, pongBytes, signedPongMsg.Signature)
-				pongs = append(pongs, pong)
-				urls = append(urls, c.Operators[op.ID].Addr)
-				vers = append(vers, signedPongMsg.Message.Version)
-			}
+		pub, err := crypto.ParseRSAPubkey(pong.PubKey)
+		if err != nil {
+			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
+			continue
 		}
+		err = crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature)
+		if err != nil {
+			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
+			continue
+		}
+		logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	}
-	return pongs, urls, vers, nil
 }
 
 func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, version []byte) ([]byte, error) {

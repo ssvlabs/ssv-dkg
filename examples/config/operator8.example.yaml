@@ -1,6 +1,7 @@
 privKey: /data/operator8/encrypted_private_key.json
 privKeyPassword: /data/operator8/password
 port: 3030
+operatorID: 8
 storeShare: false
 logLevel: info
 logFormat: json

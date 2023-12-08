@@ -59,6 +59,7 @@ var (
 	PrivKey         string
 	PrivKeyPassword string
 	Port            uint64
+	OperatorID      uint64
 	DBPath          string
 	DBReporting     bool
 	DBGCInterval    string
@@ -248,17 +249,14 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyFlag(cmd)
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
+	flags.OperatorIDFlag(cmd)
 	flags.DBPathFlag(cmd)
 	flags.DBReportingFlag(cmd)
 	flags.DBGCIntervalFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.ConfigPathFlag(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
+	flags.AddPersistentStringSliceFlag(cmd, "ip", []string{}, "Operator ip:port", true)
 }
 
 // BindFlags binds flags to yaml config parameters
@@ -421,6 +419,9 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("port", cmd.PersistentFlags().Lookup("port")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("operatorID", cmd.PersistentFlags().Lookup("operatorID")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("DBPath", cmd.PersistentFlags().Lookup("DBPath")); err != nil {
 		return err
 	}
@@ -439,47 +440,16 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to get password for private key flag value")
 	}
 	Port = viper.GetUint64("port")
-	if Port <= 0 {
+	if Port == 0 {
 		return fmt.Errorf("😥 Wrong port provided")
+	}
+	OperatorID = viper.GetUint64("operatorID")
+	if OperatorID == 0 {
+		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	DBPath = viper.GetString("DBPath")
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")
-	return nil
-}
-
-func BindHealthCheckFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	ConfigPath = viper.GetString("configPath")
-	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
-		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
-	}
-	OperatorIDs = viper.GetStringSlice("operatorIDs")
-	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Operator IDs flag cant be empty")
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfo == "" && OperatorsInfoPath == "" {
-		return fmt.Errorf("😥 Operators string or path have not provided")
-	}
-	if OperatorsInfo != "" && OperatorsInfoPath != "" {
-		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
-	}
 	return nil
 }
 
