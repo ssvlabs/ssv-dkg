@@ -1,6 +1,7 @@
 package initiator
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -42,7 +43,7 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logger.Info("🪛 VERSION", zap.String("INITIATOR", cmd.Version))
+		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		opMap, err := cli_utils.LoadOperators()
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
@@ -78,9 +79,13 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		err = cli_utils.WriteKeysharesResult(keyShares, dir, cli_utils.CeremonyID)
+		err = cli_utils.WriteKeysharesResult(keyShares, dir, id)
 		if err != nil {
 			logger.Fatal("😥 Failed to write new keyshares: ", zap.Error(err))
+		}
+		err = cli_utils.WriteInstanceID(dir, id)
+		if err != nil {
+			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", dir), zap.String("ID", hex.EncodeToString(id[:])))
 		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  

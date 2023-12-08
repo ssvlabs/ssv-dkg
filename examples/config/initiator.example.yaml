@@ -2,7 +2,7 @@ operatorIDs: [1, 2, 3, 4]
 withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 nonce: 0
-network: "mainnet"
+network: "holesky"
 validators: 10
 # operatorsInfo: '[{
 #   "id": 1,

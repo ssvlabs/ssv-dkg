@@ -596,7 +596,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
 	}
 	for i := 0; i < int(Validators); i++ {
-		nestedDir := fmt.Sprintf("%s/%s", dir, depositDataArr[i].PubKey)
+		nestedDir := fmt.Sprintf("%s/0x%s", dir, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
 			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
@@ -654,8 +654,8 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byt
 }
 
 func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) error {
-	depositFinalPath := fmt.Sprintf("%s/deposit_data-%s.json", dir, depositData.PubKey)
-	err := utils.WriteJSON(depositFinalPath, depositData)
+	depositFinalPath := fmt.Sprintf("%s/deposit_data-0x%s.json", dir, depositData.PubKey)
+	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
 	}
