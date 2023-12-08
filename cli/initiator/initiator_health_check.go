@@ -15,8 +15,8 @@ func init() {
 }
 
 var HealthCheck = &cobra.Command{
-	Use:     "ping",
-	Short:   "Ping DKG operators",
+	Use:   "ping",
+	Short: "Ping DKG operators",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(`
 		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
@@ -35,7 +35,7 @@ var HealthCheck = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logger.Info("🪛 VERSION", zap.String("INITIATOR", cmd.Version))
+		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		// Load operators TODO: add more sources.
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {

@@ -36,7 +36,7 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logger.Info("🪛 VERSION", zap.String("OPERATOR", cmd.Version))
+		logger.Info("🪛 Operator`s", zap.String("Version", cmd.Version))
 		logger.Info("🔑 opening operator RSA private key file")
 		privateKey, err := cli_utils.OpenPrivateKey(cli_utils.PrivKeyPassword, cli_utils.PrivKey)
 		if err != nil {

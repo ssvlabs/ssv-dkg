@@ -1031,9 +1031,6 @@ func (c *Initiator) HealthCheck(ids []uint64) ([]*wire.Pong, []string, [][]byte,
 		if signedPongMsg.Message.Type != wire.PongMessageType {
 			return nil, nil, nil, fmt.Errorf("wrong incoming message type from operator")
 		}
-		if !bytes.Equal(signedPongMsg.Message.Version, c.Version) {
-			return nil, nil, nil, utils.ErrVersion
-		}
 		pong := &wire.Pong{}
 		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
 			return nil, nil, nil, err
