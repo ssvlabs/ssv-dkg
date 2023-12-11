@@ -347,9 +347,6 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 }
 
 func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
-	if !bytes.Equal(reshareMsg.Version, s.Version) {
-		return nil, utils.ErrVersion
-	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
 	reshare := &wire.Reshare{}

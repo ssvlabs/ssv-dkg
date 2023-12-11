@@ -740,10 +740,6 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
 		}
-		// check version
-		if !bytes.Equal(tsp.Message.Version, c.Version) {
-			return nil, nil, nil, nil, nil, utils.ErrVersion
-		}
 		result := &dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
 			return nil, nil, nil, nil, nil, err
@@ -795,10 +791,6 @@ func (c *Initiator) ProcessReshareResultResponse(responseResult [][]byte, id [24
 				return nil, nil, nil, nil, err
 			}
 			return nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
-		}
-		// check version
-		if !bytes.Equal(tsp.Message.Version, c.Version) {
-			return nil, nil, nil, nil, utils.ErrVersion
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
 			return nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")

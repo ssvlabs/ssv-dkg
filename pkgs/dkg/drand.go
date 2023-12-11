@@ -607,9 +607,6 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits 
 // KyberResponseBundleMessageType - status for the deals received at deal bundle
 // KyberJustificationBundleMessageType - all justifications for each complaint for received deals bundles
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
-	if !bytes.Equal(msg.Version, o.version) {
-		return utils.ErrVersion
-	}
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
 		return err
@@ -648,9 +645,6 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
-	if !bytes.Equal(st.Message.Version, o.version) {
-		return utils.ErrVersion
-	}
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
 		return err
