@@ -240,7 +240,7 @@ func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
+	c.Logger.Debug("operator responded", zap.String("IP", op.Addr), zap.String("method", method))
 	return resdata, nil
 }
 
