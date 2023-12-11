@@ -178,7 +178,6 @@ func RegisterRoutes(s *Server) {
 				}),
 			))
 			r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
-				s.Logger.Debug("received a health check message")
 				b, err := s.State.Pong()
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)

@@ -109,6 +109,12 @@ type Payload struct {
 	SharesData  string   `json:"sharesData"`  // encrypted with RSA keys private BLS shares of each operator participating in DKG
 }
 
+type pongResult struct {
+	ip     string
+	err    error
+	result []byte
+}
+
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
 func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Address, nonce uint64) (*KeyShares, error) {
 	// order the results by operatorID
@@ -212,6 +218,21 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	r := c.Client.R()
 	r.SetBodyBytes(data)
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
+	if err != nil {
+		return nil, err
+	}
+	resdata, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
+	return resdata, nil
+}
+
+// SendAndCollect ssends http message to operator and read the response
+func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
+	r := c.Client.R()
+	res, err := r.Get(fmt.Sprintf("%v/%v", op.Addr, method))
 	if err != nil {
 		return nil, err
 	}
@@ -1011,78 +1032,30 @@ func VerifySharesData(ops map[uint64]Operator, keys []*rsa.PrivateKey, ks *KeySh
 	return nil
 }
 
-func Ping(ips []string, logger *zap.Logger) {
+func (c *Initiator) Ping(ips []string) error {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	type opReqResult struct {
-		ip     string
-		err    error
-		result []byte
-	}
-	resc := make(chan opReqResult, len(ips))
+	resc := make(chan pongResult, len(ips))
 	for _, ip := range ips {
 		go func(ip string) {
-			r := client.R()
-			res, err := r.Get(fmt.Sprintf("%v/%v", ip, "/health_check"))
-			if err != nil {
-				resc <- opReqResult{
-					ip:     ip,
-					err:    err,
-					result: nil,
-				}
-			} else {
-				resdata, err := io.ReadAll(res.Body)
-				resc <- opReqResult{
-					ip:     ip,
-					err:    err,
-					result: resdata,
-				}
+			resdata, err := c.GetAndCollect(Operator{Addr: ip}, consts.API_HEALTH_CHECK_URL)
+			resc <- pongResult{
+				ip:     ip,
+				err:    err,
+				result: resdata,
 			}
 		}(ip)
 	}
 	for i := 0; i < len(ips); i++ {
 		res := <-resc
-		if res.err != nil {
-			logger.Error("😥 Operator not healthy: ", zap.Error(res.err), zap.String("IP", res.ip))
-			continue
-		}
-		signedPongMsg := &wire.SignedTransport{}
-		if err := signedPongMsg.UnmarshalSSZ(res.result); err != nil {
-			errmsg, parseErr := parseAsError(res.result)
-			if parseErr == nil {
-				logger.Error("😥 Operator not healthy: ", zap.Error(fmt.Errorf("operator %d returned err: %v", i, errmsg)), zap.String("IP", res.ip))
-			}
-			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
-			continue
-		}
-		// Validate that incoming message is an ping message
-		if signedPongMsg.Message.Type != wire.PongMessageType {
-			logger.Error("😥 Operator not healthy: ", zap.Error(fmt.Errorf("wrong incoming message type from operator")), zap.String("IP", res.ip))
-			continue
-		}
-		pong := &wire.Pong{}
-		if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
-			logger.Error("😥 Operator not healthy: unmarshall pong message", zap.Error(err), zap.String("IP", res.ip))
-			continue
-		}
-		pongBytes, err := signedPongMsg.Message.MarshalSSZ()
+		err := c.processPongMessage(res)
 		if err != nil {
-			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
+			c.Logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
 			continue
 		}
-		pub, err := crypto.ParseRSAPubkey(pong.PubKey)
-		if err != nil {
-			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
-			continue
-		}
-		err = crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature)
-		if err != nil {
-			logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.ip))
-			continue
-		}
-		logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	}
+	return nil
 }
 
 func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, version []byte) ([]byte, error) {
@@ -1119,4 +1092,39 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 		Signature: sig,
 	}
 	return signedTransportMsg.MarshalSSZ()
+}
+
+func (c *Initiator) processPongMessage(res pongResult) error {
+	if res.err != nil {
+		return res.err
+	}
+	signedPongMsg := &wire.SignedTransport{}
+	if err := signedPongMsg.UnmarshalSSZ(res.result); err != nil {
+		errmsg, parseErr := parseAsError(res.result)
+		if parseErr == nil {
+			return fmt.Errorf("operator returned err: %v", errmsg)
+		}
+		return err
+	}
+	// Validate that incoming message is an pong message
+	if signedPongMsg.Message.Type != wire.PongMessageType {
+		return fmt.Errorf("wrong incoming message type from operator")
+	}
+	pong := &wire.Pong{}
+	if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
+		return err
+	}
+	pongBytes, err := signedPongMsg.Message.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	pub, err := crypto.ParseRSAPubkey(pong.PubKey)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
+		return err
+	}
+	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	return nil
 }
