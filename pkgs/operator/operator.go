@@ -248,7 +248,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver 
 
 // Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16) error {
-	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 100 * time.Millisecond}
 	s.HttpServer = srv
 	err := s.HttpServer.ListenAndServe()
 	if err != nil {
