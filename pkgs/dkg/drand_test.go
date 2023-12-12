@@ -14,6 +14,7 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -42,7 +43,7 @@ func (tv *testVerify) Add(id uint64, pk *rsa.PublicKey) {
 func (tv *testVerify) Verify(id uint64, msg, sig []byte) error {
 	op, ok := tv.ops[id]
 	if !ok {
-		panic("test shouldn't do this")
+		return errors.New("test shouldn't do this")
 	}
 	return crypto.VerifyRSA(op, msg, sig)
 }

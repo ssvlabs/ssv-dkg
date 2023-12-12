@@ -45,9 +45,8 @@ func ParseAsError(msg []byte) (error, error) {
 }
 
 func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, version string) *TestOperator {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
@@ -60,9 +59,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, ver
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
@@ -80,9 +77,8 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, ver
 }
 
 func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
@@ -97,9 +93,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,

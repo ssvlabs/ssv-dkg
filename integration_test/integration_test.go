@@ -27,9 +27,8 @@ import (
 const encryptedKeyLength = 256
 
 func TestHappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -147,9 +146,8 @@ func TestHappyFlows(t *testing.T) {
 }
 
 func TestThreshold(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -281,9 +279,8 @@ func TestThreshold(t *testing.T) {
 }
 
 func TestUnhappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -380,9 +377,8 @@ func TestUnhappyFlows(t *testing.T) {
 }
 
 func TestReshareHappyFlow(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -522,9 +518,8 @@ func TestReshareHappyFlow(t *testing.T) {
 }
 
 func TestWrongInitiatorVersion(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -553,9 +548,8 @@ func TestWrongInitiatorVersion(t *testing.T) {
 }
 
 func TestWrongOperatorVersion(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0")

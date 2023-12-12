@@ -53,9 +53,8 @@ func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.O
 }
 
 func TestCreateInstance(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
 		Reporting: true,
@@ -67,9 +66,7 @@ func TestCreateInstance(t *testing.T) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 		pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 		s := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -114,9 +111,8 @@ func TestCreateInstance(t *testing.T) {
 }
 
 func TestInitInstance(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
 	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
@@ -127,9 +123,7 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -201,9 +195,8 @@ func TestInitInstance(t *testing.T) {
 
 func TestSwitch_cleanInstances(t *testing.T) {
 	privateKey, ops := generateOperatorsData(t, 4)
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
 		Reporting: true,
@@ -213,9 +206,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -263,9 +254,8 @@ func TestSwitch_cleanInstances(t *testing.T) {
 
 func TestEncryptDercyptDB(t *testing.T) {
 	privateKey, _ := generateOperatorsData(t, 4)
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
 		Reporting: true,
@@ -275,9 +265,7 @@ func TestEncryptDercyptDB(t *testing.T) {
 	require.NoError(t, err)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	id := crypto.NewID()
 
@@ -296,9 +284,8 @@ func TestEncryptDercyptDB(t *testing.T) {
 }
 
 func TestEncryptDercyptDBInstance(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
 	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
@@ -309,9 +296,7 @@ func TestEncryptDercyptDBInstance(t *testing.T) {
 	require.NoError(t, err)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, db, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
