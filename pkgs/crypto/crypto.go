@@ -235,17 +235,20 @@ func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 }
 
 // RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
-func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicKey, error) {
+func RecoverValidatorPublicKey(IDs []uint64, sharePks []*bls.PublicKey) (*bls.PublicKey, error) {
+	if len(IDs) != len(sharePks) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
 	pkVec := make([]bls.PublicKey, 0)
-	for index, pk := range sharePks {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
-		pkVec = append(pkVec, *pk)
+		pkVec = append(pkVec, *sharePks[i])
 	}
 	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
 		return nil, fmt.Errorf("error recovering validator pub key from shares")
@@ -254,17 +257,17 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 }
 
 // RecoverMasterSig recovers a BLS master signature from T-threshold partial signatures
-func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) {
+func RecoverMasterSig(IDs []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, error) {
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for index, sig := range sigDepositShares {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
-		sigVec = append(sigVec, *sig)
+		sigVec = append(sigVec, *sigDepositShares[i])
 	}
 	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
@@ -463,11 +466,11 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 }
 
 // VerifyPartialSigs verifies provided partial BLS signatures
-func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
-	res := make(map[uint64]bool)
-	for index, pub := range sharePks {
-		if sigShares[index].VerifyByte(pub, data) {
-			res[index] = true
+func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []byte) error {
+	res := make([]bool, len(sigShares))
+	for i := 0; i < len(sigShares); i++ {
+		if sigShares[i].VerifyByte(sharePks[i], data) {
+			res[i] = true
 		}
 	}
 
@@ -559,11 +562,11 @@ func GenerateSecurePassword() (string, error) {
 
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
 // It then reconstructs the original threshold signature using lagrange interpolation
-func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
+func ReconstructSignatures(IDs []uint64, signatures [][]byte) (*bls.Sign, error) {
 	reconstructedSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for index, signature := range signatures {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		err := blsID.SetDecString(fmt.Sprintf("%d", index))
 		if err != nil {
@@ -572,7 +575,7 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 		idVec = append(idVec, blsID)
 		blsSig := bls.Sign{}
 
-		err = blsSig.Deserialize(signature)
+		err = blsSig.Deserialize(signatures[i])
 		if err != nil {
 			return nil, err
 		}

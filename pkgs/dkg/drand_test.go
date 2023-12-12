@@ -391,31 +391,35 @@ func TestDKG(t *testing.T) {
 	// Check that old nodes sigs cannot be used
 	bytesToSign := []byte("Hello World")
 	// Sign with old nodes
-	oldNodesSigs := make(map[uint64][]byte)
-	sharePks := make(map[uint64]*herumi_bls.PublicKey)
+	oldNodesSigs := make([][]byte, 0)
+	sharePks := make([]*herumi_bls.PublicKey, 0)
+	ids := make([]uint64, 0)
 	for id, oldNode := range secretsOldNodes {
-		sharePks[id] = oldNode.GetPublicKey()
+		sharePks = append(sharePks, oldNode.GetPublicKey())
 		sig := oldNode.SignByte(bytesToSign)
-		oldNodesSigs[id] = sig.Serialize()
+		oldNodesSigs = append(oldNodesSigs, sig.Serialize())
+		ids = append(ids, id)
 	}
-	validatorRecoveredPKOldNodes, err := crypto.RecoverValidatorPublicKey(sharePks)
+	validatorRecoveredPKOldNodes, err := crypto.RecoverValidatorPublicKey(ids, sharePks)
 	require.NoError(t, err)
-	reconstructedMasterSigOldNodes, err := crypto.ReconstructSignatures(oldNodesSigs)
+	reconstructedMasterSigOldNodes, err := crypto.ReconstructSignatures(ids, oldNodesSigs)
 	require.NoError(t, err)
 	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigOldNodes, validatorRecoveredPKOldNodes.Serialize(), bytesToSign)
 	require.NoError(t, err)
 
 	// Sign with new nodes
-	newNodesSigs := make(map[uint64][]byte)
-	newNodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	newNodesSigs := make([][]byte, 0)
+	newNodesSharePks := make([]*herumi_bls.PublicKey, 0)
+	ids = make([]uint64, 0)
 	for id, newNode := range secretsNewNodes {
-		newNodesSharePks[id] = newNode.GetPublicKey()
+		newNodesSharePks = append(newNodesSharePks, newNode.GetPublicKey())
 		sig := newNode.SignByte(bytesToSign)
-		newNodesSigs[id] = sig.Serialize()
+		newNodesSigs = append(newNodesSigs, sig.Serialize())
+		ids = append(ids, id)
 	}
-	validatorRecoveredPKNewNodes, err := crypto.RecoverValidatorPublicKey(newNodesSharePks)
+	validatorRecoveredPKNewNodes, err := crypto.RecoverValidatorPublicKey(ids, newNodesSharePks)
 	require.NoError(t, err)
-	reconstructedMasterSigNewNodes, err := crypto.ReconstructSignatures(newNodesSigs)
+	reconstructedMasterSigNewNodes, err := crypto.ReconstructSignatures(ids, newNodesSigs)
 	require.NoError(t, err)
 	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigNewNodes, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
 	require.NoError(t, err)
@@ -423,27 +427,31 @@ func TestDKG(t *testing.T) {
 	t.Logf("pub %s", validatorRecoveredPKNewNodes.SerializeToHexStr())
 
 	// try to mix sigs from old and new nodes
-	mixedNodesSigs := make(map[uint64][]byte)
-	mixedNodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	mixedNodesSigs := make([][]byte, 0)
+	mixedNodesSharePks := make([]*herumi_bls.PublicKey, 0)
+	ids = make([]uint64, 0)
 	for id, oldNode := range secretsOldNodes {
-		mixedNodesSharePks[id] = oldNode.GetPublicKey()
+		mixedNodesSharePks = append(mixedNodesSharePks, oldNode.GetPublicKey())
 		sig := oldNode.SignByte(bytesToSign)
-		mixedNodesSigs[id] = sig.Serialize()
+		mixedNodesSigs = append(mixedNodesSigs, sig.Serialize())
+		ids = append(ids, id)
 		if len(mixedNodesSigs) == 2 {
 			break
 		}
 	}
 	for id, newNode := range secretsNewNodes {
-		mixedNodesSharePks[id] = newNode.GetPublicKey()
+		mixedNodesSharePks = append(mixedNodesSharePks, newNode.GetPublicKey())
 		sig := newNode.SignByte(bytesToSign)
-		mixedNodesSigs[id] = sig.Serialize()
+		mixedNodesSigs = append(mixedNodesSigs, sig.Serialize())
+		ids = append(ids, id)
 		if len(mixedNodesSigs) == 4 {
 			break
 		}
 	}
-	validatorRecoveredPKMixedNodes, err := crypto.RecoverValidatorPublicKey(mixedNodesSharePks)
+
+	validatorRecoveredPKMixedNodes, err := crypto.RecoverValidatorPublicKey(ids, mixedNodesSharePks)
 	require.NoError(t, err)
-	reconstructedMasterSigMixedNodes, err := crypto.ReconstructSignatures(mixedNodesSigs)
+	reconstructedMasterSigMixedNodes, err := crypto.ReconstructSignatures(ids, mixedNodesSigs)
 	require.NoError(t, err)
 	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigMixedNodes, validatorRecoveredPKMixedNodes.Serialize(), bytesToSign)
 	require.NoError(t, err)
@@ -451,17 +459,19 @@ func TestDKG(t *testing.T) {
 	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKNewNodes.SerializeToHexStr())
 
 	// Check threshold holds at new nodes
-	nodeSigs := make(map[uint64][]byte)
-	nodesSharePks := make(map[uint64]*herumi_bls.PublicKey)
+	nodeSigs := make([][]byte, 0)
+	nodesSharePks := make([]*herumi_bls.PublicKey, 0)
+	ids = make([]uint64, 0)
 	for id, n := range secretsNewNodes {
-		nodesSharePks[id] = n.GetPublicKey()
+		nodesSharePks = append(nodesSharePks, n.GetPublicKey())
 		sig := n.SignByte(bytesToSign)
-		nodeSigs[id] = sig.Serialize()
+		nodeSigs = append(nodeSigs, sig.Serialize())
+		ids = append(ids, id)
 		if len(nodeSigs) == 2 {
 			break
 		}
 	}
-	reconstructedMasterSig, err := crypto.ReconstructSignatures(nodeSigs)
+	reconstructedMasterSig, err := crypto.ReconstructSignatures(ids, nodeSigs)
 	require.NoError(t, err)
 	err = crypto.VerifyReconstructedSignature(reconstructedMasterSig, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
 	require.ErrorContains(t, err, "could not reconstruct a valid signature")

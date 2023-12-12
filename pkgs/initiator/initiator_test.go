@@ -67,7 +67,7 @@ func TestStartDKG(t *testing.T) {
 		id := crypto.NewID()
 		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
+		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
 		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)

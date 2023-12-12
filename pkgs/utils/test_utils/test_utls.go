@@ -3,17 +3,23 @@ package test_utils
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi/v5"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/storage/basedb"
@@ -108,4 +114,51 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 		HttpSrv: sTest,
 		Srv:     s,
 	}
+}
+
+func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
+	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+	if err != nil {
+		return err
+	}
+	validatorPublicKey, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+	if err != nil {
+		return err
+	}
+	operatorCount := len(keys)
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
+	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
+	if len(sharesData) != sharesExpectedLength {
+		return fmt.Errorf("wrong sharesData length")
+	}
+	signature := sharesData[:signatureOffset]
+	msg := []byte("Hello")
+	if err := crypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce); err != nil {
+		return err
+	}
+	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
+	sigs2 := make([][]byte, len(encryptedKeys))
+	for i, enck := range encryptedKeys {
+		priv := keys[i]
+		share, err := rsaencryption.DecodeKey(priv, enck)
+		if err != nil {
+			return err
+		}
+		secret := &bls.SecretKey{}
+		if err := secret.SetHexString(string(share)); err != nil {
+			return err
+		}
+		sig := secret.SignByte(msg)
+		sigs2[i] = sig.Serialize()
+	}
+	recon, err := crypto.ReconstructSignatures(IDs, sigs2)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg); err != nil {
+		return err
+	}
+	return nil
 }
