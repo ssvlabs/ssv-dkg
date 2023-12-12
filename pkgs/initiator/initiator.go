@@ -926,7 +926,7 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 		}
 		pemBlock, _ := pem.Decode(operatorKeyByte)
 		if pemBlock == nil {
-			return nil, fmt.Errorf("wrong pub key string")
+			return nil, errors.New("decode PEM block")
 		}
 		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
 		if err != nil {

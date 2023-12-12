@@ -127,6 +127,9 @@ func ParseRSAPubkey(pk []byte) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	pemblock, _ := pem.Decode(operatorKeyByte)
+	if pemblock == nil {
+		return nil, errors.New("decode PEM block")
+	}
 	pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
 	if err != nil {
 		return nil, err
@@ -145,6 +148,9 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 			Bytes: pkBytes,
 		},
 	)
+	if pemByte == nil {
+		return nil, fmt.Errorf("failed to encode pub key to pem")
+	}
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }
@@ -202,17 +208,6 @@ func ReadEncryptedPrivateKey(keyData []byte, password string) (*rsa.PrivateKey, 
 	}
 
 	return rsaKey, nil
-}
-
-// ExtractPrivateKey gets private key and returns base64 encoded private key
-func ExtractPrivateKey(sk *rsa.PrivateKey) string {
-	pemByte := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(sk),
-		},
-	)
-	return base64.StdEncoding.EncodeToString(pemByte)
 }
 
 // ConvertPemToPrivateKey return rsa private key from secret key
