@@ -106,34 +106,22 @@ func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 
 // OpenPrivateKey reads an RSA key from file.
 // If passwordFilePath is provided, treats privKeyPath as encrypted
-// If passwordFilePath is not provided, treats privKeyPath as plaintext
 func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
-	var privateKey *rsa.PrivateKey
-	var err error
-	if passwordFilePath != "" {
-		fmt.Println("🔑 path to password file is provided - decrypting")
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-		}
-		encryptedRSAJSON, err := os.ReadFile(privKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
-		}
-		keyStorePassword, err := os.ReadFile(passwordFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-		}
-	} else {
-		fmt.Println("🔑 password for key NOT provided - trying to read plaintext key")
-		privateKey, err = crypto.PrivateKey(privKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error reading plaintext private key from file: %s", err)
-		}
+	// check if a password string a valid path, then read password from the file
+	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
+	}
+	encryptedRSAJSON, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+	}
+	keyStorePassword, err := os.ReadFile(passwordFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+	}
+	privateKey, err := crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
 	return privateKey, nil
 }
@@ -172,7 +160,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 	}
-	privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, password)
+	privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, password)
 	if err != nil {
 		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
@@ -514,7 +502,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 			}
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+			privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 			}

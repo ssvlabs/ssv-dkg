@@ -171,15 +171,15 @@ func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, n
 	return nil
 }
 
-// ConvertEncryptedPemToPrivateKey return rsa private key from secret key
-func ConvertEncryptedPemToPrivateKey(pemData []byte, password string) (*rsa.PrivateKey, error) {
+// ReadEncryptedPrivateKey return rsa private key from secret key
+func ReadEncryptedPrivateKey(keyData []byte, password string) (*rsa.PrivateKey, error) {
 	if strings.TrimSpace(password) == "" {
 		return nil, errors.New("Password required for encrypted PEM block")
 	}
 
 	// Unmarshal the JSON-encoded data
 	var data map[string]interface{}
-	if err := json.Unmarshal(pemData, &data); err != nil {
+	if err := json.Unmarshal(keyData, &data); err != nil {
 		return nil, fmt.Errorf("parse JSON data: %w", err)
 	}
 
@@ -495,42 +495,12 @@ func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	privateKey, err := ConvertEncryptedPemToPrivateKey(data, pass)
+	privateKey, err := ReadEncryptedPrivateKey(data, pass)
 	if err != nil {
 		return nil, err
 	}
 
 	return privateKey, nil
-}
-
-// PrivateKey reads an encoded RSA priv key from path
-func PrivateKey(path string) (*rsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(data))
-	if err != nil {
-		return nil, err
-	}
-	block, _ := pem.Decode(operatorKeyByte)
-	// TODO: resolve deprecation https://github.com/golang/go/issues/8860
-	enc := x509.IsEncryptedPEMBlock(block) //nolint
-	b := block.Bytes
-	if enc {
-		var err error
-		// TODO: resolve deprecation https://github.com/golang/go/issues/8860
-		b, err = x509.DecryptPEMBlock(block, nil) //nolint
-		if err != nil {
-			return nil, err
-		}
-	}
-	parsedSk, err := x509.ParsePKCS1PrivateKey(b)
-	if err != nil {
-		return nil, err
-	}
-	return parsedSk, nil
 }
 
 // NewID generates a random ID from 2 random concat UUIDs
