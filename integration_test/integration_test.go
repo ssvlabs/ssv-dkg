@@ -615,6 +615,7 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 		for id, op := range ops {
 			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
 				operatorID = id
+				break
 			}
 		}
 		sig := secret.SignByte(msg)
