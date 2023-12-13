@@ -389,6 +389,10 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, utils.GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
 	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
