@@ -22,7 +22,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
 const (
@@ -188,10 +187,6 @@ func (o *LocalOwner) StartDKG() error {
 			Public: p,
 		})
 	}
-	o.Logger.Debug("Staring DKG with nodes: ")
-	for _, n := range nodes {
-		o.Logger.Debug("node: ", zap.String("nodes", n.Public.String()))
-	}
 	// New protocol
 	p, err := wire.NewDKGProtocol(&wire.Config{
 		Identifier: o.data.reqID[:],
@@ -266,7 +261,6 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		if e.Commits == nil {
 			return fmt.Errorf("no commits at exchanges")
 		}
-		o.Logger.Debug("Commits at exchange", zap.Uint64("ID", op.ID), zap.Binary("commits", e.Commits))
 		commits = e.Commits
 		p := o.Suite.G1().Point()
 		if err := p.UnmarshalBinary(e.PK); err != nil {
@@ -370,7 +364,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
@@ -383,17 +376,12 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
-	o.Logger.Debug("Withdrawal Credentials", zap.String("creds", fmt.Sprintf("%x", o.data.init.WithdrawalCredentials)))
-	o.Logger.Debug("Fork Version", zap.String("v", fmt.Sprintf("%x", o.data.init.Fork[:])))
-	o.Logger.Debug("Domain", zap.String("bytes", fmt.Sprintf("%x", ssvspec_types.DomainDeposit[:])))
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, utils.GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debug("Root", zap.String("", fmt.Sprintf("%x", signRoot)))
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
 	if !val {
@@ -403,8 +391,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
-	o.Logger.Debug("Owner, Nonce", zap.String("owner", o.owner.String()), zap.Uint64("nonce", o.nonce))
-	o.Logger.Debug("SSV Keccak 256 hash of owner + nonce", zap.String("hash", fmt.Sprintf("%x", hash)))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	// Verify partial SSV owner + nonce signature
 	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
@@ -461,7 +447,6 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
@@ -474,12 +459,9 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	o.Logger.Debug("Encrypted share", zap.String("share", fmt.Sprintf("%x", ciphertext)))
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
-	o.Logger.Debug("Owner, Nonce", zap.String("owner", o.owner.String()), zap.Uint64("nonce", o.nonce))
-	o.Logger.Debug("SSV Keccak 256 hash of owner + nonce", zap.String("hash", fmt.Sprintf("%x", hash)))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	if err != nil {
 		o.broadcastError(err)
