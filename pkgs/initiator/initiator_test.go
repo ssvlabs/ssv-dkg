@@ -114,7 +114,7 @@ func TestLoadOperators(t *testing.T) {
         "ip": "http://localhost:3030"
       }
     ]`))
-		require.ErrorContains(t, err, "wrong pub key string")
+		require.ErrorContains(t, err, "decode PEM block")
 	})
 	t.Run("test wrong operator URL", func(t *testing.T) {
 		_, err := initiator.LoadOperatorsJson([]byte(`[
