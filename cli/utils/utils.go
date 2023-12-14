@@ -93,7 +93,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 // SetGlobalLogger creates a logger
 func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +489,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 				if err != nil {
 					return nil, err
 				}
-				err = os.WriteFile(privKeyPassPath, []byte(password), 0o644)
+				err = os.WriteFile(privKeyPassPath, []byte(password), 0o600)
 				if err != nil {
 					return nil, err
 				}
@@ -506,7 +506,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 			}
-			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o644)
+			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o600)
 			if err != nil {
 				return nil, err
 			}
