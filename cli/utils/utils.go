@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -265,6 +266,9 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
+	if strings.Contains(OutputPath, "../") {
+		return fmt.Errorf("😥 outputPath should not contain traversal")
+	}
 	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
 		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
 	}
@@ -272,6 +276,9 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFormat = viper.GetString("logFormat")
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
+	if strings.Contains(LogFilePath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	}
 	if LogFilePath == "" {
 		fmt.Println("⚠️ debug log path was not provided, using default: ./initiator_debug.log")
 	}
@@ -303,6 +310,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
+	if strings.Contains(ConfigPath, "../") {
+		return fmt.Errorf("😥 configPath should not contain traversal")
+	}
 	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
 		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
 	}
@@ -314,6 +324,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if OperatorsInfo == "" && OperatorsInfoPath == "" {
 		return fmt.Errorf("😥 Operators string or path have not provided")
+	}
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 operatorsInfoPath should not contain traversal")
 	}
 	if OperatorsInfo != "" && OperatorsInfoPath != "" {
 		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
@@ -436,6 +449,9 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	DBPath = viper.GetString("DBPath")
+	if strings.Contains(DBPath, "../") {
+		return fmt.Errorf("😥 DBPath should not contain traversal")
+	}
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")
 	return nil
