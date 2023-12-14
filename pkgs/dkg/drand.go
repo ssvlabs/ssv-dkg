@@ -203,7 +203,9 @@ func (o *LocalOwner) StartDKG() error {
 	// Wait when the protocol exchanges finish and process the result
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
-		postF(&res)
+		if err := postF(&res); err != nil {
+			o.Logger.Error("Error in PostDKG function", zap.Error(err))
+		}
 	}(p, o.PostDKG)
 	close(o.startedDKG)
 	return nil
@@ -239,7 +241,9 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
-		postF(&res)
+		if err := postF(&res); err != nil {
+			o.Logger.Error("Error in postReshare function", zap.Error(err))
+		}
 	}(p, o.postReshare)
 	close(o.startedDKG)
 	return nil
@@ -305,7 +309,9 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	}
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
-		postF(&res)
+		if err := postF(&res); err != nil {
+			o.Logger.Error("Error in postReshare function", zap.Error(err))
+		}
 	}(p, o.postReshare)
 	return nil
 }
@@ -347,7 +353,6 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 // and creates the Result structure to send back to initiator
 func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	if res.Error != nil {
-		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
 		o.broadcastError(res.Error)
 		return res.Error
 	}
@@ -430,7 +435,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 
 func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 	if res.Error != nil {
-		o.Logger.Error("DKG ceremony returned error: ", zap.Error(res.Error))
 		o.broadcastError(res.Error)
 		return res.Error
 	}
