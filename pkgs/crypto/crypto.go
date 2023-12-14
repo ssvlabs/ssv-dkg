@@ -46,7 +46,7 @@ func init() {
 
 // GenerateKeys creates a random RSA key pair
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	pv, err := rsa.GenerateKey(rand.Reader, 1024)
+	pv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
