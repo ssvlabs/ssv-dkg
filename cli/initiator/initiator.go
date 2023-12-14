@@ -28,15 +28,15 @@ var StartDKG = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
-			return err
-		}
-		if err := cli_utils.BindInitFlags(cmd); err != nil {
-			return err
-		}
 		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
 		if err != nil {
 			return err
+		}
+		if err := cli_utils.SetViperConfig(cmd, logger); err != nil {
+			logger.Fatal("😥", zap.Error(err))
+		}
+		if err := cli_utils.BindInitFlags(cmd); err != nil {
+			logger.Fatal("😥", zap.Error(err))
 		}
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		// Load operators TODO: add more sources.
@@ -44,7 +44,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		opMap, err := cli_utils.LoadOperators()
+		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}

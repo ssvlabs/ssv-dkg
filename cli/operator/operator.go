@@ -26,14 +26,14 @@ var StartDKGOperator = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
+		if err != nil {
+			return err
+		}
+		if err := cli_utils.SetViperConfig(cmd, logger); err != nil {
 			return err
 		}
 		if err := cli_utils.BindOperatorFlags(cmd); err != nil {
-			return err
-		}
-		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
-		if err != nil {
 			return err
 		}
 		logger.Info("🪛 Operator`s", zap.String("Version", cmd.Version))

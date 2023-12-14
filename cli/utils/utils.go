@@ -67,7 +67,7 @@ var (
 )
 
 // SetViperConfig reads a yaml config file if provided
-func SetViperConfig(cmd *cobra.Command) error {
+func SetViperConfig(cmd *cobra.Command, logger *zap.Logger) error {
 	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
 		return err
 	}
@@ -83,10 +83,10 @@ func SetViperConfig(cmd *cobra.Command) error {
 				return err
 			}
 		}
-		fmt.Printf("🗄️ config yaml file found at %s, using it \n", configYAML)
+		logger.Info("🗄️ config yaml file found, using it \n", zap.String("path", configYAML))
 		return nil
 	} else {
-		fmt.Println("⚠️ config file was not provided, using flag parameters")
+		logger.Info("⚠️ config file was not provided, using flag parameters")
 	}
 	return nil
 }
@@ -128,7 +128,7 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 }
 
 // GenerateRSAKeyPair generates a RSA key pair. Password either supplied as path or generated at random.
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, []byte, error) {
+func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte, error) {
 	var privateKey *rsa.PrivateKey
 	var err error
 	var password string
@@ -137,7 +137,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
 	}
 	if passwordFilePath != "" {
-		fmt.Println("🔑 path to password file is provided")
+		logger.Info("🔑 path to password file is provided")
 		// check if a password string a valid path, then read password from the file
 		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
 			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
@@ -169,7 +169,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 }
 
 // ReadOperatorsInfoFile reads operators data from path
-func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error) {
+func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
 	var opMap initiator.Operators
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	stat, err := os.Stat(operatorsInfoPath)
@@ -190,7 +190,7 @@ func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error
 			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 		}
 	} else {
-		fmt.Println("📖 reading operators info JSON file")
+		logger.Info("📖 reading operators info JSON file")
 		opsfile, err := os.ReadFile(operatorsInfoPath)
 		if err != nil {
 			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
@@ -278,9 +278,6 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFilePath = viper.GetString("logFilePath")
 	if strings.Contains(LogFilePath, "../") {
 		return fmt.Errorf("😥 logFilePath should not contain traversal")
-	}
-	if LogFilePath == "" {
-		fmt.Println("⚠️ debug log path was not provided, using default: ./initiator_debug.log")
 	}
 	return nil
 }
@@ -471,7 +468,7 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 }
 
 // LoadOperators loads operators data from raw json or file path
-func LoadOperators() (initiator.Operators, error) {
+func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	opmap := make(map[uint64]initiator.Operator)
 	var err error
 	if OperatorsInfo != "" {
@@ -481,7 +478,7 @@ func LoadOperators() (initiator.Operators, error) {
 		}
 	}
 	if OperatorsInfoPath != "" {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath)
+		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
