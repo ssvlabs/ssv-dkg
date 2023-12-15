@@ -156,24 +156,6 @@ func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wir
 	return set
 }
 
-// storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
-func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, id [24]byte) error {
-	type shareStorage struct {
-		Index  int    `json:"index"`
-		Secret string `json:"secret"`
-	}
-	data := shareStorage{
-		Index:  index,
-		Secret: hex.EncodeToString(encryptedSecretShare),
-	}
-	outputFile := fmt.Sprintf("%s/secret_share_%d_%x", outputPath, data.Index, id)
-	err := WriteJSON(outputFile, &data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func Contains(s []*rsa.PrivateKey, i int) bool {
 	for k := range s {
 		if k == i {

@@ -682,6 +682,21 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 		return nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
+	// sending back to operators results
+	keysharesData, err := json.Marshal(keyshares)
+	if err != nil {
+		return nil, err
+	}
+	resultMsg := &wire.ResultData{
+		Operators:     newOps,
+		Identifier:    newId,
+		DepositData:   nil,
+		KeysharesData: keysharesData,
+	}
+	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, newId)
+	if err != nil {
+		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
+	}
 	return keyshares, nil
 }
 

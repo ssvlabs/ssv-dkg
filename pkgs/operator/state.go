@@ -535,23 +535,27 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 		}
 	}
 	var depJson *initiator.DepositDataJson
-	err = json.Unmarshal(resData.DepositData, &depJson)
-	if err != nil {
-		return err
-	}
-	err = cli_utils.WriteDepositResult(depJson, dir)
-	if err != nil {
-		return err
+	if len(resData.DepositData) != 0 {
+		err = json.Unmarshal(resData.DepositData, &depJson)
+		if err != nil {
+			return err
+		}
+		err = cli_utils.WriteDepositResult(depJson, dir)
+		if err != nil {
+			return err
+		}
 	}
 	// store keyshares result
 	var ksJson *initiator.KeyShares
-	err = json.Unmarshal(resData.KeysharesData, &ksJson)
-	if err != nil {
-		return err
-	}
-	err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
-	if err != nil {
-		return err
+	if len(resData.KeysharesData) != 0 {
+		err = json.Unmarshal(resData.KeysharesData, &ksJson)
+		if err != nil {
+			return err
+		}
+		err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
+		if err != nil {
+			return err
+		}
 	}
 	// store instance ID
 	err = cli_utils.WriteInstanceID(dir, incMsg.Message.Identifier)
