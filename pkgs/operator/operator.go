@@ -28,7 +28,6 @@ type Server struct {
 	HttpServer *http.Server //http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
-	DB         *kv.BadgerDB
 }
 
 type KeySign struct {
@@ -225,22 +224,16 @@ func RegisterRoutes(s *Server) {
 // New creates Server structure using operator's RSA private key
 func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) *Server {
 	r := chi.NewRouter()
-	db, err := setupDB(logger, dbOptions)
-	// todo: handle error
-	if err != nil {
-		panic(err)
-	}
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		panic(err)
 	}
-	swtch := NewSwitch(key, logger, db, ver, pkBytes, id)
+	swtch := NewSwitch(key, logger, ver, pkBytes, id)
 	s := &Server{
 		Logger: logger,
 		Router: r,
 		State:  swtch,
-		DB:     db,
 	}
 	RegisterRoutes(s)
 	return s

@@ -387,7 +387,7 @@ func TestRecoverSharesData(t *testing.T) {
 		t.FailNow()
 	}
 
-	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	pubKeys := utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
 	var kyberPrivShares []*share.PriShare
 	var kyberPubShares []*share.PubShare
@@ -422,6 +422,21 @@ func TestRecoverSharesData(t *testing.T) {
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
 	}
+	var kyberPubSharesFromPubs []*share.PubShare
+	for i, pubk := range pubKeys {
+		blsPub := &bls.PublicKey{}
+		err := blsPub.Deserialize(pubk)
+		require.NoError(t, err)
+		v := suite.G1().Point()
+		err = v.UnmarshalBinary(blsPub.Serialize())
+		require.NoError(t, err)
+		kyberPubhare := &share.PubShare{
+			I: int(i),
+			V: v,
+		}
+		kyberPubSharesFromPubs = append(kyberPubSharesFromPubs, kyberPubhare)
+	}
+	// require.Equal(t, kyberPubSharesFromPubs, kyberPubShares)
 	secretPoly, err := share.RecoverPriPoly(suite.G1(), kyberPrivShares, 3, operatorCount)
 	coefs := secretPoly.Coefficients()
 	t.Logf("Ploly len %d", len(coefs))
@@ -431,7 +446,7 @@ func TestRecoverSharesData(t *testing.T) {
 	require.NoError(t, err)
 	pubPoly := secretPoly.Commit(nil)
 	pubShares := pubPoly.Shares(len(kyberPrivShares))
-	recovered, err := share.RecoverCommit(suite.G1(), pubShares, 3, operatorCount)
+	recovered, err := share.RecoverCommit(suite.G1(), kyberPubSharesFromPubs, 3, operatorCount)
 	if err != nil {
 		t.Fatal(err)
 	}

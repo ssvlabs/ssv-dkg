@@ -122,51 +122,49 @@ var ErrAlreadyExists = errors.New("duplicate message")
 
 // LocalOwner as a main structure created for a new DKG initiation or resharing ceremony
 type LocalOwner struct {
-	Logger           *zap.Logger
-	startedDKG       chan struct{}
-	ErrorChan        chan error
-	ID               uint64
-	data             *DKGdata
-	board            *board.Board
-	Suite            pairing.Suite
-	broadcastF       func([]byte) error
-	exchanges        map[uint64]*wire.Exchange
-	deals            map[uint64]*kyber_dkg.DealBundle
-	verifyFunc       func(id uint64, msg, sig []byte) error
-	signFunc         func([]byte) ([]byte, error)
-	encryptFunc      func([]byte) ([]byte, error)
-	decryptFunc      func([]byte) ([]byte, error)
-	storeSecretShare func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
-	SecretShare      *kyber_dkg.DistKeyShare
-	initiatorRSAPub  *rsa.PublicKey
-	RSAPub           *rsa.PublicKey
-	owner            common.Address
-	nonce            uint64
-	done             chan struct{}
-	version          []byte
+	Logger          *zap.Logger
+	startedDKG      chan struct{}
+	ErrorChan       chan error
+	ID              uint64
+	data            *DKGdata
+	board           *board.Board
+	Suite           pairing.Suite
+	broadcastF      func([]byte) error
+	exchanges       map[uint64]*wire.Exchange
+	deals           map[uint64]*kyber_dkg.DealBundle
+	verifyFunc      func(id uint64, msg, sig []byte) error
+	signFunc        func([]byte) ([]byte, error)
+	encryptFunc     func([]byte) ([]byte, error)
+	decryptFunc     func([]byte) ([]byte, error)
+	SecretShare     *kyber_dkg.DistKeyShare
+	initiatorRSAPub *rsa.PublicKey
+	RSAPub          *rsa.PublicKey
+	owner           common.Address
+	nonce           uint64
+	done            chan struct{}
+	version         []byte
 }
 
 // New creates a LocalOwner structure. We create it for each new DKG ceremony.
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
-		Logger:           opts.Logger,
-		startedDKG:       make(chan struct{}, 1),
-		ErrorChan:        make(chan error, 1),
-		ID:               opts.ID,
-		broadcastF:       opts.BroadcastF,
-		exchanges:        make(map[uint64]*wire.Exchange),
-		deals:            make(map[uint64]*kyber_dkg.DealBundle),
-		signFunc:         opts.SignFunc,
-		verifyFunc:       opts.VerifyFunc,
-		encryptFunc:      opts.EncryptFunc,
-		decryptFunc:      opts.DecryptFunc,
-		storeSecretShare: opts.StoreSecretShareFunc,
-		RSAPub:           opts.RSAPub,
-		done:             make(chan struct{}, 1),
-		Suite:            opts.Suite,
-		owner:            opts.Owner,
-		nonce:            opts.Nonce,
-		version:          opts.Version,
+		Logger:      opts.Logger,
+		startedDKG:  make(chan struct{}, 1),
+		ErrorChan:   make(chan error, 1),
+		ID:          opts.ID,
+		broadcastF:  opts.BroadcastF,
+		exchanges:   make(map[uint64]*wire.Exchange),
+		deals:       make(map[uint64]*kyber_dkg.DealBundle),
+		signFunc:    opts.SignFunc,
+		verifyFunc:  opts.VerifyFunc,
+		encryptFunc: opts.EncryptFunc,
+		decryptFunc: opts.DecryptFunc,
+		RSAPub:      opts.RSAPub,
+		done:        make(chan struct{}, 1),
+		Suite:       opts.Suite,
+		owner:       opts.Owner,
+		nonce:       opts.Nonce,
+		version:     opts.Version,
 	}
 	return owner
 }
@@ -358,12 +356,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return res.Error
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
-	// Store result share a instance
-	o.SecretShare = res.Result.Key
-	if err := o.storeSecretShare(o.data.reqID, o.data.init.InitiatorPublicKey, res.Result.Key); err != nil {
-		o.broadcastError(err)
-		return err
-	}
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
@@ -445,12 +437,6 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		return res.Error
 	}
 	o.Logger.Info("DKG resharing ceremony finished successfully")
-	// Store result share a instance
-	o.SecretShare = res.Result.Key
-	if err := o.storeSecretShare(o.data.reqID, o.data.reshare.InitiatorPublicKey, res.Result.Key); err != nil {
-		o.broadcastError(err)
-		return err
-	}
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(dkg.Suite))
 	if err != nil {
@@ -559,7 +545,12 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 }
 
 // InitReshare initiates a resharing owner of dkg protocol
-func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commits []byte) (*wire.Transport, error) {
+func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commitsPoints []kyber.Point) (*wire.Transport, error) {
+	var commits []byte
+	for _, point := range commitsPoints {
+		b, _ := point.MarshalBinary()
+		commits = append(commits, b...)
+	}
 	if o.data == nil {
 		o.data = &DKGdata{}
 	}

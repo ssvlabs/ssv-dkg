@@ -12,7 +12,6 @@ const (
 	withdrawAddress                   = "withdrawAddress"
 	operatorIDs                       = "operatorIDs"
 	newOperatorIDs                    = "newOperatorIDs"
-	oldID                             = "oldID"
 	operatorsInfo                     = "operatorsInfo"
 	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
@@ -36,6 +35,7 @@ const (
 	DBGCInterval                      = "DBGCInterval"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
+	keysharesFilePath                 = "keysharesFilePath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -56,11 +56,6 @@ func OperatorIDsFlag(c *cobra.Command) {
 // operatorIDsFlag adds new operators IDs flag to the command
 func NewOperatorIDsFlag(c *cobra.Command) {
 	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs", false)
-}
-
-// OldIDFlag  adds previous DKG ceremony ID flag to the command
-func OldIDFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, oldID, "", "Old ID (24 bytes)", false)
 }
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
@@ -165,6 +160,10 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
+}
+
+func KeysharesFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, keysharesFilePath, "", "Path to keyshares json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

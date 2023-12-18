@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -11,17 +10,13 @@ import (
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
-	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -118,38 +113,6 @@ func NewTestOperator(ts *testState) *LocalOwner {
 	ver := ts.tv.Verify
 	logger, _ := zap.NewDevelopment()
 	logger = logger.With(zap.Uint64("id", id))
-	db, err := kv.NewInMemory(logger, basedb.Options{
-		Reporting: true,
-		Ctx:       context.Background(),
-		Path:      ts.T.TempDir(),
-	})
-	if err != nil {
-		ts.T.Error(err)
-	}
-	storeSecretShare := func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error {
-		// encode priv share
-		secret := &DistKeyShare{}
-		secret.Commits = utils.CommitsToBytes(key.Commits)
-		secterPoint, err := key.Share.V.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		secret.Share.V = secterPoint
-		secret.Share.I = key.Share.I
-		bin, err := secret.Encode()
-		if err != nil {
-			return err
-		}
-		encBin, err := encrypt(bin)
-		if err != nil {
-			return err
-		}
-		err = db.Set(pubKey, reqID[:], encBin)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
@@ -159,14 +122,13 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signFunc:         sign,
-		verifyFunc:       ver,
-		encryptFunc:      encrypt,
-		decryptFunc:      decrypt,
-		storeSecretShare: storeSecretShare,
-		RSAPub:           &pv.PublicKey,
-		done:             make(chan struct{}, 1),
-		startedDKG:       make(chan struct{}, 1),
+		signFunc:    sign,
+		verifyFunc:  ver,
+		encryptFunc: encrypt,
+		decryptFunc: decrypt,
+		RSAPub:      &pv.PublicKey,
+		done:        make(chan struct{}, 1),
+		startedDKG:  make(chan struct{}, 1),
 	}
 }
 
@@ -328,7 +290,6 @@ func TestDKG(t *testing.T) {
 	reshare := &wire2.Reshare{
 		OldOperators: opsarr,
 		NewOperators: newopsArr,
-		OldID:        uid,
 		OldT:         3,
 		NewT:         3,
 		Nonce:        0,
@@ -343,14 +304,7 @@ func TestDKG(t *testing.T) {
 			share = oldop.SecretShare
 		}
 		o.SecretShare = share
-		var commits []byte
-		if o.SecretShare != nil {
-			for _, point := range o.SecretShare.Commits {
-				b, _ := point.MarshalBinary()
-				commits = append(commits, b...)
-			}
-		}
-		ts, err := o.InitReshare(newuid, reshare, commits)
+		ts, err := o.InitReshare(newuid, reshare, share.Commits)
 		if err != nil {
 			t.Error(t, err)
 		}

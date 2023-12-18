@@ -1,7 +1,6 @@
 package initiator
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -48,11 +47,6 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		// Load operators TODO: add more sources.
-		oldParts, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
-		if err != nil {
-			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
-		}
 		newParts, err := cli_utils.StingSliceToUintArray(cli_utils.NewOperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
@@ -66,8 +60,12 @@ var StartReshare = &cobra.Command{
 		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		// create a new ID for resharing
 		id := crypto.NewID()
+		keyshares, err := os.ReadFile(cli_utils.KeysharesFilePath)
+		if err != nil {
+			logger.Fatal("😥 Failed to read keyshares json file:", zap.Error(err))
+		}
 		// Start the ceremony
-		keyShares, err := dkgInitiator.StartReshare(id, cli_utils.CeremonyID, oldParts, newParts, cli_utils.OwnerAddress, cli_utils.Nonce)
+		keyShares, err := dkgInitiator.StartReshare(id, newParts, keyshares)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
@@ -82,10 +80,6 @@ var StartReshare = &cobra.Command{
 		err = cli_utils.WriteKeysharesResult(keyShares, dir, id)
 		if err != nil {
 			logger.Fatal("😥 Failed to write new keyshares: ", zap.Error(err))
-		}
-		err = cli_utils.WriteInstanceID(dir, id)
-		if err != nil {
-			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", dir), zap.String("ID", hex.EncodeToString(id[:])))
 		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  

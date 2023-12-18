@@ -1,8 +1,5 @@
-operatorIDs: [1, 2, 3, 4]
 newOperatorIDs: [5, 6, 7, 8]
-oldID: "6f102607bc9f483ba776309470947d11443f4942a316c681"
-owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 0
+keysharesFilePath: /data/output/ceremony-2023-12-18T10:00:23Z/0xb84f322b99144df820b765ffdb2d1caf5fcf3e7c6a6e92a11f396d6f6a48fd4a82ce9c6fafd595ce3bf8947ac3ab6e3e/keyshares-0xb84f322b99144df820b765ffdb2d1caf5fcf3e7c6a6e92a11f396d6f6a48fd4a82ce9c6fafd595ce3bf8947ac3ab6e3e-0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494-6-e3c1e9a11b644b108cde5d8d60619b41643041bbba3db1c3.json
 network: "mainnet"
 operatorsInfoPath: /data/operators_info.json
 outputPath: /data/output

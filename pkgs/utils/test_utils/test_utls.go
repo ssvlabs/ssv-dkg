@@ -1,7 +1,6 @@
 package test_utils
 
 import (
-	"context"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -16,8 +15,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -46,18 +43,12 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, ver
 	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
-		Reporting: true,
-		Ctx:       context.Background(),
-		Path:      t.TempDir(),
-	})
-	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		panic(err)
 	}
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -83,18 +74,13 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
-		Reporting: true,
-		Ctx:       context.Background(),
-		Path:      t.TempDir(),
-	})
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		panic(err)
 	}
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,

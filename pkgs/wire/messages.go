@@ -126,14 +126,13 @@ type Reshare struct {
 	OldT uint64
 	// NewT is the old threshold for signing
 	NewT uint64
-	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
-	// ID of the initial DKG ceremony
-	OldID [24]byte `ssz-size:"24"`
 	// Owner address
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
-	Nonce uint64
+	Nonce     uint64
+	Keyshares []byte `ssz-max:"8388608"` // 2^23
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

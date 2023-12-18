@@ -106,7 +106,7 @@ type OperatorData struct {
 type Payload struct {
 	PublicKey   string   `json:"publicKey"`   // validator's public key
 	OperatorIDs []uint64 `json:"operatorIds"` // operators IDs
-	SharesData  string   `json:"sharesData"`  // encrypted with RSA keys private BLS shares of each operator participating in DKG
+	SharesData  string   `json:"sharesData"`  // encrypted private BLS shares of each operator participating in DKG
 }
 
 type pongResult struct {
@@ -630,8 +630,14 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, nil
 }
 
-func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64, owner common.Address, nonce uint64) (*KeyShares, error) {
-
+func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []byte) (*KeyShares, error) {
+	var ks *KeyShares
+	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
+		return nil, err
+	}
+	oldIDs := ks.Shares[0].Payload.OperatorIDs
+	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
+	nonce := ks.Shares[0].OwnerNonce
 	oldOps, err := ValidatedOperatorData(oldIDs, c.Operators)
 	if err != nil {
 		return nil, err
@@ -640,34 +646,34 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 	if err != nil {
 		return nil, err
 	}
-
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
-
-	instanceIDField := zap.String("instance_id", hex.EncodeToString(newId[:]))
+	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
 	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldIDs), zap.Uint64s("new_operator_ids", newIDs), instanceIDField)
-
 	// compute threshold (3f+1)
 	oldThreshold := len(oldIDs) - ((len(oldIDs) - 1) / 3)
 	newThreshold := len(newIDs) - ((len(newIDs) - 1) / 3)
-
+	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+	if err != nil {
+		return nil, err
+	}
 	reshare := &wire.Reshare{
 		OldOperators:       oldOps,
 		NewOperators:       newOps,
 		OldT:               uint64(oldThreshold),
 		NewT:               uint64(newThreshold),
-		OldID:              oldID,
 		Owner:              owner,
 		Nonce:              nonce,
+		Keyshares:          sharesData,
 		InitiatorPublicKey: pkBytes,
 	}
-	dkgResult, err := c.messageFlowHandlingReshare(reshare, newId, oldOps, newOps)
+	dkgResult, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
 	if err != nil {
 		return nil, err
 	}
-	dkgResults, _, _, ssvContractOwnerNonceSigShares, err := c.ProcessReshareResultResponse(dkgResult, newId)
+	dkgResults, _, _, ssvContractOwnerNonceSigShares, err := c.ProcessReshareResultResponse(dkgResult, id)
 	if err != nil {
 		return nil, err
 	}
@@ -689,11 +695,11 @@ func (c *Initiator) StartReshare(newId, oldID [24]byte, oldIDs, newIDs []uint64,
 	}
 	resultMsg := &wire.ResultData{
 		Operators:     newOps,
-		Identifier:    newId,
+		Identifier:    id,
 		DepositData:   nil,
 		KeysharesData: keysharesData,
 	}
-	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, newId)
+	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, id)
 	if err != nil {
 		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
 	}

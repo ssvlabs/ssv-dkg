@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -50,8 +51,8 @@ var (
 
 // reshare flags
 var (
-	NewOperatorIDs []string
-	CeremonyID     [24]byte
+	NewOperatorIDs    []string
+	KeysharesFilePath string
 )
 
 // operator flags
@@ -240,8 +241,8 @@ func SetInitFlags(cmd *cobra.Command) {
 
 func SetReshareFlags(cmd *cobra.Command) {
 	SetInitFlags(cmd)
-	flags.OldIDFlag(cmd)
 	flags.NewOperatorIDsFlag(cmd)
+	flags.KeysharesFilePathFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -382,26 +383,50 @@ func BindInitFlags(cmd *cobra.Command) error {
 
 // BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
 func BindReshareFlags(cmd *cobra.Command) error {
-	if err := BindInitiatorBaseFlags(cmd); err != nil {
+	if err := BindBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("oldID", cmd.PersistentFlags().Lookup("oldID")); err != nil {
-		return err
+	ConfigPath = viper.GetString("configPath")
+	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
+		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
+	}
+	OperatorsInfo = viper.GetString("operatorsInfo")
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfo == "" && OperatorsInfoPath == "" {
+		return fmt.Errorf("😥 Operators string or path have not provided")
+	}
+	if OperatorsInfo != "" && OperatorsInfoPath != "" {
+		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
 	}
 	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
 	if len(NewOperatorIDs) == 0 {
 		return fmt.Errorf("😥 New operator IDs flag cant be empty")
 	}
-	var err error
-	id := viper.GetString("oldID")
-	oldIDFlagValue, err := hex.DecodeString(id)
-	if err != nil {
+	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
 		return err
 	}
-	copy(CeremonyID[:], oldIDFlagValue)
+	KeysharesFilePath = viper.GetString("keysharesFilePath")
+	if KeysharesFilePath == "" {
+		return fmt.Errorf("😥 please provide a path to keyshares json file")
+	}
+	if strings.Contains(KeysharesFilePath, "../") {
+		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
+	}
+	if stat, err := os.Stat(KeysharesFilePath); stat.IsDir() || os.IsNotExist(err) {
+		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
+	}
 	return nil
 }
 
@@ -581,11 +606,6 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		if err != nil {
 			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
-		logger.Info("💾 Writing instance ID to file", zap.String("path", nestedDir))
-		err = WriteInstanceID(nestedDir, ids[i])
-		if err != nil {
-			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", nestedDir), zap.String("ID", hex.EncodeToString(ids[i][:])))
-		}
 	}
 	if Validators > 1 {
 		// Write all to one JSON file
@@ -600,16 +620,6 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		err = utils.WriteJSON(keysharesFinalPath, initiator.GenerateAggregatesKeyshares(keySharesArr))
 		if err != nil {
 			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
-		}
-		instanceIdsPath := fmt.Sprintf("%s/instance_id.json", dir)
-		logger.Info("💾 Writing instance IDs to file", zap.String("path", keysharesFinalPath))
-		var idsArr []string
-		for _, id := range ids {
-			idsArr = append(idsArr, hex.EncodeToString(id[:]))
-		}
-		err = utils.WriteJSON(instanceIdsPath, idsArr)
-		if err != nil {
-			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", instanceIdsPath), zap.Strings("IDs", idsArr))
 		}
 	}
 }
