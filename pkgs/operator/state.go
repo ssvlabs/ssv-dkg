@@ -163,7 +163,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	commits, err := s.GetCommits(reshare.Keyshares, len(reshare.OldOperators))
+	commits, err := s.GetCommits(reshare.Keyshares, len(reshare.OldOperators), int(reshare.OldT))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -622,7 +622,7 @@ func (s *Switch) GetSecretShare(sharesData []byte, operatorCount int) (*share.Pr
 	return kyberPrivShare, nil
 }
 
-func (s *Switch) GetCommits(sharesData []byte, operatorCount int) ([]kyber.Point, error) {
+func (s *Switch) GetCommits(sharesData []byte, operatorCount int, threshold int) ([]kyber.Point, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
@@ -650,7 +650,7 @@ func (s *Switch) GetCommits(sharesData []byte, operatorCount int) ([]kyber.Point
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
 	}
-	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, 3, operatorCount)
+	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, threshold, operatorCount)
 	if err != nil {
 		return nil, err
 	}

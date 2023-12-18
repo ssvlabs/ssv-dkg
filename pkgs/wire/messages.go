@@ -129,7 +129,8 @@ type Reshare struct {
 	// Owner address
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
-	Nonce     uint64
+	Nonce uint64
+	// Encrypted BLS shares and public keys
 	Keyshares []byte `ssz-max:"8388608"` // 2^23
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
