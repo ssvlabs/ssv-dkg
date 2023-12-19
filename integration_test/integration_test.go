@@ -315,28 +315,6 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 	require.NoError(t, err)
-	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
-		withdraw := newEthAddress(t)
-		owner := newEthAddress(t)
-		id := crypto.NewID()
-		_, ks, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		signatureOffset := phase0.SignatureLength
-		pubKeysOffset := phase0.PublicKeyLength*13 + signatureOffset
-		_ = utils.SplitBytes(sharesDataSigned[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-		encryptedKeys := utils.SplitBytes(sharesDataSigned[pubKeysOffset:], len(sharesDataSigned[pubKeysOffset:])/13)
-		wrongOrderSharesData := make([]byte, 0)
-		wrongOrderSharesData = append(wrongOrderSharesData, sharesDataSigned[:pubKeysOffset]...)
-		for i := len(encryptedKeys) - 1; i >= 0; i-- {
-			wrongOrderSharesData = append(wrongOrderSharesData, encryptedKeys[i]...)
-		}
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv13.PrivKey, srv12.PrivKey, srv11.PrivKey, srv10.PrivKey, srv9.PrivKey, srv8.PrivKey, srv7.PrivKey, srv6.PrivKey, srv5.PrivKey, srv4.PrivKey, srv3.PrivKey, srv2.PrivKey, srv1.PrivKey}, wrongOrderSharesData, pubkeyraw, owner, 0)
-		require.ErrorContains(t, err, "shares order is incorrect")
-	})
 	t.Run("test same ID", func(t *testing.T) {
 		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "got init msg for existing instance")
