@@ -34,6 +34,8 @@ import (
 const (
 	// b64 encrypted key length is 256
 	EncryptedKeyLength = 256
+	// Signature len
+	SignatureLength = 256
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte  = byte(0)
 	ETH1WithdrawalPrefixByte = byte(1)

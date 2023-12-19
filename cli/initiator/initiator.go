@@ -68,13 +68,14 @@ var StartDKG = &cobra.Command{
 				// create a new ID
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
-				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, ceremonySigs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				resultChan <- &Result{
-					id:          id,
-					depositData: depositData,
-					keyShares:   keyShares,
-					nonce:       nonce,
-					err:         err,
+					id:           id,
+					depositData:  depositData,
+					keyShares:    keyShares,
+					nonce:        nonce,
+					ceremonySigs: ceremonySigs,
+					err:          err,
 				}
 			}(i)
 		}
@@ -86,6 +87,7 @@ var StartDKG = &cobra.Command{
 		var keySharesArr []*initiator.KeyShares
 		var ids [][24]byte
 		var nonces []uint64
+		var ceremonySigsArr []*initiator.CeremonySigs
 		for res := range resultChan {
 			if res.err != nil {
 				logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(res.err))
@@ -94,10 +96,11 @@ var StartDKG = &cobra.Command{
 			keySharesArr = append(keySharesArr, res.keyShares)
 			ids = append(ids, res.id)
 			nonces = append(nonces, res.nonce)
+			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, logger)
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, ceremonySigsArr, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
@@ -119,9 +122,10 @@ var StartDKG = &cobra.Command{
 }
 
 type Result struct {
-	id          [24]byte
-	nonce       uint64
-	depositData *initiator.DepositDataJson
-	keyShares   *initiator.KeyShares
-	err         error
+	id           [24]byte
+	nonce        uint64
+	depositData  *initiator.DepositDataJson
+	keyShares    *initiator.KeyShares
+	ceremonySigs *initiator.CeremonySigs
+	err          error
 }

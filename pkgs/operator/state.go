@@ -106,18 +106,19 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		return nil
 	}
 	opts := dkg.OwnerOpts{
-		Logger:      s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:  broadcast,
-		SignFunc:    s.Sign,
-		VerifyFunc:  verify,
-		EncryptFunc: s.Encrypt,
-		DecryptFunc: s.Decrypt,
-		Suite:       bls3.NewBLS12381Suite(),
-		ID:          operatorID,
-		RSAPub:      &s.PrivateKey.PublicKey,
-		Owner:       init.Owner,
-		Nonce:       init.Nonce,
-		Version:     s.Version,
+		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:         broadcast,
+		SignFunc:           s.Sign,
+		VerifyFunc:         verify,
+		EncryptFunc:        s.Encrypt,
+		DecryptFunc:        s.Decrypt,
+		Suite:              bls3.NewBLS12381Suite(),
+		ID:                 operatorID,
+		InitiatorPublicKey: initiatorPublicKey,
+		RSAPub:             &s.PrivateKey.PublicKey,
+		Owner:              init.Owner,
+		Nonce:              init.Nonce,
+		Version:            s.Version,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -148,18 +149,19 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		return nil
 	}
 	opts := dkg.OwnerOpts{
-		Logger:      s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:  broadcast,
-		SignFunc:    s.Sign,
-		EncryptFunc: s.Encrypt,
-		DecryptFunc: s.Decrypt,
-		VerifyFunc:  verify,
-		Suite:       bls3.NewBLS12381Suite(),
-		ID:          operatorID,
-		RSAPub:      &s.PrivateKey.PublicKey,
-		Owner:       reshare.Owner,
-		Nonce:       reshare.Nonce,
-		Version:     s.Version,
+		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:         broadcast,
+		SignFunc:           s.Sign,
+		EncryptFunc:        s.Encrypt,
+		DecryptFunc:        s.Decrypt,
+		VerifyFunc:         verify,
+		Suite:              bls3.NewBLS12381Suite(),
+		ID:                 operatorID,
+		InitiatorPublicKey: initiatorPublicKey,
+		RSAPub:             &s.PrivateKey.PublicKey,
+		Owner:              reshare.Owner,
+		Nonce:              reshare.Nonce,
+		Version:            s.Version,
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
@@ -169,7 +171,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	for _, op := range reshare.OldOperators {
 		if op.ID == operatorID {
-			secretShare, err := s.GetSecretShare(reshare.Keyshares, len(reshare.OldOperators))
+			secretShare, err := s.GetSecretShare(reshare.Keyshares, reshare.CeremonySigs, initiatorPublicKey, len(reshare.OldOperators))
 			if err != nil {
 				return nil, nil, err
 			}
@@ -591,7 +593,7 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 	return signed.MarshalSSZ()
 }
 
-func (s *Switch) GetSecretShare(sharesData []byte, operatorCount int) (*share.PriShare, error) {
+func (s *Switch) GetSecretShare(sharesData, cSigs []byte, initiatorPublicKey *rsa.PublicKey, operatorCount int) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
@@ -611,6 +613,26 @@ func (s *Switch) GetSecretShare(sharesData []byte, operatorCount int) (*share.Pr
 		err = secret.SetHexString(string(prShare))
 		if err != nil {
 			return nil, err
+		}
+		// Check operator signature
+		var initVerify bool
+		encInitPub, err := crypto.EncodePublicKey(initiatorPublicKey)
+		if err != nil {
+			return nil, err
+		}
+		sigs := utils.SplitBytes(cSigs, crypto.SignatureLength)
+		for _, sig := range sigs {
+			dataToVerify := make([]byte, len(secret.Serialize())+len(encInitPub))
+			copy(dataToVerify[:len(secret.Serialize())], secret.Serialize())
+			copy(dataToVerify[len(secret.Serialize()):], encInitPub)
+			err := crypto.VerifyRSA(&s.PrivateKey.PublicKey, dataToVerify, sig)
+			if err != nil {
+				continue
+			}
+			initVerify = true
+		}
+		if !initVerify {
+			return nil, fmt.Errorf("cant verify initiator public key")
 		}
 		// Find operator ID by PubKey
 		v := suite.G1().Scalar().SetBytes(secret.Serialize())

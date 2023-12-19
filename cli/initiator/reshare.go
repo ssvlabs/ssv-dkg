@@ -64,8 +64,12 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read keyshares json file:", zap.Error(err))
 		}
+		ceremonySigs, err := os.ReadFile(cli_utils.CeremonySigsFilePath)
+		if err != nil {
+			logger.Fatal("😥 Failed to read ceremony signatures json file:", zap.Error(err))
+		}
 		// Start the ceremony
-		keyShares, err := dkgInitiator.StartReshare(id, newParts, keyshares)
+		keyShares, err := dkgInitiator.StartReshare(id, newParts, keyshares, ceremonySigs)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}

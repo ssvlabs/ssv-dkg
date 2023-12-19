@@ -132,6 +132,8 @@ type Reshare struct {
 	Nonce uint64
 	// Encrypted BLS shares and public keys
 	Keyshares []byte `ssz-max:"8388608"` // 2^23
+	// Ceremony signatures
+	CeremonySigs []byte `ssz-max:"3328"` // 256 * 13
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
 }

@@ -67,8 +67,8 @@ type Result struct {
 	DepositPartialSignature []byte
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte
-	// Public poly commitments
-	Commits []byte
+	// Signed priv share + initiator pub
+	CeremonySig []byte
 }
 
 // Encode returns a msg encoded bytes or error
@@ -92,6 +92,7 @@ type OwnerOpts struct {
 	EncryptFunc          func([]byte) ([]byte, error)
 	DecryptFunc          func([]byte) ([]byte, error)
 	StoreSecretShareFunc func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
+	InitiatorPublicKey   *rsa.PublicKey
 	RSAPub               *rsa.PublicKey
 	Owner                [20]byte
 	Nonce                uint64
@@ -122,49 +123,50 @@ var ErrAlreadyExists = errors.New("duplicate message")
 
 // LocalOwner as a main structure created for a new DKG initiation or resharing ceremony
 type LocalOwner struct {
-	Logger          *zap.Logger
-	startedDKG      chan struct{}
-	ErrorChan       chan error
-	ID              uint64
-	data            *DKGdata
-	board           *board.Board
-	Suite           pairing.Suite
-	broadcastF      func([]byte) error
-	exchanges       map[uint64]*wire.Exchange
-	deals           map[uint64]*kyber_dkg.DealBundle
-	verifyFunc      func(id uint64, msg, sig []byte) error
-	signFunc        func([]byte) ([]byte, error)
-	encryptFunc     func([]byte) ([]byte, error)
-	decryptFunc     func([]byte) ([]byte, error)
-	SecretShare     *kyber_dkg.DistKeyShare
-	initiatorRSAPub *rsa.PublicKey
-	RSAPub          *rsa.PublicKey
-	owner           common.Address
-	nonce           uint64
-	done            chan struct{}
-	version         []byte
+	Logger             *zap.Logger
+	startedDKG         chan struct{}
+	ErrorChan          chan error
+	ID                 uint64
+	data               *DKGdata
+	board              *board.Board
+	Suite              pairing.Suite
+	broadcastF         func([]byte) error
+	exchanges          map[uint64]*wire.Exchange
+	deals              map[uint64]*kyber_dkg.DealBundle
+	verifyFunc         func(id uint64, msg, sig []byte) error
+	signFunc           func([]byte) ([]byte, error)
+	encryptFunc        func([]byte) ([]byte, error)
+	decryptFunc        func([]byte) ([]byte, error)
+	SecretShare        *kyber_dkg.DistKeyShare
+	InitiatorPublicKey *rsa.PublicKey
+	RSAPub             *rsa.PublicKey
+	owner              common.Address
+	nonce              uint64
+	done               chan struct{}
+	version            []byte
 }
 
 // New creates a LocalOwner structure. We create it for each new DKG ceremony.
 func New(opts OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
-		Logger:      opts.Logger,
-		startedDKG:  make(chan struct{}, 1),
-		ErrorChan:   make(chan error, 1),
-		ID:          opts.ID,
-		broadcastF:  opts.BroadcastF,
-		exchanges:   make(map[uint64]*wire.Exchange),
-		deals:       make(map[uint64]*kyber_dkg.DealBundle),
-		signFunc:    opts.SignFunc,
-		verifyFunc:  opts.VerifyFunc,
-		encryptFunc: opts.EncryptFunc,
-		decryptFunc: opts.DecryptFunc,
-		RSAPub:      opts.RSAPub,
-		done:        make(chan struct{}, 1),
-		Suite:       opts.Suite,
-		owner:       opts.Owner,
-		nonce:       opts.Nonce,
-		version:     opts.Version,
+		Logger:             opts.Logger,
+		startedDKG:         make(chan struct{}, 1),
+		ErrorChan:          make(chan error, 1),
+		ID:                 opts.ID,
+		broadcastF:         opts.BroadcastF,
+		exchanges:          make(map[uint64]*wire.Exchange),
+		deals:              make(map[uint64]*kyber_dkg.DealBundle),
+		signFunc:           opts.SignFunc,
+		verifyFunc:         opts.VerifyFunc,
+		encryptFunc:        opts.EncryptFunc,
+		decryptFunc:        opts.DecryptFunc,
+		InitiatorPublicKey: opts.InitiatorPublicKey,
+		RSAPub:             opts.RSAPub,
+		done:               make(chan struct{}, 1),
+		Suite:              opts.Suite,
+		owner:              opts.Owner,
+		nonce:              opts.Nonce,
+		version:            opts.Version,
 	}
 	return owner
 }
@@ -400,6 +402,19 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
+	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
+	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
+	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
+	ceremonySig, err := o.signFunc(dataToSign)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
 	out := Result{
 		RequestID:                  o.data.reqID,
 		EncryptedShare:             ciphertext,
@@ -409,7 +424,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		Commits:                    utils.CommitsToBytes(res.Result.Key.Commits),
+		CeremonySig:                ceremonySig,
 	}
 
 	encodedOutput, err := out.Encode()
@@ -473,6 +488,19 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
+	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
+	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
+	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
+	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
+	ceremonySig, err := o.signFunc(dataToSign)
+	if err != nil {
+		o.broadcastError(err)
+		return err
+	}
 	out := Result{
 		RequestID:                  o.data.reqID,
 		EncryptedShare:             ciphertext,
@@ -481,7 +509,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		Commits:                    utils.CommitsToBytes(res.Result.Key.Commits),
+		CeremonySig:                ceremonySig,
 	}
 	encodedOutput, err := out.Encode()
 	if err != nil {

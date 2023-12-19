@@ -65,7 +65,7 @@ func TestStartDKG(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = initiator.VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
@@ -75,19 +75,19 @@ func TestStartDKG(t *testing.T) {
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
+		_, _, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
+		_, _, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
+		_, _, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 

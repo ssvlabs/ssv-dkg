@@ -51,8 +51,9 @@ var (
 
 // reshare flags
 var (
-	NewOperatorIDs    []string
-	KeysharesFilePath string
+	NewOperatorIDs       []string
+	KeysharesFilePath    string
+	CeremonySigsFilePath string
 )
 
 // operator flags
@@ -240,9 +241,13 @@ func SetInitFlags(cmd *cobra.Command) {
 }
 
 func SetReshareFlags(cmd *cobra.Command) {
-	SetInitFlags(cmd)
+	SetBaseFlags(cmd)
+	flags.ConfigPathFlag(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
 	flags.NewOperatorIDsFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
+	flags.CeremonySigsFilePathFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -398,6 +403,12 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
+		return err
+	}
 	ConfigPath = viper.GetString("configPath")
 	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
 		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
@@ -426,6 +437,16 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	}
 	if stat, err := os.Stat(KeysharesFilePath); stat.IsDir() || os.IsNotExist(err) {
 		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
+	}
+	CeremonySigsFilePath = viper.GetString("ceremonySigsFilePath")
+	if CeremonySigsFilePath == "" {
+		return fmt.Errorf("😥 please provide a path to ceremony signatures json file")
+	}
+	if strings.Contains(KeysharesFilePath, "../") {
+		return fmt.Errorf("😥 ceremonySigsFilePath flag should not contain traversal")
+	}
+	if stat, err := os.Stat(KeysharesFilePath); stat.IsDir() || os.IsNotExist(err) {
+		return fmt.Errorf("😥 ceremonySigsFilePath is a folder path or not exist: %s", err)
 	}
 	return nil
 }
@@ -580,7 +601,7 @@ func GetOperatorDB() (basedb.Options, error) {
 	return DBOptions, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, logger *zap.Logger) {
+func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
 	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -606,6 +627,10 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		if err != nil {
 			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
+		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir, ids[i])
+		if err != nil {
+			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
+		}
 	}
 	if Validators > 1 {
 		// Write all to one JSON file
@@ -619,13 +644,13 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
 		err = utils.WriteJSON(keysharesFinalPath, initiator.GenerateAggregatesKeyshares(keySharesArr))
 		if err != nil {
-			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+			logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		}
 	}
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byte) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%v.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%s.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
@@ -647,6 +672,15 @@ func WriteInstanceID(dir string, id [24]byte) error {
 	err := utils.WriteJSON(instanceIdPath, hex.EncodeToString(id[:]))
 	if err != nil {
 		return fmt.Errorf("failed writing instance ID file: %w, %s", err, hex.EncodeToString(id[:]))
+	}
+	return nil
+}
+
+func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string, id [24]byte) error {
+	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, hex.EncodeToString(id[:]))
+	err := utils.WriteJSON(finalPath, ceremonySigs)
+	if err != nil {
+		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
 	}
 	return nil
 }

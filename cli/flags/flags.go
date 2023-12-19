@@ -36,6 +36,7 @@ const (
 	validators                        = "validators"
 	operatorID                        = "operatorID"
 	keysharesFilePath                 = "keysharesFilePath"
+	ceremonySigsFilePath              = "ceremonySigsFilePath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -164,6 +165,10 @@ func OperatorIDFlag(c *cobra.Command) {
 
 func KeysharesFilePathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, keysharesFilePath, "", "Path to keyshares json file", false)
+}
+
+func CeremonySigsFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, ceremonySigsFilePath, "", "Path to ceremony signatures json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
