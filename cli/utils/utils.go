@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -464,6 +465,16 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 		}
 		partsarr = append(partsarr, opid)
 	}
+	// sort array
+	sort.SliceStable(partsarr, func(i, j int) bool {
+		return partsarr[i] < partsarr[j]
+	})
+	sorted := sort.SliceIsSorted(partsarr, func(p, q int) bool {
+		return partsarr[p] < partsarr[q]
+	})
+	if !sorted {
+		return nil, fmt.Errorf("slice isnt sorted")
+	}
 	return partsarr, nil
 }
 
@@ -598,7 +609,11 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		}
 		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		err = utils.WriteJSON(keysharesFinalPath, initiator.GenerateAggregatesKeyshares(keySharesArr))
+		aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+		if err != nil {
+			logger.Fatal("error: ", zap.Error(err))
+		}
+		err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
 		if err != nil {
 			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		}

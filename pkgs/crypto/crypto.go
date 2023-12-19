@@ -155,8 +155,8 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }
 
-// VerifyOwnerNoceSignature check that owner + nonce correctly signed
-func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
+// VerifyOwnerNonceSignature check that owner + nonce correctly signed
+func VerifyOwnerNonceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
 	data := fmt.Sprintf("%s:%d", owner.String(), nonce)
 	hash := eth_crypto.Keccak256([]byte(data))
 
@@ -253,6 +253,9 @@ func RecoverValidatorPublicKey(IDs []uint64, sharePks []*bls.PublicKey) (*bls.Pu
 
 // RecoverMasterSig recovers a BLS master signature from T-threshold partial signatures
 func RecoverMasterSig(IDs []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, error) {
+	if len(IDs) != len(sigDepositShares) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
@@ -462,6 +465,9 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 
 // VerifyPartialSigs verifies provided partial BLS signatures
 func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []byte) error {
+	if len(sigShares) != len(sharePks) {
+		return fmt.Errorf("inconsistent slice lengths")
+	}
 	res := make([]bool, len(sigShares))
 	for i := 0; i < len(sigShares); i++ {
 		if sigShares[i].VerifyByte(sharePks[i], data) {
@@ -528,6 +534,9 @@ func GenerateSecurePassword() (string, error) {
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
 // It then reconstructs the original threshold signature using lagrange interpolation
 func ReconstructSignatures(IDs []uint64, signatures [][]byte) (*bls.Sign, error) {
+	if len(IDs) != len(signatures) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	reconstructedSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)

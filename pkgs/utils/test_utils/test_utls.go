@@ -128,7 +128,7 @@ func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeySha
 	}
 	signature := sharesData[:signatureOffset]
 	msg := []byte("Hello")
-	if err := crypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce); err != nil {
+	if err := crypto.VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, nonce); err != nil {
 		return err
 	}
 	_ = utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
