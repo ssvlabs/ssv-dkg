@@ -10,7 +10,10 @@ import (
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share/dkg"
+	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -43,9 +46,11 @@ func (tv *testVerify) Verify(id uint64, msg, sig []byte) error {
 }
 
 type testState struct {
-	T   *testing.T
-	ops map[uint64]*LocalOwner
-	tv  *testVerify
+	T       *testing.T
+	ops     map[uint64]*LocalOwner
+	opsPriv map[uint64]*rsa.PrivateKey
+	tv      *testVerify
+	ipk     *rsa.PublicKey
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
@@ -89,7 +94,7 @@ func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operato
 	return nil
 }
 
-func NewTestOperator(ts *testState) *LocalOwner {
+func NewTestOperator(ts *testState) (*LocalOwner, *rsa.PrivateKey) {
 	id := uint64(mrand.Int63n(13))
 	_, exists := ts.ops[id]
 	for exists || id == 0 {
@@ -122,26 +127,24 @@ func NewTestOperator(ts *testState) *LocalOwner {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signFunc:    sign,
-		verifyFunc:  ver,
-		encryptFunc: encrypt,
-		decryptFunc: decrypt,
-		RSAPub:      &pv.PublicKey,
-		done:        make(chan struct{}, 1),
-		startedDKG:  make(chan struct{}, 1),
-	}
+		signFunc:           sign,
+		verifyFunc:         ver,
+		encryptFunc:        encrypt,
+		decryptFunc:        decrypt,
+		InitiatorPublicKey: ts.ipk,
+		RSAPub:             &pv.PublicKey,
+		done:               make(chan struct{}, 1),
+		startedDKG:         make(chan struct{}, 1),
+	}, pv
 }
 
 func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 	id := owner.ID
 	ts.tv.Add(id, owner.RSAPub)
-
 	sign := func(d []byte) ([]byte, error) {
 		return owner.signFunc(d)
 	}
-
 	ver := ts.tv.Verify
-
 	logger, _ := zap.NewDevelopment()
 	logger = logger.With(zap.Uint64("id", id))
 	return &LocalOwner{
@@ -153,28 +156,34 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signFunc:    sign,
-		verifyFunc:  ver,
-		encryptFunc: owner.encryptFunc,
-		decryptFunc: owner.decryptFunc,
-		RSAPub:      owner.RSAPub,
-		done:        make(chan struct{}, 1),
-		startedDKG:  make(chan struct{}, 1),
+		signFunc:           sign,
+		verifyFunc:         ver,
+		encryptFunc:        owner.encryptFunc,
+		decryptFunc:        owner.decryptFunc,
+		InitiatorPublicKey: ts.ipk,
+		RSAPub:             owner.RSAPub,
+		done:               make(chan struct{}, 1),
+		startedDKG:         make(chan struct{}, 1),
 	}
 
 }
 
-func TestDKG(t *testing.T) {
+func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
 	n := 4
+	_, initatorPk, err := crypto.GenerateKeys()
+	require.NoError(t, err)
 	ts := &testState{
-		T:   t,
-		ops: make(map[uint64]*LocalOwner),
-		tv:  newTestVerify(),
+		T:       t,
+		ops:     make(map[uint64]*LocalOwner),
+		opsPriv: make(map[uint64]*rsa.PrivateKey),
+		tv:      newTestVerify(),
+		ipk:     initatorPk,
 	}
 	for i := 0; i < n; i++ {
-		op := NewTestOperator(ts)
+		op, priv := NewTestOperator(ts)
 		ts.ops[op.ID] = op
+		ts.opsPriv[op.ID] = priv
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
@@ -185,6 +194,8 @@ func TestDKG(t *testing.T) {
 			PubKey: pktobytes,
 		})
 	}
+	encodedInitiatorPk, err := crypto.EncodePublicKey(initatorPk)
+	require.NoError(t, err)
 	init := &wire2.Init{
 		Operators:             opsarr,
 		T:                     3,
@@ -192,11 +203,78 @@ func TestDKG(t *testing.T) {
 		Fork:                  [4]byte{0, 0, 0, 0},
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),
+		InitiatorPublicKey:    encodedInitiatorPk,
 	}
 	uid := crypto.NewID()
 	exch := map[uint64]*wire2.Transport{}
 
-	err := ts.ForAll(func(o *LocalOwner) error {
+	err = ts.ForAll(func(o *LocalOwner) error {
+		ts, err := o.Init(uid, init)
+		if err != nil {
+			t.Error(t, err)
+		}
+		exch[o.ID] = ts
+		return nil
+	})
+	require.NoError(t, err)
+	err = ts.ForAll(func(o *LocalOwner) error {
+		return o.Broadcast(exch[o.ID])
+	})
+	require.NoError(t, err)
+	err = ts.ForAll(func(o *LocalOwner) error {
+		<-o.startedDKG
+		return nil
+	})
+
+	require.NoError(t, err)
+	err = ts.ForAll(func(o *LocalOwner) error {
+		<-o.done
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestDKGReshare(t *testing.T) {
+	// Send operators we want to deal with them
+	n := 4
+	_, initatorPk, err := crypto.GenerateKeys()
+	require.NoError(t, err)
+	ts := &testState{
+		T:       t,
+		ops:     make(map[uint64]*LocalOwner),
+		opsPriv: make(map[uint64]*rsa.PrivateKey),
+		tv:      newTestVerify(),
+		ipk:     initatorPk,
+	}
+	for i := 0; i < n; i++ {
+		op, priv := NewTestOperator(ts)
+		ts.ops[op.ID] = op
+		ts.opsPriv[op.ID] = priv
+	}
+	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
+	for id := range ts.ops {
+		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
+		require.NoError(t, err)
+		opsarr = append(opsarr, &wire2.Operator{
+			ID:     id,
+			PubKey: pktobytes,
+		})
+	}
+	encodedInitiatorPk, err := crypto.EncodePublicKey(initatorPk)
+	require.NoError(t, err)
+	init := &wire2.Init{
+		Operators:             opsarr,
+		T:                     3,
+		WithdrawalCredentials: []byte("0x0000"),
+		Fork:                  [4]byte{0, 0, 0, 0},
+		Nonce:                 0,
+		Owner:                 common.HexToAddress("0x1234"),
+		InitiatorPublicKey:    encodedInitiatorPk,
+	}
+	uid := crypto.NewID()
+	exch := map[uint64]*wire2.Transport{}
+
+	err = ts.ForAll(func(o *LocalOwner) error {
 		ts, err := o.Init(uid, init)
 		if err != nil {
 			t.Error(t, err)
@@ -223,34 +301,59 @@ func TestDKG(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	var commits []kyber.Point
 	secretsOldNodes := make(map[uint64]*herumi_bls.SecretKey)
+	var encShares []byte
+	var ceremonySigs []byte
+	var pubkeys []byte
+	ssvContractOwnerNonceSigShares := make(map[uint64]*bls.Sign)
 	err = ts.ForAll(func(o *LocalOwner) error {
-		commits = o.SecretShare.Commits
 		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
 		if err != nil {
 			return nil
 		}
 		secretsOldNodes[o.ID] = key
+		// Encrypt BLS share for SSV contract
+		ciphertext, err := o.encryptSecretShare(key)
+		if err != nil {
+			return nil
+		}
+		encShares = append(encShares, ciphertext...)
+		encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+		if err != nil {
+			return nil
+		}
+		dataToSign := make([]byte, len(key.Serialize())+len(encInitPub))
+		copy(dataToSign[:len(key.Serialize())], key.Serialize())
+		copy(dataToSign[len(key.Serialize()):], encInitPub)
+		ceremonySig, err := o.signFunc(dataToSign)
+		if err != nil {
+			return nil
+		}
+		ceremonySigs = append(ceremonySigs, ceremonySig...)
+		pubkeys = append(pubkeys, key.GetPublicKey().Serialize()...)
+
+		data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
+		hash := eth_crypto.Keccak256([]byte(data))
+		sigOwnerNonce := key.SignByte(hash)
+		ssvContractOwnerNonceSigShares[o.ID] = sigOwnerNonce
 		return nil
 	})
 	require.NoError(t, err)
-	commitsbytes := make([]byte, 0, 48*3)
-	for _, comm := range commits {
-		bin, err := comm.MarshalBinary()
-		require.NoError(t, err)
-		t.Logf("commits num : %v", len(bin))
-		commitsbytes = append(commitsbytes, bin...)
-	}
-
+	var sharesData []byte
+	sharesData = append(sharesData, pubkeys...)
+	sharesData = append(sharesData, encShares...)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ssvContractOwnerNonceSigShares)
+	require.NoError(t, err)
+	var sharesDataSigned []byte
+	sharesDataSigned = append(sharesDataSigned, reconstructedOwnerNonceMasterSig.Serialize()...)
+	sharesDataSigned = append(sharesDataSigned, sharesData...)
 	// Start resharing
-
 	t.Log("Starting resharing")
-
 	ts2 := &testState{
-		T:   t,
-		ops: make(map[uint64]*LocalOwner),
-		tv:  newTestVerify(),
+		T:       t,
+		ops:     make(map[uint64]*LocalOwner),
+		opsPriv: make(map[uint64]*rsa.PrivateKey),
+		tv:      newTestVerify(),
 	}
 
 	for _, opx := range ts.ops {
@@ -261,8 +364,9 @@ func TestDKG(t *testing.T) {
 	var newops []uint64
 	newopsArr := make([]*wire2.Operator, 0, len(ts2.tv.ops))
 	for i := 0; i < n; i++ {
-		op := NewTestOperator(ts2)
+		op, priv := NewTestOperator(ts2)
 		ts2.ops[op.ID] = op
+		ts2.opsPriv[op.ID] = priv
 		newops = append(newops, op.ID)
 	}
 
@@ -288,27 +392,41 @@ func TestDKG(t *testing.T) {
 	t.Logf(newopstr)
 
 	reshare := &wire2.Reshare{
-		OldOperators: opsarr,
-		NewOperators: newopsArr,
-		OldT:         3,
-		NewT:         3,
-		Nonce:        0,
-		Owner:        common.HexToAddress("0x1234"),
+		OldOperators:       opsarr,
+		NewOperators:       newopsArr,
+		OldT:               3,
+		NewT:               3,
+		Nonce:              0,
+		Owner:              common.HexToAddress("0x1234"),
+		Keyshares:          sharesDataSigned,
+		CeremonySigs:       ceremonySigs,
+		InitiatorPublicKey: encodedInitiatorPk,
 	}
 	newuid := crypto.NewID()
 	exch2 := map[uint64]*wire2.Transport{}
 
 	err = ts2.ForAll(func(o *LocalOwner) error {
-		var share *dkg.DistKeyShare
-		if oldop, ex := ts.ops[o.ID]; ex {
-			share = oldop.SecretShare
-		}
-		o.SecretShare = share
-		ts, err := o.InitReshare(newuid, reshare, share.Commits)
+		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
 		if err != nil {
-			t.Error(t, err)
+			return err
 		}
-		exch2[o.ID] = ts
+		for _, op := range reshare.OldOperators {
+			if op.ID == o.ID {
+				secretShare, err := crypto.GetSecretShareFromSharesData(reshare, ts.opsPriv[o.ID], o.ID)
+				if err != nil {
+					return err
+				}
+				o.SecretShare = &kyber_dkg.DistKeyShare{
+					Commits: commits,
+					Share:   secretShare,
+				}
+			}
+		}
+		tmsg, err := o.InitReshare(newuid, reshare, commits)
+		if err != nil {
+			return err
+		}
+		exch2[o.ID] = tmsg
 		return nil
 	})
 	require.NoError(t, err)
@@ -328,6 +446,7 @@ func TestDKG(t *testing.T) {
 		secretsNewNodes[o.ID] = key
 		return nil
 	}, newopsArr)
+	require.NoError(t, err)
 
 	// Print old pubs
 	var resPub kyber.Point
@@ -340,7 +459,6 @@ func TestDKG(t *testing.T) {
 		require.Equal(t, resPub.String(), pub.String())
 		t.Logf("ID %d, new pub %s", id, pub.String())
 	}
-	require.NoError(t, err)
 
 	// Check that old nodes sigs cannot be used
 	bytesToSign := []byte("Hello World")

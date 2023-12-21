@@ -11,13 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/drand/kyber"
-	bls3 "github.com/drand/kyber-bls12381"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
-	"github.com/drand/kyber/share"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
-	"github.com/herumi/bls-eth-go-binary/bls"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -112,7 +107,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		VerifyFunc:         verify,
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
-		Suite:              bls3.NewBLS12381Suite(),
+		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
 		RSAPub:             &s.PrivateKey.PublicKey,
@@ -155,7 +150,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		VerifyFunc:         verify,
-		Suite:              bls3.NewBLS12381Suite(),
+		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
 		RSAPub:             &s.PrivateKey.PublicKey,
@@ -165,17 +160,16 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	owner := dkg.New(opts)
 	// wait for exchange msg
-	commits, err := s.GetCommits(reshare.Keyshares, len(reshare.OldOperators), int(reshare.OldT))
+	commits, err := crypto.GetPubCommitsFromSharesData(reshare)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, op := range reshare.OldOperators {
 		if op.ID == operatorID {
-			secretShare, err := s.GetSecretShare(reshare.Keyshares, reshare.CeremonySigs, initiatorPublicKey, len(reshare.OldOperators))
+			secretShare, err := crypto.GetSecretShareFromSharesData(reshare, s.PrivateKey, s.OperatorID)
 			if err != nil {
 				return nil, nil, err
 			}
-
 			owner.SecretShare = &kyber_dkg.DistKeyShare{
 				Commits: commits,
 				Share:   secretShare,
@@ -591,91 +585,4 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 	}
 
 	return signed.MarshalSSZ()
-}
-
-func (s *Switch) GetSecretShare(sharesData, cSigs []byte, initiatorPublicKey *rsa.PublicKey, operatorCount int) (*share.PriShare, error) {
-	suite := kyber_bls12381.NewBLS12381Suite()
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
-	if len(sharesData) != sharesExpectedLength {
-		return nil, fmt.Errorf("shares data len is not correct")
-	}
-	encryptedKeys := utils.SplitBytes(sharesData[pubKeysOffset:], len(sharesData[pubKeysOffset:])/operatorCount)
-	// try to decrypt private share
-	var kyberPrivShare *share.PriShare
-	for _, enck := range encryptedKeys {
-		prShare, err := rsaencryption.DecodeKey(s.PrivateKey, enck)
-		if err != nil {
-			continue
-		}
-		secret := &bls.SecretKey{}
-		err = secret.SetHexString(string(prShare))
-		if err != nil {
-			return nil, err
-		}
-		// Check operator signature
-		var initVerify bool
-		encInitPub, err := crypto.EncodePublicKey(initiatorPublicKey)
-		if err != nil {
-			return nil, err
-		}
-		sigs := utils.SplitBytes(cSigs, crypto.SignatureLength)
-		for _, sig := range sigs {
-			dataToVerify := make([]byte, len(secret.Serialize())+len(encInitPub))
-			copy(dataToVerify[:len(secret.Serialize())], secret.Serialize())
-			copy(dataToVerify[len(secret.Serialize()):], encInitPub)
-			err := crypto.VerifyRSA(&s.PrivateKey.PublicKey, dataToVerify, sig)
-			if err != nil {
-				continue
-			}
-			initVerify = true
-		}
-		if !initVerify {
-			return nil, fmt.Errorf("cant verify initiator public key")
-		}
-		// Find operator ID by PubKey
-		v := suite.G1().Scalar().SetBytes(secret.Serialize())
-		kyberPrivShare = &share.PriShare{
-			I: int(s.OperatorID),
-			V: v,
-		}
-	}
-	return kyberPrivShare, nil
-}
-
-func (s *Switch) GetCommits(sharesData []byte, operatorCount int, threshold int) ([]kyber.Point, error) {
-	suite := kyber_bls12381.NewBLS12381Suite()
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
-	if len(sharesData) != sharesExpectedLength {
-		return nil, fmt.Errorf("shares data len is not correct")
-	}
-	pubKeys := utils.SplitBytes(sharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	// try to recover commits
-	var kyberPubShares []*share.PubShare
-	for i, pubk := range pubKeys {
-		blsPub := &bls.PublicKey{}
-		err := blsPub.Deserialize(pubk)
-		if err != nil {
-			return nil, err
-		}
-		v := suite.G1().Point()
-		err = v.UnmarshalBinary(blsPub.Serialize())
-		if err != nil {
-			return nil, err
-		}
-		kyberPubhare := &share.PubShare{
-			I: int(i),
-			V: v,
-		}
-		kyberPubShares = append(kyberPubShares, kyberPubhare)
-	}
-	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, threshold, operatorCount)
-	if err != nil {
-		return nil, err
-	}
-	_, commits := pubPoly.Info()
-	return commits, nil
 }

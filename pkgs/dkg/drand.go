@@ -359,14 +359,14 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Get validator BLS public key from result
-	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(kyber_dkg.Suite))
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
 	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
 	// Get BLS partial secret key share from DKG
-	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
+	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result.Key)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -453,14 +453,14 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 	}
 	o.Logger.Info("DKG resharing ceremony finished successfully")
 	// Get validator BLS public key from result
-	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(dkg.Suite))
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(dkg.Suite))
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
 	o.Logger.Debug("Validator`s public key %x", zap.String("key", fmt.Sprintf("%x", validatorPubKey.Serialize())))
 	// Get BLS partial secret key share from DKG
-	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
+	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result.Key)
 	if err != nil {
 		o.broadcastError(err)
 		return err

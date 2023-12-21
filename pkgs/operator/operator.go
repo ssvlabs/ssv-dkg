@@ -18,8 +18,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 )
 
 // Server structure for operator to store http server and DKG ceremony instances
@@ -222,7 +220,7 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) *Server {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
@@ -249,14 +247,6 @@ func (s *Server) Start(port uint16) error {
 	}
 	s.Logger.Info("✅ Server is listening for incoming requests", zap.Uint16("port", port))
 	return nil
-}
-
-func setupDB(logger *zap.Logger, dbOptions basedb.Options) (*kv.BadgerDB, error) {
-	db, err := kv.New(logger, dbOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open db")
-	}
-	return db, nil
 }
 
 // Stop closes http server instance

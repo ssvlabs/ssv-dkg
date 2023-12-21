@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -22,7 +21,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -582,23 +580,6 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 		return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
 	}
 	return privateKey, nil
-}
-
-// GetOperatorDB creates a new Badger DB instance at provided path
-func GetOperatorDB() (basedb.Options, error) {
-	var DBOptions basedb.Options
-	var err error
-	DBOptions.Path = DBPath
-	DBOptions.Reporting = DBReporting
-	DBOptions.GCInterval, err = time.ParseDuration(DBGCInterval)
-	if err != nil {
-		return basedb.Options{}, fmt.Errorf("😥 Failed to parse DBGCInterval: %s", err)
-	}
-	DBOptions.Ctx = context.Background()
-	if err != nil {
-		return basedb.Options{}, fmt.Errorf("😥 Failed to open DB: %s", err)
-	}
-	return DBOptions, nil
 }
 
 func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {

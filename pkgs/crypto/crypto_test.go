@@ -50,10 +50,10 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 			}
 			require.True(t, res.PublicEqual(res2), "res %+v != %+v", res, res2)
 		}
-		blsSecKey, err := ResultToShareSecretKey(res)
+		blsSecKey, err := ResultToShareSecretKey(res.Key)
 		require.NoError(t, err)
 		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey
-		valPK, err = ResultToValidatorPK(res, suite.G1().(dkg.Suite))
+		valPK, err = ResultToValidatorPK(res.Key, suite.G1().(dkg.Suite))
 		require.NoError(t, err)
 	}
 	// test if re-creating secret key gives same public key
