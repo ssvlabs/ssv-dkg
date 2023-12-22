@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -178,4 +179,10 @@ func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err erro
     logger.Error(err.Error())
     writer.WriteHeader(statusCode)
     writer.Write(wire.MakeErr(err))
+}
+
+// GetNonce returns a suitable nonce to feed in the DKG config.
+func GetNonce(input []byte) []byte {
+	ret := sha256.Sum256(input)
+	return ret[:]
 }

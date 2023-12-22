@@ -281,8 +281,12 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
-	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
+	stat, err := os.Stat(OutputPath)
+	if err != nil {
 		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 path to store results isnt a folder %s", err.Error())
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")
@@ -319,8 +323,12 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
-		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
+	stat, err := os.Stat(ConfigPath)
+	if err != nil {
+		return fmt.Errorf("😥 %s", err)
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
@@ -408,8 +416,12 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
-		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
+	stat, err := os.Stat(ConfigPath)
+	if err != nil {
+		return fmt.Errorf("😥 %s", err)
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
@@ -423,9 +435,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if len(NewOperatorIDs) == 0 {
 		return fmt.Errorf("😥 New operator IDs flag cant be empty")
 	}
-	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
-		return err
-	}
 	KeysharesFilePath = viper.GetString("keysharesFilePath")
 	if KeysharesFilePath == "" {
 		return fmt.Errorf("😥 please provide a path to keyshares json file")
@@ -433,18 +442,26 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if strings.Contains(KeysharesFilePath, "../") {
 		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
 	}
-	if stat, err := os.Stat(KeysharesFilePath); stat.IsDir() || os.IsNotExist(err) {
+	stat, err = os.Stat(KeysharesFilePath)
+	if err != nil {
 		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
+	}
+	if stat.IsDir() {
+		return fmt.Errorf("😥 keysharesFilePath should not be a folder")
 	}
 	CeremonySigsFilePath = viper.GetString("ceremonySigsFilePath")
 	if CeremonySigsFilePath == "" {
 		return fmt.Errorf("😥 please provide a path to ceremony signatures json file")
 	}
-	if strings.Contains(KeysharesFilePath, "../") {
+	if strings.Contains(CeremonySigsFilePath, "../") {
 		return fmt.Errorf("😥 ceremonySigsFilePath flag should not contain traversal")
 	}
-	if stat, err := os.Stat(KeysharesFilePath); stat.IsDir() || os.IsNotExist(err) {
+	stat, err = os.Stat(CeremonySigsFilePath)
+	if err != nil {
 		return fmt.Errorf("😥 ceremonySigsFilePath is a folder path or not exist: %s", err)
+	}
+	if stat.IsDir() {
+		return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
 	}
 	return nil
 }
@@ -644,15 +661,6 @@ func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) erro
 	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
-	}
-	return nil
-}
-
-func WriteInstanceID(dir string, id [24]byte) error {
-	instanceIdPath := fmt.Sprintf("%s/instance_id.json", dir)
-	err := utils.WriteJSON(instanceIdPath, hex.EncodeToString(id[:]))
-	if err != nil {
-		return fmt.Errorf("failed writing instance ID file: %w, %s", err, hex.EncodeToString(id[:]))
 	}
 	return nil
 }

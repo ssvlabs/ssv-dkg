@@ -468,15 +468,23 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	}
 	// store keyshares result
 	var ksJson *initiator.KeyShares
-	if len(resData.KeysharesData) != 0 {
-		err = json.Unmarshal(resData.KeysharesData, &ksJson)
-		if err != nil {
-			return err
-		}
-		err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
-		if err != nil {
-			return err
-		}
+	err = json.Unmarshal(resData.KeysharesData, &ksJson)
+	if err != nil {
+		return err
+	}
+	err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
+	if err != nil {
+		return err
+	}
+
+	var ceremonySigs *initiator.CeremonySigs
+	err = json.Unmarshal(resData.CeremonySigs, &ceremonySigs)
+	if err != nil {
+		return err
+	}
+	err = cli_utils.WriteCeremonySigs(ceremonySigs, dir, incMsg.Message.Identifier)
+	if err != nil {
+		return err
 	}
 	return nil
 }
