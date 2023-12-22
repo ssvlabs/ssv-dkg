@@ -623,18 +623,10 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ceremonySigs := &CeremonySigs{}
-	var sigsBytes []byte
-	for _, res := range dkgResults {
-		ceremonySigs.OperatorIDs = append(ceremonySigs.OperatorIDs, res.OperatorID)
-		sigsBytes = append(sigsBytes, res.CeremonySig...)
-	}
-	ceremonySigs.Sigs = hex.EncodeToString(sigsBytes)
-	encInitPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	ceremonySigs, err := c.GetCeremonySigs(dkgResults)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ceremonySigs.InitiatorPublicKey = hex.EncodeToString(encInitPub)
 	ceremonySigsBytes, err := json.Marshal(ceremonySigs)
 	if err != nil {
 		return nil, nil, nil, err
@@ -725,18 +717,10 @@ func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []b
 	if err != nil {
 		return nil, nil, err
 	}
-	ceremonySigsNew := &CeremonySigs{}
-	var sigsBytes []byte
-	for _, res := range dkgResults {
-		ceremonySigsNew.OperatorIDs = append(ceremonySigsNew.OperatorIDs, res.OperatorID)
-		sigsBytes = append(sigsBytes, res.CeremonySig...)
-	}
-	ceremonySigsNew.Sigs = hex.EncodeToString(sigsBytes)
-	encInitPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	ceremonySigsNew, err := c.GetCeremonySigs(dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
-	ceremonySigsNew.InitiatorPublicKey = hex.EncodeToString(encInitPub)
 	ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
 	if err != nil {
 		return nil, nil, err
@@ -1189,4 +1173,20 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	return nil
+}
+
+func (c *Initiator) GetCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, error) {
+	ceremonySigs := &CeremonySigs{}
+	var sigsBytes []byte
+	for _, res := range dkgResults {
+		ceremonySigs.OperatorIDs = append(ceremonySigs.OperatorIDs, res.OperatorID)
+		sigsBytes = append(sigsBytes, res.CeremonySig...)
+	}
+	ceremonySigs.Sigs = hex.EncodeToString(sigsBytes)
+	encInitPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	ceremonySigs.InitiatorPublicKey = hex.EncodeToString(encInitPub)
+	return ceremonySigs, nil
 }

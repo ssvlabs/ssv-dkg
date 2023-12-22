@@ -695,6 +695,7 @@ func GetSecretShareFromSharesData(reshare *wire.Reshare, opPrivateKey *rsa.Priva
 				continue
 			}
 			initVerify = true
+			break
 		}
 		if !initVerify {
 			return nil, fmt.Errorf("cant verify initiator public key")
