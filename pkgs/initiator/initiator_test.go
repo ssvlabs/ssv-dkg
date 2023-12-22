@@ -42,9 +42,8 @@ var jsonStr = []byte(`[
 const examplePath = "../../examples/"
 
 func TestStartDKG(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
 	version := "v1.0.2"
@@ -67,7 +66,7 @@ func TestStartDKG(t *testing.T) {
 		id := crypto.NewID()
 		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
+		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
 		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
@@ -115,7 +114,7 @@ func TestLoadOperators(t *testing.T) {
         "ip": "http://localhost:3030"
       }
     ]`))
-		require.ErrorContains(t, err, "wrong pub key string")
+		require.ErrorContains(t, err, "decode PEM block")
 	})
 	t.Run("test wrong operator URL", func(t *testing.T) {
 		_, err := initiator.LoadOperatorsJson([]byte(`[

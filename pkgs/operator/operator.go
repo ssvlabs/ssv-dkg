@@ -223,17 +223,17 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) *Server {
+func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) (*Server, error) {
 	r := chi.NewRouter()
 	db, err := setupDB(logger, dbOptions)
 	// todo: handle error
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	swtch := NewSwitch(key, logger, db, ver, pkBytes, id)
 	s := &Server{
@@ -243,12 +243,12 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver 
 		DB:     db,
 	}
 	RegisterRoutes(s)
-	return s
+	return s, nil
 }
 
 // Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16) error {
-	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router}
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 100 * time.Millisecond}
 	s.HttpServer = srv
 	err := s.HttpServer.ListenAndServe()
 	if err != nil {

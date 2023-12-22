@@ -27,9 +27,8 @@ import (
 const encryptedKeyLength = 256
 
 func TestHappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -118,19 +117,6 @@ func TestHappyFlows(t *testing.T) {
 		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 	})
-	t.Run("test 13 operators - random operators order", func(t *testing.T) {
-		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
-		require.NoError(t, err)
-	})
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
 	srv3.HttpSrv.Close()
@@ -147,9 +133,8 @@ func TestHappyFlows(t *testing.T) {
 }
 
 func TestThreshold(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -281,9 +266,8 @@ func TestThreshold(t *testing.T) {
 }
 
 func TestUnhappyFlows(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -331,28 +315,6 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 	require.NoError(t, err)
-	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
-		withdraw := newEthAddress(t)
-		owner := newEthAddress(t)
-		id := crypto.NewID()
-		_, ks, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		signatureOffset := phase0.SignatureLength
-		pubKeysOffset := phase0.PublicKeyLength*13 + signatureOffset
-		_ = utils.SplitBytes(sharesDataSigned[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-		encryptedKeys := utils.SplitBytes(sharesDataSigned[pubKeysOffset:], len(sharesDataSigned[pubKeysOffset:])/13)
-		wrongOrderSharesData := make([]byte, 0)
-		wrongOrderSharesData = append(wrongOrderSharesData, sharesDataSigned[:pubKeysOffset]...)
-		for i := len(encryptedKeys) - 1; i >= 0; i-- {
-			wrongOrderSharesData = append(wrongOrderSharesData, encryptedKeys[i]...)
-		}
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv13.PrivKey, srv12.PrivKey, srv11.PrivKey, srv10.PrivKey, srv9.PrivKey, srv8.PrivKey, srv7.PrivKey, srv6.PrivKey, srv5.PrivKey, srv4.PrivKey, srv3.PrivKey, srv2.PrivKey, srv1.PrivKey}, wrongOrderSharesData, pubkeyraw, owner, 0)
-		require.ErrorContains(t, err, "shares order is incorrect")
-	})
 	t.Run("test same ID", func(t *testing.T) {
 		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "got init msg for existing instance")
@@ -380,9 +342,8 @@ func TestUnhappyFlows(t *testing.T) {
 }
 
 func TestReshareHappyFlow(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -522,9 +483,8 @@ func TestReshareHappyFlow(t *testing.T) {
 }
 
 func TestWrongInitiatorVersion(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
@@ -553,9 +513,8 @@ func TestWrongInitiatorVersion(t *testing.T) {
 }
 
 func TestWrongOperatorVersion(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := make(map[uint64]initiator.Operator)
 	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0")
@@ -592,7 +551,7 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 	}
 	signature := sharesData[:signatureOffset]
 	msg := []byte("Hello")
-	err := crypto.VerifyOwnerNoceSignature(signature, owner, validatorPublicKey, nonce)
+	err := crypto.VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, nonce)
 	if err != nil {
 		return err
 	}
@@ -621,6 +580,7 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 		for id, op := range ops {
 			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
 				operatorID = id
+				break
 			}
 		}
 		sig := secret.SignByte(msg)

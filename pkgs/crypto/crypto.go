@@ -46,7 +46,7 @@ func init() {
 
 // GenerateKeys creates a random RSA key pair
 func GenerateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	pv, err := rsa.GenerateKey(rand.Reader, 1024)
+	pv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -127,6 +127,9 @@ func ParseRSAPubkey(pk []byte) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	pemblock, _ := pem.Decode(operatorKeyByte)
+	if pemblock == nil {
+		return nil, errors.New("decode PEM block")
+	}
 	pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
 	if err != nil {
 		return nil, err
@@ -145,12 +148,15 @@ func EncodePublicKey(pk *rsa.PublicKey) ([]byte, error) {
 			Bytes: pkBytes,
 		},
 	)
+	if pemByte == nil {
+		return nil, fmt.Errorf("failed to encode pub key to pem")
+	}
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }
 
-// VerifyOwnerNoceSignature check that owner + nonce correctly signed
-func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
+// VerifyOwnerNonceSignature check that owner + nonce correctly signed
+func VerifyOwnerNonceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
 	data := fmt.Sprintf("%s:%d", owner.String(), nonce)
 	hash := eth_crypto.Keccak256([]byte(data))
 
@@ -171,15 +177,15 @@ func VerifyOwnerNoceSignature(sig []byte, owner common.Address, pubKey []byte, n
 	return nil
 }
 
-// ConvertEncryptedPemToPrivateKey return rsa private key from secret key
-func ConvertEncryptedPemToPrivateKey(pemData []byte, password string) (*rsa.PrivateKey, error) {
+// ReadEncryptedPrivateKey return rsa private key from secret key
+func ReadEncryptedPrivateKey(keyData []byte, password string) (*rsa.PrivateKey, error) {
 	if strings.TrimSpace(password) == "" {
 		return nil, errors.New("Password required for encrypted PEM block")
 	}
 
 	// Unmarshal the JSON-encoded data
 	var data map[string]interface{}
-	if err := json.Unmarshal(pemData, &data); err != nil {
+	if err := json.Unmarshal(keyData, &data); err != nil {
 		return nil, fmt.Errorf("parse JSON data: %w", err)
 	}
 
@@ -204,17 +210,6 @@ func ConvertEncryptedPemToPrivateKey(pemData []byte, password string) (*rsa.Priv
 	return rsaKey, nil
 }
 
-// ExtractPrivateKey gets private key and returns base64 encoded private key
-func ExtractPrivateKey(sk *rsa.PrivateKey) string {
-	pemByte := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(sk),
-		},
-	)
-	return base64.StdEncoding.EncodeToString(pemByte)
-}
-
 // ConvertPemToPrivateKey return rsa private key from secret key
 func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(skPem))
@@ -235,17 +230,20 @@ func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 }
 
 // RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
-func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicKey, error) {
+func RecoverValidatorPublicKey(IDs []uint64, sharePks []*bls.PublicKey) (*bls.PublicKey, error) {
+	if len(IDs) != len(sharePks) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
 	pkVec := make([]bls.PublicKey, 0)
-	for index, pk := range sharePks {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
-		pkVec = append(pkVec, *pk)
+		pkVec = append(pkVec, *sharePks[i])
 	}
 	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
 		return nil, fmt.Errorf("error recovering validator pub key from shares")
@@ -254,17 +252,20 @@ func RecoverValidatorPublicKey(sharePks map[uint64]*bls.PublicKey) (*bls.PublicK
 }
 
 // RecoverMasterSig recovers a BLS master signature from T-threshold partial signatures
-func RecoverMasterSig(sigDepositShares map[uint64]*bls.Sign) (*bls.Sign, error) {
+func RecoverMasterSig(IDs []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, error) {
+	if len(IDs) != len(sigDepositShares) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for index, sig := range sigDepositShares {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
-		sigVec = append(sigVec, *sig)
+		sigVec = append(sigVec, *sigDepositShares[i])
 	}
 	if err := reconstructedDepositMasterSig.Recover(sigVec, idVec); err != nil {
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
@@ -463,11 +464,14 @@ func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, vali
 }
 
 // VerifyPartialSigs verifies provided partial BLS signatures
-func VerifyPartialSigs(sigShares map[uint64]*bls.Sign, sharePks map[uint64]*bls.PublicKey, data []byte) error {
-	res := make(map[uint64]bool)
-	for index, pub := range sharePks {
-		if sigShares[index].VerifyByte(pub, data) {
-			res[index] = true
+func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []byte) error {
+	if len(sigShares) != len(sharePks) {
+		return fmt.Errorf("inconsistent slice lengths")
+	}
+	res := make([]bool, len(sigShares))
+	for i := 0; i < len(sigShares); i++ {
+		if sigShares[i].VerifyByte(sharePks[i], data) {
+			res[i] = true
 		}
 	}
 
@@ -492,42 +496,12 @@ func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	privateKey, err := ConvertEncryptedPemToPrivateKey(data, pass)
+	privateKey, err := ReadEncryptedPrivateKey(data, pass)
 	if err != nil {
 		return nil, err
 	}
 
 	return privateKey, nil
-}
-
-// PrivateKey reads an encoded RSA priv key from path
-func PrivateKey(path string) (*rsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(data))
-	if err != nil {
-		return nil, err
-	}
-	block, _ := pem.Decode(operatorKeyByte)
-	// TODO: resolve deprecation https://github.com/golang/go/issues/8860
-	enc := x509.IsEncryptedPEMBlock(block) //nolint
-	b := block.Bytes
-	if enc {
-		var err error
-		// TODO: resolve deprecation https://github.com/golang/go/issues/8860
-		b, err = x509.DecryptPEMBlock(block, nil) //nolint
-		if err != nil {
-			return nil, err
-		}
-	}
-	parsedSk, err := x509.ParsePKCS1PrivateKey(b)
-	if err != nil {
-		return nil, err
-	}
-	return parsedSk, nil
 }
 
 // NewID generates a random ID from 2 random concat UUIDs
@@ -559,11 +533,14 @@ func GenerateSecurePassword() (string, error) {
 
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
 // It then reconstructs the original threshold signature using lagrange interpolation
-func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
+func ReconstructSignatures(IDs []uint64, signatures [][]byte) (*bls.Sign, error) {
+	if len(IDs) != len(signatures) {
+		return nil, fmt.Errorf("inconsistent IDs len")
+	}
 	reconstructedSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for index, signature := range signatures {
+	for i, index := range IDs {
 		blsID := bls.ID{}
 		err := blsID.SetDecString(fmt.Sprintf("%d", index))
 		if err != nil {
@@ -572,7 +549,7 @@ func ReconstructSignatures(signatures map[uint64][]byte) (*bls.Sign, error) {
 		idVec = append(idVec, blsID)
 		blsSig := bls.Sign{}
 
-		err = blsSig.Deserialize(signature)
+		err = blsSig.Deserialize(signatures[i])
 		if err != nil {
 			return nil, err
 		}

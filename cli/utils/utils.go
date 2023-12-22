@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -66,7 +68,7 @@ var (
 )
 
 // SetViperConfig reads a yaml config file if provided
-func SetViperConfig(cmd *cobra.Command) error {
+func SetViperConfig(cmd *cobra.Command, logger *zap.Logger) error {
 	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
 		return err
 	}
@@ -82,10 +84,10 @@ func SetViperConfig(cmd *cobra.Command) error {
 				return err
 			}
 		}
-		fmt.Printf("🗄️ config yaml file found at %s, using it \n", configYAML)
+		logger.Info("🗄️ config yaml file found, using it \n", zap.String("path", configYAML))
 		return nil
 	} else {
-		fmt.Println("⚠️ config file was not provided, using flag parameters")
+		logger.Info("⚠️ config file was not provided, using flag parameters")
 	}
 	return nil
 }
@@ -93,7 +95,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 // SetGlobalLogger creates a logger
 func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -106,40 +108,28 @@ func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 
 // OpenPrivateKey reads an RSA key from file.
 // If passwordFilePath is provided, treats privKeyPath as encrypted
-// If passwordFilePath is not provided, treats privKeyPath as plaintext
 func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
-	var privateKey *rsa.PrivateKey
-	var err error
-	if passwordFilePath != "" {
-		fmt.Println("🔑 path to password file is provided - decrypting")
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-		}
-		encryptedRSAJSON, err := os.ReadFile(privKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
-		}
-		keyStorePassword, err := os.ReadFile(passwordFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-		}
-	} else {
-		fmt.Println("🔑 password for key NOT provided - trying to read plaintext key")
-		privateKey, err = crypto.PrivateKey(privKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Error reading plaintext private key from file: %s", err)
-		}
+	// check if a password string a valid path, then read password from the file
+	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
+	}
+	encryptedRSAJSON, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+	}
+	keyStorePassword, err := os.ReadFile(passwordFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+	}
+	privateKey, err := crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
 	return privateKey, nil
 }
 
 // GenerateRSAKeyPair generates a RSA key pair. Password either supplied as path or generated at random.
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, []byte, error) {
+func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte, error) {
 	var privateKey *rsa.PrivateKey
 	var err error
 	var password string
@@ -148,7 +138,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
 	}
 	if passwordFilePath != "" {
-		fmt.Println("🔑 path to password file is provided")
+		logger.Info("🔑 path to password file is provided")
 		// check if a password string a valid path, then read password from the file
 		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
 			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
@@ -172,7 +162,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 	}
-	privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, password)
+	privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, password)
 	if err != nil {
 		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
@@ -180,7 +170,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, 
 }
 
 // ReadOperatorsInfoFile reads operators data from path
-func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error) {
+func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
 	var opMap initiator.Operators
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	stat, err := os.Stat(operatorsInfoPath)
@@ -201,7 +191,7 @@ func ReadOperatorsInfoFile(operatorsInfoPath string) (initiator.Operators, error
 			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 		}
 	} else {
-		fmt.Println("📖 reading operators info JSON file")
+		logger.Info("📖 reading operators info JSON file")
 		opsfile, err := os.ReadFile(operatorsInfoPath)
 		if err != nil {
 			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
@@ -277,6 +267,9 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
+	if strings.Contains(OutputPath, "../") {
+		return fmt.Errorf("😥 outputPath should not contain traversal")
+	}
 	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
 		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
 	}
@@ -284,8 +277,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFormat = viper.GetString("logFormat")
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
-	if LogFilePath == "" {
-		fmt.Println("⚠️ debug log path was not provided, using default: ./initiator_debug.log")
+	if strings.Contains(LogFilePath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
 	}
 	return nil
 }
@@ -315,6 +308,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
+	if strings.Contains(ConfigPath, "../") {
+		return fmt.Errorf("😥 configPath should not contain traversal")
+	}
 	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
 		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
 	}
@@ -326,6 +322,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if OperatorsInfo == "" && OperatorsInfoPath == "" {
 		return fmt.Errorf("😥 Operators string or path have not provided")
+	}
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 operatorsInfoPath should not contain traversal")
 	}
 	if OperatorsInfo != "" && OperatorsInfoPath != "" {
 		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
@@ -448,6 +447,9 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	DBPath = viper.GetString("DBPath")
+	if strings.Contains(DBPath, "../") {
+		return fmt.Errorf("😥 DBPath should not contain traversal")
+	}
 	DBReporting = viper.GetBool("DBReporting")
 	DBGCInterval = viper.GetString("DBGCInterval")
 	return nil
@@ -463,11 +465,21 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 		}
 		partsarr = append(partsarr, opid)
 	}
+	// sort array
+	sort.SliceStable(partsarr, func(i, j int) bool {
+		return partsarr[i] < partsarr[j]
+	})
+	sorted := sort.SliceIsSorted(partsarr, func(p, q int) bool {
+		return partsarr[p] < partsarr[q]
+	})
+	if !sorted {
+		return nil, fmt.Errorf("slice isnt sorted")
+	}
 	return partsarr, nil
 }
 
 // LoadOperators loads operators data from raw json or file path
-func LoadOperators() (initiator.Operators, error) {
+func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	opmap := make(map[uint64]initiator.Operator)
 	var err error
 	if OperatorsInfo != "" {
@@ -477,7 +489,7 @@ func LoadOperators() (initiator.Operators, error) {
 		}
 	}
 	if OperatorsInfoPath != "" {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath)
+		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -501,7 +513,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 				if err != nil {
 					return nil, err
 				}
-				err = os.WriteFile(privKeyPassPath, []byte(password), 0o644)
+				err = os.WriteFile(privKeyPassPath, []byte(password), 0o600)
 				if err != nil {
 					return nil, err
 				}
@@ -514,11 +526,11 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 			}
-			privateKey, err = crypto.ConvertEncryptedPemToPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+			privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 			}
-			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o644)
+			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o600)
 			if err != nil {
 				return nil, err
 			}
@@ -597,7 +609,11 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		}
 		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		err = utils.WriteJSON(keysharesFinalPath, initiator.GenerateAggregatesKeyshares(keySharesArr))
+		aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+		if err != nil {
+			logger.Fatal("error: ", zap.Error(err))
+		}
+		err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
 		if err != nil {
 			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		}
