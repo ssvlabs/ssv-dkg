@@ -311,8 +311,12 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if strings.Contains(ConfigPath, "../") {
 		return fmt.Errorf("😥 configPath should not contain traversal")
 	}
-	if stat, err := os.Stat(ConfigPath); !stat.IsDir() || os.IsNotExist(err) {
-		return fmt.Errorf("😥 configPath isnt a folder path or not exist: %s", err)
+	stat, err := os.Stat(ConfigPath)
+	if err != nil {
+		return fmt.Errorf("😥 %s", err)
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
