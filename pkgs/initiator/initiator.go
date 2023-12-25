@@ -124,7 +124,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 		return result[p].OperatorID < result[q].OperatorID
 	})
 	if !sorted {
-		return nil, fmt.Errorf("slice isnt sorted")
+		return nil, fmt.Errorf("fail to sort result slice by operator ID")
 	}
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint64, 0)
