@@ -28,14 +28,14 @@ var StartDKG = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
+		if err := cli_utils.SetViperConfig(cmd); err != nil {
+			return err
+		}
 		if err := cli_utils.BindInitFlags(cmd); err != nil {
 			return err
 		}
 		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
 		if err != nil {
-			return err
-		}
-		if err := cli_utils.SetViperConfig(cmd, logger); err != nil {
 			return err
 		}
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
