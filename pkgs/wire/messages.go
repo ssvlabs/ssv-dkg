@@ -21,7 +21,6 @@ const (
 	ReshareMessageType
 	KyberMessageType
 	ReshareKyberMessageType
-	InitReshareMessageType
 	ExchangeMessageType
 	ReshareExchangeMessageType
 	OutputMessageType
@@ -114,7 +113,7 @@ type Init struct {
 	// Owner nonce
 	Nonce uint64
 	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
+	InitiatorPublicKey []byte `ssz-max:"612"`
 }
 
 type Reshare struct {

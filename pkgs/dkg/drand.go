@@ -81,20 +81,19 @@ func (msg *Result) Decode(data []byte) error {
 
 // OwnerOpts structure to pass parameters from Switch to LocalOwner structure
 type OwnerOpts struct {
-	Logger               *zap.Logger
-	ID                   uint64
-	BroadcastF           func([]byte) error
-	Suite                pairing.Suite
-	VerifyFunc           func(id uint64, msg, sig []byte) error
-	SignFunc             func([]byte) ([]byte, error)
-	EncryptFunc          func([]byte) ([]byte, error)
-	DecryptFunc          func([]byte) ([]byte, error)
-	StoreSecretShareFunc func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
-	InitiatorPublicKey   *rsa.PublicKey
-	RSAPub               *rsa.PublicKey
-	Owner                [20]byte
-	Nonce                uint64
-	Version              []byte
+	Logger             *zap.Logger
+	ID                 uint64
+	BroadcastF         func([]byte) error
+	Suite              pairing.Suite
+	VerifyFunc         func(id uint64, msg, sig []byte) error
+	SignFunc           func([]byte) ([]byte, error)
+	EncryptFunc        func([]byte) ([]byte, error)
+	DecryptFunc        func([]byte) ([]byte, error)
+	InitiatorPublicKey *rsa.PublicKey
+	RSAPub             *rsa.PublicKey
+	Owner              [20]byte
+	Nonce              uint64
+	Version            []byte
 }
 
 type PriShare struct {

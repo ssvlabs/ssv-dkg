@@ -320,7 +320,7 @@ func TestUnhappyFlows(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := crypto.NewID()
-		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{13, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1}, "mainnet", owner, 0)
+		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
