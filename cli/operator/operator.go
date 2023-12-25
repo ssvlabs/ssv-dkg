@@ -26,14 +26,14 @@ var StartDKGOperator = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
+		if err != nil {
+			return err
+		}
+		if err := cli_utils.SetViperConfig(cmd, logger); err != nil {
 			return err
 		}
 		if err := cli_utils.BindOperatorFlags(cmd); err != nil {
-			return err
-		}
-		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
-		if err != nil {
 			return err
 		}
 		logger.Info("🪛 Operator`s", zap.String("Version", cmd.Version))
@@ -42,11 +42,13 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		srv := operator.New(privateKey, logger, []byte(cmd.Version), cli_utils.OperatorID)
+		srv, err := operator.New(privateKey, logger, []byte(cmd.Version), cli_utils.OperatorID)
+		if err != nil {
+			logger.Fatal("😥 Failed to create new operator instance: ", zap.Error(err))
+		}
 		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", cli_utils.Port))
 		if err := srv.Start(uint16(cli_utils.Port)); err != nil {
 			log.Fatalf("Error in operator %v", err)
-			return err
 		}
 		return nil
 	},

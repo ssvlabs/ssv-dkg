@@ -180,7 +180,7 @@ func NodesFromTest(tns []*TestNode) []dkg.Node {
 }
 
 // inits the dkg structure
-func SetupNodes(nodes []*TestNode, c *dkg.Config) {
+func SetupNodes(nodes []*TestNode, c *dkg.Config) error {
 	nonce := dkg.GetNonce()
 	for _, n := range nodes {
 		c2 := *c
@@ -188,13 +188,14 @@ func SetupNodes(nodes []*TestNode, c *dkg.Config) {
 		c2.Nonce = nonce
 		dkgProto, err := dkg.NewDistKeyHandler(&c2)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		n.dkg = dkgProto
 	}
+	return nil
 }
 
-func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
+func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) error {
 	nonce := dkg.GetNonce()
 	for _, n := range nodes {
 		c2 := *c
@@ -207,10 +208,11 @@ func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) {
 		}
 		dkgProto, err := dkg.NewDistKeyHandler(&c2)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		n.dkg = dkgProto
 	}
+	return nil
 }
 
 func IsDealerIncluded(bundles []*dkg.ResponseBundle, dealer uint32) bool {
@@ -308,13 +310,13 @@ func (n *TestNetwork) SetNoop(index uint32) {
 	n.noops = append(n.noops, index)
 }
 
-func (n *TestNetwork) BoardFor(index uint32) *TestBoard {
+func (n *TestNetwork) BoardFor(index uint32) (*TestBoard, error) {
 	for _, b := range n.boards {
 		if b.index == index {
-			return b
+			return b, nil
 		}
 	}
-	panic("no such indexes")
+	return nil, errors.New("no such indexes")
 }
 
 func (n *TestNetwork) isNoop(i uint32) bool {

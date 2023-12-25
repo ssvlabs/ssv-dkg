@@ -45,9 +45,7 @@ func TestRateLimit(t *testing.T) {
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
 	initPubBytes, err := crypto.EncodePublicKey(pubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
@@ -163,9 +161,8 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
 	version := "v1.0.2"

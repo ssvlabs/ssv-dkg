@@ -32,18 +32,18 @@ var StartReshare = &cobra.Command{
 		░ ░  ░ ░ ░░ ░ ░ ░   ░      ░░   ░    ░   ░  ░  ░   ░  ░░ ░  ░   ▒     ░░   ░    ░   
 		░    ░  ░         ░       ░        ░  ░      ░   ░  ░  ░      ░  ░   ░        ░  ░
 		░`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
+		if err != nil {
+			return err
+		}
+		if err := cli_utils.SetViperConfig(cmd, logger); err != nil {
 			return err
 		}
 		if err := cli_utils.BindReshareFlags(cmd); err != nil {
 			return err
 		}
-		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
-		if err != nil {
-			return err
-		}
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
-		opMap, err := cli_utils.LoadOperators()
+		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}

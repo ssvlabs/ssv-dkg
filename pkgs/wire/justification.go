@@ -17,7 +17,7 @@ func encodeJustifications(justifications []dkg.Justification) ([]encodedJustific
 	for _, j := range justifications {
 		byts, err := j.Share.MarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return nil, err
 		}
 
 		ret = append(ret, encodedJustification{
