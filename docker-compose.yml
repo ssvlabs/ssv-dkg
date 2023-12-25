@@ -138,7 +138,12 @@ services:
     networks:
       - shared_network
     entrypoint: /app
-    command: ["ping", "--configYAML", "/data/config/ping.example.yaml"]
+    command:
+      [
+        "ping",
+        "--ip",
+        "http://operator1:3030,http://operator2:3030,http://operator3:3030,http://operator4:3030",
+      ]
     volumes:
       - ./examples:/data
 
