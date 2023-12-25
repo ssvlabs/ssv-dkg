@@ -52,7 +52,7 @@ docker-demo-reshare:
 	docker-compose up --build resharing
 
 docker-demo-ping:
-	@echo "Running resharing in docker demo"
+	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping
 
 docker-operator:

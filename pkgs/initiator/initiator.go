@@ -239,7 +239,7 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	return resdata, nil
 }
 
-// SendAndCollect ssends http message to operator and read the response
+// GetAndCollect request Get at operator route
 func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 	r := c.Client.R()
 	res, err := r.Get(fmt.Sprintf("%v/%v", op.Addr, method))

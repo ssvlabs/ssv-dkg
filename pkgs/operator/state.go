@@ -30,8 +30,6 @@ import (
 const MaxInstances = 1024
 const MaxInstanceTime = 5 * time.Minute
 
-type OperatorID *uint64
-
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error

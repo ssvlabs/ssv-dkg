@@ -22,6 +22,13 @@ import (
 	"github.com/bloxapp/ssv/storage/kv"
 )
 
+// request limits
+const (
+	generalLimit = 5000
+	routeLimit   = 500
+	timePeriod   = time.Minute
+)
+
 // Server structure for operator to store http server and DKG ceremony instances
 type Server struct {
 	Logger     *zap.Logger  // logger
@@ -58,8 +65,8 @@ const ErrTooManyResultRequests = `{"error": "too many requests to /results"}`
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
-		5000,
-		time.Minute,
+		generalLimit,
+		timePeriod,
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -68,8 +75,8 @@ func RegisterRoutes(s *Server) {
 	))
 	s.Router.Route("/init", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -106,8 +113,8 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -132,8 +139,8 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/reshare", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -169,8 +176,8 @@ func RegisterRoutes(s *Server) {
 		})
 		s.Router.Route("/health_check", func(r chi.Router) {
 			r.Use(httprate.Limit(
-				1000,
-				time.Minute,
+				routeLimit,
+				timePeriod,
 				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusTooManyRequests)
@@ -189,8 +196,8 @@ func RegisterRoutes(s *Server) {
 		})
 		s.Router.Route("/results", func(r chi.Router) {
 			r.Use(httprate.Limit(
-				500,
-				time.Minute,
+				routeLimit,
+				timePeriod,
 				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusTooManyRequests)
