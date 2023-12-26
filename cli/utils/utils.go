@@ -40,7 +40,6 @@ var (
 // init flags
 var (
 	OperatorsInfo                     string
-	OperatorsInfoPath                 string
 	OperatorIDs                       []string
 	GenerateInitiatorKeyIfNotExisting bool
 	WithdrawAddress                   common.Address
@@ -69,16 +68,23 @@ var (
 
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
-	configYAML := viper.GetString("configYAML")
-	if configYAML != "" {
-		if _, err := os.Stat(configYAML); os.IsNotExist(err) {
-			return err
-		}
+	ConfigPath = viper.GetString("configPath")
+	var configPathYAML string
+	switch cmd.Use {
+	case "init":
+		configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
+	case "reshare":
+		configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
+	case "start-operator":
+		configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
+	}
+	_, err := os.Stat(configPathYAML)
+	if !os.IsNotExist(err) {
 		viper.SetConfigType("yaml")
-		viper.SetConfigFile(configYAML)
+		viper.SetConfigFile(configPathYAML)
 		if err := viper.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				return err
@@ -170,40 +176,25 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger
 func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
 	var opMap initiator.Operators
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
-	stat, err := os.Stat(operatorsInfoPath)
+	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
-	if stat.IsDir() {
-		filePath := operatorsInfoPath + "operators_info.json"
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("😥 Failed to find operator info file at provided path: %s", err)
-		}
-		opsfile, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-		}
-		opMap, err = initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
-		}
-	} else {
-		logger.Info("📖 reading operators info JSON file")
-		opsfile, err := os.ReadFile(operatorsInfoPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-		}
-		opMap, err = initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
-		}
+	logger.Info("📖 reading operators info JSON file")
+	opsfile, err := os.ReadFile(operatorsInfoPath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+	}
+	opMap, err = initiator.LoadOperatorsJson(opsfile)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 	}
 	return opMap, nil
 }
 
 func SetBaseFlags(cmd *cobra.Command) {
-	flags.ConfigYAMLFlag(cmd)
 	flags.ResultPathFlag(cmd)
+	flags.ConfigPathFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
 	flags.LogLevelFormatFlag(cmd)
@@ -213,9 +204,7 @@ func SetBaseFlags(cmd *cobra.Command) {
 
 func SetInitFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
-	flags.ConfigPathFlag(cmd)
 	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
@@ -295,9 +284,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
@@ -320,16 +306,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfo == "" && OperatorsInfoPath == "" {
-		return fmt.Errorf("😥 Operators string or path have not provided")
-	}
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 operatorsInfoPath should not contain traversal")
-	}
-	if OperatorsInfo != "" && OperatorsInfoPath != "" {
-		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
-	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
@@ -481,16 +457,16 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 
 // LoadOperators loads operators data from raw json or file path
 func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
-	opmap := make(map[uint64]initiator.Operator)
+	var opmap map[uint64]initiator.Operator
 	var err error
 	if OperatorsInfo != "" {
 		opmap, err = initiator.LoadOperatorsJson([]byte(OperatorsInfo))
 		if err != nil {
 			return nil, err
 		}
-	}
-	if OperatorsInfoPath != "" {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
+	} else {
+		operatorsInfoPath := fmt.Sprintf("%s/operators_info.json", ConfigPath)
+		opmap, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}

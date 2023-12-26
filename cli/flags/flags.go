@@ -14,11 +14,9 @@ const (
 	newOperatorIDs                    = "newOperatorIDs"
 	oldID                             = "oldID"
 	operatorsInfo                     = "operatorsInfo"
-	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
 	privKeyPassword                   = "privKeyPassword"
 	configPath                        = "configPath"
-	configYAML                        = "configYAML"
 	generateInitiatorKeyIfNotExisting = "generateInitiatorKeyIfNotExisting"
 	operatorPort                      = "port"
 	owner                             = "owner"
@@ -68,11 +66,6 @@ func OperatorsInfoFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
 }
 
-// OperatorsInfoFlag  adds path to where to look for operator info file flag to the command
-func OperatorsInfoPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to where to look for operator info file", false)
-}
-
 // OwnerAddressFlag  adds owner address flag to the command
 func OwnerAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, owner, "", "Owner address", false)
@@ -95,7 +88,7 @@ func PrivateKeyFlag(c *cobra.Command) {
 
 // GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
 func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, true, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -111,11 +104,6 @@ func OperatorPortFlag(c *cobra.Command) {
 // ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder", false)
-}
-
-// ConfigYAMLFlag config YAML file flag to the command
-func ConfigYAMLFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configYAML, "", "Path to YAML config file", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
@@ -154,7 +142,7 @@ func DBGCIntervalFlag(c *cobra.Command) {
 }
 
 func ResultPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, outputPath, "./", "Path to store results", false)
+	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command
