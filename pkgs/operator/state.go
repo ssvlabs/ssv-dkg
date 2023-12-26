@@ -27,8 +27,6 @@ import (
 const MaxInstances = 1024
 const MaxInstanceTime = 5 * time.Minute
 
-type OperatorID *uint64
-
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
 	Process(uint64, *wire.SignedTransport) error
@@ -307,6 +305,9 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 }
 
 func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
+	if !bytes.Equal(reshareMsg.Version, s.Version) {
+		return nil, utils.ErrVersion
+	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
 	reshare := &wire.Reshare{}

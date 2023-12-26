@@ -67,7 +67,7 @@ var (
 )
 
 // SetViperConfig reads a yaml config file if provided
-func SetViperConfig(cmd *cobra.Command, logger *zap.Logger) error {
+func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
 		return err
 	}
@@ -83,10 +83,7 @@ func SetViperConfig(cmd *cobra.Command, logger *zap.Logger) error {
 				return err
 			}
 		}
-		logger.Info("🗄️ config yaml file found, using it \n", zap.String("path", configYAML))
 		return nil
-	} else {
-		logger.Info("⚠️ config file was not provided, using flag parameters")
 	}
 	return nil
 }

@@ -20,6 +20,13 @@ import (
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
+// request limits
+const (
+	generalLimit = 5000
+	routeLimit   = 500
+	timePeriod   = time.Minute
+)
+
 // Server structure for operator to store http server and DKG ceremony instances
 type Server struct {
 	Logger     *zap.Logger  // logger
@@ -55,8 +62,8 @@ const ErrTooManyResultRequests = `{"error": "too many requests to /results"}`
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(httprate.Limit(
-		5000,
-		time.Minute,
+		generalLimit,
+		timePeriod,
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -65,8 +72,8 @@ func RegisterRoutes(s *Server) {
 	))
 	s.Router.Route("/init", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -78,13 +85,13 @@ func RegisterRoutes(s *Server) {
 			rawdata, _ := io.ReadAll(request.Body)
 			signedInitMsg := &wire.SignedTransport{}
 			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 
 			// Validate that incoming message is an init message
 			if signedInitMsg.Message.Type != wire.InitMessageType {
-				utils.WriteErrorResponse(s.Logger, writer, errors.New("not init message to init route"), http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
 				return
 			}
 			reqid := signedInitMsg.Message.Identifier
@@ -92,7 +99,7 @@ func RegisterRoutes(s *Server) {
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 			logger.Info("✅ Instance started successfully")
@@ -103,8 +110,8 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -115,12 +122,12 @@ func RegisterRoutes(s *Server) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 			b, err := s.State.ProcessMessage(rawdata)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 			writer.WriteHeader(http.StatusOK)
@@ -129,8 +136,8 @@ func RegisterRoutes(s *Server) {
 	})
 	s.Router.Route("/reshare", func(r chi.Router) {
 		r.Use(httprate.Limit(
-			500,
-			time.Minute,
+			routeLimit,
+			timePeriod,
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -148,7 +155,7 @@ func RegisterRoutes(s *Server) {
 
 			// Validate that incoming message is an init message
 			if signedReshareMsg.Message.Type != wire.ReshareMessageType {
-				utils.WriteErrorResponse(s.Logger, writer, errors.New("not init message to init route"), http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
 				return
 			}
 			reqid := signedReshareMsg.Message.Identifier
@@ -156,7 +163,7 @@ func RegisterRoutes(s *Server) {
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstanceReshare(reqid, signedReshareMsg.Message, signedReshareMsg.Signature)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 			logger.Info("✅ Instance started successfully")
@@ -166,8 +173,8 @@ func RegisterRoutes(s *Server) {
 		})
 		s.Router.Route("/health_check", func(r chi.Router) {
 			r.Use(httprate.Limit(
-				1000,
-				time.Minute,
+				routeLimit,
+				timePeriod,
 				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusTooManyRequests)
@@ -186,8 +193,8 @@ func RegisterRoutes(s *Server) {
 		})
 		s.Router.Route("/results", func(r chi.Router) {
 			r.Use(httprate.Limit(
-				500,
-				time.Minute,
+				routeLimit,
+				timePeriod,
 				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusTooManyRequests)

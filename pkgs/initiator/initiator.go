@@ -130,7 +130,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 		return result[p].OperatorID < result[q].OperatorID
 	})
 	if !sorted {
-		return nil, fmt.Errorf("slice isnt sorted")
+		return nil, fmt.Errorf("fail to sort result slice by operator ID")
 	}
 	operatorData := make([]OperatorData, 0)
 	operatorIds := make([]uint64, 0)
@@ -245,7 +245,7 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 	return resdata, nil
 }
 
-// SendAndCollect ssends http message to operator and read the response
+// GetAndCollect request Get at operator route
 func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 	r := c.Client.R()
 	res, err := r.Get(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -308,13 +308,15 @@ func parseAsError(msg []byte) (error, error) {
 // VerifyAll verifies incoming to initiator messages from operators.
 // Incoming message from operator should have same DKG ceremony ID and a valid signature
 func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
+	var errs error
 	for i := 0; i < len(allmsgs); i++ {
 		msg := allmsgs[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			errmsg, parseErr := parseAsError(msg)
 			if parseErr == nil {
-				return fmt.Errorf("operator %d returned err: %v", i, errmsg)
+				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
+				continue
 			}
 			return err
 		}
@@ -331,7 +333,7 @@ func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
 			return err
 		}
 	}
-	return nil
+	return errs
 }
 
 // MakeMultiple creates a one combined message from operators with initiator signature
