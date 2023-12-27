@@ -324,7 +324,7 @@ A special note goes to the `nonce` field, which represents how many validators t
 
 You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
 
-> ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data](#obtaining-operators-data) section.
+> ℹ️ Note: For more details on `operatorsInfo` parameter, head over to the [Operators data](#obtaining-operators-data) section.
 
 Then the tool can be launched from the root folder, by running this command:
 
@@ -636,7 +636,6 @@ With this configuration, a typical configuration file would look like this:
 operatorPrivKey: /data/encrypted_private_key.json
 operatorPrivKeyPassword: /data/password
 port: 3030
-storeShare: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
@@ -692,7 +691,6 @@ ssv-dkg start-operator \
             --outputPath ./output
             --configPath ./config
             --port 3030 \
-            --storeShare true \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
