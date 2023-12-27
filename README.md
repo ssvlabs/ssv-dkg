@@ -734,7 +734,6 @@ Then the content of the YAML file should be changed to this:
 privKey: ./config/encrypted_private_key.json
 password: ./config/password
 port: 3030
-storeShare: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
