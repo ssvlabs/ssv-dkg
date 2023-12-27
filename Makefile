@@ -56,33 +56,33 @@ docker-demo-ping:
 	docker-compose up --build ping
 
 docker-operator:
-	@echo "Running operator docker, make sure to update ./examples/config/operator1.example.yaml"
-	docker run -d \
+	@echo "Running operator docker, make sure to update ./examples/operator1/congig/config.yaml"
+	docker run \
 	  --name svv-dkg-operator \
 	  -p 3030:3030 \
 	  -v $(shell pwd)/examples:/data \
 	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
-	  start-operator --configPath /data/config/operator1.example.yaml
+	  start-operator --configPath /data/operator1/config
 
 docker-initiator:
-	@echo "Running initiator docker, make sure to update ./examples/config/initiator.example.yaml"
-	docker run -d \
+	@echo "Running initiator docker, make sure to update ./examples/initiator/config/init.yaml"
+	docker run \
 	  --name ssv-dkg-initiator \
 	  -v $(shell pwd)/examples:/data \
 	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
-	  init --configPath /data/config/initiator.example.yaml
+	  init --configPath /data/initiator/config
 
 docker-reshare:
-	@echo "Running initiator docker for key resharing to new operators, make sure to update ./examples/config/reshare.example.yaml"
-	docker run -d \
+	@echo "Running initiator docker for key resharing to new operators, make sure to update ./examples/initiator/config/reshare.yaml"
+	docker run \
 	  --name ssv-dkg-reshare \
 	  -v $(shell pwd)/examples:/data \
 	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
-	  reshare --configPath /data/config/reshare.example.yaml
-
+	  reshare --configPath /data/initiator/config
+	  
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
 	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"
