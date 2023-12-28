@@ -54,7 +54,7 @@ spec:
             memory: REPLACE_NODES_MEM_LIMIT
         ports:
         - containerPort: 3030
-        command: ["/app", "start-operator", "--configPath=/data/config", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op3.json"]
+        command: ["/app", "start-operator", "--configPath=/data", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op3.json"]
         volumeMounts:
         - name: secrets-file
           mountPath: "/data/encrypted_private_key_op3.json"
@@ -63,7 +63,7 @@ spec:
           mountPath: /data/password
           subPath: password
         - name: ssv-dkg-3-cm
-          mountPath: /data/config/config.yaml
+          mountPath: /data/config.yaml
           subPath: operator.yaml
       volumes:
         - name: secrets-file
