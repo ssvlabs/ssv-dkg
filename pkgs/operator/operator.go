@@ -54,12 +54,7 @@ func (msg *KeySign) Decode(data []byte) error {
 }
 
 // TODO: either do all json or all SSZ
-const ErrTooManyOperatorRequests = `{"error": "too many requests to operator"}`
-const ErrTooManyDKGRequests = `{"error": "too many requests to /dkg"}`
-const ErrTooManyInitRequests = `{"error": "too many requests to /init"}`
-const ErrTooManyReshareRequests = `{"error": "too many requests to /reshare"}`
-const ErrTooManyHealthCheckRequests = `{"error": "too many requests to /health_check"}`
-const ErrTooManyResultRequests = `{"error": "too many requests to /results"}`
+const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 
 // RegisterRoutes creates routes at operator to process messages incoming from initiator
 func RegisterRoutes(s *Server) {
@@ -252,7 +247,7 @@ func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {
 				zap.String("path", r.URL.Path))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(ErrTooManyReshareRequests))
+			w.Write([]byte(ErrTooManyRouteRequests))
 		}),
 	)
 }
