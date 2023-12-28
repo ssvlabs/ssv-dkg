@@ -64,37 +64,25 @@ const ErrTooManyResultRequests = `{"error": "too many requests to /results"}`
 // RegisterRoutes creates routes at operator to process messages incoming from initiator
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
-	s.Router.Use(httprate.Limit(
-		generalLimit,
-		timePeriod,
-		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(ErrTooManyOperatorRequests))
-		}),
-	))
+	s.Router.Use(rateLimit(s.Logger, generalLimit))
 	s.Router.Route("/init", func(r chi.Router) {
-		r.Use(httprate.Limit(
-			routeLimit,
-			timePeriod,
-			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(ErrTooManyInitRequests))
-			}),
-		))
+		r.Use(rateLimit(s.Logger, routeLimit))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming INIT msg")
-			rawdata, _ := io.ReadAll(request.Body)
+			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to read request body, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				return
+			}
 			signedInitMsg := &wire.SignedTransport{}
 			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to unmarshal SSZ, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 
 			// Validate that incoming message is an init message
 			if signedInitMsg.Message.Type != wire.InitMessageType {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, received non-init message to init route, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
 				return
 			}
 			reqid := signedInitMsg.Message.Identifier
@@ -102,7 +90,7 @@ func RegisterRoutes(s *Server) {
 			logger.Debug("initiating instance with init data")
 			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to initialize instance, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
 			logger.Info("✅ Instance started successfully")
@@ -112,15 +100,7 @@ func RegisterRoutes(s *Server) {
 		})
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
-		r.Use(httprate.Limit(
-			routeLimit,
-			timePeriod,
-			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(ErrTooManyDKGRequests))
-			}),
-		))
+		r.Use(rateLimit(s.Logger, routeLimit))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
@@ -138,18 +118,14 @@ func RegisterRoutes(s *Server) {
 		})
 	})
 	s.Router.Route("/reshare", func(r chi.Router) {
-		r.Use(httprate.Limit(
-			routeLimit,
-			timePeriod,
-			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(ErrTooManyReshareRequests))
-			}),
-		))
+		r.Use(rateLimit(s.Logger, routeLimit))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming RESHARE msg")
-			rawdata, _ := io.ReadAll(request.Body)
+			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				return
+			}
 			signedReshareMsg := &wire.SignedTransport{}
 			if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
 				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
@@ -175,15 +151,7 @@ func RegisterRoutes(s *Server) {
 			writer.Write(b)
 		})
 		s.Router.Route("/health_check", func(r chi.Router) {
-			r.Use(httprate.Limit(
-				routeLimit,
-				timePeriod,
-				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusTooManyRequests)
-					w.Write([]byte(ErrTooManyHealthCheckRequests))
-				}),
-			))
+			r.Use(rateLimit(s.Logger, routeLimit))
 			r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 				b, err := s.State.Pong()
 				if err != nil {
@@ -195,17 +163,13 @@ func RegisterRoutes(s *Server) {
 			})
 		})
 		s.Router.Route("/results", func(r chi.Router) {
-			r.Use(httprate.Limit(
-				routeLimit,
-				timePeriod,
-				httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusTooManyRequests)
-					w.Write([]byte(ErrTooManyResultRequests))
-				}),
-			))
+			r.Use(rateLimit(s.Logger, routeLimit))
 			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-				rawdata, _ := io.ReadAll(request.Body)
+				rawdata, err := io.ReadAll(request.Body)
+				if err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+					return
+				}
 				signedResultMsg := &wire.SignedTransport{}
 				if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
@@ -218,7 +182,7 @@ func RegisterRoutes(s *Server) {
 					return
 				}
 				s.Logger.Debug("received a result message")
-				err := s.State.SaveResultData(signedResultMsg)
+				err = s.State.SaveResultData(signedResultMsg)
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 					return
@@ -255,7 +219,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver 
 
 // Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16) error {
-	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 100 * time.Millisecond}
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 10_000 * time.Millisecond}
 	s.HttpServer = srv
 	err := s.HttpServer.ListenAndServe()
 	if err != nil {
@@ -276,4 +240,19 @@ func setupDB(logger *zap.Logger, dbOptions basedb.Options) (*kv.BadgerDB, error)
 // Stop closes http server instance
 func (s *Server) Stop() error {
 	return s.HttpServer.Close()
+}
+
+func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {
+	return httprate.Limit(
+		limit,
+		timePeriod,
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			logger.Debug("rate limit exceeded",
+				zap.String("ip", r.RemoteAddr),
+				zap.String("path", r.URL.Path))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(ErrTooManyReshareRequests))
+		}),
+	)
 }

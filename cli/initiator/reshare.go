@@ -43,6 +43,7 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer logger.Sync()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {

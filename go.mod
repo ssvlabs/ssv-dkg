@@ -12,6 +12,7 @@ require (
 	github.com/herumi/bls-eth-go-binary v1.29.1
 	github.com/imroc/req/v3 v3.37.2
 	github.com/pkg/errors v0.9.1
+	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/wealdtech/go-eth2-types/v2 v2.8.1
