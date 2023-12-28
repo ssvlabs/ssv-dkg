@@ -164,6 +164,41 @@ func TestValidateDKGParams(t *testing.T) {
 			errMsg:  "amount of operators should be 4,7,10,13",
 		},
 		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
 			name:    "more than 13 operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
@@ -178,7 +213,25 @@ func TestValidateDKGParams(t *testing.T) {
 			errMsg:  "operators ids should be unique in the list",
 		},
 		{
-			name:    "valid operators",
+			name:    "4 valid operators",
+			ids:     []uint64{1, 2, 3, 4},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "7 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "10 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "13 valid operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
 			ops:     ops_1_13,
 			wantErr: false,
