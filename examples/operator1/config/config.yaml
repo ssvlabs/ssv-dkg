@@ -2,7 +2,6 @@ privKey: /data/operator1/encrypted_private_key.json
 privKeyPassword: /data/operator1/password
 port: 3030
 operatorID: 1
-storeShare: false
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor

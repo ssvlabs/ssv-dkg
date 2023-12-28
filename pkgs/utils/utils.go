@@ -175,7 +175,7 @@ func CommitsToBytes(cs []kyber.Point) []byte {
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
-    logger.Error(err.Error())
-    writer.WriteHeader(statusCode)
-    writer.Write(wire.MakeErr(err))
+	logger.Error("request error: " + err.Error())
+	writer.WriteHeader(statusCode)
+	writer.Write(wire.MakeErr(err))
 }
