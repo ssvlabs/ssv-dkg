@@ -367,12 +367,9 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
 func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
-	if len(ids) < 4 {
-		return nil, fmt.Errorf("minimum supported amount of operators is 4")
-	}
-	// limit amount of operators
-	if len(ids) > 13 {
-		return nil, fmt.Errorf("maximum supported amount of operators is 13")
+	allowedLen := map[int]bool{4: true, 7: true, 10: true, 13: true}
+	if !allowedLen[len(ids)] {
+		return nil, fmt.Errorf("amount of operators should be 4,7,10,13")
 	}
 
 	ops := make([]*wire.Operator, 0)

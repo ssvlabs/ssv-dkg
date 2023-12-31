@@ -70,13 +70,6 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 
 // GetThreshold computes threshold from amount of operators following 3f+1 tolerance
 func GetThreshold(ids []uint64) (int, error) {
-	if len(ids) < 4 {
-		return 0, fmt.Errorf("minimum supported amount of operators is 4")
-	}
-	// limit amount of operators
-	if len(ids) > 13 {
-		return 0, fmt.Errorf("maximum supported amount of operators is 13")
-	}
 	threshold := len(ids) - ((len(ids) - 1) / 3)
 	return threshold, nil
 }
