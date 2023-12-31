@@ -53,16 +53,11 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		opMap, err := cli_utils.LoadOperators(logger)
-		if err != nil {
-			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
-		}
 		logger.Info("🔑 opening initiator RSA private key file")
 		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(cli_utils.GenerateInitiatorKeyIfNotExisting)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		ethnetwork := e2m_core.MainNetwork
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
@@ -76,6 +71,11 @@ var StartDKG = &cobra.Command{
 				// create a new ID
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
+				opMap, err := cli_utils.LoadOperators(logger)
+				if err != nil {
+					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+				}
+				dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
