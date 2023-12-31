@@ -53,6 +53,10 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
+		opMap, err := cli_utils.LoadOperators(logger)
+		if err != nil {
+			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+		}
 		logger.Info("🔑 opening initiator RSA private key file")
 		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(cli_utils.GenerateInitiatorKeyIfNotExisting)
 		if err != nil {
@@ -68,14 +72,14 @@ var StartDKG = &cobra.Command{
 		for i := 0; i < int(cli_utils.Validators); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
-				// create a new ID
+				// Create new DKG initiator
+				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version)
+
+				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
-				opMap, err := cli_utils.LoadOperators(logger)
-				if err != nil {
-					logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
-				}
-				dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
+
+				// Perform the ceremony.
 				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err

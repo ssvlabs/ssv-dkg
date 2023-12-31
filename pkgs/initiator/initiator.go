@@ -52,6 +52,14 @@ type OperatorDataJson struct {
 // Operators mapping storage for operator structs [ID]operator
 type Operators map[uint64]Operator
 
+func (o Operators) Clone() Operators {
+	clone := make(Operators)
+	for k, v := range o {
+		clone[k] = v
+	}
+	return clone
+}
+
 // Initiator main structure for initiator
 type Initiator struct {
 	Logger     *zap.Logger                            // logger
