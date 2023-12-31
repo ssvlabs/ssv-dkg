@@ -796,7 +796,11 @@ func (o *LocalOwner) reshareExchangeWireMessage(exchdata []byte, reqID [24]byte)
 
 // broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
-	errMsgEnc, _ := json.Marshal(err.Error())
+	errMsgEnc, err := json.Marshal(err.Error())
+	if err != nil {
+		o.Logger.Error("failed to marshal error message", zap.Error(err))
+		return
+	}
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,

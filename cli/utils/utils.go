@@ -576,34 +576,33 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", nestedDir), zap.String("ID", hex.EncodeToString(ids[i][:])))
 		}
 	}
-	if Validators > 1 {
-		// Write all to one JSON file
-		depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
-		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
-		err := utils.WriteJSON(depositFinalPath, depositDataArr)
-		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
-		}
-		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
-		if err != nil {
-			logger.Fatal("error: ", zap.Error(err))
-		}
-		err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
-		if err != nil {
-			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
-		}
-		instanceIdsPath := fmt.Sprintf("%s/instance_id.json", dir)
-		logger.Info("💾 Writing instance IDs to file", zap.String("path", keysharesFinalPath))
-		var idsArr []string
-		for _, id := range ids {
-			idsArr = append(idsArr, hex.EncodeToString(id[:]))
-		}
-		err = utils.WriteJSON(instanceIdsPath, idsArr)
-		if err != nil {
-			logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", instanceIdsPath), zap.Strings("IDs", idsArr))
-		}
+
+	// Write aggregated JSON files
+	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
+	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
+	err = utils.WriteJSON(depositFinalPath, depositDataArr)
+	if err != nil {
+		logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+	}
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
+	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+	if err != nil {
+		logger.Fatal("error: ", zap.Error(err))
+	}
+	err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
+	if err != nil {
+		logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+	}
+	instanceIdsPath := fmt.Sprintf("%s/instance_id.json", dir)
+	logger.Info("💾 Writing instance IDs to file", zap.String("path", keysharesFinalPath))
+	var idsArr []string
+	for _, id := range ids {
+		idsArr = append(idsArr, hex.EncodeToString(id[:]))
+	}
+	err = utils.WriteJSON(instanceIdsPath, idsArr)
+	if err != nil {
+		logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", instanceIdsPath), zap.Strings("IDs", idsArr))
 	}
 }
 

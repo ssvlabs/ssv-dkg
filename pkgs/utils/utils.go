@@ -161,7 +161,10 @@ func Contains(s []*rsa.PrivateKey, i int) bool {
 func CommitsToBytes(cs []kyber.Point) []byte {
 	var commits []byte
 	for _, point := range cs {
-		b, _ := point.MarshalBinary()
+		b, err := point.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
 		commits = append(commits, b...)
 	}
 	return commits
