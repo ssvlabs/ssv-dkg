@@ -42,15 +42,15 @@ var jsonStr = []byte(`[
 const examplePath = "../../examples/"
 
 func TestStartDKG(t *testing.T) {
-	if err := logging.SetGlobalLogger("debug", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
+	version := "v1.0.2"
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops[1] = initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey}
 	ops[2] = initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey}
 	ops[3] = initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey}
@@ -62,29 +62,29 @@ func TestStartDKG(t *testing.T) {
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		intr := initiator.New(priv, ops, logger)
+		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifySharesData(ops, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
+		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
 		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
-		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger)
+		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
@@ -114,7 +114,7 @@ func TestLoadOperators(t *testing.T) {
         "ip": "http://localhost:3030"
       }
     ]`))
-		require.ErrorContains(t, err, "wrong pub key string")
+		require.ErrorContains(t, err, "decode PEM block")
 	})
 	t.Run("test wrong operator URL", func(t *testing.T) {
 		_, err := initiator.LoadOperatorsJson([]byte(`[
@@ -161,14 +161,49 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "minimum supported amount of operators is 4",
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
 		},
 		{
 			name:    "more than 13 operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "maximum supported amount of operators is 13",
+			errMsg:  "amount of operators should be 4,7,10,13",
 		},
 		{
 			name:    "duplicate operators",
@@ -178,7 +213,25 @@ func TestValidateDKGParams(t *testing.T) {
 			errMsg:  "operators ids should be unique in the list",
 		},
 		{
-			name:    "valid operators",
+			name:    "4 valid operators",
+			ids:     []uint64{1, 2, 3, 4},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "7 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "10 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "13 valid operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
 			ops:     ops_1_13,
 			wantErr: false,

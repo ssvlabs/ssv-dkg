@@ -1,7 +1,10 @@
 package initiator
 
 import (
+	"encoding/hex"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -40,7 +43,9 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		opMap, err := cli_utils.LoadOperators()
+		defer logger.Sync()
+		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
+		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
@@ -54,12 +59,12 @@ var StartReshare = &cobra.Command{
 			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
 		}
 		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey, _, err := cli_utils.LoadRSAPrivKey()
+		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(false)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
 		// create initiator instance
-		dkgInitiator := initiator.New(privateKey, opMap, logger)
+		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		// create a new ID for resharing
 		id := crypto.NewID()
 		// Start the ceremony
@@ -69,11 +74,20 @@ var StartReshare = &cobra.Command{
 		}
 		// Save results
 		logger.Info("💾 Writing keyshares payload to file")
-		err = cli_utils.WriteKeyShares(id, keyShares.Payload.PublicKey, keyShares)
+		timestamp := time.Now().Format(time.RFC3339)
+		dir := fmt.Sprintf("%s/ceremony-%s", cli_utils.OutputPath, timestamp)
+		err = os.Mkdir(dir, os.ModePerm)
 		if err != nil {
-			logger.Warn("Failed writing keyshares file: ", zap.Error(err))
+			return err
 		}
-
+		err = cli_utils.WriteKeysharesResult(keyShares, dir, id)
+		if err != nil {
+			logger.Fatal("😥 Failed to write new keyshares: ", zap.Error(err))
+		}
+		err = cli_utils.WriteInstanceID(dir, id)
+		if err != nil {
+			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", dir), zap.String("ID", hex.EncodeToString(id[:])))
+		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒

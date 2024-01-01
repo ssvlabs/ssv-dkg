@@ -8,32 +8,32 @@ import (
 
 // Flag names.
 const (
-	threshold            = "threshold"
-	withdrawAddress      = "withdrawAddress"
-	operatorIDs          = "operatorIDs"
-	newOperatorIDs       = "newOperatorIDs"
-	oldID                = "oldID"
-	operatorsInfo        = "operatorsInfo"
-	operatorsInfoPath    = "operatorsInfoPath"
-	privKey              = "privKey"
-	privKeyPassword      = "privKeyPassword"
-	configPath           = "configPath"
-	generateInitiatorKey = "generateInitiatorKey"
-	operatorPort         = "port"
-	owner                = "owner"
-	nonce                = "nonce"
-	network              = "network"
-	mnemonicFlag         = "mnemonic"
-	indexFlag            = "index"
-	outputPath           = "outputPath"
-	storeShare           = "storeShare"
-	logLevel             = "logLevel"
-	logFormat            = "logFormat"
-	logLevelFormat       = "logLevelFormat"
-	logFilePath          = "logFilePath"
-	DBPath               = "DBPath"
-	DBReporting          = "DBReporting"
-	DBGCInterval         = "DBGCInterval"
+	threshold                         = "threshold"
+	withdrawAddress                   = "withdrawAddress"
+	operatorIDs                       = "operatorIDs"
+	newOperatorIDs                    = "newOperatorIDs"
+	oldID                             = "oldID"
+	operatorsInfo                     = "operatorsInfo"
+	privKey                           = "privKey"
+	privKeyPassword                   = "privKeyPassword"
+	configPath                        = "configPath"
+	generateInitiatorKeyIfNotExisting = "generateInitiatorKeyIfNotExisting"
+	operatorPort                      = "port"
+	owner                             = "owner"
+	nonce                             = "nonce"
+	network                           = "network"
+	mnemonicFlag                      = "mnemonic"
+	indexFlag                         = "index"
+	outputPath                        = "outputPath"
+	logLevel                          = "logLevel"
+	logFormat                         = "logFormat"
+	logLevelFormat                    = "logLevelFormat"
+	logFilePath                       = "logFilePath"
+	DBPath                            = "DBPath"
+	DBReporting                       = "DBReporting"
+	DBGCInterval                      = "DBGCInterval"
+	validators                        = "validators"
+	operatorID                        = "operatorID"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -41,19 +41,9 @@ func ThresholdFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, threshold, 0, "Threshold for distributed signature", false)
 }
 
-// GetThresholdFlagValue gets threshold flag from the command
-func GetThresholdFlagValue(c *cobra.Command) (uint64, error) {
-	return c.Flags().GetUint64(threshold)
-}
-
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", false)
-}
-
-// GetWithdrawAddressFlagValue gets withdraw address flag from the command
-func GetWithdrawAddressFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(withdrawAddress)
 }
 
 // operatorIDsFlag adds operators IDs flag to the command
@@ -61,19 +51,9 @@ func OperatorIDsFlag(c *cobra.Command) {
 	AddPersistentStringSliceFlag(c, operatorIDs, []string{"1", "2", "3"}, "Operator IDs", false)
 }
 
-// GetThresholdFlagValue gets operators IDs flag from the command
-func GetoperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
-	return c.Flags().GetStringSlice(operatorIDs)
-}
-
 // operatorIDsFlag adds new operators IDs flag to the command
 func NewOperatorIDsFlag(c *cobra.Command) {
 	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs", false)
-}
-
-// GetThresholdFlagValue gets new operators IDs flag from the command
-func GetNewOperatorIDsFlagValue(c *cobra.Command) ([]string, error) {
-	return c.Flags().GetStringSlice(newOperatorIDs)
 }
 
 // OldIDFlag  adds previous DKG ceremony ID flag to the command
@@ -81,29 +61,9 @@ func OldIDFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, oldID, "", "Old ID (24 bytes)", false)
 }
 
-// GetWithdrawAddressFlagValue gets previous DKG ceremony ID flag from the command
-func GetOldIDFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(oldID)
-}
-
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
-}
-
-// GetOperatorsInfoFlagValue gets path to operators' ifo file flag from the command
-func GetOperatorsInfoFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorsInfo)
-}
-
-// OperatorsInfoFlag  adds path to where to look for operator info file flag to the command
-func OperatorsInfoPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to where to look for operator info file", false)
-}
-
-// GetOperatorsInfoPathFlagValue gets path to where to look for operator info file flag from the command
-func GetOperatorsInfoPathFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(operatorsInfoPath)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -111,19 +71,9 @@ func OwnerAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, owner, "", "Owner address", false)
 }
 
-// GetOwnerAddressFlagValue gets owner address flag from the command
-func GetOwnerAddressFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(owner)
-}
-
 // NonceFlag  owner nonce flag to the command
 func NonceFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", false)
-}
-
-// GetNonceFlagValue gets owner nonce flag from the command
-func GetNonceFlagValue(c *cobra.Command) (uint64, error) {
-	return c.Flags().GetUint64(nonce)
 }
 
 // NetworkFlag  adds the fork version of the network flag to the command
@@ -136,14 +86,9 @@ func PrivateKeyFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, privKey, "", "Path to initiator Private Key file", false)
 }
 
-// GenerateInitiatorKeyFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
-func GenerateInitiatorKeyFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKey, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
-}
-
-// GetGenerateInitiatorKeyFlagValue gets flag to generate a random secure password and initiator RSA key pair encrypted with this password
-func GetGenerateInitiatorKeyFlagValue(c *cobra.Command) (bool, error) {
-	return c.Flags().GetBool(generateInitiatorKey)
+// GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
+func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, true, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -156,19 +101,9 @@ func OperatorPortFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
 }
 
-// OperatorConfigPathFlag config path flag to the command
+// ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
-}
-
-// GetConfigPathFlagValue gets config path flag from the command
-func GetConfigPathFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(configPath)
-}
-
-// GetOperatorPortFlagValue gets operator listening port flag from the command
-func GetOperatorPortFlagValue(c *cobra.Command) (uint64, error) {
-	return c.Flags().GetUint64(operatorPort)
+	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: `config.yaml` `init.yaml` `reshare.yaml` `initiator_encrypted_key.json` `initiator_password` `operators_info.json`", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
@@ -186,19 +121,9 @@ func LogLevelFormatFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, logLevelFormat, "capitalColor", "Defines logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase'", false)
 }
 
-// GetLogLevelFormatFlagValue gets logger's level format flag from the command
-func GetLogLevelFormatFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(logLevelFormat)
-}
-
 // LogFilePathFlag file path to write logs into
 func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./data/debug.log", "Defines a file path to write logs into", false)
-}
-
-// GetLogFilePathValue gets logs file path flag from the command
-func GetLogFilePathValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(logFilePath)
+	AddPersistentStringFlag(c, logFilePath, "./logs/debug.log", "Defines a file path to write logs into", false)
 }
 
 // DBPathFlag adds path for storage flag to the command
@@ -206,19 +131,9 @@ func DBPathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, DBPath, "./data/db", "Path for storage", false)
 }
 
-// GetDBPathFlagValue gets path for storage flag from the command
-func GetDBPathFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(DBPath)
-}
-
 // DBReportingFlag adds flag to run on-off db size reporting to the command
 func DBReportingFlag(c *cobra.Command) {
 	AddPersistentBoolFlag(c, DBReporting, false, "Flag to run on-off db size reporting", false)
-}
-
-// GetDBReportingFlagValue gets flag flag to run on-off db size reporting
-func GetDBReportingFlagValue(c *cobra.Command) (bool, error) {
-	return c.Flags().GetBool(DBReporting)
 }
 
 // DBGCIntervalFlag adds path for storage flag to the command
@@ -226,9 +141,18 @@ func DBGCIntervalFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, DBGCInterval, "6m", "Interval between garbage collection cycles. Set to 0 to disable.", false)
 }
 
-// GetDBGCIntervalFlagValue gets path for storage flag from the command
-func GetDBGCIntervalFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(DBGCInterval)
+func ResultPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
+}
+
+// ValidatorsFlag add number of validators to create flag to the command
+func ValidatorsFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, validators, 1, "Number of validators", false)
+}
+
+// OperatorIDFlag add operator ID flag to the command
+func OperatorIDFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
@@ -253,20 +177,6 @@ func AddPersistentIntFlag(c *cobra.Command, flag string, value uint64, descripti
 	}
 
 	c.PersistentFlags().Uint64(flag, value, fmt.Sprintf("%s%s", description, req))
-
-	if isRequired {
-		_ = c.MarkPersistentFlagRequired(flag)
-	}
-}
-
-// AddPersistentStringArrayFlag adds a string array flag to the command
-func AddPersistentStringArrayFlag(c *cobra.Command, flag string, value []string, description string, isRequired bool) {
-	req := ""
-	if isRequired {
-		req = " (required)"
-	}
-
-	c.PersistentFlags().StringArray(flag, value, fmt.Sprintf("%s%s", description, req))
 
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)
@@ -299,40 +209,4 @@ func AddPersistentBoolFlag(c *cobra.Command, flag string, value bool, descriptio
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)
 	}
-}
-
-// AddMnemonicFlag adds the mnemonic key flag to the command
-func AddMnemonicFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, mnemonicFlag, "", "24 letter mnemonic phrase", true)
-}
-
-// GetMnemonicFlagValue gets the mnemonic key flag from the command
-func GetMnemonicFlagValue(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(mnemonicFlag)
-}
-
-// AddKeyIndexFlag adds the key index flag to the command
-func AddKeyIndexFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, indexFlag, 0, "Index of the key to export from mnemonic", false)
-}
-
-// GetKeyIndexFlagValue gets the key index flag to the command
-func GetKeyIndexFlagValue(c *cobra.Command) (uint64, error) {
-	return c.Flags().GetUint64(indexFlag)
-}
-
-func ResultPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, outputPath, "./", "Path to store results", false)
-}
-
-func GetResultPathFlag(c *cobra.Command) (string, error) {
-	return c.Flags().GetString(outputPath)
-}
-
-func StoreShareFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, storeShare, false, "Store BLS share as json", false)
-}
-
-func GetStoreShareFlag(c *cobra.Command) (bool, error) {
-	return c.Flags().GetBool(storeShare)
 }

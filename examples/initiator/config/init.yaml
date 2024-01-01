@@ -25,10 +25,9 @@ validators: 10
 #   "ip": "http://operator4:3030"
 #   }]'
 # operatorsInfoPath: /data
-outputPath: /data/output
-configPath: /data/config
+outputPath: /data/initiator/output
 generateInitiatorKeyIfNotExisting: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/initiator_debug.log
+logFilePath: /data/initiator/output/initiator_debug.log

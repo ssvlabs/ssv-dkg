@@ -1,7 +1,7 @@
 package operator_test
 
 import (
-	"crypto/sha256"
+	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -27,8 +27,17 @@ import (
 const examplePath = "../../examples/"
 
 func TestRateLimit(t *testing.T) {
-	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
-	t.Run("test init route rate limit", func(t *testing.T) {
+	version := "v1.0.2"
+	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
+	// Initiator priv key
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	pubKey := priv.Public().(*rsa.PublicKey)
+	initPubBytes, err := crypto.EncodePublicKey(pubKey)
+	require.NoError(t, err)
+	t.Run("test /init rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
 		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
 
@@ -53,6 +62,7 @@ func TestRateLimit(t *testing.T) {
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 			Nonce:                 0,
+			InitiatorPublicKey:    initPubBytes,
 		}
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
@@ -61,15 +71,28 @@ func TestRateLimit(t *testing.T) {
 			Type:       wire.InitMessageType,
 			Identifier: [24]byte{},
 			Data:       sszinit,
+			Version:    []byte(version),
 		}
 
 		tsssz, err := ts.MarshalSSZ()
 		require.NoError(t, err)
 
+		sig, err := crypto.SignRSA(priv, tsssz)
+		require.NoError(t, err)
+
+		signedTransportMsg := &wire.SignedTransport{
+			Message:   ts,
+			Signer:    0,
+			Signature: sig,
+		}
+
+		msg, err := signedTransportMsg.MarshalSSZ()
+		require.NoError(t, err)
+
 		client := req.C()
 		r := client.R()
 
-		r.SetBodyBytes(tsssz)
+		r.SetBodyBytes(msg)
 
 		// Send requests
 		errChan := make(chan []byte)
@@ -79,7 +102,7 @@ func TestRateLimit(t *testing.T) {
 		go func() {
 			defer close(errChan)
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 1000; i++ {
 				res, err := r.Post(fmt.Sprintf("%v/%v", srv.HttpSrv.URL, "init"))
 				require.NoError(t, err)
 				if res.Status == "429 Too Many Requests" {
@@ -91,11 +114,11 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, operator.ErrTooManyDKGRequests, string(errResp))
+			require.Equal(t, operator.ErrTooManyRouteRequests, string(errResp))
 		}
 		wg.Wait()
 	})
-	t.Run("test general rate limit", func(t *testing.T) {
+	t.Run("test /dkg rate limit", func(t *testing.T) {
 		client := req.C()
 		r := client.R()
 
@@ -121,7 +144,7 @@ func TestRateLimit(t *testing.T) {
 		}()
 		for errResp := range errChan {
 			require.NotEmpty(t, errResp)
-			require.Equal(t, operator.ErrTooManyOperatorRequests, string(errResp))
+			require.Equal(t, operator.ErrTooManyRouteRequests, string(errResp))
 		}
 		wg.Wait()
 	})
@@ -129,15 +152,15 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
-	if err := logging.SetGlobalLogger("info", "capital", "console", nil); err != nil {
-		panic(err)
-	}
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath)
+	version := "v1.0.2"
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
 	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
 	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
@@ -151,7 +174,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops, logger)
+		c := initiator.New(priv, ops, logger, version)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
@@ -165,10 +188,6 @@ func TestWrongInitiatorSignature(t *testing.T) {
 				PubKey: pkBytes,
 			})
 		}
-		// Add messages verification coming form operators
-		verify, err := c.CreateVerifyFunc(parts)
-		require.NoError(t, err)
-		c.VerifyFunc = verify
 		// Change pub key
 		_, newPv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -176,7 +195,9 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		wrongPub, err := crypto.EncodePublicKey(&newPriv.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
+		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
@@ -215,7 +236,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops, logger)
+		c := initiator.New(priv, ops, logger, version)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
@@ -229,13 +250,11 @@ func TestWrongInitiatorSignature(t *testing.T) {
 				PubKey: pkBytes,
 			})
 		}
-		// Add messages verification coming form operators
-		verify, err := c.CreateVerifyFunc(parts)
-		require.NoError(t, err)
-		c.VerifyFunc = verify
 		wrongPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		c.Logger.Info(fmt.Sprintf("Initiator ID: %x", sha256.Sum256(c.PrivateKey.PublicKey.N.Bytes())))
+		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
 		init := &wire.Init{
 			Operators:             parts,
@@ -253,6 +272,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Type:       wire.InitMessageType,
 			Identifier: id,
 			Data:       sszinit,
+			Version:    c.Version,
 		}
 		sig, err := hex.DecodeString("a32d0f695aad4a546b5507bb6b7cf43be7c54385589bbc6616bb97e58e839b596e8e827f8309488e6adc86562f7662738f46ae57f166e226913d66d6134149e8c6d6c60676da480c3ace2ea18f031ca4cfb51fa11a0595e63fe5808440b46c45d90e020f77bf35e64d7886ecf2e6f825168c955110753f73b37a5492191bd60a1bc7779f550b60aa37150ca2d16c15d33f014bca3dcfbb7a937312a51eb8d059a95203492e669238e5effdd38893b851d04f70cd58ad7ba0da7b21cb826b7397dbdffcbf6d66a8bcbf4e081a568c6e647e8d942c838533907ab7190c8a63eac73bec612cc1c44686164e734abec87ae223959b0f09f0c21cd99945e5319cb5a9")
 		require.NoError(t, err)

@@ -14,6 +14,7 @@ func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
 	RootCmd.AddCommand(initiator.StartReshare)
 	RootCmd.AddCommand(operator.StartDKGOperator)
+	RootCmd.AddCommand(initiator.HealthCheck)
 }
 
 // RootCmd represents the root command of DKG-tool CLI
@@ -28,7 +29,10 @@ var RootCmd = &cobra.Command{
 func Execute(appName, version string) {
 	RootCmd.Short = appName
 	RootCmd.Version = version
-
+	initiator.HealthCheck.Version = version
+	initiator.StartDKG.Version = version
+	initiator.StartReshare.Version = version
+	operator.StartDKGOperator.Version = version
 	if err := RootCmd.Execute(); err != nil {
 		log.Fatal("failed to execute root command", zap.Error(err))
 	}

@@ -7,7 +7,10 @@ import (
 // MakeErr creates an error message
 func MakeErr(err error) []byte {
 	rawerr := &ErrSSZ{Error: []byte(err.Error())}
-	reterr, _ := rawerr.MarshalSSZ()
+	reterr, err := rawerr.MarshalSSZ()
+	if err != nil {
+		panic(err)
+	}
 	return reterr
 }
 

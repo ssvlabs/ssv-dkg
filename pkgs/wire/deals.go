@@ -19,7 +19,7 @@ func EncodeDealBundle(bundle *dkg.DealBundle) ([]byte, error) {
 	for _, p := range bundle.Public {
 		byts, err := p.MarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return nil, err
 		}
 		publics = append(publics, hex.EncodeToString(byts))
 	}

@@ -4,19 +4,27 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
+var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
+var ErrAlreadyExists = errors.New("got init msg for existing instance")
+var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
+var ErrVersion = errors.New("wrong version")
+
 // WriteJSON writes data to JSON file
 func WriteJSON(filepath string, data any) error {
-	file, err := os.Create(filepath)
+	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -62,13 +70,6 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 
 // GetThreshold computes threshold from amount of operators following 3f+1 tolerance
 func GetThreshold(ids []uint64) (int, error) {
-	if len(ids) < 4 {
-		return 0, fmt.Errorf("minimum supported amount of operators is 4")
-	}
-	// limit amount of operators
-	if len(ids) > 13 {
-		return 0, fmt.Errorf("maximum supported amount of operators is 13")
-	}
 	threshold := len(ids) - ((len(ids) - 1) / 3)
 	return threshold, nil
 }
@@ -148,24 +149,6 @@ func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wir
 	return set
 }
 
-// storeSecretShareToFile writes encrypted secret share to JSON file at provided outputPath
-func StoreSecretShareToFile(outputPath string, index int, encryptedSecretShare []byte, id [24]byte) error {
-	type shareStorage struct {
-		Index  int    `json:"index"`
-		Secret string `json:"secret"`
-	}
-	data := shareStorage{
-		Index:  index,
-		Secret: hex.EncodeToString(encryptedSecretShare),
-	}
-	outputFile := fmt.Sprintf("%s/secret_share_%d_%x", outputPath, data.Index, id)
-	err := WriteJSON(outputFile, &data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func Contains(s []*rsa.PrivateKey, i int) bool {
 	for k := range s {
 		if k == i {
@@ -178,8 +161,17 @@ func Contains(s []*rsa.PrivateKey, i int) bool {
 func CommitsToBytes(cs []kyber.Point) []byte {
 	var commits []byte
 	for _, point := range cs {
-		b, _ := point.MarshalBinary()
+		b, err := point.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
 		commits = append(commits, b...)
 	}
 	return commits
+}
+
+func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
+	logger.Error("request error: " + err.Error())
+	writer.WriteHeader(statusCode)
+	writer.Write(wire.MakeErr(err))
 }

@@ -1,5 +1,9 @@
 package wire
 
+type SSZMarshaller interface {
+	MarshalSSZ() ([]byte, error)
+	UnmarshalSSZ(buf []byte) error
+}
 type MultipleSignedTransports struct {
 	Identifier [24]byte           `ssz-size:"24"` // this is kinda wasteful, maybe take it out of the msgs?
 	Messages   []*SignedTransport `ssz-max:"13"`  // max num of operators
@@ -26,6 +30,9 @@ const (
 	KyberJustificationBundleMessageType
 	BlsSignRequestType
 	ErrorMessageType
+	PingMessageType
+	PongMessageType
+	ResultMessageType
 )
 
 func (t TransportType) String() string {
@@ -54,6 +61,12 @@ func (t TransportType) String() string {
 		return "BlsSignRequestType"
 	case ErrorMessageType:
 		return "ErrorMessageType"
+	case PingMessageType:
+		return "PingMessageType"
+	case PongMessageType:
+		return "PongMessageType"
+	case ResultMessageType:
+		return "ResultMessageType"
 	default:
 		return "no type impl"
 	}
@@ -63,6 +76,7 @@ type Transport struct {
 	Type       TransportType
 	Identifier [24]byte `ssz-size:"24"`
 	Data       []byte   `ssz-max:"8388608"` // 2^23
+	Version    []byte   `ssz-max:"128"`
 }
 
 type SignedTransport struct {
@@ -133,4 +147,24 @@ type Output struct {
 	SharePK                     []byte `ssz-max:"4096"`
 	ValidatorPK                 []byte `ssz-size:"48"`
 	DepositDataPartialSignature []byte `ssz-size:"96"`
+}
+
+type Ping struct {
+	// Operators involved in the DKG
+	Operators []*Operator `ssz-max:"13"`
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"2048"`
+}
+
+type Pong struct {
+	PubKey []byte `ssz-max:"2048"`
+}
+
+type ResultData struct {
+	// Operators involved in the DKG
+	Operators []*Operator `ssz-max:"13"`
+	// Initiator public key
+	Identifier    [24]byte `ssz-size:"24"`
+	DepositData   []byte   `ssz-max:"8388608"` // 2^23
+	KeysharesData []byte   `ssz-max:"8388608"` // 2^23
 }
