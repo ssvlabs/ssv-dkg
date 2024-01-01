@@ -62,7 +62,6 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		ethnetwork := e2m_core.MainNetwork
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
@@ -73,9 +72,14 @@ var StartDKG = &cobra.Command{
 		for i := 0; i < int(cli_utils.Validators); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
-				// create a new ID
+				// Create new DKG initiator
+				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version)
+
+				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
+
+				// Perform the ceremony.
 				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err

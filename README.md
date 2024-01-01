@@ -169,7 +169,7 @@ Under the assumption that all the necessary files (`operators_info.json`, `initi
 ```sh
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" /app init \
+"bloxstaking/ssv-dkg:latest" init \
 --configPath /data/initiator/config && \
 docker rm ssv_dkg_initiator
 ```
@@ -203,7 +203,7 @@ Run:
 ```sh
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" /app init --configPath /data/initiator/config && \
+"bloxstaking/ssv-dkg:latest" init --configPath /data/initiator/config && \
 docker rm ssv_dkg_initiator
 ```
 
@@ -418,7 +418,7 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 ```sh
 docker run --name ssv_dkg_reshare \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" /app reshare --configPath /data/initiator/config && \
+"bloxstaking/ssv-dkg:latest" reshare --configPath /data/initiator/config && \
 docker rm ssv_dkg_initiator
 ```
 
@@ -650,7 +650,7 @@ Under the assumption that all the necessary files (`encrypted_private_key.json`,
 ```sh
 docker run --restart unless-stopped --name ssv_dkg -p 3030:3030  \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" /app start-operator --configPath /data/operator/config
+"bloxstaking/ssv-dkg:latest" start-operator --configPath /data/operator/config
 ```
 
 Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.

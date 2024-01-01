@@ -354,38 +354,38 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	if res.Error != nil {
 		o.broadcastError(res.Error)
-		return res.Error
+		return fmt.Errorf("dkg protocol failed: %w", res.Error)
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
 	// Store result share a instance
 	o.SecretShare = res.Result.Key
 	if err := o.storeSecretShare(o.data.reqID, o.data.init.InitiatorPublicKey, res.Result.Key); err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to store secret share: %w", err)
 	}
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to get validator BLS public key: %w", err)
 	}
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result)
 	if err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to get BLS partial secret key share: %w", err)
 	}
 	// Encrypt BLS share for SSV contract
 	ciphertext, err := o.encryptSecretShare(secretKeyBLS)
 	if err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	// Sign root
 	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, utils.GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
 	if err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to sign deposit data: %w", err)
 	}
 	// Validate partial signature
 	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
@@ -418,7 +418,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	encodedOutput, err := out.Encode()
 	if err != nil {
 		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to encode output: %w", err)
 	}
 
 	tsMsg := &wire.Transport{
@@ -796,7 +796,11 @@ func (o *LocalOwner) reshareExchangeWireMessage(exchdata []byte, reqID [24]byte)
 
 // broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
-	errMsgEnc, _ := json.Marshal(err.Error())
+	errMsgEnc, err := json.Marshal(err.Error())
+	if err != nil {
+		o.Logger.Error("failed to marshal error message", zap.Error(err))
+		return
+	}
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,

@@ -61,7 +61,6 @@ docker-operator:
 	  --name svv-dkg-operator \
 	  -p 3030:3030 \
 	  -v $(shell pwd)/examples:/data \
-	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
 	  start-operator --configPath /data/operator1/config
 
@@ -70,7 +69,6 @@ docker-initiator:
 	docker run \
 	  --name ssv-dkg-initiator \
 	  -v $(shell pwd)/examples:/data \
-	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
 	  init --configPath /data/initiator/config
 
@@ -79,7 +77,6 @@ docker-reshare:
 	docker run \
 	  --name ssv-dkg-reshare \
 	  -v $(shell pwd)/examples:/data \
-	  --entrypoint /app \
 	  $(DOCKER_IMAGE):latest \
 	  reshare --configPath /data/initiator/config
 	  

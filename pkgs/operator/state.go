@@ -177,7 +177,10 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 			}
 			owner.SecretShare = secretShare
 			for _, point := range secretShare.Commits {
-				b, _ := point.MarshalBinary()
+				b, err := point.MarshalBinary()
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to marshal commit: %s", err.Error())
+				}
 				commits = append(commits, b...)
 			}
 			break

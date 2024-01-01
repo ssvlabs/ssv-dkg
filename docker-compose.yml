@@ -6,7 +6,6 @@ services:
       - shared_network
     ports:
       - "3030:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator1/config"]
     volumes:
       - ./examples:/data
@@ -17,7 +16,6 @@ services:
       - shared_network
     ports:
       - "3031:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator2/config"]
     volumes:
       - ./examples:/data
@@ -28,7 +26,6 @@ services:
       - shared_network
     ports:
       - "3032:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator3/config"]
     volumes:
       - ./examples:/data
@@ -39,7 +36,6 @@ services:
       - shared_network
     ports:
       - "3033:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator4/config"]
     volumes:
       - ./examples:/data
@@ -50,7 +46,6 @@ services:
       - shared_network
     ports:
       - "3034:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator5/config"]
     volumes:
       - ./examples:/data
@@ -61,7 +56,6 @@ services:
       - shared_network
     ports:
       - "3035:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator6/config"]
     volumes:
       - ./examples:/data
@@ -72,7 +66,6 @@ services:
       - shared_network
     ports:
       - "3036:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator7/config"]
     volumes:
       - ./examples:/data
@@ -83,7 +76,6 @@ services:
       - shared_network
     ports:
       - "3037:3030"
-    entrypoint: /app
     command: ["start-operator", "--configPath", "/data/operator8/config"]
     volumes:
       - ./examples:/data
@@ -97,7 +89,6 @@ services:
       - operator4
     networks:
       - shared_network
-    entrypoint: /app
     command: ["init", "--configPath", "/data/initiator/config"]
     volumes:
       - ./examples:/data
@@ -115,7 +106,6 @@ services:
       - operator8
     networks:
       - shared_network
-    entrypoint: /app
     command: ["reshare", "--configPath", "/data/initiator/config"]
     volumes:
       - ./examples:/data
@@ -129,7 +119,6 @@ services:
       - operator4
     networks:
       - shared_network
-    entrypoint: /app
     command:
       [
         "ping",
