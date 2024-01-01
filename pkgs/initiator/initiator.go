@@ -16,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sourcegraph/conc/iter"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -266,15 +264,37 @@ func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
 func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
-	results, err := iter.Mapper[*wire.Operator, []byte]{MaxGoroutines: len(operatorsIDs)}.
-		MapErr(operatorsIDs, func(operator **wire.Operator) ([]byte, error) {
-			result, err := c.SendAndCollect(c.Operators[(*operator).ID], method, msg)
-			if err != nil {
-				return nil, fmt.Errorf("operator ID: %d, %w", (*operator).ID, err)
+	resc := make(chan opReqResult, len(operatorsIDs))
+	for _, op := range operatorsIDs {
+		go func(operator Operator) {
+			res, err := c.SendAndCollect(operator, method, msg)
+			resc <- opReqResult{
+				operatorID: operator.ID,
+				err:        err,
+				result:     res,
 			}
-			return result, nil
-		})
-	return results, err
+		}(c.Operators[op.ID])
+	}
+	final := make([][]byte, 0, len(operatorsIDs))
+
+	errarr := make([]error, 0)
+
+	for i := 0; i < len(operatorsIDs); i++ {
+		res := <-resc
+		if res.err != nil {
+			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
+			continue
+		}
+		final = append(final, res.result)
+	}
+
+	finalerr := error(nil)
+
+	if len(errarr) > 0 {
+		finalerr = errors.Join(errarr...)
+	}
+
+	return final, finalerr
 }
 
 // parseAsError parses the error from an operator
