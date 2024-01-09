@@ -473,7 +473,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	err = cli_utils.WriteKeysharesResult(ksJson, dir, incMsg.Message.Identifier)
+	err = cli_utils.WriteKeysharesResult(ksJson, dir)
 	if err != nil {
 		return err
 	}
@@ -483,7 +483,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	err = cli_utils.WriteCeremonySigs(ceremonySigs, dir, incMsg.Message.Identifier)
+	err = cli_utils.WriteCeremonySigs(ceremonySigs, dir)
 	if err != nil {
 		return err
 	}

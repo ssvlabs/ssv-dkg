@@ -42,6 +42,7 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer logger.Sync()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {
@@ -81,11 +82,11 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		err = cli_utils.WriteKeysharesResult(keyShares, dir, id)
+		err = cli_utils.WriteKeysharesResult(keyShares, dir)
 		if err != nil {
 			logger.Fatal("😥 Failed to write new ceremony signatures: ", zap.Error(err))
 		}
-		err = cli_utils.WriteCeremonySigs(ceremonySigsNew, dir, id)
+		err = cli_utils.WriteCeremonySigs(ceremonySigsNew, dir)
 		if err != nil {
 			return err
 		}

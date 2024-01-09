@@ -2,7 +2,6 @@ package utils
 
 import (
 	"crypto/rsa"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,7 +37,6 @@ var (
 // init flags
 var (
 	OperatorsInfo                     string
-	OperatorsInfoPath                 string
 	OperatorIDs                       []string
 	GenerateInitiatorKeyIfNotExisting bool
 	WithdrawAddress                   common.Address
@@ -61,23 +59,27 @@ var (
 	PrivKeyPassword string
 	Port            uint64
 	OperatorID      uint64
-	DBPath          string
-	DBReporting     bool
-	DBGCInterval    string
 )
 
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("configYAML", cmd.PersistentFlags().Lookup("configYAML")); err != nil {
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
-	configYAML := viper.GetString("configYAML")
-	if configYAML != "" {
-		if _, err := os.Stat(configYAML); os.IsNotExist(err) {
-			return err
-		}
+	ConfigPath = viper.GetString("configPath")
+	var configPathYAML string
+	switch cmd.Use {
+	case "init":
+		configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
+	case "reshare":
+		configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
+	case "start-operator":
+		configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
+	}
+	_, err := os.Stat(configPathYAML)
+	if !os.IsNotExist(err) {
 		viper.SetConfigType("yaml")
-		viper.SetConfigFile(configYAML)
+		viper.SetConfigFile(configPathYAML)
 		if err := viper.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				return err
@@ -169,40 +171,25 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger
 func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
 	var opMap initiator.Operators
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
-	stat, err := os.Stat(operatorsInfoPath)
+	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
-	if stat.IsDir() {
-		filePath := operatorsInfoPath + "operators_info.json"
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("😥 Failed to find operator info file at provided path: %s", err)
-		}
-		opsfile, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-		}
-		opMap, err = initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
-		}
-	} else {
-		logger.Info("📖 reading operators info JSON file")
-		opsfile, err := os.ReadFile(operatorsInfoPath)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-		}
-		opMap, err = initiator.LoadOperatorsJson(opsfile)
-		if err != nil {
-			return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
-		}
+	logger.Info("📖 reading operators info JSON file")
+	opsfile, err := os.ReadFile(operatorsInfoPath)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+	}
+	opMap, err = initiator.LoadOperatorsJson(opsfile)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 	}
 	return opMap, nil
 }
 
 func SetBaseFlags(cmd *cobra.Command) {
-	flags.ConfigYAMLFlag(cmd)
 	flags.ResultPathFlag(cmd)
+	flags.ConfigPathFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
 	flags.LogLevelFormatFlag(cmd)
@@ -212,9 +199,7 @@ func SetBaseFlags(cmd *cobra.Command) {
 
 func SetInitFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
-	flags.ConfigPathFlag(cmd)
 	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
@@ -226,9 +211,7 @@ func SetInitFlags(cmd *cobra.Command) {
 
 func SetReshareFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
-	flags.ConfigPathFlag(cmd)
 	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
 	flags.NewOperatorIDsFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
 	flags.CeremonySigsFilePathFlag(cmd)
@@ -240,9 +223,6 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
 	flags.OperatorIDFlag(cmd)
-	flags.DBPathFlag(cmd)
-	flags.DBReportingFlag(cmd)
-	flags.DBGCIntervalFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -267,15 +247,11 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
-	stat, err := os.Stat(OutputPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
 	if strings.Contains(OutputPath, "../") {
 		return fmt.Errorf("😥 outputPath should not contain traversal")
 	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 path to store results isnt a folder %s", err.Error())
+	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
+		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")
@@ -302,9 +278,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
@@ -312,6 +285,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
+	if strings.Contains(ConfigPath, "../") {
+		return fmt.Errorf("😥 configPath should not contain traversal")
+	}
 	stat, err := os.Stat(ConfigPath)
 	if err != nil {
 		return fmt.Errorf("😥 %s", err)
@@ -319,24 +295,11 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if !stat.IsDir() {
 		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
-	if strings.Contains(ConfigPath, "../") {
-		return fmt.Errorf("😥 configPath should not contain traversal")
-	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfo == "" && OperatorsInfoPath == "" {
-		return fmt.Errorf("😥 Operators string or path have not provided")
-	}
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 operatorsInfoPath should not contain traversal")
-	}
-	if OperatorsInfo != "" && OperatorsInfoPath != "" {
-		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
-	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
@@ -398,9 +361,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
 		return err
 	}
@@ -419,13 +379,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfo == "" && OperatorsInfoPath == "" {
-		return fmt.Errorf("😥 Operators string or path have not provided")
-	}
-	if OperatorsInfo != "" && OperatorsInfoPath != "" {
-		return fmt.Errorf("😥 Please provide either operator info string or path, not both")
-	}
 	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
 	if len(NewOperatorIDs) == 0 {
 		return fmt.Errorf("😥 New operator IDs flag cant be empty")
@@ -478,15 +431,6 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorID", cmd.PersistentFlags().Lookup("operatorID")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("DBPath", cmd.PersistentFlags().Lookup("DBPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("DBReporting", cmd.PersistentFlags().Lookup("DBReporting")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("DBGCInterval", cmd.PersistentFlags().Lookup("DBGCInterval")); err != nil {
-		return err
-	}
 	PrivKey = viper.GetString("privKey")
 	PrivKeyPassword = viper.GetString("privKeyPassword")
 	if PrivKey == "" {
@@ -503,12 +447,6 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if OperatorID == 0 {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
-	DBPath = viper.GetString("DBPath")
-	if strings.Contains(DBPath, "../") {
-		return fmt.Errorf("😥 DBPath should not contain traversal")
-	}
-	DBReporting = viper.GetBool("DBReporting")
-	DBGCInterval = viper.GetString("DBGCInterval")
 	return nil
 }
 
@@ -537,16 +475,16 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 
 // LoadOperators loads operators data from raw json or file path
 func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
-	opmap := make(map[uint64]initiator.Operator)
+	var opmap map[uint64]initiator.Operator
 	var err error
 	if OperatorsInfo != "" {
 		opmap, err = initiator.LoadOperatorsJson([]byte(OperatorsInfo))
 		if err != nil {
 			return nil, err
 		}
-	}
-	if OperatorsInfoPath != "" {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
+	} else {
+		operatorsInfoPath := fmt.Sprintf("%s/operators_info.json", ConfigPath)
+		opmap, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -607,7 +545,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ids [][24]byte, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
+func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
 	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -629,38 +567,41 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
 		}
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", nestedDir))
-		err = WriteKeysharesResult(keySharesArr[i], nestedDir, ids[i])
+		err = WriteKeysharesResult(keySharesArr[i], nestedDir)
 		if err != nil {
 			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
-		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir, ids[i])
+		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir)
 		if err != nil {
 			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
 		}
 	}
-	if Validators > 1 {
-		// Write all to one JSON file
-		depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
-		logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
-		err := utils.WriteJSON(depositFinalPath, depositDataArr)
-		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
-		}
-		keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-		aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
-		if err != nil {
-			logger.Fatal("error: ", zap.Error(err))
-		}
-		err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
-		if err != nil {
-			logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
-		}
+	// Write all to one JSON file
+	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
+	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
+	err = utils.WriteJSON(depositFinalPath, depositDataArr)
+	if err != nil {
+		logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+	}
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
+	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
+	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+	if err != nil {
+		logger.Fatal("error: ", zap.Error(err))
+	}
+	err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
+	if err != nil {
+		logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+	}
+	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
+	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
+	if err != nil {
+		logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
 	}
 }
 
-func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string, id [24]byte) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d-%s.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce, hex.EncodeToString(id[:]))
+func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce)
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
@@ -677,8 +618,8 @@ func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) erro
 	return nil
 }
 
-func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string, id [24]byte) error {
-	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, hex.EncodeToString(id[:]))
+func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
+	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, ceremonySigs.ValidatorPubKey)
 	err := utils.WriteJSON(finalPath, ceremonySigs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)

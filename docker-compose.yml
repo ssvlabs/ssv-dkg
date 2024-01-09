@@ -6,9 +6,7 @@ services:
       - shared_network
     ports:
       - "3030:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator1.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator1/config"]
     volumes:
       - ./examples:/data
 
@@ -18,9 +16,7 @@ services:
       - shared_network
     ports:
       - "3031:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator2.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator2/config"]
     volumes:
       - ./examples:/data
 
@@ -30,9 +26,7 @@ services:
       - shared_network
     ports:
       - "3032:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator3.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator3/config"]
     volumes:
       - ./examples:/data
 
@@ -42,9 +36,7 @@ services:
       - shared_network
     ports:
       - "3033:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator4.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator4/config"]
     volumes:
       - ./examples:/data
 
@@ -54,9 +46,7 @@ services:
       - shared_network
     ports:
       - "3034:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator5.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator5/config"]
     volumes:
       - ./examples:/data
 
@@ -66,9 +56,7 @@ services:
       - shared_network
     ports:
       - "3035:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator6.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator6/config"]
     volumes:
       - ./examples:/data
 
@@ -78,9 +66,7 @@ services:
       - shared_network
     ports:
       - "3036:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator7.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator7/config"]
     volumes:
       - ./examples:/data
 
@@ -90,9 +76,7 @@ services:
       - shared_network
     ports:
       - "3037:3030"
-    entrypoint: /app
-    command:
-      ["start-operator", "--configYAML", "/data/config/operator8.example.yaml"]
+    command: ["start-operator", "--configPath", "/data/operator8/config"]
     volumes:
       - ./examples:/data
 
@@ -105,8 +89,7 @@ services:
       - operator4
     networks:
       - shared_network
-    entrypoint: /app
-    command: ["init", "--configYAML", "/data/config/initiator.example.yaml"]
+    command: ["init", "--configPath", "/data/initiator/config"]
     volumes:
       - ./examples:/data
 
@@ -123,8 +106,7 @@ services:
       - operator8
     networks:
       - shared_network
-    entrypoint: /app
-    command: ["reshare", "--configYAML", "/data/config/reshare.example.yaml"]
+    command: ["reshare", "--configPath", "/data/initiator/config"]
     volumes:
       - ./examples:/data
 
@@ -137,7 +119,6 @@ services:
       - operator4
     networks:
       - shared_network
-    entrypoint: /app
     command:
       [
         "ping",

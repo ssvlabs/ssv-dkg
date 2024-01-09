@@ -3,8 +3,8 @@ keysharesFilePath: /data/output/ceremony-2023-12-19T09:10:16Z/0x8ae4fd02e6b98785
 ceremonySigsFilePath: /data/output/ceremony-2023-12-19T09:10:16Z/0x8ae4fd02e6b98785418feaf833e860b56c2e6ac9c309d638d3ceda9919367d066cb2e3f0f4433f15766071c48874e7a3/ceremony_sigs-888aa797194f4332bbcd2a048ca429b63cca47789201b3bb.json
 operatorsInfoPath: /data/operators_info.json
 outputPath: /data/output
+configPath: /data/config
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/output/initiator_debug.log
-configPath: /data/config

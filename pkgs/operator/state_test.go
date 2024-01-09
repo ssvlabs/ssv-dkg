@@ -56,9 +56,7 @@ func TestCreateInstance(t *testing.T) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 		pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 		s := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -109,9 +107,7 @@ func TestInitInstance(t *testing.T) {
 	privateKey, ops := generateOperatorsData(t, 4)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -188,9 +184,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	logger := zap.L().Named("state-tests")
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value

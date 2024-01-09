@@ -75,13 +75,13 @@ func TestStartDKG(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		_, _, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "minimum supported amount of operators is 4")
+		require.ErrorContains(t, err, "wrong operators len: < 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
 		_, _, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
-		require.ErrorContains(t, err, "maximum supported amount of operators is 13")
+		require.ErrorContains(t, err, "wrong operators len: > 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		initiator := initiator.New(priv, ops, logger, "v1.0.2")
@@ -161,14 +161,49 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "minimum supported amount of operators is 4",
+			errMsg:  "wrong operators len: < 4",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
+		},
+		{
+			name:    "not valid number of operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
+			ops:     nil, // doesn't matter should fail before
+			wantErr: true,
+			errMsg:  "amount of operators should be 4,7,10,13",
 		},
 		{
 			name:    "more than 13 operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "maximum supported amount of operators is 13",
+			errMsg:  "wrong operators len: > 13",
 		},
 		{
 			name:    "duplicate operators",
@@ -178,7 +213,25 @@ func TestValidateDKGParams(t *testing.T) {
 			errMsg:  "operators ids should be unique in the list",
 		},
 		{
-			name:    "valid operators",
+			name:    "4 valid operators",
+			ids:     []uint64{1, 2, 3, 4},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "7 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "10 valid operators",
+			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			ops:     ops_1_13,
+			wantErr: false,
+		},
+		{
+			name:    "13 valid operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
 			ops:     ops_1_13,
 			wantErr: false,

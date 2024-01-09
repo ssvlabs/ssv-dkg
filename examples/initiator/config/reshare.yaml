@@ -1,0 +1,9 @@
+newOperatorIDs: [5, 6, 7, 8]
+keysharesFilePath: /data/initiator/output/ceremony-2024-01-09T09:56:06Z/0x8a666e3fdc776fed2dbc121c53615653b72b35aa1a48e56a665d0bf76b390c0a554810fec5d3a6e42e3529a862df6cb0/keyshares-0x8a666e3fdc776fed2dbc121c53615653b72b35aa1a48e56a665d0bf76b390c0a554810fec5d3a6e42e3529a862df6cb0-0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494-7.json
+ceremonySigsFilePath: /data/initiator/output/ceremony-2024-01-09T09:56:06Z/0x8a666e3fdc776fed2dbc121c53615653b72b35aa1a48e56a665d0bf76b390c0a554810fec5d3a6e42e3529a862df6cb0/ceremony_sigs-0x8a666e3fdc776fed2dbc121c53615653b72b35aa1a48e56a665d0bf76b390c0a554810fec5d3a6e42e3529a862df6cb0.json
+outputPath: /data/initiator/output
+configPath: /data/initiator/config
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/initiator/output/initiator_debug.log

@@ -1,9 +1,11 @@
 package initiator
 
 import (
+	"context"
+	"encoding/hex"
 	"fmt"
-	"sync"
 
+	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -11,6 +13,11 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+)
+
+const (
+	// maxConcurrency is the maximum number of DKG inits to run concurrently.
+	maxConcurrency = 20
 )
 
 func init() {
@@ -38,6 +45,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer logger.Sync()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		// Load operators TODO: add more sources.
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
@@ -53,54 +61,61 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(privateKey, opMap, logger, cmd.Version)
 		ethnetwork := e2m_core.MainNetwork
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
 		// start the ceremony
-		var wg sync.WaitGroup
-		resultChan := make(chan *Result)
+		ctx := context.Background()
+		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
 		for i := 0; i < int(cli_utils.Validators); i++ {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				// create a new ID
+			i := i
+			pool.Go(func(ctx context.Context) (*Result, error) {
+				// Create new DKG initiator
+				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version)
+
+				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
+
+				// Perform the ceremony.
 				depositData, keyShares, ceremonySigs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
-				resultChan <- &Result{
+				if err != nil {
+					return nil, err
+				}
+				logger.Debug("DKG ceremony completed",
+					zap.String("id", hex.EncodeToString(id[:])),
+					zap.Uint64("nonce", nonce),
+					zap.String("pubkey", depositData.PubKey),
+				)
+				return &Result{
 					id:           id,
 					depositData:  depositData,
 					keyShares:    keyShares,
-					nonce:        nonce,
 					ceremonySigs: ceremonySigs,
-					err:          err,
-				}
-			}(i)
+					nonce:        nonce,
+				}, nil
+			})
 		}
-		go func() {
-			wg.Wait()
-			close(resultChan)
-		}()
+		results, err := pool.Wait()
+		if err != nil {
+			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
+		}
 		var depositDataArr []*initiator.DepositDataJson
 		var keySharesArr []*initiator.KeyShares
+		var ceremonySigsArr []*initiator.CeremonySigs
 		var ids [][24]byte
 		var nonces []uint64
-		var ceremonySigsArr []*initiator.CeremonySigs
-		for res := range resultChan {
-			if res.err != nil {
-				logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(res.err))
-			}
+		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
+			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
 			ids = append(ids, res.id)
 			nonces = append(nonces, res.nonce)
-			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, ceremonySigsArr, logger)
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒

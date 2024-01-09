@@ -50,6 +50,14 @@ type OperatorDataJson struct {
 // Operators mapping storage for operator structs [ID]operator
 type Operators map[uint64]Operator
 
+func (o Operators) Clone() Operators {
+	clone := make(Operators)
+	for k, v := range o {
+		clone[k] = v
+	}
+	return clone
+}
+
 // Initiator main structure for initiator
 type Initiator struct {
 	Logger     *zap.Logger                            // logger
@@ -115,6 +123,7 @@ type pongResult struct {
 }
 
 type CeremonySigs struct {
+	ValidatorPubKey    string   `json:"validator"`
 	OperatorIDs        []uint64 `json:"operatorIds"`
 	Sigs               string   `json:"ceremonySigs"`
 	InitiatorPublicKey string   `json:"initiatorPublicKey"`
@@ -374,11 +383,13 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
 func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
 	if len(ids) < 4 {
-		return nil, fmt.Errorf("minimum supported amount of operators is 4")
+		return nil, fmt.Errorf("wrong operators len: < 4")
 	}
-	// limit amount of operators
 	if len(ids) > 13 {
-		return nil, fmt.Errorf("maximum supported amount of operators is 13")
+		return nil, fmt.Errorf("wrong operators len: > 13")
+	}
+	if len(ids)%3 != 1 {
+		return nil, fmt.Errorf("amount of operators should be 4,7,10,13")
 	}
 
 	ops := make([]*wire.Operator, 0)
@@ -483,19 +494,19 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCredentials []byte, validatorPubKey *bls.PublicKey, network eth2_key_manager_core.Network, sigDepositShares []*bls.Sign, sharePks []*bls.PublicKey) (*DepositDataJson, error) {
 	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, network, dkg.MaxEffectiveBalanceInGwei)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
 	}
 	// Verify partial signatures and recovered threshold signature
 	err = crypto.VerifyPartialSigs(sigDepositShares, sharePks, shareRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to verify partial signatures: %v", err)
 	}
 
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
 	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(IDs, sharePks)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to recover validator public key from shares: %v", err)
 	}
 
 	if !bytes.Equal(validatorPubKey.Serialize(), validatorRecoveredPK.Serialize()) {
@@ -504,7 +515,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCreden
 	// 2. Recover master signature from shares
 	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(IDs, sigDepositShares)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
 	if !reconstructedDepositMasterSig.VerifyByte(validatorPubKey, shareRoot) {
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
@@ -512,12 +523,12 @@ func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCreden
 
 	depositData, root, err := crypto.DepositData(reconstructedDepositMasterSig.Serialize(), withdrawCredentials, validatorPubKey.Serialize(), network, dkg.MaxEffectiveBalanceInGwei)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute deposit data: %v", err)
 	}
 	// Verify deposit data
 	depositVerRes, err := crypto.VerifyDepositData(depositData, network)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to verify deposit data: %v", err)
 	}
 	if !depositVerRes {
 		return nil, fmt.Errorf("deposit data is invalid")
@@ -527,7 +538,10 @@ func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCreden
 		Amount:                dkg.MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
-	depositMsgRoot, _ := depositMsg.HashTreeRoot()
+	depositMsgRoot, err := depositMsg.HashTreeRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute deposit message root: %v", err)
+	}
 	// Final checks of prepared deposit data
 	if !bytes.Equal(depositData.PublicKey[:], validatorRecoveredPK.Serialize()) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositData.PublicKey[:])
@@ -992,7 +1006,10 @@ func VerifyDepositData(depsitDataJson *DepositDataJson, withdrawCred []byte, own
 		Amount:                dkg.MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
-	depositMsgRoot, _ := depositMsg.HashTreeRoot()
+	depositMsgRoot, err := depositMsg.HashTreeRoot()
+	if err != nil {
+		return fmt.Errorf("failed to compute deposit message root: %v", err)
+	}
 	if !bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)) {
 		return fmt.Errorf("wrong DepositMessageRoot at result")
 	}
@@ -1109,5 +1126,6 @@ func (c *Initiator) GetCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, err
 		return nil, err
 	}
 	ceremonySigs.InitiatorPublicKey = hex.EncodeToString(encInitPub)
+	ceremonySigs.ValidatorPubKey = "0x" + hex.EncodeToString(dkgResults[0].ValidatorPubKey)
 	return ceremonySigs, nil
 }
