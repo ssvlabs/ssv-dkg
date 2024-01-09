@@ -14,6 +14,7 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -399,15 +400,11 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	ceremonySig, err := o.GetCeremonySig(secretKeyBLS)
 	if err != nil {
 		o.broadcastError(err)
 		return err
 	}
-	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
-	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
-	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
-	ceremonySig, err := o.signFunc(dataToSign)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -480,15 +477,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
-	if err != nil {
-		o.broadcastError(err)
-		return err
-	}
-	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
-	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
-	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
-	ceremonySig, err := o.signFunc(dataToSign)
+	ceremonySig, err := o.GetCeremonySig(secretKeyBLS)
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -855,4 +844,15 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]dkg.Node, error) {
 		})
 	}
 	return nodes, nil
+}
+
+func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error) {
+	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
+	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
+	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
+	return o.signFunc(dataToSign)
 }
