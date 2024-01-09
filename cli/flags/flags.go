@@ -34,6 +34,7 @@ const (
 	DBGCInterval                      = "DBGCInterval"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
+	configFileName                    = "configFileName"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -153,6 +154,10 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
+}
+
+func ConfigFileNameFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, configFileName, "", "Configuration file name: *.yaml", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
