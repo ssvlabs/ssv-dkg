@@ -66,15 +66,31 @@ func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("configFileName", cmd.PersistentFlags().Lookup("configFileName")); err != nil {
+		return err
+	}
 	ConfigPath = viper.GetString("configPath")
+	configFileName := viper.GetString("configFileName")
 	var configPathYAML string
 	switch cmd.Use {
 	case "init":
-		configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
+		if configFileName != "" {
+			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
+		} else {
+			configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
+		}
 	case "reshare":
-		configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
+		if configFileName != "" {
+			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
+		} else {
+			configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
+		}
 	case "start-operator":
-		configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
+		if configFileName != "" {
+			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
+		} else {
+			configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
+		}
 	}
 	_, err := os.Stat(configPathYAML)
 	if !os.IsNotExist(err) {
@@ -190,6 +206,7 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initia
 func SetBaseFlags(cmd *cobra.Command) {
 	flags.ResultPathFlag(cmd)
 	flags.ConfigPathFlag(cmd)
+	flags.ConfigFileNameFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
 	flags.LogLevelFormatFlag(cmd)
@@ -234,6 +251,9 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("outputPath", cmd.PersistentFlags().Lookup("outputPath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("logLevel", cmd.PersistentFlags().Lookup("logLevel")); err != nil {
 		return err
 	}
@@ -246,12 +266,27 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
 		return err
 	}
+	ConfigPath = viper.GetString("configPath")
+	if strings.Contains(ConfigPath, "../") {
+		return fmt.Errorf("😥 configPath should not contain traversal")
+	}
+	stat, err := os.Stat(ConfigPath)
+	if err != nil {
+		return fmt.Errorf("😥 %s", err)
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 configPath isnt a folder path")
+	}
 	OutputPath = viper.GetString("outputPath")
 	if strings.Contains(OutputPath, "../") {
 		return fmt.Errorf("😥 outputPath should not contain traversal")
 	}
-	if stat, err := os.Stat(OutputPath); err != nil || !stat.IsDir() {
-		return fmt.Errorf("😥 Error to to open path to store results %s", err.Error())
+	stat, err = os.Stat(OutputPath)
+	if err != nil {
+		return fmt.Errorf("😥 %s", err)
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("😥 outputPath isnt a folder path")
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")
@@ -269,9 +304,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
 		return err
 	}
@@ -283,17 +315,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	}
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
-	}
-	ConfigPath = viper.GetString("configPath")
-	if strings.Contains(ConfigPath, "../") {
-		return fmt.Errorf("😥 configPath should not contain traversal")
-	}
-	stat, err := os.Stat(ConfigPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
@@ -355,9 +376,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
 		return err
 	}
@@ -369,14 +387,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	}
 	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
 		return err
-	}
-	ConfigPath = viper.GetString("configPath")
-	stat, err := os.Stat(ConfigPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 configPath isnt a folder path")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
@@ -390,7 +400,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if strings.Contains(KeysharesFilePath, "../") {
 		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
 	}
-	stat, err = os.Stat(KeysharesFilePath)
+	stat, err := os.Stat(KeysharesFilePath)
 	if err != nil {
 		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
 	}
