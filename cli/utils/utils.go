@@ -76,27 +76,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 	}
 	ConfigPath = viper.GetString("configPath")
 	configFileName := viper.GetString("configFileName")
-	var configPathYAML string
-	switch cmd.Use {
-	case "init":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
-		}
-	case "reshare":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
-		}
-	case "start-operator":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
-		}
-	}
+	configPathYAML := getConfigurationPath(cmd.Use, ConfigPath, configFileName)
 	_, err := os.Stat(configPathYAML)
 	if !os.IsNotExist(err) {
 		viper.SetConfigType("yaml")
@@ -109,6 +89,25 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return nil
 	}
 	return nil
+}
+
+func getConfigurationPath(cmdUse, configPath, configFileName string) string {
+	var configPathYAML string
+	fileName := "config.yaml" // default file name
+	switch cmdUse {
+	case "init":
+		fileName = "init.yaml"
+	case "reshare":
+		fileName = "reshare.yaml"
+	case "start-operator":
+		// fileName is already set to "config.yaml" by default
+	}
+	if configFileName != "" {
+		configPathYAML = fmt.Sprintf("%s/%s", configPath, configFileName)
+	} else {
+		configPathYAML = fmt.Sprintf("%s/%s", configPath, fileName)
+	}
+	return configPathYAML
 }
 
 // SetGlobalLogger creates a logger
@@ -276,27 +275,15 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if strings.Contains(ConfigPath, "../") {
 		return fmt.Errorf("😥 configPath should not contain traversal")
 	}
-	if _, err := os.Stat(ConfigPath); err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(ConfigPath, os.ModePerm); err != nil {
-				return fmt.Errorf("😥 cant create %s: %w", ConfigPath, err)
-			}
-		} else {
-			return fmt.Errorf("😥 %s", err)
-		}
+	if err := createDirIfNotExist(ConfigPath); err != nil {
+		return err
 	}
 	OutputPath = viper.GetString("outputPath")
 	if strings.Contains(OutputPath, "../") {
 		return fmt.Errorf("😥 outputPath should not contain traversal")
 	}
-	if _, err := os.Stat(OutputPath); err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(OutputPath, os.ModePerm); err != nil {
-				return fmt.Errorf("😥 cant create %s: %w", OutputPath, err)
-			}
-		} else {
-			return fmt.Errorf("😥 %s", err)
-		}
+	if err := createDirIfNotExist(OutputPath); err != nil {
+		return err
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")
@@ -654,6 +641,22 @@ func WriteInstanceID(dir string, id [24]byte) error {
 	err := utils.WriteJSON(instanceIdPath, hex.EncodeToString(id[:]))
 	if err != nil {
 		return fmt.Errorf("failed writing instance ID file: %w, %s", err, hex.EncodeToString(id[:]))
+	}
+	return nil
+}
+
+func createDirIfNotExist(path string) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			// Directory does not exist, try to create it
+			if err := os.MkdirAll(path, os.ModePerm); err != nil {
+				// Failed to create the directory
+				return fmt.Errorf("😥 can't create %s: %w", path, err)
+			}
+		} else {
+			// Some other error occurred
+			return fmt.Errorf("😥 %s", err)
+		}
 	}
 	return nil
 }

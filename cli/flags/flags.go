@@ -104,7 +104,7 @@ func OperatorPortFlag(c *cobra.Command) {
 
 // ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: config.yaml, init.yaml reshare.yaml initiator_encrypted_key.json initiator_password operators_info.json", false)
+	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: for operator - config.yaml; for initiator - init.yaml, reshare.yaml, initiator_encrypted_key.json, initiator_password, operators_info.json", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
