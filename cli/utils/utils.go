@@ -276,23 +276,27 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if strings.Contains(ConfigPath, "../") {
 		return fmt.Errorf("😥 configPath should not contain traversal")
 	}
-	stat, err := os.Stat(ConfigPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 configPath isnt a folder path")
+	if _, err := os.Stat(ConfigPath); err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(ConfigPath, os.ModePerm); err != nil {
+				return fmt.Errorf("😥 cant create %s: %w", ConfigPath, err)
+			}
+		} else {
+			return fmt.Errorf("😥 %s", err)
+		}
 	}
 	OutputPath = viper.GetString("outputPath")
 	if strings.Contains(OutputPath, "../") {
 		return fmt.Errorf("😥 outputPath should not contain traversal")
 	}
-	stat, err = os.Stat(OutputPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 outputPath isnt a folder path")
+	if _, err := os.Stat(OutputPath); err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(OutputPath, os.ModePerm); err != nil {
+				return fmt.Errorf("😥 cant create %s: %w", OutputPath, err)
+			}
+		} else {
+			return fmt.Errorf("😥 %s", err)
+		}
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")

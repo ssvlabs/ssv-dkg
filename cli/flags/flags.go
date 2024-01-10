@@ -124,12 +124,12 @@ func LogLevelFormatFlag(c *cobra.Command) {
 
 // LogFilePathFlag file path to write logs into
 func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./logs/debug.log", "Defines a file path to write logs into", false)
+	AddPersistentStringFlag(c, logFilePath, "debug.log", "Defines a file path to write logs into", false)
 }
 
 // DBPathFlag adds path for storage flag to the command
 func DBPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, DBPath, "./data/db", "Path for storage", false)
+	AddPersistentStringFlag(c, DBPath, "./db", "Path for storage", false)
 }
 
 // DBReportingFlag adds flag to run on-off db size reporting to the command
