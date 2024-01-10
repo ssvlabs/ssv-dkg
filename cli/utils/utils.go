@@ -581,17 +581,17 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		if err != nil {
 			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
 		}
-		logger.Info("💾 Writing deposit data json to file", zap.String("path", nestedDir))
+		logger.Info("💾 Writing deposit data json", zap.String("path", nestedDir))
 		err = WriteDepositResult(depositDataArr[i], nestedDir)
 		if err != nil {
 			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
 		}
-		logger.Info("💾 Writing keyshares payload to file", zap.String("path", nestedDir))
+		logger.Info("💾 Writing keyshares payload", zap.String("path", nestedDir))
 		err = WriteKeysharesResult(keySharesArr[i], nestedDir, ids[i])
 		if err != nil {
 			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
-		logger.Info("💾 Writing instance ID to file", zap.String("path", nestedDir))
+		logger.Info("💾 Writing instance ID", zap.String("path", nestedDir))
 		err = WriteInstanceID(nestedDir, ids[i])
 		if err != nil {
 			logger.Fatal("Failed writing instance ID file: ", zap.Error(err), zap.String("path", nestedDir), zap.String("ID", hex.EncodeToString(ids[i][:])))
@@ -613,10 +613,10 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 	}
 	err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
 	if err != nil {
-		logger.Fatal("Failed writing instance IDs to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+		logger.Fatal("Failed writing keyshares payload to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 	}
 	instanceIdsPath := fmt.Sprintf("%s/instance_id.json", dir)
-	logger.Info("💾 Writing instance IDs to file", zap.String("path", keysharesFinalPath))
+	logger.Info("💾 Writing instance IDs to file", zap.String("path", instanceIdsPath))
 	var idsArr []string
 	for _, id := range ids {
 		idsArr = append(idsArr, hex.EncodeToString(id[:]))
