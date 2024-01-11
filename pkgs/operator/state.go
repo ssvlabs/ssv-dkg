@@ -168,6 +168,9 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 			if err != nil {
 				return nil, nil, err
 			}
+			if secretShare == nil {
+				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
+			}
 			owner.SecretShare = &kyber_dkg.DistKeyShare{
 				Commits: commits,
 				Share:   secretShare,
