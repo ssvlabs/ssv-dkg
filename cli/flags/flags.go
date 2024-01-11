@@ -89,7 +89,7 @@ func PrivateKeyFlag(c *cobra.Command) {
 
 // GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
 func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, true, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
