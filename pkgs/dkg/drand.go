@@ -405,10 +405,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return err
 	}
-	if err != nil {
-		o.broadcastError(err)
-		return err
-	}
 	out := Result{
 		RequestID:                  o.data.reqID,
 		EncryptedShare:             ciphertext,
