@@ -413,11 +413,11 @@ func TestRecoverSharesData(t *testing.T) {
 		}
 		kyberPrivShares = append(kyberPrivShares, kyberPrivShare)
 		// TODO: Recover pub commits
-		kyberPubhare := &share.PubShare{
+		kyberPubShare := &share.PubShare{
 			I: int(i),
 			V: suite.G1().Point().Mul(kyberPrivShare.V, nil),
 		}
-		kyberPubShares = append(kyberPubShares, kyberPubhare)
+		kyberPubShares = append(kyberPubShares, kyberPubShare)
 	}
 	var kyberPubSharesFromPubs []*share.PubShare
 	for i, pubk := range pubKeys {
@@ -427,13 +427,20 @@ func TestRecoverSharesData(t *testing.T) {
 		v := suite.G1().Point()
 		err = v.UnmarshalBinary(blsPub.Serialize())
 		require.NoError(t, err)
-		kyberPubhare := &share.PubShare{
+		kyberPubShare := &share.PubShare{
 			I: int(i),
 			V: v,
 		}
-		kyberPubSharesFromPubs = append(kyberPubSharesFromPubs, kyberPubhare)
+		kyberPubSharesFromPubs = append(kyberPubSharesFromPubs, kyberPubShare)
 	}
-	// require.Equal(t, kyberPubSharesFromPubs, kyberPubShares)
+	for i := 0; i < len(kyberPubSharesFromPubs); i++ {
+		vFromPubs, err := kyberPubSharesFromPubs[i].V.MarshalBinary()
+		require.NoError(t, err)
+		v, err := kyberPubShares[i].V.MarshalBinary()
+		require.NoError(t, err)
+		require.Equal(t, v, vFromPubs)
+		require.Equal(t, kyberPubSharesFromPubs[i].I, kyberPubShares[i].I)
+	}
 	secretPoly, err := share.RecoverPriPoly(suite.G1(), kyberPrivShares, 3, operatorCount)
 	coefs := secretPoly.Coefficients()
 	t.Logf("Ploly len %d", len(coefs))
