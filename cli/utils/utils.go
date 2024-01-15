@@ -40,6 +40,7 @@ var (
 // init flags
 var (
 	OperatorsInfo                     string
+	OperatorsInfoPath                 string
 	OperatorIDs                       []string
 	GenerateInitiatorKeyIfNotExisting bool
 	WithdrawAddress                   common.Address
@@ -71,43 +72,25 @@ func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("configFileName", cmd.PersistentFlags().Lookup("configFileName")); err != nil {
-		return err
-	}
 	ConfigPath = viper.GetString("configPath")
-	configFileName := viper.GetString("configFileName")
-	configPathYAML := getConfigurationPath(cmd.Use, ConfigPath, configFileName)
-	_, err := os.Stat(configPathYAML)
-	if !os.IsNotExist(err) {
-		viper.SetConfigType("yaml")
-		viper.SetConfigFile(configPathYAML)
-		if err := viper.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return err
-			}
+	if ConfigPath != "" {
+		if strings.Contains(ConfigPath, "../") {
+			return fmt.Errorf("😥 configPath should not contain traversal")
 		}
-		return nil
+		stat, err := os.Stat(ConfigPath)
+		if err != nil {
+			return err
+		}
+		if stat.IsDir() {
+			return fmt.Errorf("configPath flag should be a path to a *.yaml file, but dir provided")
+		}
+		viper.SetConfigType("yaml")
+		viper.SetConfigFile(ConfigPath)
+		if err := viper.ReadInConfig(); err != nil {
+			return err
+		}
 	}
 	return nil
-}
-
-func getConfigurationPath(cmdUse, configPath, configFileName string) string {
-	var configPathYAML string
-	fileName := "config.yaml" // default file name
-	switch cmdUse {
-	case "init":
-		fileName = "init.yaml"
-	case "reshare":
-		fileName = "reshare.yaml"
-	case "start-operator":
-		// fileName is already set to "config.yaml" by default
-	}
-	if configFileName != "" {
-		configPathYAML = fmt.Sprintf("%s/%s", configPath, configFileName)
-	} else {
-		configPathYAML = fmt.Sprintf("%s/%s", configPath, fileName)
-	}
-	return configPathYAML
 }
 
 // SetGlobalLogger creates a logger
@@ -210,7 +193,6 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initia
 func SetBaseFlags(cmd *cobra.Command) {
 	flags.ResultPathFlag(cmd)
 	flags.ConfigPathFlag(cmd)
-	flags.ConfigFileNameFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
 	flags.LogLevelFormatFlag(cmd)
@@ -221,6 +203,7 @@ func SetBaseFlags(cmd *cobra.Command) {
 func SetInitFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
@@ -256,9 +239,6 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("outputPath", cmd.PersistentFlags().Lookup("outputPath")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("logLevel", cmd.PersistentFlags().Lookup("logLevel")); err != nil {
 		return err
 	}
@@ -269,13 +249,6 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
-		return err
-	}
-	ConfigPath = viper.GetString("configPath")
-	if strings.Contains(ConfigPath, "../") {
-		return fmt.Errorf("😥 configPath should not contain traversal")
-	}
-	if err := createDirIfNotExist(ConfigPath); err != nil {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
@@ -313,11 +286,24 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
+	if OperatorsInfoPath != "" && OperatorsInfo != "" {
+		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+	}
+	if OperatorsInfoPath == "" && OperatorsInfo == "" {
+		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
@@ -477,11 +463,13 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 			return nil, err
 		}
 	} else {
-		operatorsInfoPath := fmt.Sprintf("%s/operators_info.json", ConfigPath)
-		opmap, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
+		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if opmap == nil {
+		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
 	return opmap, nil
 }
@@ -489,8 +477,8 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 // LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
 func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	var privateKey *rsa.PrivateKey
-	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", ConfigPath)
-	privKeyPassPath := fmt.Sprintf("%s/initiator_password", ConfigPath)
+	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", OutputPath)
+	privKeyPassPath := fmt.Sprintf("%s/initiator_password", OutputPath)
 	if generate {
 		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
 			_, priv, err := rsaencryption.GenerateKeys()

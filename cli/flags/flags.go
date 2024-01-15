@@ -14,6 +14,7 @@ const (
 	newOperatorIDs                    = "newOperatorIDs"
 	oldID                             = "oldID"
 	operatorsInfo                     = "operatorsInfo"
+	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
 	privKeyPassword                   = "privKeyPassword"
 	configPath                        = "configPath"
@@ -34,7 +35,6 @@ const (
 	DBGCInterval                      = "DBGCInterval"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
-	configFileName                    = "configFileName"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -65,6 +65,11 @@ func OldIDFlag(c *cobra.Command) {
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
+}
+
+// OperatorsInfoFlag  adds path to operators' ifo file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. { 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }", false)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -104,7 +109,7 @@ func OperatorPortFlag(c *cobra.Command) {
 
 // ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: for operator - config.yaml; for initiator - init.yaml, reshare.yaml, initiator_encrypted_key.json, initiator_password, operators_info.json", false)
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
@@ -154,10 +159,6 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
-}
-
-func ConfigFileNameFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configFileName, "", "Configuration file name: *.yaml", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
