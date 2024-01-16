@@ -93,6 +93,10 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	if err != nil {
 		return nil, nil, err
 	}
+	// sanity check of operator ID
+	if s.OperatorID != operatorID {
+		return nil, nil, fmt.Errorf("wrong operator ID")
+	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
 		bchan <- msg
@@ -135,6 +139,10 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	operatorID, err := GetOperatorID(allOps, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
+	}
+	// sanity check of operator ID
+	if s.OperatorID != operatorID {
+		return nil, nil, fmt.Errorf("wrong operator ID")
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {

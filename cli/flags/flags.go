@@ -13,6 +13,7 @@ const (
 	operatorIDs                       = "operatorIDs"
 	newOperatorIDs                    = "newOperatorIDs"
 	operatorsInfo                     = "operatorsInfo"
+	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
 	privKeyPassword                   = "privKeyPassword"
 	configPath                        = "configPath"
@@ -58,6 +59,11 @@ func OperatorsInfoFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
 }
 
+// OperatorsInfoFlag  adds path to operators' ifo file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. { 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }", false)
+}
+
 // OwnerAddressFlag  adds owner address flag to the command
 func OwnerAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, owner, "", "Owner address", false)
@@ -80,7 +86,7 @@ func PrivateKeyFlag(c *cobra.Command) {
 
 // GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
 func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, true, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -95,7 +101,7 @@ func OperatorPortFlag(c *cobra.Command) {
 
 // ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: `config.yaml` `init.yaml` `reshare.yaml` `initiator_encrypted_key.json` `initiator_password` `operators_info.json`", false)
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
@@ -115,7 +121,7 @@ func LogLevelFormatFlag(c *cobra.Command) {
 
 // LogFilePathFlag file path to write logs into
 func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./logs/debug.log", "Defines a file path to write logs into", false)
+	AddPersistentStringFlag(c, logFilePath, "debug.log", "Defines a file path to write logs into", false)
 }
 
 func ResultPathFlag(c *cobra.Command) {

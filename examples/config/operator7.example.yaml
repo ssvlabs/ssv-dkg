@@ -6,5 +6,5 @@ storeShare: false
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/operator7_logs_debug.log
+logFilePath: /data/operator7/output/operator7_logs_debug.log
 outputPath: /data/operator7/output

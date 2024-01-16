@@ -147,6 +147,7 @@ nonce: 0 # owner nonce for the SSV contract
 network: "holesky" # network name (default: mainnet)
 # Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
+operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
 generateInitiatorKeyIfNotExisting: true
 # true - generates new RSA key pair + random secure password. The result is stored at ` config`. If files exist `configPath` - use them instead of generating new ones.
@@ -170,7 +171,7 @@ Under the assumption that all the necessary files (`operators_info.json`, `initi
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
 "bloxstaking/ssv-dkg:latest" init \
---configPath /data/initiator/config && \
+--configPath /data/config/initiator.example.yaml && \
 docker rm ssv_dkg_initiator
 ```
 
@@ -203,7 +204,7 @@ Run:
 ```sh
 docker run --name ssv_dkg_initiator \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" init --configPath /data/initiator/config && \
+"bloxstaking/ssv-dkg:latest" init --configPath /data/config/initiator.example.yaml && \
 docker rm ssv_dkg_initiator
 ```
 
@@ -244,6 +245,7 @@ The Initiator provides the initial details needed to run DKG between all operato
 ssv-dkg init \
           --validators 10
           --operatorIDs 1,2,3,4 \
+          --operatorsInfoPath ./operators_info.json \
           # Alternatively:
           # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
@@ -251,7 +253,6 @@ ssv-dkg init \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
           --network "holesky" \
           --outputPath ./output \
-          --configPath ./config \
           --generateInitiatorKeyIfNotExisting true \
           --logLevel info \
           --logFormat json \
@@ -266,12 +267,13 @@ Here's an explanation of each parameter:
 | `--validators`                        | int                                       | Amount of validators to generate (noncei ncrementing by 1) (default: 1)                                  |
 | `--operatorIDs`                       | int[]                                     | Operator IDs which will be used for a DKG ceremony                                                       |
 | `--operatorsInfo`                     | string                                    | Raw content of the JSON file with operators information. ID, base64(RSA pub key), endpoint               |
+| `--operatorsInfoPath`                 | string                                    | Path to a file containing operators operators information. ID, base64(RSA pub key), endpoint             |
 | `--owner`                             | address                                   | Owner address for the SSV contract                                                                       |
 | `--nonce`                             | int                                       | Owner nonce for the SSV contract                                                                         |
 | `--withdrawAddress`                   | address                                   | Address where reward payments for the validator are sent                                                 |
 | `--network`                           | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                        |
 | `--outputPath`                        | string                                    | Path to store the output files (default `./output`)                                                      |
-| `--configPath`                        | string                                    | Path to store and search `initiator_encrypted_key.json` and `initiator_password` (default: `./config`)   |
+| `--configPath`                        | string                                    | Path to config file                                                                                      |
 | `--generateInitiatorKeyIfNotExisting` | boolean                                   | Generates new RSA key pair + random secure password. The result is stored at ` config` (default: `true`) |
 | `--logLevel`                          | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                                    |
 | `--logFormat`                         | json / console                            | Logger's encoding (default: `json`)                                                                      |
@@ -309,6 +311,8 @@ withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # Address where re
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # Owner nonce for the SSV contract
 network: "holesky" # Network name (default: mainnet)
+operatorsInfoPath: /data/initiator/operators_info.json
+# Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
 generateInitiatorKeyIfNotExisting: true # (default: `true`)
@@ -329,10 +333,10 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 Then the tool can be launched from the root folder, by running this command:
 
 ```sh
-ssv-dkg init --configPath ./config
+ssv-dkg init --configPath ./config.yaml
 ```
 
-If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `init.yaml` in `./config` folder at the same root as the binary (i.e. `./config/init.yaml`)
+If the `--configPath` parameter is not provided, `ssv-dkg` will be using flags.
 
 ### Ceremony Output Summary
 
@@ -399,6 +403,7 @@ withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # Address where re
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # Owner nonce for the SSV contract
 network: "holesky" # Network name (default: mainnet)
+operatorsInfoPath: /data/initiator/operators_info.json
 # Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 outputPath: /data/output #  Path to store the resulting staking deposit and ssv contract payload files
@@ -418,12 +423,12 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 ```sh
 docker run --name ssv_dkg_reshare \
 -v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" reshare --configPath /data/initiator/config && \
+"bloxstaking/ssv-dkg:latest" reshare --configPath /data/config/reshare.example.yaml && \
 docker rm ssv_dkg_initiator
 ```
 
 Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.
-You can, of course, change the configuration above to one that suits you better, just be mindful about changing the path references in the docker command **and** in the `reshare.yaml` file as well.
+You can, of course, change the configuration above to one that suits you better, just be mindful about changing the path references in the docker command **and** in the `reshare.example.yaml` file as well.
 
 > ⚠️ Note: It is not possible to create a new inititator key pair during resharing. The key created at `init` ceremony must be used.
 
@@ -460,6 +465,7 @@ ssv-dkg reshare \
           --operatorIDs 1,2,3,4 \
           --newOperatorIDs 5, 6, 7, 8 \
           --oldID "dbd12b3155454666a6710a2262695bb82cda41948d612d98" \
+          --operatorsInfoPath ./operators_info.json \
           # Alternatively:
           # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
@@ -514,11 +520,10 @@ withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # Address where re
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # Address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # Owner nonce for the SSV contract
 network: "prater" # Network name (default: mainnet)
+operatorsInfoPath: /data/initiator/operators_info.json
 # Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 outputPath: /data/output #  Path to store the resulting staking deposit and ssv contract payload files
-# Alternatively:
-# generateInitiatorKey: false # If set true - generates a new RSA key pair + random secure password. The result is stored at `outputPath`
 logLevel: info # Logger's log level (default: debug)
 logFormat: json # Logger's encoding (default: json)
 logLevelFormat: capitalColor # Logger's level format (default: capitalColor)
@@ -534,10 +539,10 @@ You can keep track of this counter yourself, or you can use the `ssv-scanner` to
 Then the tool can be launched from the root folder, by running this command:
 
 ```sh
-ssv-dkg init --configPath ./config/reshare.yaml
+ssv-dkg reshare --configPath ./config/reshare.yaml
 ```
 
-If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `reshare.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/reshare.yaml`)
+If the `--configPath` parameter is not provided, `ssv-dkg` will be using flags.
 
 ### Troubleshooting
 
@@ -694,7 +699,7 @@ ssv-dkg start-operator \
             --logLevel info \
             --logFormat json \
             --logLevelFormat capitalColor \
-            --logFilePath ./operator-config/debug.log
+            --logFilePath ./output/debug.log
 ```
 
 Here's an explanation of each parameter:
@@ -705,7 +710,7 @@ Here's an explanation of each parameter:
 | --port           | int                                       | Port for listening messages (default: `3030`)                                        |
 | --password       | string                                    | Path to password file to decrypt the key (if absent, provide plain text private key) |
 | --outputPath     | string                                    | Path to store the output files (ecrypted share)                                      |
-| --configPath     | string                                    | Path to store and search for `config.yaml` (default: `./config`)                     |
+| --configPath     | string                                    | Path to config yaml file                                                             |
 | --logLevel       | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                |
 | --logFormat      | json / console                            | Logger's encoding (default: `json`)                                                  |
 | --logLevelFormat | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                      |
@@ -720,7 +725,7 @@ Just pay attention to the path of the necessary files, which needs to be changed
 ssv@localhost:~/ssv-dkg # tree operator-config
 config
 ├── encrypted_private_key.json
-├── config.yaml
+├── operator.yaml
 └── password
 
 1 directory, 3 files
@@ -735,17 +740,17 @@ port: 3030
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: ./operator-config/debug.log
+logFilePath: ./output/debug.log
 outputPath: ./output
 ```
 
 Then the tool can be launched from the root folder, by running this command:
 
 ```sh
-ssv-dkg start-operator --configPath "./config"
+ssv-dkg start-operator --configPath "./config/operator.yaml"
 ```
 
-If the `--configPath` parameter is not provided, `ssv-dkg` will be looking for a file named `config.yaml` in `./config/` folder at the same root as the binary (i.e. `./config/config.yaml`)
+If the `--configPath` parameter is not provided, `ssv-dkg` will be using flags.
 
 ### Update Operator metadata
 

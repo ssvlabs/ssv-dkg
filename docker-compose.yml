@@ -6,7 +6,8 @@ services:
       - shared_network
     ports:
       - "3030:3030"
-    command: ["start-operator", "--configPath", "/data/operator1/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -16,7 +17,8 @@ services:
       - shared_network
     ports:
       - "3031:3030"
-    command: ["start-operator", "--configPath", "/data/operator2/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -26,7 +28,8 @@ services:
       - shared_network
     ports:
       - "3032:3030"
-    command: ["start-operator", "--configPath", "/data/operator3/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -36,7 +39,8 @@ services:
       - shared_network
     ports:
       - "3033:3030"
-    command: ["start-operator", "--configPath", "/data/operator4/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -46,7 +50,8 @@ services:
       - shared_network
     ports:
       - "3034:3030"
-    command: ["start-operator", "--configPath", "/data/operator5/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator5.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -56,7 +61,8 @@ services:
       - shared_network
     ports:
       - "3035:3030"
-    command: ["start-operator", "--configPath", "/data/operator6/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator6.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -66,7 +72,8 @@ services:
       - shared_network
     ports:
       - "3036:3030"
-    command: ["start-operator", "--configPath", "/data/operator7/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator7.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -76,7 +83,8 @@ services:
       - shared_network
     ports:
       - "3037:3030"
-    command: ["start-operator", "--configPath", "/data/operator8/config"]
+    command:
+      ["start-operator", "--configPath", "/data/config/operator8.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -89,7 +97,7 @@ services:
       - operator4
     networks:
       - shared_network
-    command: ["init", "--configPath", "/data/initiator/config"]
+    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
     volumes:
       - ./examples:/data
 
@@ -106,7 +114,7 @@ services:
       - operator8
     networks:
       - shared_network
-    command: ["reshare", "--configPath", "/data/initiator/config"]
+    command: ["reshare", "--configPath", "/data/config/reshare.example.yaml"]
     volumes:
       - ./examples:/data
 

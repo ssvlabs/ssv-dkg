@@ -37,6 +37,7 @@ var (
 // init flags
 var (
 	OperatorsInfo                     string
+	OperatorsInfoPath                 string
 	OperatorIDs                       []string
 	GenerateInitiatorKeyIfNotExisting bool
 	WithdrawAddress                   common.Address
@@ -70,38 +71,22 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	configFileName := viper.GetString("configFileName")
-	var configPathYAML string
-	switch cmd.Use {
-	case "init":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/init.yaml", ConfigPath)
+	if ConfigPath != "" {
+		if strings.Contains(ConfigPath, "../") {
+			return fmt.Errorf("😥 configPath should not contain traversal")
 		}
-	case "reshare":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/reshare.yaml", ConfigPath)
+		stat, err := os.Stat(ConfigPath)
+		if err != nil {
+			return err
 		}
-	case "start-operator":
-		if configFileName != "" {
-			configPathYAML = fmt.Sprintf("%s/%s", ConfigPath, configFileName)
-		} else {
-			configPathYAML = fmt.Sprintf("%s/config.yaml", ConfigPath)
+		if stat.IsDir() {
+			return fmt.Errorf("configPath flag should be a path to a *.yaml file, but dir provided")
 		}
-	}
-	_, err := os.Stat(configPathYAML)
-	if !os.IsNotExist(err) {
 		viper.SetConfigType("yaml")
-		viper.SetConfigFile(configPathYAML)
+		viper.SetConfigFile(ConfigPath)
 		if err := viper.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return err
-			}
+			return err
 		}
-		return nil
 	}
 	return nil
 }
@@ -217,6 +202,7 @@ func SetBaseFlags(cmd *cobra.Command) {
 func SetInitFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
@@ -229,6 +215,7 @@ func SetInitFlags(cmd *cobra.Command) {
 func SetReshareFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
 	flags.NewOperatorIDsFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
 	flags.CeremonySigsFilePathFlag(cmd)
@@ -266,27 +253,12 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
 		return err
 	}
-	ConfigPath = viper.GetString("configPath")
-	if strings.Contains(ConfigPath, "../") {
-		return fmt.Errorf("😥 configPath should not contain traversal")
-	}
-	stat, err := os.Stat(ConfigPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 configPath isnt a folder path")
-	}
 	OutputPath = viper.GetString("outputPath")
 	if strings.Contains(OutputPath, "../") {
 		return fmt.Errorf("😥 outputPath should not contain traversal")
 	}
-	stat, err = os.Stat(OutputPath)
-	if err != nil {
-		return fmt.Errorf("😥 %s", err)
-	}
-	if !stat.IsDir() {
-		return fmt.Errorf("😥 outputPath isnt a folder path")
+	if err := createDirIfNotExist(OutputPath); err != nil {
+		return err
 	}
 	LogLevel = viper.GetString("logLevel")
 	LogFormat = viper.GetString("logFormat")
@@ -316,11 +288,24 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
+	if OperatorsInfoPath != "" && OperatorsInfo != "" {
+		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+	}
+	if OperatorsInfoPath == "" && OperatorsInfo == "" {
+		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
@@ -379,6 +364,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
 		return err
 	}
@@ -388,7 +376,17 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
 		return err
 	}
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
+	if OperatorsInfoPath != "" && OperatorsInfo != "" {
+		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+	}
+	if OperatorsInfoPath == "" && OperatorsInfo == "" {
+		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
 	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
 	if len(NewOperatorIDs) == 0 {
 		return fmt.Errorf("😥 New operator IDs flag cant be empty")
@@ -493,11 +491,13 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 			return nil, err
 		}
 	} else {
-		operatorsInfoPath := fmt.Sprintf("%s/operators_info.json", ConfigPath)
-		opmap, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
+		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if opmap == nil {
+		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
 	return opmap, nil
 }
@@ -505,8 +505,8 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 // LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
 func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	var privateKey *rsa.PrivateKey
-	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", ConfigPath)
-	privKeyPassPath := fmt.Sprintf("%s/initiator_password", ConfigPath)
+	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", OutputPath)
+	privKeyPassPath := fmt.Sprintf("%s/initiator_password", OutputPath)
 	if generate {
 		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
 			_, priv, err := rsaencryption.GenerateKeys()
@@ -571,7 +571,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		if err != nil {
 			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
 		}
-		logger.Info("💾 Writing deposit data json to file", zap.String("path", nestedDir))
+		logger.Info("💾 Writing deposit data json", zap.String("path", nestedDir))
 		err = WriteDepositResult(depositDataArr[i], nestedDir)
 		if err != nil {
 			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
@@ -633,6 +633,22 @@ func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
 	err := utils.WriteJSON(finalPath, ceremonySigs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
+	}
+	return nil
+}
+
+func createDirIfNotExist(path string) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			// Directory does not exist, try to create it
+			if err := os.MkdirAll(path, os.ModePerm); err != nil {
+				// Failed to create the directory
+				return fmt.Errorf("😥 can't create %s: %w", path, err)
+			}
+		} else {
+			// Some other error occurred
+			return fmt.Errorf("😥 %s", err)
+		}
 	}
 	return nil
 }
