@@ -3,7 +3,7 @@
 # don't need to bother with make.
 
 .PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare
-.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic
+.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -101,3 +101,10 @@ critic-prepare:
 
 critic:
 	gocritic check -enableAll ./...
+
+gosec-prepare:
+	@echo "Preparing Gosec"
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+gosec:
+	gosec ./...

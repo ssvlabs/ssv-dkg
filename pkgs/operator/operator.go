@@ -30,7 +30,7 @@ const (
 // Server structure for operator to store http server and DKG ceremony instances
 type Server struct {
 	Logger     *zap.Logger  // logger
-	HttpServer *http.Server //http server
+	HttpServer *http.Server // http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
 }

@@ -104,13 +104,11 @@ var StartDKG = &cobra.Command{
 		var depositDataArr []*initiator.DepositDataJson
 		var keySharesArr []*initiator.KeyShares
 		var ceremonySigsArr []*initiator.CeremonySigs
-		var ids [][24]byte
 		var nonces []uint64
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
-			ids = append(ids, res.id)
 			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file

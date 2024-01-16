@@ -146,32 +146,32 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 
 	var pubkeys []byte
 	var encryptedShares []byte
-	for _, operatorResult := range result {
+	for i := 0; i < len(result); i++ {
 		// Data for forming share string
-		pubkeys = append(pubkeys, operatorResult.SharePubKey...)
-		encryptedShares = append(encryptedShares, operatorResult.EncryptedShare...)
+		pubkeys = append(pubkeys, result[i].SharePubKey...)
+		encryptedShares = append(encryptedShares, result[i].EncryptedShare...)
 
-		encPubKey, err := crypto.EncodePublicKey(operatorResult.PubKeyRSA)
+		encPubKey, err := crypto.EncodePublicKey(result[i].PubKeyRSA)
 		if err != nil {
 			return nil, err
 		}
 		operatorData = append(operatorData, OperatorData{
-			ID:          operatorResult.OperatorID,
+			ID:          result[i].OperatorID,
 			OperatorKey: string(encPubKey),
 		})
-		operatorIds = append(operatorIds, operatorResult.OperatorID)
+		operatorIds = append(operatorIds, result[i].OperatorID)
 	}
 
 	// Create share string for ssv contract
-	sharesData := append(pubkeys, encryptedShares...)
-	sharesDataSigned := append(sigOwnerNonce, sharesData...)
+	pubkeys = append(pubkeys, encryptedShares...)
+	sigOwnerNonce = append(sigOwnerNonce, pubkeys...)
 
 	operatorCount := len(result)
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
 
-	if sharesExpectedLength != len(sharesDataSigned) {
+	if sharesExpectedLength != len(sigOwnerNonce) {
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
@@ -183,7 +183,7 @@ func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Add
 	}, Payload{
 		PublicKey:   "0x" + hex.EncodeToString(result[0].ValidatorPubKey),
 		OperatorIDs: operatorIds,
-		SharesData:  "0x" + hex.EncodeToString(sharesDataSigned),
+		SharesData:  "0x" + hex.EncodeToString(sigOwnerNonce),
 	}}}
 
 	ks := &KeyShares{}
@@ -305,9 +305,9 @@ func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Op
 }
 
 // parseAsError parses the error from an operator
-func parseAsError(msg []byte) (error, error) {
+func ParseAsError(msg []byte) (parsedErr, err error) {
 	sszerr := &wire.ErrSSZ{}
-	err := sszerr.UnmarshalSSZ(msg)
+	err = sszerr.UnmarshalSSZ(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
 		msg := allmsgs[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := parseAsError(msg)
+			errmsg, parseErr := ParseAsError(msg)
 			if parseErr == nil {
 				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
 				continue
@@ -357,7 +357,7 @@ func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleS
 		msg := allmsgs[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := parseAsError(msg)
+			errmsg, parseErr := ParseAsError(msg)
 			if parseErr == nil {
 				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
 			}
@@ -491,7 +491,7 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 }
 
 // reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
-func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCredentials []byte, validatorPubKey *bls.PublicKey, network eth2_key_manager_core.Network, sigDepositShares []*bls.Sign, sharePks []*bls.PublicKey) (*DepositDataJson, error) {
+func (c *Initiator) reconstructAndVerifyDepositData(ids []uint64, withdrawCredentials []byte, validatorPubKey *bls.PublicKey, network eth2_key_manager_core.Network, sigDepositShares []*bls.Sign, sharePks []*bls.PublicKey) (*DepositDataJson, error) {
 	shareRoot, err := crypto.DepositDataRoot(withdrawCredentials, validatorPubKey, network, dkg.MaxEffectiveBalanceInGwei)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
@@ -504,7 +504,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCreden
 
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
-	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(IDs, sharePks)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, sharePks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover validator public key from shares: %v", err)
 	}
@@ -513,7 +513,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(IDs []uint64, withdrawCreden
 		return nil, fmt.Errorf("incoming validator pub key is not equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(IDs, sigDepositShares)
+	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(ids, sigDepositShares)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
@@ -598,17 +598,24 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	c.Logger = c.Logger.With(instanceIDField)
 
-	dkgResult, err := c.messageFlowHandling(init, id, ops)
+	dkgResultsBytes, err := c.messageFlowHandling(init, id, ops)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	dkgResults, validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
+	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResults)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
-	depositDataJson, err := c.reconstructAndVerifyDepositData(ids, init.WithdrawalCredentials, validatorPubKey, network, sigDepositShares, sharePks)
+	var validatorPubKey bls.PublicKey
+	if err := validatorPubKey.Deserialize(dkgResults[0].ValidatorPubKey); err != nil {
+		return nil, nil, nil, err
+	}
+	depositDataJson, err := c.reconstructAndVerifyDepositData(ids, init.WithdrawalCredentials, &validatorPubKey, network, sigDepositShares, sharePks)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -670,7 +677,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, ceremonySigs, nil
 }
 
-func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile []byte, ceremonySigs []byte, nonce uint64) (*KeyShares, *CeremonySigs, error) {
+func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, ceremonySigs []byte, nonce uint64) (*KeyShares, *CeremonySigs, error) {
 	var ks *KeyShares
 	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
 		return nil, nil, err
@@ -717,11 +724,15 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile [
 		CeremonySigs:       cSigBytes,
 		InitiatorPublicKey: pkBytes,
 	}
-	dkgResult, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
+	dkgResultsBytes, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
 	if err != nil {
 		return nil, nil, err
 	}
-	dkgResults, _, _, _, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResult, id)
+	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, _, ssvContractOwnerNonceSigShares, err := c.ProcessDKGResultResponse(dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -794,43 +805,7 @@ func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) err
 }
 
 // ProcessDKGResultResponse deserializes incoming DKG result messages from operators
-func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byte) ([]dkg.Result, *bls.PublicKey, []*bls.PublicKey, []*bls.Sign, []*bls.Sign, error) {
-	dkgResults := make([]dkg.Result, 0)
-	validatorPubKey := bls.PublicKey{}
-	sharePks := make([]*bls.PublicKey, 0)
-	sigDepositShares := make([]*bls.Sign, 0)
-	ssvContractOwnerNonceSigShares := make([]*bls.Sign, 0)
-	for i := 0; i < len(responseResult); i++ {
-		msg := responseResult[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			return nil, nil, nil, nil, nil, err
-		}
-		// check message type
-		if tsp.Message.Type == wire.ErrorMessageType {
-			var msgErr string
-			err := json.Unmarshal(tsp.Message.Data, &msgErr)
-			if err != nil {
-				return nil, nil, nil, nil, nil, err
-			}
-			return nil, nil, nil, nil, nil, fmt.Errorf("%s", msgErr)
-		}
-		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, nil, nil, nil, nil, fmt.Errorf("wrong DKG result message type")
-		}
-		result := &dkg.Result{}
-		if err := result.Decode(tsp.Message.Data); err != nil {
-			return nil, nil, nil, nil, nil, err
-		}
-		// If incoming result is with wrong ID, bail
-		if !bytes.Equal(result.RequestID[:], id[:]) {
-			return nil, nil, nil, nil, nil, fmt.Errorf("DKG result has wrong ID")
-		}
-		dkgResults = append(dkgResults, *result)
-		if err := validatorPubKey.Deserialize(dkgResults[0].ValidatorPubKey); err != nil {
-			return nil, nil, nil, nil, nil, err
-		}
-	}
+func (c *Initiator) ProcessDKGResultResponse(dkgResults []dkg.Result) (sharePks []*bls.PublicKey, sigDepositShares, ssvContractOwnerNonceSigShares []*bls.Sign, err error) {
 	// order the results by operatorID
 	sort.SliceStable(dkgResults, func(i, j int) bool {
 		return dkgResults[i].OperatorID < dkgResults[j].OperatorID
@@ -839,29 +814,60 @@ func (c *Initiator) ProcessDKGResultResponse(responseResult [][]byte, id [24]byt
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
 	})
 	if !sorted {
-		return nil, nil, nil, nil, nil, fmt.Errorf("slice is not sorted")
+		return nil, nil, nil, fmt.Errorf("slice is not sorted")
 	}
-	for _, result := range dkgResults {
+	for i := 0; i < len(dkgResults); i++ {
 		sharePubKey := &bls.PublicKey{}
-		if err := sharePubKey.Deserialize(result.SharePubKey); err != nil {
-			return nil, nil, nil, nil, nil, err
+		if err := sharePubKey.Deserialize(dkgResults[i].SharePubKey); err != nil {
+			return nil, nil, nil, err
 		}
 		sharePks = append(sharePks, sharePubKey)
 		depositShareSig := &bls.Sign{}
-		if result.DepositPartialSignature != nil {
-			if err := depositShareSig.Deserialize(result.DepositPartialSignature); err != nil {
-				return nil, nil, nil, nil, nil, err
+		if dkgResults[i].DepositPartialSignature != nil {
+			if err := depositShareSig.Deserialize(dkgResults[i].DepositPartialSignature); err != nil {
+				return nil, nil, nil, err
 			}
 			sigDepositShares = append(sigDepositShares, depositShareSig)
 		}
 		ownerNonceShareSig := &bls.Sign{}
-		if err := ownerNonceShareSig.Deserialize(result.OwnerNoncePartialSignature); err != nil {
-			return nil, nil, nil, nil, nil, err
+		if err := ownerNonceShareSig.Deserialize(dkgResults[i].OwnerNoncePartialSignature); err != nil {
+			return nil, nil, nil, err
 		}
 		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, ownerNonceShareSig)
-		c.Logger.Debug("Received DKG result from operator", zap.Uint64("ID", result.OperatorID))
+		c.Logger.Debug("Received DKG result from operator", zap.Uint64("ID", dkgResults[i].OperatorID))
 	}
-	return dkgResults, &validatorPubKey, sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
+	return sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
+}
+
+func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []dkg.Result, err error) {
+	for i := 0; i < len(responseResult); i++ {
+		msg := responseResult[i]
+		tsp := &wire.SignedTransport{}
+		if err := tsp.UnmarshalSSZ(msg); err != nil {
+			return nil, err
+		}
+		// check message type
+		if tsp.Message.Type == wire.ErrorMessageType {
+			var msgErr string
+			err := json.Unmarshal(tsp.Message.Data, &msgErr)
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("%s", msgErr)
+		}
+		if tsp.Message.Type != wire.OutputMessageType {
+			return nil, fmt.Errorf("wrong DKG result message type")
+		}
+		result := dkg.Result{}
+		if err := result.Decode(tsp.Message.Data); err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(result.RequestID[:], id[:]) {
+			return nil, fmt.Errorf("DKG result has wrong ID")
+		}
+		dkgResults = append(dkgResults, result)
+	}
+	return dkgResults, nil
 }
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
@@ -1083,7 +1089,7 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 	}
 	signedPongMsg := &wire.SignedTransport{}
 	if err := signedPongMsg.UnmarshalSSZ(res.result); err != nil {
-		errmsg, parseErr := parseAsError(res.result)
+		errmsg, parseErr := ParseAsError(res.result)
 		if parseErr == nil {
 			return fmt.Errorf("operator returned err: %v", errmsg)
 		}
@@ -1115,9 +1121,9 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 func (c *Initiator) GetCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, error) {
 	ceremonySigs := &CeremonySigs{}
 	var sigsBytes []byte
-	for _, res := range dkgResults {
-		ceremonySigs.OperatorIDs = append(ceremonySigs.OperatorIDs, res.OperatorID)
-		sigsBytes = append(sigsBytes, res.CeremonySig...)
+	for i := 0; i < len(dkgResults); i++ {
+		ceremonySigs.OperatorIDs = append(ceremonySigs.OperatorIDs, dkgResults[i].OperatorID)
+		sigsBytes = append(sigsBytes, dkgResults[i].CeremonySig...)
 	}
 	ceremonySigs.Sigs = hex.EncodeToString(sigsBytes)
 	encInitPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)

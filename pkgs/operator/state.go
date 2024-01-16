@@ -45,7 +45,7 @@ type instWrapper struct {
 }
 
 // VerifyInitiatorMessage verifies initiator message signature
-func (iw *instWrapper) VerifyInitiatorMessage(msg []byte, sig []byte) error {
+func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
 	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		Nonce:              init.Nonce,
 		Version:            s.Version,
 	}
-	owner := dkg.New(opts)
+	owner := dkg.New(&opts)
 	// wait for exchange msg
 	resp, err := owner.Init(reqID, init)
 	if err != nil {
@@ -131,7 +131,9 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 }
 
 func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	allOps := append(reshare.OldOperators, reshare.NewOperators...)
+	var allOps []*wire.Operator
+	allOps = append(allOps, reshare.OldOperators...)
+	allOps = append(allOps, reshare.NewOperators...)
 	verify, err := s.CreateVerifyFunc(allOps)
 	if err != nil {
 		return nil, nil, err
@@ -164,7 +166,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		Nonce:              reshare.Nonce,
 		Version:            s.Version,
 	}
-	owner := dkg.New(opts)
+	owner := dkg.New(&opts)
 	// wait for exchange msg
 	commits, err := crypto.GetPubCommitsFromSharesData(reshare)
 	if err != nil {
@@ -246,7 +248,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []b
 }
 
 // NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver []byte, pkBytes []byte, id uint64) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -283,7 +285,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err != nil {
 		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
 	}
-	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes()[:])))
+	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
@@ -296,7 +298,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	_, ok := s.Instances[reqID]
 	if ok {
 		tm := s.InstanceInitTime[reqID]
-		if !time.Now().After(tm.Add(MaxInstanceTime)) {
+		if time.Now().Before(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()
 			return nil, utils.ErrAlreadyExists
 		}
@@ -338,7 +340,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	if err != nil {
 		return nil, fmt.Errorf("init message: initiator signature isn't valid: %s", err.Error())
 	}
-	s.Logger.Info("✅ reshare message signature is successfully verified", zap.String("from initiator pub key", fmt.Sprintf("%x", initiatorPubKey.N.Bytes()[:])))
+	s.Logger.Info("✅ reshare message signature is successfully verified", zap.String("from initiator pub key", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	s.Logger.Info("Starting resharing protocol")
 	s.Mtx.Lock()
 	l := len(s.Instances)
@@ -353,7 +355,7 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	if ok {
 		// TODO: strange logic. Check.
 		tm := s.InstanceInitTime[reqID]
-		if !time.Now().After(tm.Add(MaxInstanceTime)) {
+		if time.Now().Before(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()
 			return nil, utils.ErrAlreadyExists
 		}
@@ -451,10 +453,11 @@ func (s *Switch) Pong() ([]byte, error) {
 
 func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	resData := &wire.ResultData{}
-	if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
+	err := resData.UnmarshalSSZ(incMsg.Message.Data)
+	if err != nil {
 		return err
 	}
-	_, err := s.VerifyIncomingMessage(incMsg)
+	_, err = s.VerifyIncomingMessage(incMsg)
 	if err != nil {
 		return err
 	}

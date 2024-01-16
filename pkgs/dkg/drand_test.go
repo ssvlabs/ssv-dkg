@@ -9,11 +9,9 @@ import (
 
 	"github.com/drand/kyber"
 	kyber_bls "github.com/drand/kyber-bls12381"
-	"github.com/drand/kyber/share/dkg"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/herumi/bls-eth-go-binary/bls"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -124,7 +122,7 @@ func NewTestOperator(ts *testState) (*LocalOwner, *rsa.PrivateKey) {
 		ID:        id,
 		Suite:     kyber_bls.NewBLS12381Suite(),
 		exchanges: make(map[uint64]*wire2.Exchange),
-		deals:     make(map[uint64]*dkg.DealBundle),
+		deals:     make(map[uint64]*kyber_dkg.DealBundle),
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
@@ -153,7 +151,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 		ID:        id,
 		Suite:     kyber_bls.NewBLS12381Suite(),
 		exchanges: make(map[uint64]*wire2.Exchange),
-		deals:     make(map[uint64]*dkg.DealBundle),
+		deals:     make(map[uint64]*kyber_dkg.DealBundle),
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
@@ -310,7 +308,7 @@ func TestDKGReshare(t *testing.T) {
 	var encShares []byte
 	var ceremonySigs []byte
 	var pubkeys []byte
-	ssvContractOwnerNonceSigShares := make([]*bls.Sign, 0)
+	ssvContractOwnerNonceSigShares := make([]*herumi_bls.Sign, 0)
 	err = ts.ForAll(func(o *LocalOwner) error {
 		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
 		if err != nil {

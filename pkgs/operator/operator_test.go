@@ -226,7 +226,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := test_utils.ParseAsError(msg)
+				errmsg, parseErr := initiator.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}
@@ -300,7 +300,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := test_utils.ParseAsError(msg)
+				errmsg, parseErr := initiator.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}

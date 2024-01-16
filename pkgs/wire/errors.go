@@ -5,9 +5,9 @@ import (
 )
 
 // MakeErr creates an error message
-func MakeErr(err error) []byte {
+func MakeErr(err error) (reterr []byte) {
 	rawerr := &ErrSSZ{Error: []byte(err.Error())}
-	reterr, err := rawerr.MarshalSSZ()
+	reterr, err = rawerr.MarshalSSZ()
 	if err != nil {
 		panic(err)
 	}
@@ -15,7 +15,7 @@ func MakeErr(err error) []byte {
 }
 
 // GetErr extracts an error from a message
-func GetErr(msg []byte) (error, error) {
+func GetErr(msg []byte) (parsedErr, err error) {
 	msgerr := &ErrSSZ{}
 	if err := msgerr.UnmarshalSSZ(msg); err != nil {
 		return nil, err

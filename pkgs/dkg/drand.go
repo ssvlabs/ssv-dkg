@@ -8,7 +8,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
-	"github.com/drand/kyber/share/dkg"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
@@ -145,7 +144,7 @@ type LocalOwner struct {
 }
 
 // New creates a LocalOwner structure. We create it for each new DKG ceremony.
-func New(opts OwnerOpts) *LocalOwner {
+func New(opts *OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:             opts.Logger,
 		startedDKG:         make(chan struct{}, 1),
@@ -188,10 +187,10 @@ func (o *LocalOwner) StartDKG() error {
 	}
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
-	dkgConfig := &dkg.Config{
+	dkgConfig := &kyber_dkg.Config{
 		Longterm:  o.data.secret,
 		Nonce:     utils.GetNonce(o.data.reqID[:]),
-		Suite:     o.Suite.G1().(dkg.Suite),
+		Suite:     o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:  nodes,
 		OldNodes:  nodes, // when initiating dkg we consider the old nodes the new nodes (taken from kyber)
 		Threshold: int(o.data.init.T),
@@ -224,10 +223,10 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 	}
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
-	dkgConfig := &dkg.Config{
+	dkgConfig := &kyber_dkg.Config{
 		Longterm:     o.data.secret,
 		Nonce:        utils.GetNonce(o.data.reqID[:]),
-		Suite:        o.Suite.G1().(dkg.Suite),
+		Suite:        o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:     NewNodes,
 		OldNodes:     OldNodes,
 		Threshold:    int(o.data.reshare.NewT),
@@ -289,10 +288,10 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
-	dkgConfig := &dkg.Config{
+	dkgConfig := &kyber_dkg.Config{
 		Longterm:     o.data.secret,
 		Nonce:        utils.GetNonce(o.data.reqID[:]),
-		Suite:        o.Suite.G1().(dkg.Suite),
+		Suite:        o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:     NewNodes,
 		OldNodes:     OldNodes,
 		Threshold:    int(o.data.reshare.NewT),
@@ -442,7 +441,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 	}
 	o.Logger.Info("DKG resharing ceremony finished successfully")
 	// Get validator BLS public key from result
-	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(dkg.Suite))
+	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
 		o.broadcastError(err)
 		return err
@@ -622,7 +621,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
-		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(dkg.Suite))
+		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
 			return err
 		}
@@ -637,7 +636,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		o.Logger.Debug("operator: received response bundle from", zap.Uint64("ID", from))
 		o.board.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
-		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.Suite.G1().(dkg.Suite))
+		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
 			return err
 		}
@@ -701,7 +700,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				if o.ID != op.ID {
 					continue
 				}
-				bundle := &dkg.DealBundle{}
+				bundle := &kyber_dkg.DealBundle{}
 				b, err := wire.EncodeDealBundle(bundle)
 				if err != nil {
 					return err
@@ -729,7 +728,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		if err := kyberMsg.UnmarshalSSZ(t.Data); err != nil {
 			return err
 		}
-		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(dkg.Suite))
+		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
 			return err
 		}
@@ -822,8 +821,8 @@ func (o *LocalOwner) GetLocalOwner() *LocalOwner {
 }
 
 // GetDKGNodes returns a slice of DKG node instances used for the protocol
-func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]dkg.Node, error) {
-	nodes := make([]dkg.Node, 0)
+func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error) {
+	nodes := make([]kyber_dkg.Node, 0)
 	for _, op := range ops {
 		if o.exchanges[op.ID] == nil {
 			return nil, fmt.Errorf("no operator at exchanges")
@@ -834,8 +833,8 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]dkg.Node, error) {
 			return nil, err
 		}
 
-		nodes = append(nodes, dkg.Node{
-			Index:  dkg.Index(op.ID - 1),
+		nodes = append(nodes, kyber_dkg.Node{
+			Index:  kyber_dkg.Index(op.ID - 1),
 			Public: p,
 		})
 	}

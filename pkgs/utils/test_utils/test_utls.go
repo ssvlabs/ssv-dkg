@@ -3,7 +3,6 @@ package test_utils
 import (
 	"crypto/rsa"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -19,7 +18,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -31,17 +29,7 @@ type TestOperator struct {
 	Srv     *operator.Server
 }
 
-func ParseAsError(msg []byte) (error, error) {
-	sszerr := &wire.ErrSSZ{}
-	err := sszerr.UnmarshalSSZ(msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return errors.New(string(sszerr.Error)), nil
-}
-
-func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, version string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version string) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
@@ -100,7 +88,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	}
 }
 
-func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
+func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return err
@@ -137,7 +125,7 @@ func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeySha
 		sig := secret.SignByte(msg)
 		sigs2[i] = sig.Serialize()
 	}
-	recon, err := crypto.ReconstructSignatures(IDs, sigs2)
+	recon, err := crypto.ReconstructSignatures(ids, sigs2)
 	if err != nil {
 		return err
 	}

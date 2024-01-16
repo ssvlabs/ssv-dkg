@@ -34,7 +34,7 @@ func TestDKGFull(t *testing.T) {
 	_ = bls.Init(bls.BLS12_381)
 	_ = bls.SetETHmode(bls.EthModeDraft07)
 
-	results := RunDKG(t, tns, conf, nil, nil, nil)
+	results := RunDKG(t, tns, &conf, nil, nil, nil)
 	testResults(t, suite, thr, n, results)
 }
 
@@ -230,10 +230,10 @@ type MapDeal func([]*dkg.DealBundle) []*dkg.DealBundle
 type MapResponse func([]*dkg.ResponseBundle) []*dkg.ResponseBundle
 type MapJustif func([]*dkg.JustificationBundle) []*dkg.JustificationBundle
 
-func RunDKG(t *testing.T, tns []*TestNode, conf dkg.Config,
+func RunDKG(t *testing.T, tns []*TestNode, conf *dkg.Config,
 	dm MapDeal, rm MapResponse, jm MapJustif) []*dkg.Result {
 
-	SetupNodes(tns, &conf)
+	SetupNodes(tns, conf)
 	var deals []*dkg.DealBundle
 	for _, node := range tns {
 		d, err := node.dkg.Deals()
