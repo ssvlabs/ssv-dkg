@@ -142,5 +142,4 @@ type Result struct {
 	depositData  *initiator.DepositDataJson
 	keyShares    *initiator.KeyShares
 	ceremonySigs *initiator.CeremonySigs
-	err          error
 }
