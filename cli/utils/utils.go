@@ -219,6 +219,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NewOperatorIDsFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
 	flags.CeremonySigsFilePathFlag(cmd)
+	flags.NonceFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -376,6 +377,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+		return err
+	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if strings.Contains(OperatorsInfoPath, "../") {
 		return fmt.Errorf("😥 logFilePath should not contain traversal")
@@ -419,6 +423,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if stat.IsDir() {
 		return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
 	}
+	Nonce = viper.GetUint64("nonce")
 	return nil
 }
 

@@ -670,7 +670,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, ceremonySigs, nil
 }
 
-func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []byte, ceremonySigs []byte) (*KeyShares, *CeremonySigs, error) {
+func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile []byte, ceremonySigs []byte, nonce uint64) (*KeyShares, *CeremonySigs, error) {
 	var ks *KeyShares
 	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
 		return nil, nil, err
@@ -683,14 +683,13 @@ func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []b
 	if err != nil {
 		return nil, nil, err
 	}
-	oldIDs := ks.Shares[0].Payload.OperatorIDs
+	oldOpIDs := ks.Shares[0].Payload.OperatorIDs
 	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
-	nonce := ks.Shares[0].OwnerNonce
-	oldOps, err := ValidatedOperatorData(oldIDs, c.Operators)
+	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
 	if err != nil {
 		return nil, nil, err
 	}
-	newOps, err := ValidatedOperatorData(newIDs, c.Operators)
+	newOps, err := ValidatedOperatorData(newOpIDs, c.Operators)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -699,10 +698,10 @@ func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []b
 		return nil, nil, err
 	}
 	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldIDs), zap.Uint64s("new_operator_ids", newIDs), instanceIDField)
+	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldOpIDs), zap.Uint64s("new_operator_ids", newOpIDs), instanceIDField)
 	// compute threshold (3f+1)
-	oldThreshold := len(oldIDs) - ((len(oldIDs) - 1) / 3)
-	newThreshold := len(newIDs) - ((len(newIDs) - 1) / 3)
+	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
+	newThreshold := len(newOpIDs) - ((len(newOpIDs) - 1) / 3)
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return nil, nil, err
@@ -728,7 +727,7 @@ func (c *Initiator) StartReshare(id [24]byte, newIDs []uint64, keysharesFile []b
 	}
 	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(newIDs, ssvContractOwnerNonceSigShares)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(newOpIDs, ssvContractOwnerNonceSigShares)
 	if err != nil {
 		return nil, nil, err
 	}
