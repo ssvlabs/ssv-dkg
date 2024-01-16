@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -94,7 +95,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 // SetGlobalLogger creates a logger
 func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	_, err := os.OpenFile(filepath.Clean(LogFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -112,11 +113,11 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
 	}
-	encryptedRSAJSON, err := os.ReadFile(privKeyPath)
+	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
 	}
-	keyStorePassword, err := os.ReadFile(passwordFilePath)
+	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 	}
@@ -142,7 +143,7 @@ func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger
 		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
 			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
 		}
-		keyStorePassword, err := os.ReadFile(passwordFilePath)
+		keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 		if err != nil {
 			return nil, nil, fmt.Errorf("😥 Error reading password file: %s", err)
 		}
@@ -177,7 +178,7 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initia
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
 	logger.Info("📖 reading operators info JSON file")
-	opsfile, err := os.ReadFile(operatorsInfoPath)
+	opsfile, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
@@ -528,7 +529,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 					return nil, err
 				}
 			}
-			keyStorePassword, err := os.ReadFile(privKeyPassPath)
+			keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 			}

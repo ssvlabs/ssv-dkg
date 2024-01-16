@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -498,7 +499,7 @@ func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []
 
 // EncryptedPrivateKey reads  an encoded RSA priv key from path encrypted with password
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -580,7 +581,7 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) er
 }
 
 func ReadEncryptedRSAKey(privKeyPath, privKeyPassPath string) (*rsa.PrivateKey, error) {
-	keyStorePassword, err := os.ReadFile(privKeyPassPath)
+	keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,8 +25,8 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 var ErrVersion = errors.New("wrong version")
 
 // WriteJSON writes data to JSON file
-func WriteJSON(filepath string, data any) error {
-	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+func WriteJSON(filePth string, data any) error {
+	file, err := os.OpenFile(filepath.Clean(filePth), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
