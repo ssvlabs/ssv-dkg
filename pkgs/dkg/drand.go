@@ -137,7 +137,6 @@ type LocalOwner struct {
 	decryptFunc      func([]byte) ([]byte, error)
 	storeSecretShare func(reqID [24]byte, pubKey []byte, key *kyber_dkg.DistKeyShare) error
 	SecretShare      *kyber_dkg.DistKeyShare
-	initiatorRSAPub  *rsa.PublicKey
 	RSAPub           *rsa.PublicKey
 	owner            common.Address
 	nonce            uint64
