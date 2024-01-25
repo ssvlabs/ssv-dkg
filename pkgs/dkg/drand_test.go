@@ -11,7 +11,6 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/herumi/bls-eth-go-binary/bls"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -490,7 +489,7 @@ func verifyCeremonySigs(encryptedKeys [][]byte, o *LocalOwner, sk *rsa.PrivateKe
 		if err != nil {
 			continue
 		}
-		secret := &bls.SecretKey{}
+		secret := &herumi_bls.SecretKey{}
 		if err := secret.SetHexString(string(prShare)); err != nil {
 			return false, err
 		}
