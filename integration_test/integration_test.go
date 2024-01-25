@@ -25,8 +25,6 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
-const encryptedKeyLength = 256
-
 func TestHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -620,7 +618,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint16) error {
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
 	if len(sharesData) != sharesExpectedLength {
 		return fmt.Errorf("shares data len is not correct")
 	}

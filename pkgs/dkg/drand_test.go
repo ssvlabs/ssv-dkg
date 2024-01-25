@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	mrand "math/rand"
 	"testing"
 
 	"github.com/drand/kyber"
@@ -12,12 +11,14 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	herumi_bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -93,13 +94,7 @@ func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operato
 	return nil
 }
 
-func NewTestOperator(ts *testState) (*LocalOwner, *rsa.PrivateKey) {
-	id := uint64(mrand.Int63n(13))
-	_, exists := ts.ops[id]
-	for exists || id == 0 {
-		id = uint64(mrand.Int63n(13))
-		_, exists = ts.ops[id]
-	}
+func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 	pv, pk, err := crypto.GenerateKeys()
 	if err != nil {
 		ts.T.Error(err)
@@ -169,7 +164,6 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
-	n := 4
 	_, initatorPk, err := crypto.GenerateKeys()
 	require.NoError(t, err)
 	ts := &testState{
@@ -179,10 +173,12 @@ func TestDKGInit(t *testing.T) {
 		tv:      newTestVerify(),
 		ipk:     initatorPk,
 	}
-	for i := 0; i < n; i++ {
-		op, priv := NewTestOperator(ts)
+	var ids []uint64
+	for i := 1; i < 5; i++ {
+		op, priv := NewTestOperator(ts, uint64(i))
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
+		ids = append(ids, op.ID)
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
@@ -231,13 +227,31 @@ func TestDKGInit(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+	var encShares []byte
+	var ceremonySigs []byte
+	ssvContractOwnerNonceSigShares := make([]*herumi_bls.Sign, 0)
+	for _, o := range ts.ops {
+		encShare, ceremonySig, _, sigOwnerNonce, err := constructShares(o)
+		require.NoError(t, err)
+		encShares = append(encShares, encShare...)
+		ceremonySigs = append(ceremonySigs, ceremonySig...)
+		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, sigOwnerNonce)
+	}
+	_, err = crypto.RecoverMasterSig(ids, ssvContractOwnerNonceSigShares)
+	require.NoError(t, err)
+	// Verify Ceremony sigs
+	encryptedKeys := utils.SplitBytes(encShares, len(encShares)/len(ts.ops))
+	for _, o := range ts.ops {
+		ver, err := verifyCeremonySigs(encryptedKeys, o, ts.opsPriv[o.ID], encodedInitiatorPk, ceremonySigs)
+		require.NoError(t, err)
+		if !ver {
+			t.Fatal("cant verify ceremony signatures")
+		}
+	}
 }
 
-// TODO: fix test
 func TestDKGReshare(t *testing.T) {
-	t.SkipNow()
 	// Send operators we want to deal with them
-	n := 4
 	_, initatorPk, err := crypto.GenerateKeys()
 	require.NoError(t, err)
 	ts := &testState{
@@ -248,13 +262,13 @@ func TestDKGReshare(t *testing.T) {
 		ipk:     initatorPk,
 	}
 	var ids []uint64
-	for i := 0; i < n; i++ {
-		op, priv := NewTestOperator(ts)
+	for i := 1; i < 5; i++ {
+		op, priv := NewTestOperator(ts, uint64(i))
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
 		ids = append(ids, op.ID)
 	}
-	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
+	opsarr := make([]*wire2.Operator, 0, len(ts.tv.ops))
 	for id := range ts.ops {
 		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
@@ -304,44 +318,27 @@ func TestDKGReshare(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	secretsOldNodes := make(map[uint64]*herumi_bls.SecretKey)
 	var encShares []byte
 	var ceremonySigs []byte
 	var pubkeys []byte
 	ssvContractOwnerNonceSigShares := make([]*herumi_bls.Sign, 0)
-	err = ts.ForAll(func(o *LocalOwner) error {
-		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
-		if err != nil {
-			return nil
-		}
-		secretsOldNodes[o.ID] = key
-		// Encrypt BLS share for SSV contract
-		ciphertext, err := o.encryptFunc([]byte(key.Serialize()))
-		if err != nil {
-			return nil
-		}
-		encShares = append(encShares, ciphertext...)
-		encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
-		if err != nil {
-			return nil
-		}
-		dataToSign := make([]byte, len(key.Serialize())+len(encInitPub))
-		copy(dataToSign[:len(key.Serialize())], key.Serialize())
-		copy(dataToSign[len(key.Serialize()):], encInitPub)
-		ceremonySig, err := o.signFunc(dataToSign)
-		if err != nil {
-			return nil
-		}
+	for _, o := range ts.ops {
+		encShare, ceremonySig, pubkey, sigOwnerNonce, err := constructShares(o)
+		require.NoError(t, err)
+		encShares = append(encShares, encShare...)
 		ceremonySigs = append(ceremonySigs, ceremonySig...)
-		pubkeys = append(pubkeys, key.GetPublicKey().Serialize()...)
-
-		data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
-		hash := eth_crypto.Keccak256([]byte(data))
-		sigOwnerNonce := key.SignByte(hash)
+		pubkeys = append(pubkeys, pubkey...)
 		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, sigOwnerNonce)
-		return nil
-	})
-	require.NoError(t, err)
+	}
+	encryptedKeys := utils.SplitBytes(encShares, len(encShares)/len(ts.ops))
+	copyOps := ts.ops
+	for _, o := range copyOps {
+		ver, err := verifyCeremonySigs(encryptedKeys, o, ts.opsPriv[o.ID], encodedInitiatorPk, ceremonySigs)
+		require.NoError(t, err)
+		if !ver {
+			t.Fatal("cant verify ceremony signatures")
+		}
+	}
 	var sharesData []byte
 	sharesData = append(sharesData, pubkeys...)
 	sharesData = append(sharesData, encShares...)
@@ -350,24 +347,30 @@ func TestDKGReshare(t *testing.T) {
 	var sharesDataSigned []byte
 	sharesDataSigned = append(sharesDataSigned, reconstructedOwnerNonceMasterSig.Serialize()...)
 	sharesDataSigned = append(sharesDataSigned, sharesData...)
-	// Start resharing
+	require.NoError(t, err)
+
+	// ###################
+	// Start RESHARE
+	// ###################
 	t.Log("Starting resharing")
 	ts2 := &testState{
 		T:       t,
 		ops:     make(map[uint64]*LocalOwner),
 		opsPriv: make(map[uint64]*rsa.PrivateKey),
 		tv:      newTestVerify(),
+		ipk:     initatorPk,
 	}
 
 	for _, opx := range ts.ops {
 		op := AddExistingOperator(ts2, opx)
 		ts2.ops[op.ID] = op
+		ts2.opsPriv[op.ID] = ts.opsPriv[op.ID]
 	}
 
 	var newops []uint64
 	newopsArr := make([]*wire2.Operator, 0, len(ts2.tv.ops))
-	for i := 0; i < n; i++ {
-		op, priv := NewTestOperator(ts2)
+	for i := 5; i < 9; i++ {
+		op, priv := NewTestOperator(ts2, uint64(i))
 		ts2.ops[op.ID] = op
 		ts2.opsPriv[op.ID] = priv
 		newops = append(newops, op.ID)
@@ -399,7 +402,7 @@ func TestDKGReshare(t *testing.T) {
 		NewOperators:       newopsArr,
 		OldT:               3,
 		NewT:               3,
-		Nonce:              0,
+		Nonce:              1,
 		Owner:              common.HexToAddress("0x1234"),
 		Keyshares:          sharesDataSigned,
 		CeremonySigs:       ceremonySigs,
@@ -407,17 +410,15 @@ func TestDKGReshare(t *testing.T) {
 	}
 	newuid := crypto.NewID()
 	exch2 := map[uint64]*wire2.Transport{}
-
-	err = ts2.ForAll(func(o *LocalOwner) error {
+	for _, o := range ts2.ops {
 		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 		for _, op := range reshare.OldOperators {
 			if op.ID == o.ID {
-				secretShare, err := crypto.GetSecretShareFromSharesData(reshare, ts.opsPriv[o.ID], o.ID)
-				if err != nil {
-					return err
+				secretShare, err := crypto.GetSecretShareFromSharesData(reshare, ts2.opsPriv[op.ID], op.ID)
+				require.NoError(t, err)
+				if secretShare == nil {
+					t.Fatal(fmt.Errorf("cant decrypt incoming private share"))
 				}
 				o.SecretShare = &kyber_dkg.DistKeyShare{
 					Commits: commits,
@@ -426,128 +427,95 @@ func TestDKGReshare(t *testing.T) {
 			}
 		}
 		tmsg, err := o.InitReshare(newuid, reshare, commits)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 		exch2[o.ID] = tmsg
-		return nil
-	})
+	}
 	require.NoError(t, err)
 	err = ts2.ForAll(func(o *LocalOwner) error {
 		return o.Broadcast(exch2[o.ID])
 	})
 	require.NoError(t, err)
-	newPubs := make(map[uint64]kyber.Point)
-	secretsNewNodes := make(map[uint64]*herumi_bls.SecretKey)
 	err = ts2.ForNew(func(o *LocalOwner) error {
 		<-o.done
-		newPubs[o.ID] = o.SecretShare.Public()
-		key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
-		if err != nil {
-			return nil
-		}
-		secretsNewNodes[o.ID] = key
 		return nil
 	}, newopsArr)
 	require.NoError(t, err)
-
-	// Print old pubs
-	var resPub kyber.Point
-	for id, pub := range pubs {
-		t.Logf("ID %d, old pub %s", id, pub.String())
-		resPub = pub
+	copyNewOps := make(map[uint64]*LocalOwner, 4)
+	for i := 1; i < 5; i++ {
+		copyNewOps[uint64(i)] = ts.ops[uint64(i)]
 	}
-	// Print new pubs
-	for id, pub := range newPubs {
-		require.Equal(t, resPub.String(), pub.String())
-		t.Logf("ID %d, new pub %s", id, pub.String())
+	var encSharesReshare []byte
+	var ceremonySigsReshare []byte
+	for _, o := range copyNewOps {
+		encShare, ceremonySig, _, _, err := constructShares(o)
+		require.NoError(t, err)
+		encSharesReshare = append(encSharesReshare, encShare...)
+		ceremonySigsReshare = append(ceremonySigsReshare, ceremonySig...)
 	}
-
-	// Check that old nodes sigs cannot be used
-	bytesToSign := []byte("Hello World")
-	// Sign with old nodes
-	oldNodesSigs := make([][]byte, 0)
-	sharePks := make([]*herumi_bls.PublicKey, 0)
-	ids = make([]uint64, 0)
-	for id, oldNode := range secretsOldNodes {
-		sharePks = append(sharePks, oldNode.GetPublicKey())
-		sig := oldNode.SignByte(bytesToSign)
-		oldNodesSigs = append(oldNodesSigs, sig.Serialize())
-		ids = append(ids, id)
+	encryptedKeysReshare := utils.SplitBytes(encSharesReshare, len(encSharesReshare)/4)
+	for _, o := range copyNewOps {
+		ver, err := verifyCeremonySigs(encryptedKeysReshare, o, ts2.opsPriv[o.ID], encodedInitiatorPk, ceremonySigsReshare)
+		require.NoError(t, err)
+		if !ver {
+			t.Fatal("cant verify ceremony signatures")
+		}
 	}
-	validatorRecoveredPKOldNodes, err := crypto.RecoverValidatorPublicKey(ids, sharePks)
-	require.NoError(t, err)
-	reconstructedMasterSigOldNodes, err := crypto.ReconstructSignatures(ids, oldNodesSigs)
-	require.NoError(t, err)
-	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigOldNodes, validatorRecoveredPKOldNodes.Serialize(), bytesToSign)
-	require.NoError(t, err)
+}
 
-	// Sign with new nodes
-	newNodesSigs := make([][]byte, 0)
-	newNodesSharePks := make([]*herumi_bls.PublicKey, 0)
-	ids = make([]uint64, 0)
-	for id, newNode := range secretsNewNodes {
-		newNodesSharePks = append(newNodesSharePks, newNode.GetPublicKey())
-		sig := newNode.SignByte(bytesToSign)
-		newNodesSigs = append(newNodesSigs, sig.Serialize())
-		ids = append(ids, id)
+func constructShares(o *LocalOwner) (encShare, ceremonySig, pubkey []byte, sigOwnerNonce *herumi_bls.Sign, err error) {
+	key, err := crypto.KyberShareToBLSKey(o.SecretShare.PriShare())
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
-	validatorRecoveredPKNewNodes, err := crypto.RecoverValidatorPublicKey(ids, newNodesSharePks)
-	require.NoError(t, err)
-	reconstructedMasterSigNewNodes, err := crypto.ReconstructSignatures(ids, newNodesSigs)
-	require.NoError(t, err)
-	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigNewNodes, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
-	require.NoError(t, err)
-	require.Equal(t, validatorRecoveredPKNewNodes.SerializeToHexStr(), validatorRecoveredPKOldNodes.SerializeToHexStr())
-	t.Logf("pub %s", validatorRecoveredPKNewNodes.SerializeToHexStr())
+	// Encrypt BLS share for SSV contract
+	ciphertext, err := o.encryptFunc([]byte(key.SerializeToHexStr()))
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	ceremonySig, err = o.GetCeremonySig(key)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	pubkey = key.GetPublicKey().Serialize()
+	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
+	hash := eth_crypto.Keccak256([]byte(data))
+	sigOwnerNonce = key.SignByte(hash)
+	return ciphertext, ceremonySig, pubkey, sigOwnerNonce, nil
+}
 
-	// try to mix sigs from old and new nodes
-	mixedNodesSigs := make([][]byte, 0)
-	mixedNodesSharePks := make([]*herumi_bls.PublicKey, 0)
-	ids = make([]uint64, 0)
-	for id, oldNode := range secretsOldNodes {
-		mixedNodesSharePks = append(mixedNodesSharePks, oldNode.GetPublicKey())
-		sig := oldNode.SignByte(bytesToSign)
-		mixedNodesSigs = append(mixedNodesSigs, sig.Serialize())
-		ids = append(ids, id)
-		if len(mixedNodesSigs) == 2 {
+func verifyCeremonySigs(encryptedKeys [][]byte, o *LocalOwner, sk *rsa.PrivateKey, encodedInitiatorPk, ceremonySigs []byte) (bool, error) {
+	var initVerify bool
+	for _, enck := range encryptedKeys {
+		prShare, err := rsaencryption.DecodeKey(sk, enck)
+		if err != nil {
+			continue
+		}
+		secret := &bls.SecretKey{}
+		if err := secret.SetHexString(string(prShare)); err != nil {
+			return false, err
+		}
+		// Check operator signature
+
+		initiatorPubKey, err := crypto.ParseRSAPubkey(encodedInitiatorPk)
+		if err != nil {
+			return false, err
+		}
+		encInitPub, err := crypto.EncodePublicKey(initiatorPubKey)
+		if err != nil {
+			return false, err
+		}
+		sigs := utils.SplitBytes(ceremonySigs, crypto.SignatureLength)
+		for _, sig := range sigs {
+			dataToVerify := make([]byte, len(secret.Serialize())+len(encInitPub))
+			copy(dataToVerify[:len(secret.Serialize())], secret.Serialize())
+			copy(dataToVerify[len(secret.Serialize()):], encInitPub)
+			err := crypto.VerifyRSA(o.RSAPub, dataToVerify, sig)
+			if err != nil {
+				continue
+			}
+			initVerify = true
 			break
 		}
 	}
-	for id, newNode := range secretsNewNodes {
-		mixedNodesSharePks = append(mixedNodesSharePks, newNode.GetPublicKey())
-		sig := newNode.SignByte(bytesToSign)
-		mixedNodesSigs = append(mixedNodesSigs, sig.Serialize())
-		ids = append(ids, id)
-		if len(mixedNodesSigs) == 4 {
-			break
-		}
-	}
-
-	validatorRecoveredPKMixedNodes, err := crypto.RecoverValidatorPublicKey(ids, mixedNodesSharePks)
-	require.NoError(t, err)
-	reconstructedMasterSigMixedNodes, err := crypto.ReconstructSignatures(ids, mixedNodesSigs)
-	require.NoError(t, err)
-	err = crypto.VerifyReconstructedSignature(reconstructedMasterSigMixedNodes, validatorRecoveredPKMixedNodes.Serialize(), bytesToSign)
-	require.NoError(t, err)
-	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKOldNodes.SerializeToHexStr())
-	require.NotEqual(t, validatorRecoveredPKMixedNodes.SerializeToHexStr(), validatorRecoveredPKNewNodes.SerializeToHexStr())
-
-	// Check threshold holds at new nodes
-	nodeSigs := make([][]byte, 0)
-	nodesSharePks := make([]*herumi_bls.PublicKey, 0)
-	ids = make([]uint64, 0)
-	for id, n := range secretsNewNodes {
-		nodesSharePks = append(nodesSharePks, n.GetPublicKey())
-		sig := n.SignByte(bytesToSign)
-		nodeSigs = append(nodeSigs, sig.Serialize())
-		ids = append(ids, id)
-		if len(nodeSigs) == 2 {
-			break
-		}
-	}
-	reconstructedMasterSig, err := crypto.ReconstructSignatures(ids, nodeSigs)
-	require.NoError(t, err)
-	err = crypto.VerifyReconstructedSignature(reconstructedMasterSig, validatorRecoveredPKNewNodes.Serialize(), bytesToSign)
-	require.ErrorContains(t, err, "could not reconstruct a valid signature")
+	return initVerify, nil
 }

@@ -359,6 +359,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("dkg protocol failed: %w", res.Error)
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
+	o.SecretShare = res.Result.Key
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
@@ -440,6 +441,7 @@ func (o *LocalOwner) postReshare(res *kyber_dkg.OptionResult) error {
 		return res.Error
 	}
 	o.Logger.Info("DKG resharing ceremony finished successfully")
+	o.SecretShare = res.Result.Key
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
