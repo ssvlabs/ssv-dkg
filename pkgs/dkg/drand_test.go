@@ -504,10 +504,11 @@ func verifyCeremonySigs(encryptedKeys [][]byte, o *LocalOwner, sk *rsa.PrivateKe
 			return false, err
 		}
 		sigs := utils.SplitBytes(ceremonySigs, crypto.SignatureLength)
+		serialized := secret.Serialize()
 		for _, sig := range sigs {
-			dataToVerify := make([]byte, len(secret.Serialize())+len(encInitPub))
-			copy(dataToVerify[:len(secret.Serialize())], secret.Serialize())
-			copy(dataToVerify[len(secret.Serialize()):], encInitPub)
+			dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+			copy(dataToVerify[:len(serialized)], serialized)
+			copy(dataToVerify[len(serialized):], encInitPub)
 			err := crypto.VerifyRSA(o.RSAPub, dataToVerify, sig)
 			if err != nil {
 				continue
