@@ -38,9 +38,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
@@ -69,9 +67,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
