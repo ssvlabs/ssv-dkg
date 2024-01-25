@@ -664,10 +664,11 @@ func GetSecretShareFromSharesData(reshare *wire.Reshare, opPrivateKey *rsa.Priva
 			return nil, err
 		}
 		sigs := utils.SplitBytes(reshare.CeremonySigs, SignatureLength)
+		serialized := secret.Serialize()
 		for _, sig := range sigs {
-			dataToVerify := make([]byte, len(secret.Serialize())+len(encInitPub))
-			copy(dataToVerify[:len(secret.Serialize())], secret.Serialize())
-			copy(dataToVerify[len(secret.Serialize()):], encInitPub)
+			dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+			copy(dataToVerify[:len(serialized)], serialized)
+			copy(dataToVerify[len(serialized):], encInitPub)
 			err := VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sig)
 			if err != nil {
 				continue
@@ -679,7 +680,7 @@ func GetSecretShareFromSharesData(reshare *wire.Reshare, opPrivateKey *rsa.Priva
 			return nil, fmt.Errorf("cant verify initiator public key")
 		}
 		// Find operator ID by PubKey
-		v := suite.G1().Scalar().SetBytes(secret.Serialize())
+		v := suite.G1().Scalar().SetBytes(serialized)
 		kyberPrivShare = &share.PriShare{
 			I: int(operatorID),
 			V: v,
