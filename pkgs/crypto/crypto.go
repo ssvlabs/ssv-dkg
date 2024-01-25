@@ -665,10 +665,10 @@ func GetSecretShareFromSharesData(reshare *wire.Reshare, opPrivateKey *rsa.Priva
 		}
 		sigs := utils.SplitBytes(reshare.CeremonySigs, SignatureLength)
 		serialized := secret.Serialize()
+		dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+		copy(dataToVerify[:len(serialized)], serialized)
+		copy(dataToVerify[len(serialized):], encInitPub)
 		for _, sig := range sigs {
-			dataToVerify := make([]byte, len(serialized)+len(encInitPub))
-			copy(dataToVerify[:len(serialized)], serialized)
-			copy(dataToVerify[len(serialized):], encInitPub)
 			err := VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sig)
 			if err != nil {
 				continue
