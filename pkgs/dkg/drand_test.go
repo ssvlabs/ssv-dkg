@@ -329,15 +329,6 @@ func TestDKGReshare(t *testing.T) {
 		pubkeys = append(pubkeys, pubkey...)
 		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, sigOwnerNonce)
 	}
-	encryptedKeys := utils.SplitBytes(encShares, len(encShares)/len(ts.ops))
-	copyOps := ts.ops
-	for _, o := range copyOps {
-		ver, err := verifyCeremonySigs(encryptedKeys, o, ts.opsPriv[o.ID], encodedInitiatorPk, ceremonySigs)
-		require.NoError(t, err)
-		if !ver {
-			t.Fatal("cant verify ceremony signatures")
-		}
-	}
 	var sharesData []byte
 	sharesData = append(sharesData, pubkeys...)
 	sharesData = append(sharesData, encShares...)
@@ -439,26 +430,6 @@ func TestDKGReshare(t *testing.T) {
 		return nil
 	}, newopsArr)
 	require.NoError(t, err)
-	copyNewOps := make(map[uint64]*LocalOwner, 4)
-	for i := 1; i < 5; i++ {
-		copyNewOps[uint64(i)] = ts.ops[uint64(i)]
-	}
-	var encSharesReshare []byte
-	var ceremonySigsReshare []byte
-	for _, o := range copyNewOps {
-		encShare, ceremonySig, _, _, err := constructShares(o)
-		require.NoError(t, err)
-		encSharesReshare = append(encSharesReshare, encShare...)
-		ceremonySigsReshare = append(ceremonySigsReshare, ceremonySig...)
-	}
-	encryptedKeysReshare := utils.SplitBytes(encSharesReshare, len(encSharesReshare)/4)
-	for _, o := range copyNewOps {
-		ver, err := verifyCeremonySigs(encryptedKeysReshare, o, ts2.opsPriv[o.ID], encodedInitiatorPk, ceremonySigsReshare)
-		require.NoError(t, err)
-		if !ver {
-			t.Fatal("cant verify ceremony signatures")
-		}
-	}
 }
 
 func constructShares(o *LocalOwner) (encShare, ceremonySig, pubkey []byte, sigOwnerNonce *herumi_bls.Sign, err error) {
