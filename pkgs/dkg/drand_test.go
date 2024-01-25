@@ -400,7 +400,7 @@ func TestDKGReshare(t *testing.T) {
 	}
 	newuid := crypto.NewID()
 	exch2 := map[uint64]*wire2.Transport{}
-	for _, o := range ts2.ops {
+	err = ts2.ForOld(func(o *LocalOwner) error {
 		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
 		require.NoError(t, err)
 		for _, op := range reshare.OldOperators {
@@ -419,7 +419,30 @@ func TestDKGReshare(t *testing.T) {
 		tmsg, err := o.InitReshare(newuid, reshare, commits)
 		require.NoError(t, err)
 		exch2[o.ID] = tmsg
-	}
+		return nil
+	}, opsarr)
+	require.NoError(t, err)
+	err = ts2.ForNew(func(o *LocalOwner) error {
+		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
+		require.NoError(t, err)
+		for _, op := range reshare.OldOperators {
+			if op.ID == o.ID {
+				secretShare, err := crypto.GetSecretShareFromSharesData(reshare, ts2.opsPriv[op.ID], op.ID)
+				require.NoError(t, err)
+				if secretShare == nil {
+					t.Fatal(fmt.Errorf("cant decrypt incoming private share"))
+				}
+				o.SecretShare = &kyber_dkg.DistKeyShare{
+					Commits: commits,
+					Share:   secretShare,
+				}
+			}
+		}
+		tmsg, err := o.InitReshare(newuid, reshare, commits)
+		require.NoError(t, err)
+		exch2[o.ID] = tmsg
+		return nil
+	}, newopsArr)
 	require.NoError(t, err)
 	err = ts2.ForAll(func(o *LocalOwner) error {
 		return o.Broadcast(exch2[o.ID])
