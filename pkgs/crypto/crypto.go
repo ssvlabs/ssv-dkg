@@ -632,59 +632,55 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 	return commits, nil
 }
 
-func GetSecretShareFromSharesData(reshare *wire.Reshare, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
+func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(reshare.OldOperators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(reshare.OldOperators) + pubKeysOffset
-	if len(reshare.Keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(reshare.Keyshares))
+	pubKeysOffset := phase0.PublicKeyLength*len(oldOperators) + signatureOffset
+	sharesExpectedLength := EncryptedKeyLength*len(oldOperators) + pubKeysOffset
+	if len(keyshares) != sharesExpectedLength {
+		return nil, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyshares))
 	}
-	encryptedKeys := utils.SplitBytes(reshare.Keyshares[pubKeysOffset:], len(reshare.Keyshares[pubKeysOffset:])/len(reshare.OldOperators))
+	encryptedKeys := utils.SplitBytes(keyshares[pubKeysOffset:], len(keyshares[pubKeysOffset:])/len(oldOperators))
 	// try to decrypt private share
 	var kyberPrivShare *share.PriShare
-	for _, enck := range encryptedKeys {
-		prShare, err := rsaencryption.DecodeKey(opPrivateKey, enck)
-		if err != nil {
-			continue
+	// encrypted shares are ordered in increasing order
+	var position int
+	for i, op := range oldOperators {
+		if op.ID == operatorID {
+			position = i
 		}
-		secret := &bls.SecretKey{}
-		err = secret.SetHexString(string(prShare))
-		if err != nil {
-			return nil, err
-		}
-		// Check operator signature
-		var initVerify bool
-		initiatorPubKey, err := ParseRSAPubkey(reshare.InitiatorPublicKey)
-		if err != nil {
-			return nil, err
-		}
-		encInitPub, err := EncodePublicKey(initiatorPubKey)
-		if err != nil {
-			return nil, err
-		}
-		sigs := utils.SplitBytes(reshare.CeremonySigs, SignatureLength)
-		serialized := secret.Serialize()
-		dataToVerify := make([]byte, len(serialized)+len(encInitPub))
-		copy(dataToVerify[:len(serialized)], serialized)
-		copy(dataToVerify[len(serialized):], encInitPub)
-		for _, sig := range sigs {
-			err := VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sig)
-			if err != nil {
-				continue
-			}
-			initVerify = true
-			break
-		}
-		if !initVerify {
-			return nil, fmt.Errorf("cant verify initiator public key")
-		}
-		// Find operator ID by PubKey
-		v := suite.G1().Scalar().SetBytes(serialized)
-		kyberPrivShare = &share.PriShare{
-			I: int(operatorID),
-			V: v,
-		}
+	}
+	prShare, err := rsaencryption.DecodeKey(opPrivateKey, encryptedKeys[position])
+	if err != nil {
+		return nil, err
+	}
+	secret := &bls.SecretKey{}
+	err = secret.SetHexString(string(prShare))
+	if err != nil {
+		return nil, err
+	}
+	// Check operator signature
+	initiatorPubKey, err := ParseRSAPubkey(initiatorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	encInitPub, err := EncodePublicKey(initiatorPubKey)
+	if err != nil {
+		return nil, err
+	}
+	sigs := utils.SplitBytes(ceremonySigs, SignatureLength)
+	serialized := secret.Serialize()
+	dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+	copy(dataToVerify[:len(serialized)], serialized)
+	copy(dataToVerify[len(serialized):], encInitPub)
+	err = VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
+	if err != nil {
+		return nil, fmt.Errorf("cant verify initiator public key")
+	}
+	v := suite.G1().Scalar().SetBytes(serialized)
+	kyberPrivShare = &share.PriShare{
+		I: int(operatorID),
+		V: v,
 	}
 	return kyberPrivShare, nil
 }

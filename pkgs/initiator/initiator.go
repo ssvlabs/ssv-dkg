@@ -1119,6 +1119,10 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 }
 
 func (c *Initiator) GetCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, error) {
+	// order the results by operatorID
+	sort.SliceStable(dkgResults, func(i, j int) bool {
+		return dkgResults[i].OperatorID < dkgResults[j].OperatorID
+	})
 	ceremonySigs := &CeremonySigs{}
 	var sigsBytes []byte
 	for i := 0; i < len(dkgResults); i++ {

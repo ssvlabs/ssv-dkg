@@ -17,7 +17,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -228,24 +227,27 @@ func TestDKGInit(t *testing.T) {
 	require.NoError(t, err)
 	var encShares []byte
 	var ceremonySigs []byte
+	var pubkeys []byte
 	ssvContractOwnerNonceSigShares := make([]*herumi_bls.Sign, 0)
-	for _, o := range ts.ops {
-		encShare, ceremonySig, _, sigOwnerNonce, err := constructShares(o)
+	for i := 1; i < 5; i++ {
+		encShare, ceremonySig, pubkey, sigOwnerNonce, err := constructShares(ts.ops[uint64(i)])
 		require.NoError(t, err)
 		encShares = append(encShares, encShare...)
 		ceremonySigs = append(ceremonySigs, ceremonySig...)
+		pubkeys = append(pubkeys, pubkey...)
 		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, sigOwnerNonce)
 	}
-	_, err = crypto.RecoverMasterSig(ids, ssvContractOwnerNonceSigShares)
+	var sharesData []byte
+	sharesData = append(sharesData, pubkeys...)
+	sharesData = append(sharesData, encShares...)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ids, ssvContractOwnerNonceSigShares)
 	require.NoError(t, err)
-	// Verify Ceremony sigs
-	encryptedKeys := utils.SplitBytes(encShares, len(encShares)/len(ts.ops))
+	var sharesDataSigned []byte
+	sharesDataSigned = append(sharesDataSigned, reconstructedOwnerNonceMasterSig.Serialize()...)
+	sharesDataSigned = append(sharesDataSigned, sharesData...)
 	for _, o := range ts.ops {
-		ver, err := verifyCeremonySigs(encryptedKeys, o, ts.opsPriv[o.ID], encodedInitiatorPk, ceremonySigs)
+		_, err := crypto.GetSecretShareFromSharesData(sharesDataSigned, init.InitiatorPublicKey, ceremonySigs, opsarr, ts.opsPriv[o.ID], o.ID)
 		require.NoError(t, err)
-		if !ver {
-			t.Fatal("cant verify ceremony signatures")
-		}
 	}
 }
 
@@ -321,8 +323,9 @@ func TestDKGReshare(t *testing.T) {
 	var ceremonySigs []byte
 	var pubkeys []byte
 	ssvContractOwnerNonceSigShares := make([]*herumi_bls.Sign, 0)
-	for _, o := range ts.ops {
-		encShare, ceremonySig, pubkey, sigOwnerNonce, err := constructShares(o)
+	for i := 1; i < 5; i++ {
+		t.Logf("Operator ID %d", ts.ops[uint64(i)].ID)
+		encShare, ceremonySig, pubkey, sigOwnerNonce, err := constructShares(ts.ops[uint64(i)])
 		require.NoError(t, err)
 		encShares = append(encShares, encShare...)
 		ceremonySigs = append(ceremonySigs, ceremonySig...)
@@ -337,7 +340,6 @@ func TestDKGReshare(t *testing.T) {
 	var sharesDataSigned []byte
 	sharesDataSigned = append(sharesDataSigned, reconstructedOwnerNonceMasterSig.Serialize()...)
 	sharesDataSigned = append(sharesDataSigned, sharesData...)
-	require.NoError(t, err)
 
 	// ###################
 	// Start RESHARE
@@ -413,7 +415,7 @@ func TestDKGReshare(t *testing.T) {
 		require.NoError(t, err)
 		for _, op := range reshare.OldOperators {
 			if op.ID == o.ID {
-				secretShare, err := crypto.GetSecretShareFromSharesData(reshare, ts2.opsPriv[op.ID], op.ID)
+				secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, ts2.opsPriv[op.ID], op.ID)
 				require.NoError(t, err)
 				if secretShare == nil {
 					t.Fatal(fmt.Errorf("cant decrypt incoming private share"))
@@ -460,42 +462,4 @@ func constructShares(o *LocalOwner) (encShare, ceremonySig, pubkey []byte, sigOw
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce = key.SignByte(hash)
 	return ciphertext, ceremonySig, pubkey, sigOwnerNonce, nil
-}
-
-func verifyCeremonySigs(encryptedKeys [][]byte, o *LocalOwner, sk *rsa.PrivateKey, encodedInitiatorPk, ceremonySigs []byte) (bool, error) {
-	var initVerify bool
-	for _, enck := range encryptedKeys {
-		prShare, err := rsaencryption.DecodeKey(sk, enck)
-		if err != nil {
-			continue
-		}
-		secret := &herumi_bls.SecretKey{}
-		if err := secret.SetHexString(string(prShare)); err != nil {
-			return false, err
-		}
-		// Check operator signature
-
-		initiatorPubKey, err := crypto.ParseRSAPubkey(encodedInitiatorPk)
-		if err != nil {
-			return false, err
-		}
-		encInitPub, err := crypto.EncodePublicKey(initiatorPubKey)
-		if err != nil {
-			return false, err
-		}
-		sigs := utils.SplitBytes(ceremonySigs, crypto.SignatureLength)
-		serialized := secret.Serialize()
-		dataToVerify := make([]byte, len(serialized)+len(encInitPub))
-		copy(dataToVerify[:len(serialized)], serialized)
-		copy(dataToVerify[len(serialized):], encInitPub)
-		for _, sig := range sigs {
-			err := crypto.VerifyRSA(o.RSAPub, dataToVerify, sig)
-			if err != nil {
-				continue
-			}
-			initVerify = true
-			break
-		}
-	}
-	return initVerify, nil
 }

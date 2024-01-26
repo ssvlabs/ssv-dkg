@@ -174,7 +174,7 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	for _, op := range reshare.OldOperators {
 		if op.ID == operatorID {
-			secretShare, err := crypto.GetSecretShareFromSharesData(reshare, s.PrivateKey, s.OperatorID)
+			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
 			if err != nil {
 				return nil, nil, err
 			}
