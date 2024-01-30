@@ -35,19 +35,6 @@ spec:
       labels:
         app: ssv-dkg-69
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/role
-                    operator: In
-                    values:
-                      - ssv-main
-                  - key: beta.kubernetes.io/instance-type
-                    operator: In
-                    values:
-                      - m5a.4xlarge
       containers:
       - name: ssv-dkg-69
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
@@ -78,8 +65,4 @@ spec:
         - name: ssv-dkg-69-cm
           configMap:
             name: ssv-dkg-69-cm
-      tolerations:
-        - effect: NoSchedule
-          key: kubernetes.io/role
-          operator: Exists
       hostNetwork: true
