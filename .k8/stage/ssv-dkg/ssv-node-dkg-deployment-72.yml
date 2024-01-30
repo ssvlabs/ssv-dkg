@@ -58,7 +58,7 @@ spec:
             memory: REPLACE_NODES_MEM_LIMIT
         ports:
         - containerPort: 3072
-        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op72.json"]
+        command: ["/bin/ssv-dkg", "start-operator", "--configPath=/data/config", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op72.json"]
         volumeMounts:
         - name: secrets-file
           mountPath: "/data/encrypted_private_key_op72.json"
@@ -67,7 +67,7 @@ spec:
           mountPath: /data/password
           subPath: password
         - name: ssv-dkg-72-cm
-          mountPath: /data/operator.yaml
+          mountPath: /data/config/config.yaml
           subPath: operator.yaml
       imagePullSecrets:
         - name: ecr-repo
