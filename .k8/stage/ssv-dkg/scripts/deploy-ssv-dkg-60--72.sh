@@ -100,18 +100,19 @@ fi
 DIR=".k8/stage/ssv-dkg"
 DEPLOY_FILES=(
   "ssv-node-dkg-deployment-60.yml"
-  "ssv-node-dkg-deployment-61.yml"
-  "ssv-node-dkg-deployment-62.yml"
-  "ssv-node-dkg-deployment-63.yml"
-  "ssv-node-dkg-deployment-64.yml"
-  "ssv-node-dkg-deployment-65.yml"
-  "ssv-node-dkg-deployment-66.yml"
-  "ssv-node-dkg-deployment-67.yml"
-  "ssv-node-dkg-deployment-68.yml"
-  "ssv-node-dkg-deployment-69.yml"
-  "ssv-node-dkg-deployment-70.yml"
-  "ssv-node-dkg-deployment-71.yml"
-  "ssv-node-dkg-deployment-72.yml"
+#  "ssv-node-dkg-deployment-61.yml"
+#  "ssv-node-dkg-deployment-62.yml"
+#  "ssv-node-dkg-deployment-63.yml"
+#  "ssv-node-dkg-deployment-64.yml"
+#  "ssv-node-dkg-deployment-65.yml"
+#  "ssv-node-dkg-deployment-66.yml"
+#  "ssv-node-dkg-deployment-67.yml"
+#  "ssv-node-dkg-deployment-68.yml"
+#  "ssv-node-dkg-deployment-69.yml"
+#  "ssv-node-dkg-deployment-70.yml"
+#  "ssv-node-dkg-deployment-71.yml"
+#  "ssv-node-dkg-deployment-72.yml"
+
 )
 
 if [[ -d $DIR ]]; then

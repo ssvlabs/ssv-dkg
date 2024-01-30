@@ -42,7 +42,7 @@ Build stage Docker image:
     - docker tag $IMAGE_NAME:$CI_COMMIT_SHA $DOCKER_REPO_INFRA_STAGE:$CI_COMMIT_SHA
     - $DOCKER_LOGIN_TO_INFRA_STAGE_REPO && docker push $DOCKER_REPO_INFRA_STAGE:$CI_COMMIT_SHA
   only:
-    - stage
+    - setup-dkg-nodes
 
 # +---------------------+
 # | STAGE HETZNER NODES |
@@ -68,7 +68,7 @@ Deploy SSV DKG nodes to Hetzner stage:
     # +------------------------+
     - .k8/stage/ssv-dkg/scripts/deploy-ssv-dkg-60--72.sh $DOCKER_REPO_INFRA_PROD $CI_COMMIT_SHA ssv $APP_REPLICAS_INFRA_PROD hetzner.stage.k8s.local hetzner.stage.k8s.local stage.ssv.network $K8S_API_VERSION $SSV_DKG_CPU_LIMIT $SSV_DKG_MEM_LIMIT
   only:
-    - stage
+    - setup-dkg-nodes
 
 
 # +---------------+
