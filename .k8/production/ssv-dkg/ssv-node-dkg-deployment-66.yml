@@ -1,0 +1,83 @@
+---
+apiVersion: v66
+kind: Service
+metadata:
+  name: ssv-dkg-66-svc
+  namespace: REPLACE_NAMESPACE
+  labels:
+    app: ssv-dkg-66
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3066
+      protocol: TCP
+      targetPort: 3066
+      name: port-3066
+  selector:
+    app: ssv-dkg-66
+---
+apiVersion: REPLACE_API_VERSION
+kind: Deployment
+metadata:
+  labels:
+    app: ssv-dkg-66
+  name: ssv-dkg-66
+  namespace: REPLACE_NAMESPACE
+spec:
+  replicas: REPLACE_REPLICAS
+  selector:
+    matchLabels:
+      app: ssv-dkg-66
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ssv-dkg-66
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/role
+                    operator: In
+                    values:
+                      - ssv-main
+                  - key: beta.kubernetes.io/instance-type
+                    operator: In
+                    values:
+                      - m5a.4xlarge
+      containers:
+      - name: ssv-dkg-66
+        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: REPLACE_NODES_CPU_LIMIT
+            memory: REPLACE_NODES_MEM_LIMIT
+        ports:
+        - containerPort: 3066
+        command: ["/app", "start-operator", "--configPath=/data/operator.yaml", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op66.json"]
+        volumeMounts:
+        - name: secrets-file
+          mountPath: "/data/encrypted_private_key_op66.json"
+          subPath: encrypted_private_key_op66.json
+        - name: ssv-dkg-66-cm
+          mountPath: /data/password
+          subPath: password
+        - name: ssv-dkg-66-cm
+          mountPath: /data/operator.yaml
+          subPath: operator.yaml
+      volumes:
+        - name: secrets-file
+          secret:
+            secretName: ssv-dkg-66
+        - name: ssv-dkg-66-cm
+          configMap:
+            name: ssv-dkg-66-cm
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/role
+          operator: Exists
+      hostNetwork: true

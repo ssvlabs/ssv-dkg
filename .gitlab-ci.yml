@@ -60,5 +60,6 @@ Deploy nodes to prod:
     # |      Deploy ssv-dkg nodes     |
     # +-------------------------------+
     - .k8/production/ssv-dkg/scripts/deploy-ssv-dkg-1--4.sh $DOCKER_REPO_INFRA_PROD $CI_COMMIT_SHA ssv $APP_REPLICAS_INFRA_PROD blox-infra-prod kubernetes-admin@blox-infra-prod ssv.network $K8S_API_VERSION $SSV_DKG_CPU_LIMIT $SSV_DKG_MEM_LIMIT
+    - .k8/production/ssv-dkg/scripts/deploy-ssv-dkg-60--72.sh $DOCKER_REPO_INFRA_PROD $CI_COMMIT_SHA ssv $APP_REPLICAS_INFRA_PROD blox-infra-prod kubernetes-admin@blox-infra-prod ssv.network $K8S_API_VERSION $SSV_DKG_CPU_LIMIT $SSV_DKG_MEM_LIMIT
   only:
     - main
