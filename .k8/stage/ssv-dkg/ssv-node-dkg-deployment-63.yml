@@ -45,7 +45,7 @@ spec:
             memory: REPLACE_NODES_MEM_LIMIT
         ports:
         - containerPort: 3063
-        command: ["/bin/ssv-dkg", "start-operator", "--configPath=/data/config", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op63.json"]
+        command: ["/bin/ssv-dkg", "start-operator", "--configPath=/data/config", "--privKeyPassword=/data/password", "--privKey=/data/encrypted_private_key_op63.json", "--operatorID=63"]
         volumeMounts:
         - name: secrets-file
           mountPath: "/data/encrypted_private_key_op63.json"
