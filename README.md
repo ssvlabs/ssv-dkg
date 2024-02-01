@@ -59,9 +59,13 @@ Similarly, head over to [this other section](#initiator-quick-start) for instruc
 
 ## Minimum requirements
 
-The tool relies on lots of cryptography, so its computationaly dependent. We require at least `AWS t3.medium` or similar machine dedicated to run DKG (https://aws.amazon.com/ec2/instance-types/).
+The tool is heavily reliant on cryptography, therefore computational power has a major impact on its performance. 
 
-We recommend using `AWS t3.large` or more. The demands are raising depending on amount validators being created at once.
+The minimum requirement is an AWS t3.medium or equivalent machine dedicated to run DKG (https://aws.amazon.com/ec2/instance-types/).
+
+The recommend requirement is an AWS t3.large  or higher tier machine.
+
+Please note: computational demands are raising depending on amount validators being created at once.
 
 Minimum docker resource allocations:
 
