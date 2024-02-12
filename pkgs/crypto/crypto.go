@@ -634,31 +634,11 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 
 func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(oldOperators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(oldOperators) + pubKeysOffset
-	if len(keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyshares))
+	secret, position, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
+	if err != nil {
+		return nil, err
 	}
-	encryptedKeys := utils.SplitBytes(keyshares[pubKeysOffset:], len(keyshares[pubKeysOffset:])/len(oldOperators))
-	// try to decrypt private share
 	var kyberPrivShare *share.PriShare
-	// encrypted shares are ordered in increasing order
-	var position int
-	for i, op := range oldOperators {
-		if op.ID == operatorID {
-			position = i
-		}
-	}
-	prShare, err := rsaencryption.DecodeKey(opPrivateKey, encryptedKeys[position])
-	if err != nil {
-		return nil, err
-	}
-	secret := &bls.SecretKey{}
-	err = secret.SetHexString(string(prShare))
-	if err != nil {
-		return nil, err
-	}
 	// Check operator signature
 	initiatorPubKey, err := ParseRSAPubkey(initiatorPublicKey)
 	if err != nil {
@@ -683,4 +663,36 @@ func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []
 		V: v,
 	}
 	return kyberPrivShare, nil
+}
+
+func checkKeySharesSlice(keyShares []byte, oldOperators []*wire.Operator, operatorID uint64, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, int, error) {
+	pubKeyOffset := phase0.PublicKeyLength * len(oldOperators)
+	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
+	sharesExpectedLength := EncryptedKeyLength*len(oldOperators) + pubKeysSigOffset
+	if len(keyShares) != sharesExpectedLength {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyShares))
+	}
+	ids := make(map[uint64]int)
+	for i, op := range oldOperators {
+		if operatorID == op.ID {
+			ids[operatorID] = i
+		}
+	}
+	// check if operator ID
+	position, ok := ids[operatorID]
+	if !ok {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: operator not found among old operators: %d", operatorID)
+	}
+	encryptedKeys := utils.SplitBytes(keyShares[pubKeysSigOffset:], len(keyShares[pubKeysSigOffset:])/len(oldOperators))
+	// try to decrypt private share
+	prShare, err := rsaencryption.DecodeKey(opPrivateKey, encryptedKeys[position])
+	if err != nil {
+		return nil, 0, err
+	}
+	secret := &bls.SecretKey{}
+	err = secret.SetHexString(string(prShare))
+	if err != nil {
+		return nil, 0, err
+	}
+	return secret, position, nil
 }
