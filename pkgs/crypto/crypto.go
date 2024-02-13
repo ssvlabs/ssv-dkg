@@ -673,15 +673,15 @@ func checkKeySharesSlice(keyShares []byte, oldOperators []*wire.Operator, operat
 	if len(keyShares) != sharesExpectedLength {
 		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyShares))
 	}
-	ids := make(map[uint64]int)
+	position := -1
 	for i, op := range oldOperators {
 		if operatorID == op.ID {
-			ids[operatorID] = i
+			position = i
+			break
 		}
 	}
-	// check if operator ID
-	position, ok := ids[operatorID]
-	if !ok {
+	// check
+	if position == -1 {
 		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: operator not found among old operators: %d", operatorID)
 	}
 	encryptedKeys := utils.SplitBytes(keyShares[pubKeysSigOffset:], len(keyShares[pubKeysSigOffset:])/len(oldOperators))

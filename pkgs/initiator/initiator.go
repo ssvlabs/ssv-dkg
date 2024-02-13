@@ -131,10 +131,7 @@ type CeremonySigs struct {
 
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
 func GeneratePayload(result []dkg.Result, sigOwnerNonce []byte, owner common.Address, nonce uint64) (*KeyShares, error) {
-	// order the results by operatorID
-	sort.SliceStable(result, func(i, j int) bool {
-		return result[i].OperatorID < result[j].OperatorID
-	})
+	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(result, func(p, q int) bool {
 		return result[p].OperatorID < result[q].OperatorID
 	})
@@ -806,10 +803,7 @@ func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) err
 
 // ProcessDKGResultResponse deserializes incoming DKG result messages from operators
 func (c *Initiator) ProcessDKGResultResponse(dkgResults []dkg.Result) (sharePks []*bls.PublicKey, sigDepositShares, ssvContractOwnerNonceSigShares []*bls.Sign, err error) {
-	// order the results by operatorID
-	sort.SliceStable(dkgResults, func(i, j int) bool {
-		return dkgResults[i].OperatorID < dkgResults[j].OperatorID
-	})
+	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
 	})
@@ -867,6 +861,10 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 		}
 		dkgResults = append(dkgResults, result)
 	}
+	// sort the results by operatorID
+	sort.SliceStable(dkgResults, func(i, j int) bool {
+		return dkgResults[i].OperatorID < dkgResults[j].OperatorID
+	})
 	return dkgResults, nil
 }
 
