@@ -68,9 +68,6 @@ func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("configFileName", cmd.PersistentFlags().Lookup("configFileName")); err != nil {
-		return err
-	}
 	ConfigPath = viper.GetString("configPath")
 	if ConfigPath != "" {
 		if strings.Contains(ConfigPath, "../") {
@@ -192,7 +189,6 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initia
 func SetBaseFlags(cmd *cobra.Command) {
 	flags.ResultPathFlag(cmd)
 	flags.ConfigPathFlag(cmd)
-	flags.ConfigFileNameFlag(cmd)
 	flags.LogLevelFlag(cmd)
 	flags.LogFormatFlag(cmd)
 	flags.LogLevelFormatFlag(cmd)
