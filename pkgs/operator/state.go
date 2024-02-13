@@ -353,7 +353,6 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	}
 	_, ok := s.Instances[reqID]
 	if ok {
-		// TODO: strange logic. Check.
 		tm := s.InstanceInitTime[reqID]
 		if time.Now().Before(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()

@@ -412,7 +412,6 @@ func TestRecoverSharesData(t *testing.T) {
 			V: v,
 		}
 		kyberPrivShares = append(kyberPrivShares, kyberPrivShare)
-		// TODO: Recover pub commits
 		kyberPubShare := &share.PubShare{
 			I: int(i),
 			V: suite.G1().Point().Mul(kyberPrivShare.V, nil),
