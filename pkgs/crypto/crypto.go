@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -693,6 +694,19 @@ func checkKeySharesSlice(keyShares []byte, oldOperators []*wire.Operator, operat
 	err = secret.SetHexString(string(prShare))
 	if err != nil {
 		return nil, 0, err
+	}
+	// find share pub key
+	pubKeys := utils.SplitBytes(keyShares[phase0.SignatureLength:pubKeysSigOffset], phase0.PublicKeyLength)
+	if len(pubKeys) != len(oldOperators) {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: amount of public keys at keyshares slice is wrong: %d", len(pubKeys))
+	}
+	publicKey := &bls.PublicKey{}
+	err = publicKey.Deserialize(pubKeys[position])
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: cant deserialize public key at keyshares slice: %d", len(pubKeys))
+	}
+	if !bytes.Equal(publicKey.Serialize(), secret.GetPublicKey().Serialize()) {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: public key at position %d not equal to operator`s share public key", position)
 	}
 	return secret, position, nil
 }
