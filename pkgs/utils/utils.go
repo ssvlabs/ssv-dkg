@@ -2,12 +2,14 @@ package utils
 
 import (
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,8 +25,8 @@ var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 var ErrVersion = errors.New("wrong version")
 
 // WriteJSON writes data to JSON file
-func WriteJSON(filepath string, data any) error {
-	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+func WriteJSON(filePth string, data any) error {
+	file, err := os.OpenFile(filepath.Clean(filePth), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -174,4 +176,10 @@ func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err erro
 	logger.Error("request error: " + err.Error())
 	writer.WriteHeader(statusCode)
 	writer.Write(wire.MakeErr(err))
+}
+
+// GetNonce returns a suitable nonce to feed in the DKG config.
+func GetNonce(input []byte) []byte {
+	ret := sha256.Sum256(input)
+	return ret[:]
 }

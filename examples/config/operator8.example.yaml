@@ -6,5 +6,4 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/operator8/output/operator8_logs_debug.log
-DBPath: /data/operator8/output/operator8_db/
 outputPath: /data/operator8/output

@@ -64,7 +64,7 @@ func TestStartDKG(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		depositData, keyshares, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
@@ -72,21 +72,21 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger, "v1.0.2")
+		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger, "v1.0.2")
+		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: > 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		initiator := initiator.New(priv, ops, logger, "v1.0.2")
+		intr := initiator.New(priv, ops, logger, "v1.0.2")
 		id := crypto.NewID()
-		_, _, err = initiator.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 
@@ -161,7 +161,7 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "wrong operators len: < 4",
 		},
 		{
 			name:    "not valid number of operators",
@@ -203,7 +203,7 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "wrong operators len: > 13",
 		},
 		{
 			name:    "duplicate operators",
@@ -254,24 +254,23 @@ func TestValidateDKGParams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := initiator.ValidatedOperatorData(tt.ids, tt.ops)
-			if tt.wantErr {
+			switch {
+			case tt.wantErr:
 				if err == nil {
 					t.Errorf("expected error but got none")
 				} else if err.Error() != tt.errMsg {
 					t.Errorf("expected error message %q but got %q", tt.errMsg, err.Error())
 				}
-			} else if err != nil {
+			case err != nil:
 				t.Errorf("unexpected error: %v", err)
-			} else {
-
+			default:
 				// verify list is ok
 				need := len(tt.ids)
-			verLoop:
 				for _, id := range tt.ids {
 					for _, op := range res {
 						if op.ID == id {
 							need--
-							continue verLoop
+							break
 						}
 					}
 				}

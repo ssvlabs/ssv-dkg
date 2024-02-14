@@ -43,12 +43,7 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		// Database
-		DBOptions, err := cli_utils.GetOperatorDB()
-		if err != nil {
-			logger.Fatal("😥 Failed to load DB: ", zap.Error(err))
-		}
-		srv, err := operator.New(privateKey, logger, DBOptions, []byte(cmd.Version), cli_utils.OperatorID)
+		srv, err := operator.New(privateKey, logger, []byte(cmd.Version), cli_utils.OperatorID)
 		if err != nil {
 			logger.Fatal("😥 Failed to create new operator instance: ", zap.Error(err))
 		}

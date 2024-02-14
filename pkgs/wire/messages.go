@@ -21,7 +21,6 @@ const (
 	ReshareMessageType
 	KyberMessageType
 	ReshareKyberMessageType
-	InitReshareMessageType
 	ExchangeMessageType
 	ReshareExchangeMessageType
 	OutputMessageType
@@ -114,7 +113,7 @@ type Init struct {
 	// Owner nonce
 	Nonce uint64
 	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
+	InitiatorPublicKey []byte `ssz-max:"612"`
 }
 
 type Reshare struct {
@@ -126,14 +125,16 @@ type Reshare struct {
 	OldT uint64
 	// NewT is the old threshold for signing
 	NewT uint64
-	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
-	// ID of the initial DKG ceremony
-	OldID [24]byte `ssz-size:"24"`
 	// Owner address
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
+	// Encrypted BLS shares
+	Keyshares []byte `ssz-max:"32768"`
+	// Ceremony signatures
+	CeremonySigs []byte `ssz-max:"16384"`
+	// Initiator public key
+	InitiatorPublicKey []byte `ssz-max:"612"`
 }
 
 // Exchange contains the session auth/ encryption key for each node
@@ -165,6 +166,7 @@ type ResultData struct {
 	Operators []*Operator `ssz-max:"13"`
 	// Initiator public key
 	Identifier    [24]byte `ssz-size:"24"`
-	DepositData   []byte   `ssz-max:"8388608"` // 2^23
-	KeysharesData []byte   `ssz-max:"8388608"` // 2^23
+	DepositData   []byte   `ssz-max:"8192"`
+	KeysharesData []byte   `ssz-max:"32768"`
+	CeremonySigs  []byte   `ssz-max:"16384"`
 }

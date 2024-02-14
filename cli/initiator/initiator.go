@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/sourcegraph/conc/pool"
-
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -80,7 +79,7 @@ var StartDKG = &cobra.Command{
 				nonce := cli_utils.Nonce + uint64(i)
 
 				// Perform the ceremony.
-				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, ceremonySigs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}
@@ -90,10 +89,11 @@ var StartDKG = &cobra.Command{
 					zap.String("pubkey", depositData.PubKey),
 				)
 				return &Result{
-					id:          id,
-					depositData: depositData,
-					keyShares:   keyShares,
-					nonce:       nonce,
+					id:           id,
+					depositData:  depositData,
+					keyShares:    keyShares,
+					ceremonySigs: ceremonySigs,
+					nonce:        nonce,
 				}, nil
 			})
 		}
@@ -103,17 +103,17 @@ var StartDKG = &cobra.Command{
 		}
 		var depositDataArr []*initiator.DepositDataJson
 		var keySharesArr []*initiator.KeyShares
-		var ids [][24]byte
+		var ceremonySigsArr []*initiator.CeremonySigs
 		var nonces []uint64
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
-			ids = append(ids, res.id)
+			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
 			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ids, logger)
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
@@ -135,8 +135,9 @@ var StartDKG = &cobra.Command{
 }
 
 type Result struct {
-	id          [24]byte
-	nonce       uint64
-	depositData *initiator.DepositDataJson
-	keyShares   *initiator.KeyShares
+	id           [24]byte
+	nonce        uint64
+	depositData  *initiator.DepositDataJson
+	keyShares    *initiator.KeyShares
+	ceremonySigs *initiator.CeremonySigs
 }

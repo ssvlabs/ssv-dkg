@@ -1,7 +1,7 @@
 operatorIDs: [1, 2, 3, 4]
 withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 0
+nonce: 1
 network: "holesky"
 validators: 10
 # operatorsInfo: '[{
@@ -24,11 +24,10 @@ validators: 10
 #   "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeFRWM2I5OHU4NmtzcEhQcWgrS2QKKzRHd0lSeEhwRHpEZjVlc3hjZytxaTlvbDRERmplUXMrbGloeUp5cGdOMXJwdTlQVnR5cXp2K3k5cEVNa0VXTgovYjBUQmdRMEp5TzdmNGliY1d5UUcrNGhVUS9XY3h1ZW5aUDA3S0VwTjh4Tk8xN3BzbmhRMXRqQVhybDNGN1lYCmlZdXl5Z0Rta2w0YjYrUDR6MjNhR01VSEtnTnJ5aFlZTFV4dWdycDVRTnJTV3lXNXFtb2EvYnJDenQ2RFJYb1UKU25JSkpSUVpPS2NnckdKMHVBYjJDRmtsL0xuaElxT2RZZ21aUG9oRmprVEorRnZNdkZsMjAwZ1BHbVpxUS9MMgpsM2ZBdmhZYlZRMlRVeUtmU2orYXZ1WUFZZnhKeG5OcWlmdkNkVGNmQzc3c0N0eFFERWVjY0pTVnVDbGZWeTFZCll3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 #   "ip": "http://operator4:3030"
 #   }]'
-# operatorsInfoPath: /data
-outputPath: /data/output
-configPath: /data/config
+operatorsInfoPath: /data/initiator/operators_info.json
+outputPath: /data/initiator/output
 generateInitiatorKeyIfNotExisting: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/output/initiator_debug.log
+logFilePath: /data/initiator/output/initiator_debug.log

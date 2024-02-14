@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -23,8 +24,6 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
-
-const encryptedKeyLength = 256
 
 func TestHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -67,7 +66,7 @@ func TestHappyFlows(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 4 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "holesky", owner, 0)
+		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "holesky", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -80,7 +79,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "holesky", owner, 0)
+		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -93,7 +92,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 10 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "holesky", owner, 0)
+		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -106,7 +105,7 @@ func TestHappyFlows(t *testing.T) {
 	})
 	t.Run("test 13 operators happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "holesky", owner, 0)
+		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -173,7 +172,7 @@ func TestThreshold(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -191,9 +190,29 @@ func TestThreshold(t *testing.T) {
 		err = testSharesData(ops, 13, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
+	t.Run("test 10 operators threshold", func(t *testing.T) {
+		id := crypto.NewID()
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "mainnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		threshold, err := utils.GetThreshold([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+		require.NoError(t, err)
+		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey}
+		require.Less(t, len(priviteKeys), threshold)
+		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		require.ErrorContains(t, err, "could not reconstruct a valid signature")
+		// test valid minimum threshold
+		priviteKeys = []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey}
+		require.Equal(t, len(priviteKeys), threshold)
+		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+	})
 	t.Run("test 7 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -213,7 +232,7 @@ func TestThreshold(t *testing.T) {
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
 		id := crypto.NewID()
-		_, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -285,7 +304,7 @@ func TestUnhappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
-	depositData, ks, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	depositData, ks, ceremeonySigs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	require.NoError(t, err)
@@ -295,55 +314,77 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
 	require.NoError(t, err)
+	marshalledKs, err := json.Marshal(ks)
+	require.NoError(t, err)
+	cSigs, err := json.Marshal(ceremeonySigs)
+	require.NoError(t, err)
+	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
+		withdraw := newEthAddress(t)
+		owner := newEthAddress(t)
+		id := crypto.NewID()
+		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, "mainnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		signatureOffset := phase0.SignatureLength
+		pubKeysOffset := phase0.PublicKeyLength*13 + signatureOffset
+		_ = utils.SplitBytes(sharesDataSigned[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+		encryptedKeys := utils.SplitBytes(sharesDataSigned[pubKeysOffset:], len(sharesDataSigned[pubKeysOffset:])/13)
+		wrongOrderSharesData := make([]byte, 0)
+		wrongOrderSharesData = append(wrongOrderSharesData, sharesDataSigned[:pubKeysOffset]...)
+		for i := len(encryptedKeys) - 1; i >= 0; i-- {
+			wrongOrderSharesData = append(wrongOrderSharesData, encryptedKeys[i]...)
+		}
+		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv13.PrivKey, srv12.PrivKey, srv11.PrivKey, srv10.PrivKey, srv9.PrivKey, srv8.PrivKey, srv7.PrivKey, srv6.PrivKey, srv5.PrivKey, srv4.PrivKey, srv3.PrivKey, srv2.PrivKey, srv1.PrivKey}, wrongOrderSharesData, pubkeyraw, owner, 0)
+		require.ErrorContains(t, err, "shares order is incorrect")
+	})
 	t.Run("test same ID", func(t *testing.T) {
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "got init msg for existing instance")
 	})
 	t.Run("test wrong operator IDs", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := crypto.NewID()
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 6, 7, 8}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 	t.Run("test wrong operator amount 5,6,8,9,11,12", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := crypto.NewID()
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1}, "mainnet", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2}, "mainnet", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3}, []uint64{1, 2, 3}, owner, 0)
+		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{1, 2, 3}, marshalledKs, cSigs, 1)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7}, marshalledKs, cSigs, 1)
+		require.ErrorContains(t, err, "wrong operators len: < 4")
+		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9}, marshalledKs, cSigs, 1)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3, 4}, []uint64{5, 6, 7}, owner, 0)
+		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9, 10, 11, 12}, marshalledKs, cSigs, 1)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3, 4}, []uint64{5, 6, 7, 8, 9}, owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3}, []uint64{1, 2, 3}, owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3, 4}, []uint64{5, 6, 7}, owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3, 4}, []uint64{5, 6, 7, 8, 9, 10, 11, 12}, owner, 0)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, err = clnt.StartReshare(crypto.NewID(), id, []uint64{1, 2, 3, 4}, []uint64{5, 6, 7, 8, 9, 10, 11, 12, 13}, owner, 0)
+		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9, 10, 11, 12, 13}, marshalledKs, cSigs, 1)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 	})
 	srv1.HttpSrv.Close()
@@ -403,7 +444,7 @@ func TestReshareHappyFlow(t *testing.T) {
 	t.Run("test reshare 4 new disjoint operators", func(t *testing.T) {
 		id := crypto.NewID()
 		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -415,25 +456,29 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{5, 6, 7, 8}
 		newId := crypto.NewID()
-		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
 		require.NoError(t, err)
 		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
 		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.NoError(t, err)
 		// check if old nodes cant decrypt
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
 	})
 	t.Run("test reshare 4 joint operators: 1 old + 3 new", func(t *testing.T) {
 		id := crypto.NewID()
 		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -445,25 +490,29 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{1, 7, 8, 9}
 		newId := crypto.NewID()
-		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
 		require.NoError(t, err)
 		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
 		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.NoError(t, err)
 		// check if old nodes cant decrypt
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
 	})
 	t.Run("test reshare 7 joint operators: 4 old + 3 new", func(t *testing.T) {
 		id := crypto.NewID()
 		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -475,16 +524,20 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{1, 2, 3, 4, 5, 8, 9}
 		newId := crypto.NewID()
-		ks, err = i.StartReshare(newId, id, ids, newIds, owner, 0)
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
 		require.NoError(t, err)
 		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
 		// check if threshold holds
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.NoError(t, err)
 	})
 	srv1.HttpSrv.Close()
@@ -524,7 +577,7 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
-	_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
@@ -554,7 +607,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
-	_, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
@@ -565,7 +618,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint16) error {
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
-	sharesExpectedLength := encryptedKeyLength*operatorCount + pubKeysOffset
+	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
 	if len(sharesData) != sharesExpectedLength {
 		return fmt.Errorf("shares data len is not correct")
 	}

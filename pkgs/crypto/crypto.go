@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -12,10 +13,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/drand/kyber"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	drand_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
@@ -29,11 +33,16 @@ import (
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	e2m_deposit "github.com/bloxapp/eth2-key-manager/eth1_deposit"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 const (
 	// b64 encrypted key length is 256
 	EncryptedKeyLength = 256
+	// Signature len
+	SignatureLength = 256
 	// BLSWithdrawalPrefixByte is the BLS withdrawal prefix
 	BLSWithdrawalPrefixByte  = byte(0)
 	ETH1WithdrawalPrefixByte = byte(1)
@@ -80,8 +89,8 @@ func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 }
 
 // ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
-func ResultToShareSecretKey(result *drand_dkg.Result) (*bls.SecretKey, error) {
-	privShare := result.Key.PriShare()
+func ResultToShareSecretKey(result *drand_dkg.DistKeyShare) (*bls.SecretKey, error) {
+	privShare := result.PriShare()
 	bytsSk, err := privShare.V.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -107,8 +116,8 @@ func KyberShareToBLSKey(privShare *share.PriShare) (*bls.SecretKey, error) {
 }
 
 // ResultsToValidatorPK converts a public polynomial at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls public key
-func ResultToValidatorPK(result *drand_dkg.Result, suite drand_dkg.Suite) (*bls.PublicKey, error) {
-	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Key.Commitments())
+func ResultToValidatorPK(result *drand_dkg.DistKeyShare, suite drand_dkg.Suite) (*bls.PublicKey, error) {
+	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Commitments())
 	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not marshal share")
@@ -230,14 +239,14 @@ func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 }
 
 // RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
-func RecoverValidatorPublicKey(IDs []uint64, sharePks []*bls.PublicKey) (*bls.PublicKey, error) {
-	if len(IDs) != len(sharePks) {
+func RecoverValidatorPublicKey(ids []uint64, sharePks []*bls.PublicKey) (*bls.PublicKey, error) {
+	if len(ids) != len(sharePks) {
 		return nil, fmt.Errorf("inconsistent IDs len")
 	}
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
 	pkVec := make([]bls.PublicKey, 0)
-	for i, index := range IDs {
+	for i, index := range ids {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
@@ -252,14 +261,14 @@ func RecoverValidatorPublicKey(IDs []uint64, sharePks []*bls.PublicKey) (*bls.Pu
 }
 
 // RecoverMasterSig recovers a BLS master signature from T-threshold partial signatures
-func RecoverMasterSig(IDs []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, error) {
-	if len(IDs) != len(sigDepositShares) {
+func RecoverMasterSig(ids []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, error) {
+	if len(ids) != len(sigDepositShares) {
 		return nil, fmt.Errorf("inconsistent IDs len")
 	}
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for i, index := range IDs {
+	for i, index := range ids {
 		blsID := bls.ID{}
 		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
 			return nil, err
@@ -491,7 +500,7 @@ func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []
 
 // EncryptedPrivateKey reads  an encoded RSA priv key from path encrypted with password
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -533,14 +542,14 @@ func GenerateSecurePassword() (string, error) {
 
 // ReconstructSignatures receives a map of user indexes and serialized bls.Sign.
 // It then reconstructs the original threshold signature using lagrange interpolation
-func ReconstructSignatures(IDs []uint64, signatures [][]byte) (*bls.Sign, error) {
-	if len(IDs) != len(signatures) {
+func ReconstructSignatures(ids []uint64, signatures [][]byte) (*bls.Sign, error) {
+	if len(ids) != len(signatures) {
 		return nil, fmt.Errorf("inconsistent IDs len")
 	}
 	reconstructedSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for i, index := range IDs {
+	for i, index := range ids {
 		blsID := bls.ID{}
 		err := blsID.SetDecString(fmt.Sprintf("%d", index))
 		if err != nil {
@@ -573,7 +582,7 @@ func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) er
 }
 
 func ReadEncryptedRSAKey(privKeyPath, privKeyPassPath string) (*rsa.PrivateKey, error) {
-	keyStorePassword, err := os.ReadFile(privKeyPassPath)
+	keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
 	}
@@ -586,4 +595,118 @@ func EncryptPrivateKey(priv []byte, keyStorePassword string) ([]byte, error) {
 		return nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
 	}
 	return json.Marshal(encryptedData)
+}
+
+func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
+	suite := kyber_bls12381.NewBLS12381Suite()
+	signatureOffset := phase0.SignatureLength
+	pubKeysOffset := phase0.PublicKeyLength*len(reshare.OldOperators) + signatureOffset
+	sharesExpectedLength := EncryptedKeyLength*len(reshare.OldOperators) + pubKeysOffset
+	if len(reshare.Keyshares) != sharesExpectedLength {
+		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(reshare.Keyshares))
+	}
+	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	// try to recover commits
+	var kyberPubShares []*share.PubShare
+	for i, pubk := range pubKeys {
+		blsPub := &bls.PublicKey{}
+		err := blsPub.Deserialize(pubk)
+		if err != nil {
+			return nil, err
+		}
+		v := suite.G1().Point()
+		err = v.UnmarshalBinary(blsPub.Serialize())
+		if err != nil {
+			return nil, err
+		}
+		kyberPubhare := &share.PubShare{
+			I: int(i),
+			V: v,
+		}
+		kyberPubShares = append(kyberPubShares, kyberPubhare)
+	}
+	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, int(reshare.OldT), len(reshare.OldOperators))
+	if err != nil {
+		return nil, err
+	}
+	_, commits := pubPoly.Info()
+	return commits, nil
+}
+
+func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
+	suite := kyber_bls12381.NewBLS12381Suite()
+	secret, position, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	var kyberPrivShare *share.PriShare
+	// Check operator signature
+	initiatorPubKey, err := ParseRSAPubkey(initiatorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	encInitPub, err := EncodePublicKey(initiatorPubKey)
+	if err != nil {
+		return nil, err
+	}
+	sigs := utils.SplitBytes(ceremonySigs, SignatureLength)
+	serialized := secret.Serialize()
+	dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+	copy(dataToVerify[:len(serialized)], serialized)
+	copy(dataToVerify[len(serialized):], encInitPub)
+	err = VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
+	if err != nil {
+		return nil, fmt.Errorf("cant verify initiator public key")
+	}
+	v := suite.G1().Scalar().SetBytes(serialized)
+	kyberPrivShare = &share.PriShare{
+		I: int(operatorID),
+		V: v,
+	}
+	return kyberPrivShare, nil
+}
+
+func checkKeySharesSlice(keyShares []byte, oldOperators []*wire.Operator, operatorID uint64, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, int, error) {
+	pubKeyOffset := phase0.PublicKeyLength * len(oldOperators)
+	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
+	sharesExpectedLength := EncryptedKeyLength*len(oldOperators) + pubKeysSigOffset
+	if len(keyShares) != sharesExpectedLength {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyShares))
+	}
+	position := -1
+	for i, op := range oldOperators {
+		if operatorID == op.ID {
+			position = i
+			break
+		}
+	}
+	// check
+	if position == -1 {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: operator not found among old operators: %d", operatorID)
+	}
+	encryptedKeys := utils.SplitBytes(keyShares[pubKeysSigOffset:], len(keyShares[pubKeysSigOffset:])/len(oldOperators))
+	// try to decrypt private share
+	prShare, err := rsaencryption.DecodeKey(opPrivateKey, encryptedKeys[position])
+	if err != nil {
+		return nil, 0, err
+	}
+	secret := &bls.SecretKey{}
+	err = secret.SetHexString(string(prShare))
+	if err != nil {
+		return nil, 0, err
+	}
+	// find share pub key
+	pubKeys := utils.SplitBytes(keyShares[phase0.SignatureLength:pubKeysSigOffset], phase0.PublicKeyLength)
+	if len(pubKeys) != len(oldOperators) {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: amount of public keys at keyshares slice is wrong: %d", len(pubKeys))
+	}
+	publicKey := &bls.PublicKey{}
+	err = publicKey.Deserialize(pubKeys[position])
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: cant deserialize public key at keyshares slice: %d", len(pubKeys))
+	}
+	if !bytes.Equal(publicKey.Serialize(), secret.GetPublicKey().Serialize()) {
+		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: public key at position %d not equal to operator`s share public key", position)
+	}
+	return secret, position, nil
 }

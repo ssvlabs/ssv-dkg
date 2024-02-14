@@ -12,8 +12,8 @@ const (
 	withdrawAddress                   = "withdrawAddress"
 	operatorIDs                       = "operatorIDs"
 	newOperatorIDs                    = "newOperatorIDs"
-	oldID                             = "oldID"
 	operatorsInfo                     = "operatorsInfo"
+	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
 	privKeyPassword                   = "privKeyPassword"
 	configPath                        = "configPath"
@@ -22,18 +22,15 @@ const (
 	owner                             = "owner"
 	nonce                             = "nonce"
 	network                           = "network"
-	mnemonicFlag                      = "mnemonic"
-	indexFlag                         = "index"
 	outputPath                        = "outputPath"
 	logLevel                          = "logLevel"
 	logFormat                         = "logFormat"
 	logLevelFormat                    = "logLevelFormat"
 	logFilePath                       = "logFilePath"
-	DBPath                            = "DBPath"
-	DBReporting                       = "DBReporting"
-	DBGCInterval                      = "DBGCInterval"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
+	keysharesFilePath                 = "keysharesFilePath"
+	ceremonySigsFilePath              = "ceremonySigsFilePath"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -56,14 +53,14 @@ func NewOperatorIDsFlag(c *cobra.Command) {
 	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs", false)
 }
 
-// OldIDFlag  adds previous DKG ceremony ID flag to the command
-func OldIDFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, oldID, "", "Old ID (24 bytes)", false)
-}
-
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
+}
+
+// OperatorsInfoFlag  adds path to operators' ifo file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. { 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }", false)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -88,7 +85,7 @@ func PrivateKeyFlag(c *cobra.Command) {
 
 // GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
 func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, true, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
+	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command
@@ -103,7 +100,7 @@ func OperatorPortFlag(c *cobra.Command) {
 
 // ConfigPathFlag config path flag to the command
 func ConfigPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, configPath, "./config", "Path to config folder where to look for files: `config.yaml` `init.yaml` `reshare.yaml` `initiator_encrypted_key.json` `initiator_password` `operators_info.json`", false)
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
 }
 
 // LogLevelFlag logger's log level flag to the command
@@ -123,22 +120,7 @@ func LogLevelFormatFlag(c *cobra.Command) {
 
 // LogFilePathFlag file path to write logs into
 func LogFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, logFilePath, "./logs/debug.log", "Defines a file path to write logs into", false)
-}
-
-// DBPathFlag adds path for storage flag to the command
-func DBPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, DBPath, "./data/db", "Path for storage", false)
-}
-
-// DBReportingFlag adds flag to run on-off db size reporting to the command
-func DBReportingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, DBReporting, false, "Flag to run on-off db size reporting", false)
-}
-
-// DBGCIntervalFlag adds path for storage flag to the command
-func DBGCIntervalFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, DBGCInterval, "6m", "Interval between garbage collection cycles. Set to 0 to disable.", false)
+	AddPersistentStringFlag(c, logFilePath, "debug.log", "Defines a file path to write logs into", false)
 }
 
 func ResultPathFlag(c *cobra.Command) {
@@ -153,6 +135,14 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
+}
+
+func KeysharesFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, keysharesFilePath, "", "Path to keyshares json file", false)
+}
+
+func CeremonySigsFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, ceremonySigsFilePath, "", "Path to ceremony signatures json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

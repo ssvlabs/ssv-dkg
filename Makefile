@@ -3,7 +3,7 @@
 # don't need to bother with make.
 
 .PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare
-.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic
+.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -16,7 +16,7 @@ BINARY_NAME=./bin/ssv-dkg
 DOCKER_IMAGE=ssv-dkg
 
 install:
-	$(GOINSTALL) cmd/ssv-dkg/ssv-dkg.go
+	$(GOINSTALL) -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" cmd/ssv-dkg/ssv-dkg.go
 	@echo "Done building."
 	@echo "Run ssv-dkg to launch the tool."
 
@@ -26,7 +26,7 @@ clean:
 # Recipe to compile the Go program
 build:
 	@echo "Building Go binary..."
-	go build -o $(BINARY_NAME) ./cmd/ssv-dkg/ssv-dkg.go
+	go build -o $(BINARY_NAME) -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" ./cmd/ssv-dkg/ssv-dkg.go
 
 # Recipe to run tests
 test:
@@ -37,7 +37,7 @@ test:
 # Recipe to build the Docker image
 docker-build-image:
 	@echo "Building Docker image..."
-	docker build -t $(DOCKER_IMAGE) .
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_IMAGE) .
 
 docker-demo-operators:
 	@echo "Running operators in docker demo"
@@ -101,3 +101,10 @@ critic-prepare:
 
 critic:
 	gocritic check -enableAll ./...
+
+gosec-prepare:
+	@echo "Preparing Gosec"
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+gosec:
+	gosec ./...

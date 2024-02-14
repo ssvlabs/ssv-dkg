@@ -1,10 +1,8 @@
 package test_utils
 
 import (
-	"context"
 	"crypto/rsa"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -20,10 +18,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -34,33 +29,17 @@ type TestOperator struct {
 	Srv     *operator.Server
 }
 
-func ParseAsError(msg []byte) (error, error) {
-	sszerr := &wire.ErrSSZ{}
-	err := sszerr.UnmarshalSSZ(msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return errors.New(string(sszerr.Error)), nil
-}
-
-func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath string, version string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version string) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
-		Reporting: true,
-		Ctx:       context.Background(),
-		Path:      t.TempDir(),
-	})
-	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -85,16 +64,11 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	r := chi.NewRouter()
-	db, err := kv.NewInMemory(logging.TestLogger(t), basedb.Options{
-		Reporting: true,
-		Ctx:       context.Background(),
-		Path:      t.TempDir(),
-	})
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, db, []byte(version), pkBytes, id)
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
 		Logger: logger,
 		Router: r,
@@ -110,7 +84,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	}
 }
 
-func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
+func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return err
@@ -147,7 +121,7 @@ func VerifySharesData(IDs []uint64, keys []*rsa.PrivateKey, ks *initiator.KeySha
 		sig := secret.SignByte(msg)
 		sigs2[i] = sig.Serialize()
 	}
-	recon, err := crypto.ReconstructSignatures(IDs, sigs2)
+	recon, err := crypto.ReconstructSignatures(ids, sigs2)
 	if err != nil {
 		return err
 	}

@@ -18,8 +18,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	ssvspec_types "github.com/bloxapp/ssv-spec/types"
-	"github.com/bloxapp/ssv/storage/basedb"
-	"github.com/bloxapp/ssv/storage/kv"
 )
 
 // request limits
@@ -32,10 +30,9 @@ const (
 // Server structure for operator to store http server and DKG ceremony instances
 type Server struct {
 	Logger     *zap.Logger  // logger
-	HttpServer *http.Server //http server
+	HttpServer *http.Server // http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
-	DB         *kv.BadgerDB
 }
 
 type KeySign struct {
@@ -189,24 +186,18 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, dbOptions basedb.Options, ver []byte, id uint64) (*Server, error) {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Server, error) {
 	r := chi.NewRouter()
-	db, err := setupDB(logger, dbOptions)
-	// todo: handle error
-	if err != nil {
-		return nil, err
-	}
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
 	if err != nil {
 		return nil, err
 	}
-	swtch := NewSwitch(key, logger, db, ver, pkBytes, id)
+	swtch := NewSwitch(key, logger, ver, pkBytes, id)
 	s := &Server{
 		Logger: logger,
 		Router: r,
 		State:  swtch,
-		DB:     db,
 	}
 	RegisterRoutes(s)
 	return s, nil
@@ -222,14 +213,6 @@ func (s *Server) Start(port uint16) error {
 	}
 	s.Logger.Info("✅ Server is listening for incoming requests", zap.Uint16("port", port))
 	return nil
-}
-
-func setupDB(logger *zap.Logger, dbOptions basedb.Options) (*kv.BadgerDB, error) {
-	db, err := kv.New(logger, dbOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open db")
-	}
-	return db, nil
 }
 
 // Stop closes http server instance
