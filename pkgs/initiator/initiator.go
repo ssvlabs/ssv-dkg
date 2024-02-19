@@ -12,14 +12,15 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/hashicorp/go-version"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
@@ -546,14 +547,6 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute deposit data: %v", err)
 	}
-	// Verify deposit data
-	depositVerRes, err := crypto.VerifyDepositData(depositData, network)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify deposit data: %v", err)
-	}
-	if !depositVerRes {
-		return nil, fmt.Errorf("deposit data is invalid")
-	}
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                dkg.MaxEffectiveBalanceInGwei,
@@ -633,6 +626,9 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
+	if err := c.ValidateDepositJSON(depositDataJson); err != nil {
+		return nil, nil, nil, err
+	}
 	// sending back to operators results
 	depositData, err := json.Marshal(depositDataJson)
 	if err != nil {
@@ -1007,55 +1003,6 @@ func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
 	return opmap, nil
 }
 
-func VerifyDepositData(depsitDataJson *DepositDataJson, withdrawCred []byte, owner common.Address, nonce uint16) error {
-	if !bytes.Equal(crypto.ETH1WithdrawalCredentialsHash(withdrawCred), hexutil.MustDecode("0x"+depsitDataJson.WithdrawalCredentials)) {
-		return fmt.Errorf("wrong WithdrawalCredentials at result")
-	}
-	masterSig := &bls.Sign{}
-	if err := masterSig.DeserializeHexStr(depsitDataJson.Signature); err != nil {
-		return err
-	}
-	valdatorPubKey := &bls.PublicKey{}
-	if err := valdatorPubKey.DeserializeHexStr(depsitDataJson.PubKey); err != nil {
-		return err
-	}
-	// Check root
-	var fork [4]byte
-	copy(fork[:], hexutil.MustDecode("0x"+depsitDataJson.ForkVersion))
-	depositDataRoot, err := crypto.DepositDataRoot(withdrawCred, valdatorPubKey, utils.GetNetworkByFork(fork), dkg.MaxEffectiveBalanceInGwei)
-	if err != nil {
-		return err
-	}
-	res := masterSig.VerifyByte(valdatorPubKey, depositDataRoot)
-	if !res {
-		return fmt.Errorf("wrong master sig at result")
-	}
-	depositData, _, err := crypto.DepositData(masterSig.Serialize(), withdrawCred, valdatorPubKey.Serialize(), utils.GetNetworkByFork(fork), dkg.MaxEffectiveBalanceInGwei)
-	if err != nil {
-		return err
-	}
-	res, err = crypto.VerifyDepositData(depositData, utils.GetNetworkByFork(fork))
-	if err != nil {
-		return err
-	}
-	if !res {
-		return fmt.Errorf("wrong deposit data")
-	}
-	depositMsg := &phase0.DepositMessage{
-		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                dkg.MaxEffectiveBalanceInGwei,
-	}
-	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
-	depositMsgRoot, err := depositMsg.HashTreeRoot()
-	if err != nil {
-		return fmt.Errorf("failed to compute deposit message root: %v", err)
-	}
-	if !bytes.Equal(depositMsgRoot[:], hexutil.MustDecode("0x"+depsitDataJson.DepositMessageRoot)) {
-		return fmt.Errorf("wrong DepositMessageRoot at result")
-	}
-	return nil
-}
-
 func (c *Initiator) Ping(ips []string) error {
 	client := req.C()
 	// Set timeout for operator responses
@@ -1172,4 +1119,97 @@ func (c *Initiator) getCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, err
 	ceremonySigs.InitiatorPublicKey = hex.EncodeToString(encInitPub)
 	ceremonySigs.ValidatorPubKey = "0x" + hex.EncodeToString(dkgResults[0].ValidatorPubKey)
 	return ceremonySigs, nil
+}
+
+func (c *Initiator) ValidateDepositJSON(d *DepositDataJson) error {
+	// 1. Validate format
+	if err := validateFieldFormatting(d); err != nil {
+		return err
+	}
+	// 2. Verify deposit roots and signature
+	if err := verifyDepositRoots(d); err != nil {
+		return nil
+	}
+	return nil
+}
+
+func validateFieldFormatting(d *DepositDataJson) error {
+	// check existence of required keys
+	if d.PubKey == "" ||
+		d.WithdrawalCredentials == "" ||
+		d.Amount == 0 ||
+		d.Signature == "" ||
+		d.DepositMessageRoot == "" ||
+		d.DepositDataRoot == "" ||
+		d.ForkVersion == "" ||
+		d.DepositCliVersion == "" {
+		return fmt.Errorf("resulting deposit data json has wrong format")
+	}
+	// check type of values
+	if reflect.TypeOf(d.PubKey).String() != "string" ||
+		reflect.TypeOf(d.WithdrawalCredentials).String() != "string" ||
+		reflect.TypeOf(d.Amount).String() != "phase0.Gwei" ||
+		reflect.TypeOf(d.Signature).String() != "string" ||
+		reflect.TypeOf(d.DepositMessageRoot).String() != "string" ||
+		reflect.TypeOf(d.DepositDataRoot).String() != "string" ||
+		reflect.TypeOf(d.ForkVersion).String() != "string" ||
+		reflect.TypeOf(d.DepositCliVersion).String() != "string" {
+		return fmt.Errorf("resulting deposit data json has wrong fields type")
+	}
+	// check length of strings (note: using string length, so 1 byte = 2 chars)
+	if len(d.PubKey) != 96 ||
+		len(d.WithdrawalCredentials) != 64 ||
+		len(d.Signature) != 192 ||
+		len(d.DepositMessageRoot) != 64 ||
+		len(d.DepositDataRoot) != 64 ||
+		len(d.ForkVersion) != 8 {
+		return fmt.Errorf("resulting deposit data json has wrong fields length")
+	}
+	// check the deposit amount
+	if d.Amount != 32000000000 {
+		return fmt.Errorf("resulting deposit data json has wrong amount")
+	}
+	v, err := version.NewVersion(d.DepositCliVersion)
+	if err != nil {
+		return err
+	}
+	vMin, err := version.NewVersion("2.7.0")
+	if err != nil {
+		return err
+	}
+	// check the deposit-cli version
+	if v.LessThan(vMin) {
+		return fmt.Errorf("resulting deposit data json has wrong amount")
+	}
+	return nil
+}
+
+func verifyDepositRoots(d *DepositDataJson) error {
+	pubKey, err := hex.DecodeString(d.PubKey)
+	if err != nil {
+		return err
+	}
+	withdrCreds, err := hex.DecodeString(d.WithdrawalCredentials)
+	if err != nil {
+		return err
+	}
+	sig, err := hex.DecodeString(d.Signature)
+	if err != nil {
+		return err
+	}
+	fork, err := hex.DecodeString(d.ForkVersion)
+	if err != nil {
+		return err
+	}
+	depositData := &phase0.DepositData{
+		PublicKey:             phase0.BLSPubKey(pubKey),
+		WithdrawalCredentials: withdrCreds,
+		Amount:                d.Amount,
+		Signature:             phase0.BLSSignature(sig),
+	}
+	depositVerRes, err := crypto.VerifyDepositData(depositData, utils.GetNetworkByFork([4]byte(fork)))
+	if err != nil || !depositVerRes {
+		return fmt.Errorf("failed to verify deposit data: %v", err)
+	}
+	return nil
 }
