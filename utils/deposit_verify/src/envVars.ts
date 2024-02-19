@@ -74,3 +74,4 @@ export const EMPTY_ROOT                 = Buffer.from('0000000000000000000000000
 
 // Boolean to translate CLI command flags, or keep in English
 export const TRANSLATE_CLI_FLAGS        = process.env.REACT_APP_TRANSLATE_CLI_FLAGS === 'true';
+export const DEPOSIT_FILE               = process.env.DEPOSIT_FILE_PATH

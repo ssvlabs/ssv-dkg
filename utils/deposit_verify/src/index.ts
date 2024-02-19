@@ -3,7 +3,7 @@ import {
   validateDepositKey,
 } from "./validateDepositKey.js";
 import { readFileSync } from "fs";
-import { GENESIS_FORK_VERSION } from "./envVars.js";
+import { GENESIS_FORK_VERSION, DEPOSIT_FILE } from "./envVars.js";
 
 export interface DepositFileInterface {
   name: string;
@@ -68,7 +68,11 @@ export enum BeaconChainStatus {
 
 var check = async () => {
   try {
-    var path = <string>process.env.npm_config_path;
+    if (DEPOSIT_FILE === "") {
+      console.log("Please provide deposit file path");
+      return;
+    }
+    var path = <string>DEPOSIT_FILE;
     const file = readFileSync(path, "utf-8");
     const fileData: any[] = JSON.parse(file as string);
     console.log(fileData);

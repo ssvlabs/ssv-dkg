@@ -79,7 +79,17 @@ docker-reshare:
 	  -v $(shell pwd)/examples:/data \
 	  $(DOCKER_IMAGE):latest \
 	  reshare --configPath /data/initiator/config
-	  
+
+docker-build-deposit-verify:
+	DOCKER_BUILDKIT=1 docker build -f $(shell pwd)/utils/deposit_verify/Dockerfile -t deposit-verify .
+
+docker-deposit-verify:
+	docker run \
+	  --name dkg-deposit-verify \
+	  -v $(DEPOSIT_FILE_PATH):/deposit-verify/utils/deposit_verify/deposit_data.json \
+	  -e DEPOSIT_FILE_PATH=deposit_data.json \
+	  deposit-verify:latest
+
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
 	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"
