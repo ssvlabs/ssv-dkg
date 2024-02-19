@@ -68,7 +68,7 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = intr.ValidateDepositJSON(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
