@@ -1029,7 +1029,7 @@ func (c *Initiator) Ping(ips []string) error {
 	return nil
 }
 
-func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, version []byte) ([]byte, error) {
+func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.TransportType, identifier [24]byte, v []byte) ([]byte, error) {
 	// Marshal the provided message
 	marshaledMsg, err := msg.MarshalSSZ()
 	if err != nil {
@@ -1041,7 +1041,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 		Type:       msgType,
 		Identifier: identifier,
 		Data:       marshaledMsg,
-		Version:    version,
+		Version:    v,
 	}
 
 	// Marshal the transport message
