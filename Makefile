@@ -81,12 +81,13 @@ docker-reshare:
 	  reshare --configPath /data/initiator/config
 
 docker-build-deposit-verify:
-	DOCKER_BUILDKIT=1 docker build -f $(shell pwd)/utils/deposit_verify/Dockerfile -t deposit-verify .
+	DOCKER_BUILDKIT=1 docker build --progress=plain --no-cache -f $(shell pwd)/utils/deposit_verify/Dockerfile -t deposit-verify .
 
 docker-deposit-verify:
-	docker run \
+	docker run --rm \
 	  --name dkg-deposit-verify \
 	  -v $(DEPOSIT_FILE_PATH):/deposit-verify/utils/deposit_verify/deposit_data.json \
+	  -v $(NETWORK_ENV_PATH):/deposit-verify/utils/deposit_verify/.env \
 	  -e DEPOSIT_FILE_PATH=deposit_data.json \
 	  deposit-verify:latest
 
