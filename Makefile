@@ -84,12 +84,14 @@ docker-build-deposit-verify:
 	DOCKER_BUILDKIT=1 docker build --progress=plain --no-cache -f $(shell pwd)/utils/deposit_verify/Dockerfile -t deposit-verify .
 
 docker-deposit-verify:
+	cp $(DEPOSIT_FILE_PATH) /tmp/deposit_data.json && \
 	docker run --rm \
 	  --name dkg-deposit-verify \
-	  -v $(DEPOSIT_FILE_PATH):/deposit-verify/utils/deposit_verify/deposit_data.json \
+	  -v /tmp/deposit_data.json:/deposit-verify/utils/deposit_verify/deposit_data.json \
 	  -v $(NETWORK_ENV_PATH):/deposit-verify/utils/deposit_verify/.env \
 	  -e DEPOSIT_FILE_PATH=deposit_data.json \
-	  deposit-verify:latest
+	  deposit-verify:latest && \
+	  rm /tmp/deposit_data.json
 
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
