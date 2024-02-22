@@ -131,7 +131,7 @@ type CeremonySigs struct {
 }
 
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
-func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner common.Address, nonce uint64) (*KeyShares, error) {
+func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner common.Address, nonce uint64, ops []*wire.Operator) (*KeyShares, error) {
 	ids := make([]uint64, 0)
 	for i := 0; i < len(dkgResults); i++ {
 		ids = append(ids, dkgResults[i].OperatorID)
@@ -164,6 +164,10 @@ func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner c
 		encPubKey, err := crypto.EncodePublicKey(dkgResults[i].PubKeyRSA)
 		if err != nil {
 			return nil, err
+		}
+		// compare RSA public key at result that they match operators we requested to participate at the ceremony
+		if !bytes.Equal(encPubKey, ops[i].PubKey) {
+			return nil, fmt.Errorf("incoming ceremony result has  ")
 		}
 		operatorData = append(operatorData, OperatorData{
 			ID:          dkgResults[i].OperatorID,
@@ -325,7 +329,7 @@ func ParseAsError(msg []byte) (parsedErr, err error) {
 }
 
 // VerifyAll verifies incoming to initiator messages from operators.
-// Incoming message from operator should have same DKG ceremony ID and a valid signature
+// Incoming message from operator should have valid signature
 func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
 	var errs error
 	for i := 0; i < len(allmsgs); i++ {
@@ -792,7 +796,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []dkg.Result, ini
 		return nil, nil, err
 	}
 	c.Logger.Info("✅ deposit data was successfully reconstructed")
-	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, init.Owner, init.Nonce)
+	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, init.Owner, init.Nonce, init.Operators)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -808,7 +812,7 @@ func (c *Initiator) processDKGResultResponseResharing(dkgResults []dkg.Result, r
 	if !sorted {
 		return nil, fmt.Errorf("slice is not sorted")
 	}
-	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, reshare.Owner, reshare.Nonce)
+	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, reshare.Owner, reshare.Nonce, reshare.NewOperators)
 	if err != nil {
 		return nil, err
 	}
