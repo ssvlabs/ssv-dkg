@@ -2,7 +2,7 @@ FROM golang:1.20-alpine3.18 as build
 WORKDIR /ssv-dkg
 
 # Install build dependencies required for CGO
-RUN apk add --no-cache musl-dev gcc g++ libstdc++ git
+RUN apk add --no-cache musl-dev gcc g++ libstdc++ git bash coreutils
 
 # Copy the go.mod and go.sum first and download the dependencies. 
 # This layer will be cached unless these files change.
@@ -21,7 +21,8 @@ ENV GOOS=linux
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,mode=0755,target=/go/pkg \
     VERSION=$(git describe --tags $(git rev-list --tags --max-count=1)) && \
-    go build -o /bin/ssv-dkg -ldflags "-X main.Version=$VERSION -linkmode external -extldflags \"-static -lm\"" \
+    KS_VESRION=$(git -c 'versionsort.suffix=-' ls-remote --exit-code --refs --sort='version:refname' --tags https://github.com/bloxapp/ssv-keys.git '*.*.*' | tail --lines=1 | cut --delimiter='/' --fields=3) && \
+    go build -o /bin/ssv-dkg -ldflags "-X main.Version=$VERSION -X main.KeysharesVersion=$KS_VESRION -linkmode external -extldflags \"-static -lm\"" \
     ./cmd/ssv-dkg
 
 #

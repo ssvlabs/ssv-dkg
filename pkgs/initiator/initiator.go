@@ -61,12 +61,13 @@ func (o Operators) Clone() Operators {
 
 // Initiator main structure for initiator
 type Initiator struct {
-	Logger     *zap.Logger                            // logger
-	Client     *req.Client                            // http client
-	Operators  Operators                              // operators info mapping
-	VerifyFunc func(id uint64, msg, sig []byte) error // function to verify signatures of incoming messages
-	PrivateKey *rsa.PrivateKey                        // a unique initiator's RSA private key used for signing messages and identity
-	Version    []byte
+	Logger           *zap.Logger                            // logger
+	Client           *req.Client                            // http client
+	Operators        Operators                              // operators info mapping
+	VerifyFunc       func(id uint64, msg, sig []byte) error // function to verify signatures of incoming messages
+	PrivateKey       *rsa.PrivateKey                        // a unique initiator's RSA private key used for signing messages and identity
+	Version          []byte
+	KeysharesVersion []byte
 }
 
 // DepositDataJson structure to create a resulting deposit data JSON file according to ETH2 protocol
@@ -201,13 +202,13 @@ func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner c
 	}}}
 
 	ks := &KeyShares{}
-	ks.Version = "v1.1.0"
+	ks.Version = string(c.KeysharesVersion)
 	ks.Shares = data
 	ks.CreatedAt = time.Now().UTC()
 	return ks, nil
 }
 
-func GenerateAggregatesKeyshares(keySharesArr []*KeyShares) (*KeyShares, error) {
+func GenerateAggregatedKeyshares(keySharesArr []*KeyShares) (*KeyShares, error) {
 	// order the keyshares by nonce
 	sort.SliceStable(keySharesArr, func(i, j int) bool {
 		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
@@ -223,24 +224,25 @@ func GenerateAggregatesKeyshares(keySharesArr []*KeyShares) (*KeyShares, error) 
 		data = append(data, keyShares.Shares...)
 	}
 	ks := &KeyShares{}
-	ks.Version = "v1.1.0"
+	ks.Version = keySharesArr[0].Version
 	ks.Shares = data
 	ks.CreatedAt = time.Now().UTC()
 	return ks, nil
 }
 
 // New creates a main initiator structure
-func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger, ver string) *Initiator {
+func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger, ver, ksVer string) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	c := &Initiator{
-		Logger:     logger,
-		Client:     client,
-		Operators:  operatorMap,
-		PrivateKey: privKey,
-		VerifyFunc: CreateVerifyFunc(operatorMap),
-		Version:    []byte(ver),
+		Logger:           logger,
+		Client:           client,
+		Operators:        operatorMap,
+		PrivateKey:       privKey,
+		VerifyFunc:       CreateVerifyFunc(operatorMap),
+		Version:          []byte(ver),
+		KeysharesVersion: []byte(ksVer),
 	}
 	return c
 }

@@ -35,7 +35,7 @@ var HealthCheck = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥", zap.Error(err))
 		}
-		dkgInitiator := initiator.New(nil, nil, logger, cmd.Version)
+		dkgInitiator := initiator.New(nil, nil, logger, cmd.Version, KeysharesVersion)
 		err = dkgInitiator.Ping(ips)
 		if err != nil {
 			logger.Fatal("😥 Error: ", zap.Error(err))

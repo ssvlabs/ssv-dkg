@@ -597,7 +597,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 	}
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+	aggrKeySharesArr, err := initiator.GenerateAggregatedKeyshares(keySharesArr)
 	if err != nil {
 		logger.Fatal("error: ", zap.Error(err))
 	}

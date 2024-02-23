@@ -20,6 +20,9 @@ const (
 	maxConcurrency = 20
 )
 
+// Keyshares file version
+var KeysharesVersion string
+
 func init() {
 	cli_utils.SetInitFlags(StartDKG)
 }
@@ -72,7 +75,7 @@ var StartDKG = &cobra.Command{
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
-				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version)
+				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version, KeysharesVersion)
 
 				// Create a new ID.
 				id := crypto.NewID()

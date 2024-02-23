@@ -10,8 +10,11 @@ var (
 
 	// Version is the app version
 	Version = "latest"
+
+	// Keyshares file version
+	KeysharesVersion = "latest"
 )
 
 func main() {
-	cli.Execute(AppName, Version)
+	cli.Execute(AppName, Version, KeysharesVersion)
 }
