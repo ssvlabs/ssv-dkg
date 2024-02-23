@@ -16,7 +16,7 @@ BINARY_NAME=./bin/ssv-dkg
 DOCKER_IMAGE=ssv-dkg
 
 install:
-	$(GOINSTALL) -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" cmd/ssv-dkg/ssv-dkg.go
+	$(GOINSTALL) -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)` -X main.KeysharesVersion=`git -c 'versionsort.suffix=-' ls-remote --exit-code --refs --sort='version:refname' --tags https://github.com/bloxapp/ssv-keys.git '*.*.*' | tail --lines=1 | cut --delimiter='/' --fields=3`" cmd/ssv-dkg/ssv-dkg.go
 	@echo "Done building."
 	@echo "Run ssv-dkg to launch the tool."
 
