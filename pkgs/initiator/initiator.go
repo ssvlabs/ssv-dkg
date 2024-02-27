@@ -691,11 +691,11 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
 	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("old %w", err)
 	}
 	newOps, err := ValidatedOperatorData(newOpIDs, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("new %w", err)
 	}
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
