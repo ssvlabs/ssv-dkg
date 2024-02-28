@@ -33,6 +33,7 @@ const (
 	PongMessageType
 	ResultMessageType
 	ValidateKeysharesType
+	ValidateResultType
 )
 
 func (t TransportType) String() string {
@@ -69,6 +70,8 @@ func (t TransportType) String() string {
 		return "ResultMessageType"
 	case ValidateKeysharesType:
 		return "ValidateKeysharesType"
+	case ValidateResultType:
+		return "ValidateResultType"
 	default:
 		return "no type impl"
 	}
@@ -151,6 +154,10 @@ type ValidateKeyshares struct {
 	CeremonySigs []byte `ssz-max:"16384"`
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"612"`
+}
+
+type ValidatationResult struct {
+	Signature []byte `ssz-max:"4096"`
 }
 
 // Exchange contains the session auth/ encryption key for each node

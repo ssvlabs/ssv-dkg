@@ -1319,7 +1319,27 @@ func (c *Initiator) ValidateKeysharesJSON(ks *KeyShares, cSigsBytes []byte, id [
 	if err != nil {
 		return err
 	}
-	recon, err := crypto.ReconstructSignatures(ks.Shares[0].Payload.OperatorIDs, results)
+	sigs := make([][]byte, len(init.Operators))
+	for i, res := range results {
+		signedValResMsg := &wire.SignedTransport{}
+		if err := signedValResMsg.UnmarshalSSZ(res); err != nil {
+			errmsg, parseErr := ParseAsError(res)
+			if parseErr == nil {
+				return fmt.Errorf("operator returned err: %v", errmsg)
+			}
+			return err
+		}
+		// Validate that incoming message is a keyshares validation result message
+		if signedValResMsg.Message.Type != wire.ValidateResultType {
+			return fmt.Errorf("wrong incoming message type from operator")
+		}
+		valRes := &wire.ValidatationResult{}
+		if err := valRes.UnmarshalSSZ(signedValResMsg.Message.Data); err != nil {
+			return err
+		}
+		sigs[i] = valRes.Signature
+	}
+	recon, err := crypto.ReconstructSignatures(ks.Shares[0].Payload.OperatorIDs, sigs)
 	if err != nil {
 		return err
 	}
