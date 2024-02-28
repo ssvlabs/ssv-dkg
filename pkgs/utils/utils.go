@@ -22,7 +22,6 @@ import (
 var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
 var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
-var ErrVersion = errors.New("wrong version")
 
 // WriteJSON writes data to JSON file
 func WriteJSON(filePth string, data any) error {

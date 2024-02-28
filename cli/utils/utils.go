@@ -568,7 +568,7 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
 	}
 	for i := 0; i < int(Validators); i++ {
-		nestedDir := fmt.Sprintf("%s/0x%s", dir, depositDataArr[i].PubKey)
+		nestedDir := fmt.Sprintf("%s/%d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
 			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
@@ -588,6 +588,10 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
 		}
 	}
+	// if there is only one Validator, do not create summary files
+	if Validators == 1 {
+		return
+	}
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -606,19 +610,15 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr 
 		logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 	}
 	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
-	// if there is only one ceremony signature, let's not save it the array as it can be confusing for users
-	if len(ceremonySigsArr) == 1 {
-		err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr[0])
-	} else {
-		err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
-	}
+
+	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
 	if err != nil {
 		logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
 	}
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d.json", dir, GetHexPrefix(keyShares.Shares[0].Payload.PublicKey), GetHexPrefix(keyShares.Shares[0].OwnerAddress), keyShares.Shares[0].OwnerNonce)
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
@@ -627,7 +627,7 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
 }
 
 func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) error {
-	depositFinalPath := fmt.Sprintf("%s/deposit_data-0x%s.json", dir, GetHexPrefix(depositData.PubKey))
+	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
@@ -636,7 +636,7 @@ func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) erro
 }
 
 func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
-	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, GetHexPrefix(ceremonySigs.ValidatorPubKey))
+	finalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
 	err := utils.WriteJSON(finalPath, ceremonySigs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
@@ -658,19 +658,4 @@ func createDirIfNotExist(path string) error {
 		}
 	}
 	return nil
-}
-
-func GetHexPrefix(s string) string {
-	if strings.HasPrefix(s, "0x") {
-		if len(s) > 8 { // "0x" + 6 characters
-			return s[:8]
-		}
-		return s
-	}
-
-	// For strings without "0x" prefix
-	if len(s) > 6 {
-		return s[:6]
-	}
-	return s
 }

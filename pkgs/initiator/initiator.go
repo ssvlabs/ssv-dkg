@@ -850,14 +850,14 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			return nil, fmt.Errorf("%s", msgErr)
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, fmt.Errorf("wrong DKG result message type")
+			return nil, fmt.Errorf("wrong DKG result message type, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String())
 		}
 		result := dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
 			return nil, err
 		}
 		if !bytes.Equal(result.RequestID[:], id[:]) {
-			return nil, fmt.Errorf("DKG result has wrong ID")
+			return nil, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String())
 		}
 		dkgResults = append(dkgResults, result)
 	}
