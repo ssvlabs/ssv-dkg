@@ -88,8 +88,8 @@ func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 	return rsa.VerifyPSS(pk, crypto.SHA256, r[:], signature, nil)
 }
 
-// ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
-func ResultToShareSecretKey(result *drand_dkg.DistKeyShare) (*bls.SecretKey, error) {
+// DistKeyShareToBLSKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key
+func DistKeyShareToBLSKey(result *drand_dkg.DistKeyShare) (*bls.SecretKey, error) {
 	privShare := result.PriShare()
 	bytsSk, err := privShare.V.MarshalBinary()
 	if err != nil {
@@ -597,15 +597,15 @@ func EncryptPrivateKey(priv []byte, keyStorePassword string) ([]byte, error) {
 	return json.Marshal(encryptedData)
 }
 
-func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
+func GetPubCommitsFromSharesData(ops []*wire.Operator, keysharesData []byte, threshold uint64) ([]kyber.Point, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(reshare.OldOperators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(reshare.OldOperators) + pubKeysOffset
-	if len(reshare.Keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(reshare.Keyshares))
+	pubKeysOffset := phase0.PublicKeyLength*len(ops) + signatureOffset
+	sharesExpectedLength := EncryptedKeyLength*len(ops) + pubKeysOffset
+	if len(keysharesData) != sharesExpectedLength {
+		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keysharesData))
 	}
-	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	pubKeys := utils.SplitBytes(keysharesData[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
 	for i, pubk := range pubKeys {
@@ -625,7 +625,7 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
 	}
-	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, int(reshare.OldT), len(reshare.OldOperators))
+	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, int(threshold), len(ops))
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +656,7 @@ func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []
 	copy(dataToVerify[len(serialized):], encInitPub)
 	err = VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
 	if err != nil {
-		return nil, fmt.Errorf("cant verify initiator public key")
+		return nil, fmt.Errorf("cant verify operator  RSA signature at keyshares")
 	}
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{

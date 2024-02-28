@@ -167,27 +167,12 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		Version:            s.Version,
 	}
 	owner := dkg.New(&opts)
-	// wait for exchange msg
-	commits, err := crypto.GetPubCommitsFromSharesData(reshare)
+	secretShare, err := s.GetSecretShare(reshare.OldOperators, reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldT)
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, op := range reshare.OldOperators {
-		if op.ID == operatorID {
-			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
-			if err != nil {
-				return nil, nil, err
-			}
-			if secretShare == nil {
-				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
-			}
-			owner.SecretShare = &kyber_dkg.DistKeyShare{
-				Commits: commits,
-				Share:   secretShare,
-			}
-		}
-	}
-	resp, err := owner.InitReshare(reqID, reshare, commits)
+	owner.SecretShare = secretShare
+	resp, err := owner.InitReshare(reqID, reshare, secretShare.Commits)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -502,7 +487,55 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	}
 	return nil
 }
+func (s *Switch) ValidateKeysharesData(reqID [24]byte, incMsg *wire.SignedTransport, initiatorSignature []byte) ([]byte, error) {
+	validateKeyshares := &wire.ValidateKeyshares{}
+	err := validateKeyshares.UnmarshalSSZ(incMsg.Message.Data)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.VerifyIncomingMessage(incMsg)
+	if err != nil {
+		return nil, err
+	}
+	secretShare, err := s.GetSecretShare(validateKeyshares.Operators, validateKeyshares.Keyshares, validateKeyshares.InitiatorPublicKey, validateKeyshares.CeremonySigs, validateKeyshares.T)
+	if err != nil {
+		return nil, err
+	}
+	// Get BLS partial secret key share from DKG
+	secretKeyBLS, err := crypto.DistKeyShareToBLSKey(secretShare)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
+	}
+	validationPartialSig := secretKeyBLS.SignByte(reqID[:])
+	return validationPartialSig.Serialize(), nil
+}
 
+func (s *Switch) GetSecretShare(ops []*wire.Operator, keyshares, initPubKey, cSigs []byte, threshold uint64) (*kyber_dkg.DistKeyShare, error) {
+	commits, err := crypto.GetPubCommitsFromSharesData(ops, keyshares, threshold)
+	if err != nil {
+		return nil, err
+	}
+	operatorID, err := GetOperatorID(ops, s.PubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	for _, op := range ops {
+		if op.ID == operatorID {
+			secretShare, err := crypto.GetSecretShareFromSharesData(keyshares, initPubKey, cSigs, ops, s.PrivateKey, s.OperatorID)
+			if err != nil {
+				return nil, err
+			}
+			if secretShare == nil {
+				return nil, fmt.Errorf("cant decrypt incoming private share")
+			}
+			return &kyber_dkg.DistKeyShare{
+				Commits: commits,
+				Share:   secretShare,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("cant get secret share from keyshares data")
+}
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
 	var initiatorPubKey *rsa.PublicKey
 	var ops []*wire.Operator
@@ -544,6 +577,21 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 			return 0, err
 		}
 		ops = resData.Operators
+	case wire.ValidateKeysharesType:
+		val := &wire.ValidateKeyshares{}
+		if err := val.UnmarshalSSZ(incMsg.Message.Data); err != nil {
+			return 0, err
+		}
+		// Check that incoming message signature is valid
+		initiatorPubKey, err = crypto.ParseRSAPubkey(val.InitiatorPublicKey)
+		if err != nil {
+			return 0, err
+		}
+		ops = val.Operators
+		err = s.VerifySig(incMsg, initiatorPubKey)
+		if err != nil {
+			return 0, err
+		}
 	}
 	operatorID, err := GetOperatorID(ops, s.PubKeyBytes)
 	if err != nil {

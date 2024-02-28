@@ -131,7 +131,7 @@ func RegisterRoutes(s *Server) {
 			}
 			reqid := signedReshareMsg.Message.Identifier
 			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
-			logger.Debug("initiating instance with init data")
+			logger.Debug("initiating instance with reshare data")
 			b, err := s.State.InitInstanceReshare(reqid, signedReshareMsg.Message, signedReshareMsg.Signature)
 			if err != nil {
 				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
@@ -148,6 +148,34 @@ func RegisterRoutes(s *Server) {
 				b, err := s.State.Pong()
 				if err != nil {
 					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+					return
+				}
+				writer.WriteHeader(http.StatusOK)
+				writer.Write(b)
+			})
+		})
+		s.Router.Route("/validate_keyshares", func(r chi.Router) {
+			r.Use(rateLimit(s.Logger, routeLimit))
+			r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+				rawdata, err := io.ReadAll(request.Body)
+				if err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+					return
+				}
+				signedMsg := &wire.SignedTransport{}
+				if err := signedMsg.UnmarshalSSZ(rawdata); err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+					return
+				}
+
+				// Validate that incoming message is a result message
+				if signedMsg.Message.Type != wire.ValidateKeysharesType {
+					utils.WriteErrorResponse(s.Logger, writer, errors.New("received wrong message type"), http.StatusBadRequest)
+					return
+				}
+				b, err := s.State.ValidateKeysharesData(signedMsg.Message.Identifier, signedMsg, signedMsg.Signature)
+				if err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 					return
 				}
 				writer.WriteHeader(http.StatusOK)

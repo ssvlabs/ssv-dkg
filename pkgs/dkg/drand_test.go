@@ -416,7 +416,7 @@ func TestDKGReshare(t *testing.T) {
 	newuid := crypto.NewID()
 	exch2 := map[uint64]*wire2.Transport{}
 	err = ts2.ForNew(func(o *LocalOwner) error {
-		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
+		commits, err := crypto.GetPubCommitsFromSharesData(reshare.OldOperators, reshare.Keyshares, reshare.OldT)
 		require.NoError(t, err)
 		tmsg, err := o.InitReshare(newuid, reshare, commits)
 		require.NoError(t, err)
@@ -425,7 +425,7 @@ func TestDKGReshare(t *testing.T) {
 	}, newopsArr)
 	require.NoError(t, err)
 	err = ts2.ForOld(func(o *LocalOwner) error {
-		commits, err := crypto.GetPubCommitsFromSharesData(reshare)
+		commits, err := crypto.GetPubCommitsFromSharesData(reshare.OldOperators, reshare.Keyshares, reshare.OldT)
 		require.NoError(t, err)
 		for _, op := range reshare.OldOperators {
 			if op.ID == o.ID {
