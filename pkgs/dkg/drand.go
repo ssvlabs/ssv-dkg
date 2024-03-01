@@ -141,6 +141,7 @@ type LocalOwner struct {
 	nonce              uint64
 	done               chan struct{}
 	version            []byte
+	resharingStarted   bool
 }
 
 // New creates a LocalOwner structure. We create it for each new DKG ceremony.
@@ -751,7 +752,8 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 				}
 			}
 			for _, op := range newNodes {
-				if o.ID == op.ID {
+				if o.ID == op.ID && !o.resharingStarted {
+					o.resharingStarted = true
 					if err := o.StartReshareDKGNewNodes(); err != nil {
 						return err
 					}
