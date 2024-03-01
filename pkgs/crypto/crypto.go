@@ -635,29 +635,29 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 
 func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
-	secret, position, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
+	secret, _, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 	var kyberPrivShare *share.PriShare
-	// Check operator signature
-	initiatorPubKey, err := ParseRSAPubkey(initiatorPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	encInitPub, err := EncodePublicKey(initiatorPubKey)
-	if err != nil {
-		return nil, err
-	}
-	sigs := utils.SplitBytes(ceremonySigs, SignatureLength)
+	// // Check operator signature
+	// initiatorPubKey, err := ParseRSAPubkey(initiatorPublicKey)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// encInitPub, err := EncodePublicKey(initiatorPubKey)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// sigs := utils.SplitBytes(ceremonySigs, SignatureLength)
 	serialized := secret.Serialize()
-	dataToVerify := make([]byte, len(serialized)+len(encInitPub))
-	copy(dataToVerify[:len(serialized)], serialized)
-	copy(dataToVerify[len(serialized):], encInitPub)
-	err = VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
-	if err != nil {
-		return nil, fmt.Errorf("cant verify initiator public key")
-	}
+	// dataToVerify := make([]byte, len(serialized)+len(encInitPub))
+	// copy(dataToVerify[:len(serialized)], serialized)
+	// copy(dataToVerify[len(serialized):], encInitPub)
+	// err = VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
+	// if err != nil {
+	// 	return nil, fmt.Errorf("cant verify initiator public key")
+	// }
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
 		I: int(operatorID),

@@ -679,14 +679,14 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
 		return nil, nil, err
 	}
-	var cSigs *CeremonySigs
-	if err := json.Unmarshal(ceremonySigs, &cSigs); err != nil {
-		return nil, nil, err
-	}
-	cSigBytes, err := hex.DecodeString(cSigs.Sigs)
-	if err != nil {
-		return nil, nil, err
-	}
+	// var cSigs *CeremonySigs
+	// if err := json.Unmarshal(ceremonySigs, &cSigs); err != nil {
+	// 	return nil, nil, err
+	// }
+	// cSigBytes, err := hex.DecodeString(cSigs.Sigs)
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 	oldOpIDs := ks.Shares[0].Payload.OperatorIDs
 	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
 	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
@@ -718,7 +718,7 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 		Owner:              owner,
 		Nonce:              nonce,
 		Keyshares:          sharesData,
-		CeremonySigs:       cSigBytes,
+		// CeremonySigs:       cSigBytes,
 		InitiatorPublicKey: pkBytes,
 	}
 	dkgResultsBytes, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
@@ -749,26 +749,26 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	if err != nil {
 		return nil, nil, err
 	}
-	ceremonySigsNew, err := c.GetCeremonySigs(dkgResults)
-	if err != nil {
-		return nil, nil, err
-	}
-	ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
-	if err != nil {
-		return nil, nil, err
-	}
+	// ceremonySigsNew, err := c.GetCeremonySigs(dkgResults)
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
+	// ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 	resultMsg := &wire.ResultData{
 		Operators:     newOps,
 		Identifier:    id,
 		DepositData:   nil,
 		KeysharesData: keysharesData,
-		CeremonySigs:  ceremonySigsNewBytes,
+		// CeremonySigs:  ceremonySigsNewBytes,
 	}
 	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, id)
 	if err != nil {
 		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
 	}
-	return keyshares, ceremonySigsNew, nil
+	return keyshares, nil, nil
 }
 
 type KeySign struct {
