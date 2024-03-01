@@ -578,7 +578,7 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commitsP
 			}
 
 			trsp := &wire.Transport{
-				Type:       wire.ReshareKyberMessageType,
+				Type:       msg.Type,
 				Identifier: o.data.reqID,
 				Data:       byts,
 				Version:    o.version,
