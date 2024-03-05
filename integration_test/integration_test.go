@@ -508,6 +508,59 @@ func TestReshareHappyFlow(t *testing.T) {
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
 		require.NoError(t, err)
 	})
+	t.Run("test chain reshare 4 old -> 4 new -> 4 new  operators", func(t *testing.T) {
+		id := crypto.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		newIds := []uint64{55, 66, 77, 88}
+		newId := crypto.NewID()
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		ks, ceremeonySigs, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
+		require.NoError(t, err)
+		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		// check if threshold holds
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
+		require.ErrorContains(t, err, "could not reconstruct a valid signature")
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
+		require.NoError(t, err)
+		// check if old nodes cant decrypt
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
+		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
+		// chain reshare -> reshare
+		newIds = []uint64{99, 101, 111, 122}
+		newId = crypto.NewID()
+		marshalledKs, err = json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err = json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
+		require.NoError(t, err)
+		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		// check if threshold holds
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
+		require.ErrorContains(t, err, "could not reconstruct a valid signature")
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
+		require.NoError(t, err)
+	})
+
 	t.Run("test reshare 4 joint operators: 1 old + 3 new", func(t *testing.T) {
 		id := crypto.NewID()
 		ids := []uint64{11, 22, 33, 44}
