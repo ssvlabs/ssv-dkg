@@ -246,9 +246,9 @@ func RecoverValidatorPublicKey(ids []uint64, sharePks []*bls.PublicKey) (*bls.Pu
 	validatorRecoveredPK := bls.PublicKey{}
 	idVec := make([]bls.ID, 0)
 	pkVec := make([]bls.PublicKey, 0)
-	for i, index := range ids {
+	for i := range ids {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", i+1)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
@@ -268,9 +268,9 @@ func RecoverMasterSig(ids []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, er
 	reconstructedDepositMasterSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for i, index := range ids {
+	for i := range ids {
 		blsID := bls.ID{}
-		if err := blsID.SetDecString(fmt.Sprintf("%d", index)); err != nil {
+		if err := blsID.SetDecString(fmt.Sprintf("%d", i+1)); err != nil {
 			return nil, err
 		}
 		idVec = append(idVec, blsID)
@@ -549,9 +549,9 @@ func ReconstructSignatures(ids []uint64, signatures [][]byte) (*bls.Sign, error)
 	reconstructedSig := bls.Sign{}
 	idVec := make([]bls.ID, 0)
 	sigVec := make([]bls.Sign, 0)
-	for i, index := range ids {
+	for i := range ids {
 		blsID := bls.ID{}
-		err := blsID.SetDecString(fmt.Sprintf("%d", index))
+		err := blsID.SetDecString(fmt.Sprintf("%d", i+1))
 		if err != nil {
 			return nil, err
 		}

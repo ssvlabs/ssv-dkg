@@ -171,19 +171,9 @@ func New(opts *OwnerOpts) *LocalOwner {
 // StartDKG initializes and starts DKG protocol
 func (o *LocalOwner) StartDKG() error {
 	o.Logger.Info("Starting DKG")
-	nodes := make([]kyber_dkg.Node, 0)
-	// Create nodes using public points of all operators participating in the protocol
-	// Each operator creates a random secret/public points at G1 when initiating new LocalOwner instance
-	for id, e := range o.exchanges {
-		p := o.Suite.G1().Point()
-		if err := p.UnmarshalBinary(e.PK); err != nil {
-			return err
-		}
-
-		nodes = append(nodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(id - 1),
-			Public: p,
-		})
+	nodes, err := o.GetDKGNodes(o.data.init.Operators)
+	if err != nil {
+		return err
 	}
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
@@ -258,7 +248,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	}
 	OldNodes := make([]kyber_dkg.Node, 0)
 	var commits []byte
-	for _, op := range o.data.reshare.OldOperators {
+	for i, op := range o.data.reshare.OldOperators {
 		if o.exchanges[op.ID] == nil {
 			return fmt.Errorf("no operator at exchanges")
 		}
@@ -273,7 +263,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		}
 
 		OldNodes = append(OldNodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(op.ID - 1),
+			Index:  kyber_dkg.Index(i),
 			Public: p,
 		})
 	}
@@ -808,7 +798,7 @@ func (o *LocalOwner) GetLocalOwner() *LocalOwner {
 // GetDKGNodes returns a slice of DKG node instances used for the protocol
 func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error) {
 	nodes := make([]kyber_dkg.Node, 0)
-	for _, op := range ops {
+	for i, op := range ops {
 		if o.exchanges[op.ID] == nil {
 			return nil, fmt.Errorf("no operator at exchanges")
 		}
@@ -819,7 +809,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error)
 		}
 
 		nodes = append(nodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(op.ID - 1),
+			Index:  kyber_dkg.Index(i),
 			Public: p,
 		})
 	}
