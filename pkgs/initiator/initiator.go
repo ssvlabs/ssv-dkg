@@ -833,33 +833,35 @@ func (c *Initiator) ProcessDKGResultResponse(dkgResults []dkg.Result) (sharePks 
 	return sharePks, sigDepositShares, ssvContractOwnerNonceSigShares, nil
 }
 
-func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []dkg.Result, err error) {
+func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []dkg.Result, finalErr error) {
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			return nil, err
+			finalErr = errors.Join(finalErr, err)
+			continue
 		}
-		// check message type
 		if tsp.Message.Type == wire.ErrorMessageType {
-			var msgErr string
-			err := json.Unmarshal(tsp.Message.Data, &msgErr)
-			if err != nil {
-				return nil, err
-			}
-			return nil, fmt.Errorf("%s", msgErr)
+			finalErr = errors.Join(finalErr, fmt.Errorf("%s", string(tsp.Message.Data)))
+			continue
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, fmt.Errorf("wrong DKG result message type")
+			finalErr = errors.Join(finalErr, fmt.Errorf("wrong DKG result message type: exp %s, got %s ", wire.OutputMessageType.String(), tsp.Message.Type.String()))
+			continue
 		}
 		result := dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
-			return nil, err
+			finalErr = errors.Join(finalErr, err)
+			continue
 		}
 		if !bytes.Equal(result.RequestID[:], id[:]) {
-			return nil, fmt.Errorf("DKG result has wrong ID")
+			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID "))
+			continue
 		}
 		dkgResults = append(dkgResults, result)
+	}
+	if finalErr != nil {
+		return nil, finalErr
 	}
 	// sort the results by operatorID
 	sort.SliceStable(dkgResults, func(i, j int) bool {
