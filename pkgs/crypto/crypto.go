@@ -620,7 +620,7 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 			return nil, err
 		}
 		kyberPubhare := &share.PubShare{
-			I: int(i),
+			I: int(reshare.OldOperators[i].ID - 1),
 			V: v,
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
@@ -660,7 +660,7 @@ func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []
 	// }
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
-		I: int(operatorID),
+		I: int(operatorID - 1),
 		V: v,
 	}
 	return kyberPrivShare, nil
