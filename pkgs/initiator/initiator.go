@@ -711,13 +711,13 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 		return nil, nil, err
 	}
 	reshare := &wire.Reshare{
-		OldOperators:       oldOps,
-		NewOperators:       newOps,
-		OldT:               uint64(oldThreshold),
-		NewT:               uint64(newThreshold),
-		Owner:              owner,
-		Nonce:              nonce,
-		Keyshares:          sharesData,
+		OldOperators: oldOps,
+		NewOperators: newOps,
+		OldT:         uint64(oldThreshold),
+		NewT:         uint64(newThreshold),
+		Owner:        owner,
+		Nonce:        nonce,
+		Keyshares:    sharesData,
 		// CeremonySigs:       cSigBytes,
 		InitiatorPublicKey: pkBytes,
 	}
@@ -749,26 +749,26 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	if err != nil {
 		return nil, nil, err
 	}
-	// ceremonySigsNew, err := c.GetCeremonySigs(dkgResults)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-	// ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
+	ceremonySigsNew, err := c.GetCeremonySigs(dkgResults)
+	if err != nil {
+		return nil, nil, err
+	}
+	ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
+	if err != nil {
+		return nil, nil, err
+	}
 	resultMsg := &wire.ResultData{
 		Operators:     newOps,
 		Identifier:    id,
 		DepositData:   nil,
 		KeysharesData: keysharesData,
-		// CeremonySigs:  ceremonySigsNewBytes,
+		CeremonySigs:  ceremonySigsNewBytes,
 	}
 	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, id)
 	if err != nil {
 		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
 	}
-	return keyshares, nil, nil
+	return keyshares, ceremonySigsNew, nil
 }
 
 type KeySign struct {

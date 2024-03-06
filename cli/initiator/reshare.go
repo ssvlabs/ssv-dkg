@@ -70,7 +70,7 @@ var StartReshare = &cobra.Command{
 		// 	logger.Fatal("😥 Failed to read ceremony signatures json file:", zap.Error(err))
 		// }
 		// Start the ceremony
-		keyShares, _, err := dkgInitiator.StartReshare(id, newParts, keyshares, nil, cli_utils.Nonce)
+		keyShares, ceremonySigsNew, err := dkgInitiator.StartReshare(id, newParts, keyshares, nil, cli_utils.Nonce)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
@@ -86,10 +86,10 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to write new ceremony signatures: ", zap.Error(err))
 		}
-		// err = cli_utils.WriteCeremonySigs(ceremonySigsNew, dir)
-		// if err != nil {
-		// 	return err
-		// }
+		err = cli_utils.WriteCeremonySigs(ceremonySigsNew, dir)
+		if err != nil {
+			return err
+		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
