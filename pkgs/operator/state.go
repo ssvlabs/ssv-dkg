@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
@@ -647,6 +648,12 @@ func validateReshareMessage(reshare *wire.Reshare) error {
 	if len(reshare.OldOperators)%3 != 1 {
 		return fmt.Errorf("amount of old operators should be 4,7,10,13")
 	}
+	sorted := sort.SliceIsSorted(reshare.OldOperators, func(p, q int) bool {
+		return reshare.OldOperators[p].ID < reshare.OldOperators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("old operator not sorted by ID")
+	}
 	if len(reshare.NewOperators) < 4 {
 		return fmt.Errorf("wrong new operators len: < 4")
 	}
@@ -656,8 +663,11 @@ func validateReshareMessage(reshare *wire.Reshare) error {
 	if len(reshare.NewOperators)%3 != 1 {
 		return fmt.Errorf("amount of new operators should be 4,7,10,13")
 	}
-	if len(reshare.NewOperators) == 0 {
-		return fmt.Errorf("new operators slice should not be empty")
+	sorted = sort.SliceIsSorted(reshare.NewOperators, func(p, q int) bool {
+		return reshare.NewOperators[p].ID < reshare.NewOperators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("old operator not sorted by ID")
 	}
 	if len(reshare.InitiatorPublicKey) == 0 {
 		return fmt.Errorf("initiator public key field should not be empty")
@@ -686,6 +696,12 @@ func validateInitMessage(init *wire.Init) error {
 	}
 	if len(init.Operators)%3 != 1 {
 		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	sorted := sort.SliceIsSorted(init.Operators, func(p, q int) bool {
+		return init.Operators[p].ID < init.Operators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("operator not sorted by ID")
 	}
 	if len(init.InitiatorPublicKey) == 0 {
 		return fmt.Errorf("initiator public key field should not be empty")

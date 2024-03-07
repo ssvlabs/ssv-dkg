@@ -608,6 +608,9 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
+	if len(pubKeys) != len(reshare.OldOperators) {
+		return nil, fmt.Errorf("n of pub keys at keyshares != n of old operators")
+	}
 	for i, pubk := range pubKeys {
 		blsPub := &bls.PublicKey{}
 		err := blsPub.Deserialize(pubk)

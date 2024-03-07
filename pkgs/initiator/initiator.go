@@ -389,14 +389,13 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		return nil, fmt.Errorf("amount of operators should be 4,7,10,13")
 	}
 
-	ops := make([]*wire.Operator, 0)
+	ops := make([]*wire.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
-	for _, id := range ids {
+	for i, id := range ids {
 		op, ok := operators[id]
 		if !ok {
 			return nil, errors.New("operator is not in given operator data list")
 		}
-
 		_, exist := opMap[id]
 		if exist {
 			return nil, errors.New("operators ids should be unique in the list")
@@ -407,10 +406,10 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
-		ops = append(ops, &wire.Operator{
+		ops[i] = &wire.Operator{
 			ID:     op.ID,
 			PubKey: pkBytes,
-		})
+		}
 	}
 	return ops, nil
 }
