@@ -502,9 +502,9 @@ func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]
 
 // reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
 func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, init *wire.Init) (*DepositDataJson, error) {
-	ids := make([]uint64, 0)
+	ids := make([]uint64, len(dkgResults))
 	for i := 0; i < len(dkgResults); i++ {
-		ids = append(ids, dkgResults[i].OperatorID)
+		ids[i] = dkgResults[i].OperatorID
 	}
 	sharePks, sigDepositShares, err := c.prepareDepositSigsAndPubs(dkgResults)
 	if err != nil {
