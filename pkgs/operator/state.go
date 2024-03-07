@@ -272,6 +272,9 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
+	if err := validateInitMessage(init); err != nil {
+		return nil, err
+	}
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
 	if err != nil {
@@ -325,6 +328,9 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	logger.Info("🚀 Initializing DKG instance")
 	reshare := &wire.Reshare{}
 	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
+		return nil, err
+	}
+	if err := validateReshareMessage(reshare); err != nil {
 		return nil, err
 	}
 	// Check that incoming message signature is valid
@@ -607,4 +613,80 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 	}
 
 	return signed.MarshalSSZ()
+}
+
+func validateReshareMessage(reshare *wire.Reshare) error {
+	if len(reshare.Owner) != 20 {
+		return fmt.Errorf("owner field should be 20 bytes")
+	}
+	if len(reshare.CeremonySigs) == 0 {
+		return fmt.Errorf("ceremony sigs field should not be empty")
+	}
+	if len(reshare.Keyshares) == 0 {
+		return fmt.Errorf("keyshares field should not be empty")
+	}
+	if len(reshare.OldOperators) < 4 {
+		return fmt.Errorf("wrong old operators len: < 4")
+	}
+	if len(reshare.OldOperators) > 13 {
+		return fmt.Errorf("wrong old operators len: > 13")
+	}
+	if len(reshare.OldOperators)%3 != 1 {
+		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	if len(reshare.NewOperators) < 4 {
+		return fmt.Errorf("wrong new operators len: < 4")
+	}
+	if len(reshare.NewOperators) > 13 {
+		return fmt.Errorf("wrong new operators len: > 13")
+	}
+	if len(reshare.NewOperators)%3 != 1 {
+		return fmt.Errorf("amount of new operators should be 4,7,10,13")
+	}
+	if len(reshare.NewOperators) == 0 {
+		return fmt.Errorf("new operators slice should not be empty")
+	}
+	if len(reshare.InitiatorPublicKey) == 0 {
+		return fmt.Errorf("initiator public key field should not be empty")
+	}
+	// compute threshold (3f+1)
+	oldThreshold := len(reshare.OldOperators) - ((len(reshare.OldOperators) - 1) / 3)
+	newThreshold := len(reshare.NewOperators) - ((len(reshare.NewOperators) - 1) / 3)
+	if reshare.OldT != uint64(oldThreshold) {
+		return fmt.Errorf("old threshold field is wrong: expected %d, received %d", oldThreshold, reshare.OldT)
+	}
+	if reshare.NewT != uint64(newThreshold) {
+		return fmt.Errorf("new threshold field is wrong: expected %d, received %d", newThreshold, reshare.NewT)
+	}
+	return nil
+}
+
+func validateInitMessage(init *wire.Init) error {
+	if len(init.Owner) != 20 {
+		return fmt.Errorf("owner field should be 20 bytes")
+	}
+	if len(init.Operators) < 4 {
+		return fmt.Errorf("wrong old operators len: < 4")
+	}
+	if len(init.Operators) > 13 {
+		return fmt.Errorf("wrong old operators len: > 13")
+	}
+	if len(init.Operators)%3 != 1 {
+		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	if len(init.InitiatorPublicKey) == 0 {
+		return fmt.Errorf("initiator public key field should not be empty")
+	}
+	// compute threshold (3f+1)
+	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
+	if init.T != uint64(threshold) {
+		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
+	}
+	if len(init.WithdrawalCredentials) == 0 {
+		return fmt.Errorf("withdrawal credentials field should not be empty")
+	}
+	if len(init.Fork) != 4 {
+		return fmt.Errorf("fork field should be 4 bytes empty")
+	}
+	return nil
 }
