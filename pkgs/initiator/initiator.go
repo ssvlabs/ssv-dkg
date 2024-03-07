@@ -683,6 +683,9 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	if err := json.Unmarshal(ceremonySigs, &cSigs); err != nil {
 		return nil, nil, err
 	}
+	if cSigs.Sigs == "" {
+		return nil, nil, fmt.Errorf("ceremony sigs data not provided")
+	}
 	cSigBytes, err := hex.DecodeString(cSigs.Sigs)
 	if err != nil {
 		return nil, nil, err
@@ -706,6 +709,9 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	// compute threshold (3f+1)
 	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
 	newThreshold := len(newOpIDs) - ((len(newOpIDs) - 1) / 3)
+	if ks.Shares[0].Payload.SharesData == "" {
+		return nil, nil, fmt.Errorf("encrypted shares data not provided")
+	}
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return nil, nil, err

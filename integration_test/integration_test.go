@@ -642,6 +642,109 @@ func TestReshareHappyFlow(t *testing.T) {
 	srv13.HttpSrv.Close()
 }
 
+func TestReshareUnhappyFlow(t *testing.T) {
+	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("integration-tests")
+	ops := make(map[uint64]initiator.Operator)
+	srv1 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
+	ops[11] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey}
+	srv2 := test_utils.CreateTestOperator(t, 22, "v1.0.2")
+	ops[22] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey}
+	srv3 := test_utils.CreateTestOperator(t, 33, "v1.0.2")
+	ops[33] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey}
+	srv4 := test_utils.CreateTestOperator(t, 44, "v1.0.2")
+	ops[44] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey}
+	srv5 := test_utils.CreateTestOperator(t, 55, "v1.0.2")
+	ops[55] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey}
+	srv6 := test_utils.CreateTestOperator(t, 66, "v1.0.2")
+	ops[66] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey}
+	srv7 := test_utils.CreateTestOperator(t, 77, "v1.0.2")
+	ops[77] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey}
+	srv8 := test_utils.CreateTestOperator(t, 88, "v1.0.2")
+	ops[88] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey}
+	srv9 := test_utils.CreateTestOperator(t, 99, "v1.0.2")
+	ops[99] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey}
+	srv10 := test_utils.CreateTestOperator(t, 101, "v1.0.2")
+	ops[101] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 101, PubKey: &srv10.PrivKey.PublicKey}
+	srv11 := test_utils.CreateTestOperator(t, 111, "v1.0.2")
+	ops[111] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey}
+	srv12 := test_utils.CreateTestOperator(t, 122, "v1.0.2")
+	ops[122] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey}
+	srv13 := test_utils.CreateTestOperator(t, 133, "v1.0.2")
+	ops[133] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey}
+	// Initiator priv key
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	i := initiator.New(priv, ops, logger, "v1.0.2")
+	t.Run("test reshare with wrong validator key", func(t *testing.T) {
+		id := crypto.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		newIds := []uint64{55, 66, 77, 88}
+		newId := crypto.NewID()
+		// change validator pub key
+		ks.Shares[0].PublicKey = "0x95e6ffba909d6783b44e584186ba1ff7da6f419c39af0776bbcb8cfb89f7a01670c821d4907066007db565b6cc43a115"
+		ks.Shares[0].Payload.PublicKey = "0x95e6ffba909d6783b44e584186ba1ff7da6f419c39af0776bbcb8cfb89f7a01670c821d4907066007db565b6cc43a115"
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		_, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
+		require.ErrorContains(t, err, "validator public key defers from submitted keyshares file")
+	})
+	t.Run("test reshare empty encrypted shares field", func(t *testing.T) {
+		id := crypto.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		require.NoError(t, err)
+		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+		require.NoError(t, err)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		require.NoError(t, err)
+		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		newIds := []uint64{55, 66, 77, 88}
+		newId := crypto.NewID()
+		// change validator pub key
+		ks.Shares[0].Payload.SharesData = ""
+		marshalledKs, err := json.Marshal(ks)
+		require.NoError(t, err)
+		cSigs, err := json.Marshal(ceremeonySigs)
+		require.NoError(t, err)
+		_, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
+		require.ErrorContains(t, err, "encrypted shares data not provided")
+	})
+	srv1.HttpSrv.Close()
+	srv2.HttpSrv.Close()
+	srv3.HttpSrv.Close()
+	srv4.HttpSrv.Close()
+	srv5.HttpSrv.Close()
+	srv6.HttpSrv.Close()
+	srv7.HttpSrv.Close()
+	srv8.HttpSrv.Close()
+	srv9.HttpSrv.Close()
+	srv10.HttpSrv.Close()
+	srv11.HttpSrv.Close()
+	srv12.HttpSrv.Close()
+	srv13.HttpSrv.Close()
+}
+
 func TestWrongInitiatorVersion(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
