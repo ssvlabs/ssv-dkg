@@ -118,14 +118,15 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
 	require.NoError(t, err)
-
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
-		Operators:          ops,
-		Owner:              common.HexToAddress("0x0000000"),
-		Nonce:              1,
-		InitiatorPublicKey: encPubKey,
+		Operators:             ops,
+		Owner:                 common.HexToAddress("0x0000001"),
+		Nonce:                 1,
+		InitiatorPublicKey:    encPubKey,
+		T:                     3,
+		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	}
 
 	initmsg, err := init.MarshalSSZ()
@@ -198,10 +199,12 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
-		Operators:          ops,
-		Owner:              common.HexToAddress("0x0000000"),
-		Nonce:              1,
-		InitiatorPublicKey: encPubKey,
+		Operators:             ops,
+		Owner:                 common.HexToAddress("0x0000001"),
+		Nonce:                 1,
+		InitiatorPublicKey:    encPubKey,
+		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		T:                     3,
 	}
 
 	initmsg, err := init.MarshalSSZ()

@@ -710,7 +710,13 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	if err != nil {
 		return nil, nil, err
 	}
+	// Validator's BLS public key
+	valPub, err := getValPubsAtKeysharesFile(ks)
+	if err != nil {
+		return nil, nil, err
+	}
 	reshare := &wire.Reshare{
+		ValidatorPub:       valPub,
 		OldOperators:       oldOps,
 		NewOperators:       newOps,
 		OldT:               uint64(oldThreshold),
@@ -1137,4 +1143,19 @@ func (c *Initiator) GetCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, err
 	ceremonySigs.InitiatorPublicKey = hex.EncodeToString(encInitPub)
 	ceremonySigs.ValidatorPubKey = "0x" + hex.EncodeToString(dkgResults[0].ValidatorPubKey)
 	return ceremonySigs, nil
+}
+
+func getValPubsAtKeysharesFile(ks *KeyShares) ([]byte, error) {
+	valPub, err := hex.DecodeString(ks.Shares[0].PublicKey[2:])
+	if err != nil {
+		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
+	}
+	valPubPayload, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+	if err != nil {
+		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
+	}
+	if !bytes.Equal(valPub, valPubPayload) {
+		return nil, fmt.Errorf("validator pub key defers at keyshares file, shares %s, payload %s", ks.Shares[0].PublicKey, ks.Shares[0].Payload.PublicKey)
+	}
+	return valPub, nil
 }

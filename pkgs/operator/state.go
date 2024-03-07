@@ -185,6 +185,15 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 				Commits: commits,
 				Share:   secretShare,
 			}
+			// check if we get same public key as at keyshares file
+			pubKey, err := crypto.ResultToValidatorPK(owner.SecretShare, owner.Suite.G1().(kyber_dkg.Suite))
+			if err != nil {
+				return nil, nil, fmt.Errorf("cant get validator public key from secret share %w", err)
+			}
+			pubKeyBytes := pubKey.Serialize()
+			if !bytes.Equal(pubKeyBytes, reshare.ValidatorPub) {
+				return nil, nil, fmt.Errorf("validator public key defers from submitted keyshares file: recovered from share %x, received %x", pubKeyBytes, reshare.ValidatorPub)
+			}
 		}
 	}
 	resp, err := owner.InitReshare(reqID, reshare, commits)
@@ -616,8 +625,11 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 }
 
 func validateReshareMessage(reshare *wire.Reshare) error {
-	if len(reshare.Owner) != 20 {
-		return fmt.Errorf("owner field should be 20 bytes")
+	if len(reshare.ValidatorPub) != 48 || bytes.Equal(reshare.ValidatorPub, make([]byte, 48)) {
+		return fmt.Errorf("validator pub keys field should be non empty 48 bytes")
+	}
+	if len(reshare.Owner) != 20 || bytes.Equal(reshare.Owner[:], make([]byte, 20)) {
+		return fmt.Errorf("owner field should be non empty 20 bytes")
 	}
 	if len(reshare.CeremonySigs) == 0 {
 		return fmt.Errorf("ceremony sigs field should not be empty")
@@ -662,8 +674,8 @@ func validateReshareMessage(reshare *wire.Reshare) error {
 }
 
 func validateInitMessage(init *wire.Init) error {
-	if len(init.Owner) != 20 {
-		return fmt.Errorf("owner field should be 20 bytes")
+	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
+		return fmt.Errorf("owner field should be non empty 20 bytes")
 	}
 	if len(init.Operators) < 4 {
 		return fmt.Errorf("wrong old operators len: < 4")
@@ -682,8 +694,8 @@ func validateInitMessage(init *wire.Init) error {
 	if init.T != uint64(threshold) {
 		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
 	}
-	if len(init.WithdrawalCredentials) == 0 {
-		return fmt.Errorf("withdrawal credentials field should not be empty")
+	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials[:], make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials[:], make([]byte, 20)) {
+		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
 	}
 	if len(init.Fork) != 4 {
 		return fmt.Errorf("fork field should be 4 bytes empty")
