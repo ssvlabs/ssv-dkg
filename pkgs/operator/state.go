@@ -173,27 +173,28 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		return nil, nil, err
 	}
 	for _, op := range reshare.OldOperators {
-		if op.ID == operatorID {
-			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
-			if err != nil {
-				return nil, nil, err
-			}
-			if secretShare == nil {
-				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
-			}
-			owner.SecretShare = &kyber_dkg.DistKeyShare{
-				Commits: commits,
-				Share:   secretShare,
-			}
-			// check if we get same public key as at keyshares file
-			pubKey, err := crypto.ResultToValidatorPK(owner.SecretShare, owner.Suite.G1().(kyber_dkg.Suite))
-			if err != nil {
-				return nil, nil, fmt.Errorf("cant get validator public key from secret share %w", err)
-			}
-			pubKeyBytes := pubKey.Serialize()
-			if !bytes.Equal(pubKeyBytes, reshare.ValidatorPub) {
-				return nil, nil, fmt.Errorf("validator public key defers from submitted keyshares file: recovered from share %x, received %x", pubKeyBytes, reshare.ValidatorPub)
-			}
+		if op.ID != operatorID {
+			continue
+		}
+		secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if secretShare == nil {
+			return nil, nil, fmt.Errorf("cant decrypt incoming private share")
+		}
+		owner.SecretShare = &kyber_dkg.DistKeyShare{
+			Commits: commits,
+			Share:   secretShare,
+		}
+		// check if we get same public key as at keyshares file
+		pubKey, err := crypto.ResultToValidatorPK(owner.SecretShare, owner.Suite.G1().(kyber_dkg.Suite))
+		if err != nil {
+			return nil, nil, fmt.Errorf("cant get validator public key from secret share %w", err)
+		}
+		pubKeyBytes := pubKey.Serialize()
+		if !bytes.Equal(pubKeyBytes, reshare.ValidatorPub) {
+			return nil, nil, fmt.Errorf("validator public key defers from submitted keyshares file: recovered from share %x, received %x", pubKeyBytes, reshare.ValidatorPub)
 		}
 	}
 	resp, err := owner.InitReshare(reqID, reshare, commits)
@@ -694,7 +695,7 @@ func validateInitMessage(init *wire.Init) error {
 	if init.T != uint64(threshold) {
 		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
 	}
-	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials[:], make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials[:], make([]byte, 20)) {
+	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials, make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials, make([]byte, 20)) {
 		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
 	}
 	if len(init.Fork) != 4 {
