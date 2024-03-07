@@ -334,8 +334,8 @@ func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *ph
 
 	// Sign.
 	sig := sk.SignByte(signingRoot[:])
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to sign the root")
+	if sig == nil {
+		return nil, fmt.Errorf("failed to sign the root")
 	}
 	var phase0Sig phase0.BLSSignature
 	copy(phase0Sig[:], sig.Serialize())
@@ -349,7 +349,7 @@ func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *ph
 }
 
 // VerifyDepositData reconstructs and checks BLS signatures for ETH2 deposit message
-func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData) error {
+func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData, pubKey []byte) error {
 	// Compute DepositMessage root.
 	depositMessage := &phase0.DepositMessage{
 		PublicKey:             depositData.PublicKey,
@@ -375,9 +375,7 @@ func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData
 	}
 
 	// Verify the signature.
-	pkCopy := make([]byte, len(depositData.PublicKey))
-	copy(pkCopy, depositData.PublicKey[:])
-	pubkey, err := types.BLSPublicKeyFromBytes(pkCopy)
+	pubkey, err := types.BLSPublicKeyFromBytes(pubKey)
 	if err != nil {
 		return fmt.Errorf("failed to parse public key: %s", err)
 	}

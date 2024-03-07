@@ -390,7 +390,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		Amount:                MaxEffectiveBalanceInGwei,
 	})
 	// Validate partial signature
-	if err := crypto.VerifyDepositData(network, depositData); err != nil {
+	if err := crypto.VerifyDepositData(network, depositData, secretKeyBLS.GetPublicKey().Serialize()); err != nil {
 		o.broadcastError(err)
 		return fmt.Errorf("failed to verify deposit data with partial signature: %w", err)
 	}

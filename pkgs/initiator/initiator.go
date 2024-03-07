@@ -505,11 +505,11 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 	var verificationErrs error
 	for i, shareSig := range shareSigs {
 		err := crypto.VerifyDepositData(network, &phase0.DepositData{
-			PublicKey:             phase0.BLSPubKey(sharePks[i].Serialize()),
+			PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
 			Amount:                dkg.MaxEffectiveBalanceInGwei,
-			WithdrawalCredentials: init.WithdrawalCredentials,
+			WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials),
 			Signature:             phase0.BLSSignature(shareSig.Serialize()),
-		})
+		}, sharePks[i].Serialize())
 		if err != nil {
 			verificationErrs = errors.Join(verificationErrs, fmt.Errorf("signature #%d: %v", i, err))
 		}
@@ -539,7 +539,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials),
 		Signature:             phase0.BLSSignature(reconstructedDepositMasterSig.Serialize()),
 	}
-	err = crypto.VerifyDepositData(network, depositData)
+	err = crypto.VerifyDepositData(network, depositData, validatorPubKey.Serialize())
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify reconstructed deposit data: %v", err)
 	}
@@ -550,7 +550,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 	if depositDataJson.PubKey != validatorRecoveredPK.SerializeToHexStr() {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong validator public key %x", depositDataJson.PubKey)
 	}
-	if depositDataJson.WithdrawalCredentials != hex.EncodeToString(init.WithdrawalCredentials) {
+	if depositDataJson.WithdrawalCredentials != hex.EncodeToString(crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials)) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong withdrawal address %x", depositDataJson.WithdrawalCredentials)
 	}
 
@@ -1205,7 +1205,7 @@ func verifyDepositRoots(d *DepositDataCLI) error {
 		Amount:                d.Amount,
 		Signature:             phase0.BLSSignature(sig),
 	}
-	err = crypto.VerifyDepositData(network, depositData)
+	err = crypto.VerifyDepositData(network, depositData, pubKey)
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit data: %v", err)
 	}
