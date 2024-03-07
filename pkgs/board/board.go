@@ -61,23 +61,7 @@ func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
 
 // PushResponses implements a kyber DKG Board interface to broadcast responses
 func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
-	b.logger.Info("Pushing response bundle: ", zap.Int("num of responses", len(bundle.Responses)))
-
-	byts, err := wire2.EncodeResponseBundle(bundle)
-	if err != nil {
-		b.logger.Error(err.Error())
-		return
-	}
-
-	msg := &wire2.KyberMessage{
-		Type: wire2.KyberResponseBundleMessageType,
-		Data: byts,
-	}
-
-	if err := b.broadcastF(msg); err != nil {
-		b.logger.Error(err.Error())
-		return
-	}
+	// dont push responses to nodes, allowing them to finish with error
 }
 
 // IncomingResponse implements a kyber DKG Board interface function
@@ -87,23 +71,7 @@ func (b *Board) IncomingResponse() <-chan dkg.ResponseBundle {
 
 // PushJustifications implements a kyber DKG interface to broadcast justifications
 func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
-	b.logger.Info("Pushing justification bundle: ", zap.Int("num of responses", len(bundle.Justifications)))
-
-	byts, err := wire2.EncodeJustificationBundle(bundle)
-	if err != nil {
-		b.logger.Error(err.Error())
-		return
-	}
-
-	msg := &wire2.KyberMessage{
-		Type: wire2.KyberJustificationBundleMessageType,
-		Data: byts,
-	}
-
-	if err := b.broadcastF(msg); err != nil {
-		b.logger.Error(err.Error())
-		return
-	}
+	// dont push justifications to nodes, allowing them to finish with error
 }
 
 // IncomingJustification implements a kyber DKG Board interface function

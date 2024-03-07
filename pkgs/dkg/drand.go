@@ -500,9 +500,6 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 	o.board = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			if msg.Type == wire.KyberResponseBundleMessageType || msg.Type == wire.KyberJustificationBundleMessageType {
-				return nil
-			}
 			kyberLogger.Debug("server: broadcasting kyber message")
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
@@ -556,9 +553,6 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commitsP
 	o.board = board.NewBoard(
 		kyberLogger,
 		func(msg *wire.KyberMessage) error {
-			if msg.Type == wire.KyberResponseBundleMessageType || msg.Type == wire.KyberJustificationBundleMessageType {
-				return nil
-			}
 			kyberLogger.Debug("server: broadcasting kyber message")
 			byts, err := msg.MarshalSSZ()
 			if err != nil {
