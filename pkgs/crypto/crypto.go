@@ -38,6 +38,10 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
+var (
+	ErrInvalidSignature = errors.New("invalid signature")
+)
+
 const (
 	// b64 encrypted key length is 256
 	EncryptedKeyLength = 256
@@ -282,50 +286,6 @@ func RecoverMasterSig(ids []uint64, sigDepositShares []*bls.Sign) (*bls.Sign, er
 	return &reconstructedDepositMasterSig, nil
 }
 
-// DepositData crates and signs a ETH2 deposit message
-func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network e2m_core.Network, amount phase0.Gwei) (*phase0.DepositData, [32]byte, error) {
-	if !e2m_deposit.IsSupportedDepositNetwork(network) {
-		return nil, [32]byte{}, fmt.Errorf("network %s is not supported", network)
-	}
-
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], publicKey)
-
-	objRoot, err := depositMessage.HashTreeRoot()
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-
-	// Compute domain
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to calculate domain: %s", err)
-	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
-	}
-	copy(signingData.Domain[:], domain)
-
-	signedDepositData := &phase0.DepositData{
-		Amount:                amount,
-		WithdrawalCredentials: depositMessage.WithdrawalCredentials,
-	}
-	copy(signedDepositData.PublicKey[:], publicKey)
-	copy(signedDepositData.Signature[:], masterSig)
-
-	depositDataRoot, err := signedDepositData.HashTreeRoot()
-	if err != nil {
-		return nil, [32]byte{}, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-
-	return signedDepositData, depositDataRoot, nil
-}
-
 // withdrawalCredentialsHash forms a 32 byte hash of the withdrawal public
 // address.
 //
@@ -335,12 +295,12 @@ func DepositData(masterSig, withdrawalPubKey, publicKey []byte, network e2m_core
 //	withdrawal_credentials[1:] == hash(withdrawal_pubkey)[1:]
 //
 // where withdrawal_credentials is of type bytes32.
-func BLSWithdrawalCredentialsHash(withdrawalPubKey []byte) []byte {
+func BLSWithdrawalCredentials(withdrawalPubKey []byte) []byte {
 	h := util.SHA256(withdrawalPubKey)
 	return append([]byte{BLSWithdrawalPrefixByte}, h[1:]...)[:32]
 }
 
-func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
+func ETH1WithdrawalCredentials(withdrawalAddr []byte) []byte {
 	withdrawalCredentials := make([]byte, 32)
 	copy(withdrawalCredentials[:1], []byte{ETH1WithdrawalPrefixByte})
 	// withdrawalCredentials[1:12] == b'\x00' * 11 // this is not needed since cells are zeroed anyway
@@ -348,128 +308,90 @@ func ETH1WithdrawalCredentialsHash(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
-// DepositDataRoot computes a deposit root used for ETH2 deposit message
-func DepositDataRoot(withdrawalPubKey []byte, publicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) ([]byte, error) {
+func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *phase0.DepositMessage) (*phase0.DepositData, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, fmt.Errorf("network %s is not supported", network)
 	}
 
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], publicKey.Serialize())
-
-	objRoot, err := depositMessage.HashTreeRoot()
+	// Compute DepositMessage root.
+	depositMsgRoot, err := message.HashTreeRoot()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
 	}
-
-	// Compute domain
 	genesisForkVersion := network.GenesisForkVersion()
 	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate domain: %s", err)
 	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
+	container := &phase0.SigningData{
+		ObjectRoot: depositMsgRoot,
+		Domain:     phase0.Domain(domain),
 	}
-	copy(signingData.Domain[:], domain)
-
-	root, err := signingData.HashTreeRoot()
+	signingRoot, err := container.HashTreeRoot()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine the root hash of signing container: %s", err)
 	}
 
-	return root[:], nil
+	// Sign.
+	sig := sk.SignByte(signingRoot[:])
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sign the root")
+	}
+	var phase0Sig phase0.BLSSignature
+	copy(phase0Sig[:], sig.Serialize())
+
+	return &phase0.DepositData{
+		PublicKey:             message.PublicKey,
+		Amount:                message.Amount,
+		WithdrawalCredentials: message.WithdrawalCredentials,
+		Signature:             phase0Sig,
+	}, nil
 }
 
 // VerifyDepositData reconstructs and checks BLS signatures for ETH2 deposit message
-func VerifyDepositData(depositData *phase0.DepositData, network e2m_core.Network) (bool, error) {
+func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData) error {
+	// Compute DepositMessage root.
 	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: depositData.WithdrawalCredentials,
+		PublicKey:             depositData.PublicKey,
 		Amount:                depositData.Amount,
+		WithdrawalCredentials: depositData.WithdrawalCredentials,
 	}
-	copy(depositMessage.PublicKey[:], depositData.PublicKey[:])
-
 	depositMsgRoot, err := depositMessage.HashTreeRoot()
 	if err != nil {
-		return false, err
+		return fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
 	}
-
-	sigBytes := make([]byte, len(depositData.Signature))
-	copy(sigBytes, depositData.Signature[:])
-	sig, err := types.BLSSignatureFromBytes(sigBytes)
+	genesisForkVersion := network.GenesisForkVersion()
+	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("failed to calculate domain: %s", err)
 	}
-
 	container := &phase0.SigningData{
 		ObjectRoot: depositMsgRoot,
+		Domain:     phase0.Domain(domain),
 	}
-
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return false, err
-	}
-	copy(container.Domain[:], domain)
 	signingRoot, err := container.HashTreeRoot()
 	if err != nil {
-		return false, err
+		return fmt.Errorf("failed to determine the root hash of signing container: %s", err)
 	}
 
-	var pubkeyBytes [48]byte
-	copy(pubkeyBytes[:], depositData.PublicKey[:])
-
-	pubkey, err := types.BLSPublicKeyFromBytes(pubkeyBytes[:])
+	// Verify the signature.
+	pkCopy := make([]byte, len(depositData.PublicKey))
+	copy(pkCopy, depositData.PublicKey[:])
+	pubkey, err := types.BLSPublicKeyFromBytes(pkCopy)
 	if err != nil {
-		return false, err
-	}
-	return sig.Verify(signingRoot[:], pubkey), nil
-}
-
-// SignDepositData creates a BLS signature for ETH2 deposit message
-func SignDepositData(validationKey *bls.SecretKey, withdrawalPubKey []byte, validatorPublicKey *bls.PublicKey, network e2m_core.Network, amount phase0.Gwei) (*bls.Sign, []byte, error) {
-	if !e2m_deposit.IsSupportedDepositNetwork(network) {
-		return nil, nil, errors.Errorf("Network %s is not supported", network)
+		return fmt.Errorf("failed to parse public key: %s", err)
 	}
 
-	depositMessage := &phase0.DepositMessage{
-		WithdrawalCredentials: ETH1WithdrawalCredentialsHash(withdrawalPubKey),
-		Amount:                amount,
-	}
-	copy(depositMessage.PublicKey[:], validatorPublicKey.Serialize())
-
-	objRoot, err := depositMessage.HashTreeRoot()
+	sigCpy := make([]byte, len(depositData.Signature))
+	copy(sigCpy, depositData.Signature[:])
+	sig, err := types.BLSSignatureFromBytes(sigCpy)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to determine the root hash of deposit data")
+		return fmt.Errorf("failed to parse signature: %s", err)
 	}
-
-	// Compute domain
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to calculate domain")
+	if !sig.Verify(signingRoot[:], pubkey) {
+		return ErrInvalidSignature
 	}
-
-	signingData := phase0.SigningData{
-		ObjectRoot: objRoot,
-	}
-	copy(signingData.Domain[:], domain)
-
-	root, err := signingData.HashTreeRoot()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to determine the root hash of signing container")
-	}
-
-	// Sign
-	sig := validationKey.SignByte(root[:])
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign the root")
-	}
-	return sig, root[:], nil
+	return nil
 }
 
 // VerifyPartialSigs verifies provided partial BLS signatures
