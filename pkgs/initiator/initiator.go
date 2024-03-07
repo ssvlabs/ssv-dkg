@@ -1128,7 +1128,7 @@ func (c *Initiator) ValidateDepositJSON(d *DepositDataJson) error {
 	}
 	// 2. Verify deposit roots and signature
 	if err := verifyDepositRoots(d); err != nil {
-		return nil
+		return err
 	}
 	return nil
 }
