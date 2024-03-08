@@ -384,15 +384,27 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
-	depositData, err := crypto.SignDepositMessage(network, secretKeyBLS, &phase0.DepositMessage{
+	signingRoot, err := crypto.ComputeDepositDataSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
 		Amount:                MaxEffectiveBalanceInGwei,
 	})
-	// Validate partial signature
-	if err := crypto.VerifyDepositData(network, depositData, secretKeyBLS.GetPublicKey().Serialize()); err != nil {
+	if err != nil {
 		o.broadcastError(err)
-		return fmt.Errorf("failed to verify deposit data with partial signature: %w", err)
+		return fmt.Errorf("failed to generate deposit data with root %w", err)
+	}
+	// Sign.
+	signature := secretKeyBLS.SignByte(signingRoot)
+	if signature == nil {
+		o.broadcastError(err)
+		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
+	}
+
+	// Validate partial signature
+	if val := signature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot); !val {
+		err = fmt.Errorf("partial deposit root signature is not valid %x", signature.Serialize())
+		o.broadcastError(err)
+		return err
 	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
@@ -414,7 +426,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		EncryptedShare:             ciphertext,
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
-		DepositPartialSignature:    depositData.Signature[:],
+		DepositPartialSignature:    signature.Serialize(),
 		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),

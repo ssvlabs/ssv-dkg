@@ -502,20 +502,17 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 	if err != nil {
 		return nil, err
 	}
-	var verificationErrs error
-	for i, shareSig := range shareSigs {
-		err := crypto.VerifyDepositData(network, &phase0.DepositData{
-			PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-			Amount:                dkg.MaxEffectiveBalanceInGwei,
-			WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials),
-			Signature:             phase0.BLSSignature(shareSig.Serialize()),
-		}, sharePks[i].Serialize())
-		if err != nil {
-			verificationErrs = errors.Join(verificationErrs, fmt.Errorf("signature #%d: %v", i, err))
-		}
+	shareRoot, err := crypto.ComputeDepositDataSigningRoot(network, &phase0.DepositMessage{
+		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
+		Amount:                dkg.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials)})
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
 	}
-	if verificationErrs != nil {
-		return nil, fmt.Errorf("failed to verify deposit data: %v", verificationErrs)
+	// Verify partial signatures and recovered threshold signature
+	err = crypto.VerifyPartialSigs(shareSigs, sharePks, shareRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify partial signatures: %v", err)
 	}
 
 	// Recover and verify Master Signature
@@ -539,7 +536,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials),
 		Signature:             phase0.BLSSignature(reconstructedDepositMasterSig.Serialize()),
 	}
-	err = crypto.VerifyDepositData(network, depositData, validatorPubKey.Serialize())
+	err = crypto.VerifyDepositData(network, depositData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify reconstructed deposit data: %v", err)
 	}
@@ -1205,7 +1202,7 @@ func verifyDepositRoots(d *DepositDataCLI) error {
 		Amount:                d.Amount,
 		Signature:             phase0.BLSSignature(sig),
 	}
-	err = crypto.VerifyDepositData(network, depositData, pubKey)
+	err = crypto.VerifyDepositData(network, depositData)
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit data: %v", err)
 	}

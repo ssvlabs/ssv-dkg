@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,7 +27,6 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/pkg/errors"
 	types "github.com/wealdtech/go-eth2-types/v2"
 	util "github.com/wealdtech/go-eth2-util"
 	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
@@ -124,7 +124,7 @@ func ResultToValidatorPK(result *drand_dkg.DistKeyShare, suite drand_dkg.Suite) 
 	exp := share.NewPubPoly(suite, suite.Point().Base(), result.Commitments())
 	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal share")
+		return nil, fmt.Errorf("could not marshal share %w", err)
 	}
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(bytsPK); err != nil {
@@ -237,7 +237,7 @@ func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
 func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
 	parsedSk, err := x509.ParsePKCS1PrivateKey(derBytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse private key")
+		return nil, fmt.Errorf("failed to parse private key %w", err)
 	}
 	return parsedSk, nil
 }
@@ -308,7 +308,7 @@ func ETH1WithdrawalCredentials(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
-func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *phase0.DepositMessage) (*phase0.DepositData, error) {
+func ComputeDepositDataSigningRoot(network e2m_core.Network, message *phase0.DepositMessage) ([]byte, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return nil, fmt.Errorf("network %s is not supported", network)
 	}
@@ -331,12 +331,21 @@ func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *ph
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine the root hash of signing container: %s", err)
 	}
+	return signingRoot[:], nil
+}
+
+func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *phase0.DepositMessage) (*phase0.DepositData, error) {
+	signingRoot, err := ComputeDepositDataSigningRoot(network, message)
+	if err != nil {
+		return nil, err
+	}
 
 	// Sign.
-	sig := sk.SignByte(signingRoot[:])
+	sig := sk.SignByte(signingRoot)
 	if sig == nil {
 		return nil, fmt.Errorf("failed to sign the root")
 	}
+
 	var phase0Sig phase0.BLSSignature
 	copy(phase0Sig[:], sig.Serialize())
 
@@ -349,7 +358,7 @@ func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *ph
 }
 
 // VerifyDepositData reconstructs and checks BLS signatures for ETH2 deposit message
-func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData, pubKey []byte) error {
+func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData) error {
 	// Compute DepositMessage root.
 	depositMessage := &phase0.DepositMessage{
 		PublicKey:             depositData.PublicKey,
@@ -375,7 +384,9 @@ func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData
 	}
 
 	// Verify the signature.
-	pubkey, err := types.BLSPublicKeyFromBytes(pubKey)
+	pkCopy := make([]byte, len(depositData.PublicKey))
+	copy(pkCopy, depositData.PublicKey[:])
+	pubkey, err := types.BLSPublicKeyFromBytes(pkCopy)
 	if err != nil {
 		return fmt.Errorf("failed to parse public key: %s", err)
 	}
@@ -397,23 +408,15 @@ func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []
 	if len(sigShares) != len(sharePks) {
 		return fmt.Errorf("inconsistent slice lengths")
 	}
-	res := make([]bool, len(sigShares))
+	var verificationErrs error
 	for i := 0; i < len(sigShares); i++ {
-		if sigShares[i].VerifyByte(sharePks[i], data) {
-			res[i] = true
+		if !sigShares[i].VerifyByte(sharePks[i], data) {
+			verificationErrs = errors.Join(verificationErrs, fmt.Errorf(" signature #%d: sig %x root %x", i, sigShares[i].Serialize(), data))
 		}
 	}
 
-	var errStr = ""
-
-	for index, r := range res {
-		if !r {
-			errStr += fmt.Sprintf(" id %d sig %x root %x, errStr", index, sigShares[index].Serialize(), data)
-			continue
-		}
-	}
-	if errStr != "" {
-		return fmt.Errorf("error verifying partial deposit signature: %v", errStr)
+	if verificationErrs != nil {
+		return fmt.Errorf("failed to verify partial signatures: %v", verificationErrs)
 	}
 	return nil
 }
@@ -492,7 +495,7 @@ func ReconstructSignatures(ids []uint64, signatures [][]byte) (*bls.Sign, error)
 func VerifyReconstructedSignature(sig *bls.Sign, validatorPubKey, msg []byte) error {
 	pk := &bls.PublicKey{}
 	if err := pk.Deserialize(validatorPubKey); err != nil {
-		return errors.Wrap(err, "could not deserialize validator pk")
+		return fmt.Errorf("could not deserialize validator pk %w", err)
 	}
 	// verify reconstructed sig
 	if res := sig.VerifyByte(pk, msg); !res {
