@@ -2,14 +2,20 @@ package initiator_test
 
 import (
 	"crypto/rsa"
+	"encoding/hex"
+	"errors"
 	"math/big"
 	"testing"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv/logging"
@@ -68,7 +74,7 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
-		err = intr.ValidateDepositJSON(depositData)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
@@ -300,4 +306,97 @@ func TestRemoveTrailSlash(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, "http://localhost:3030", ops[1].Addr)
 	require.Equal(t, "http://localhost:3031", ops[2].Addr)
+}
+
+func TestDepositDataSigningAndVerification(t *testing.T) {
+	tests := []struct {
+		network                       core.Network
+		testname                      string
+		validatorPubKey               []byte
+		validatorPrivKey              []byte
+		withdrawalPubKey              []byte
+		expectedWithdrawalCredentials []byte
+		expectedSig                   []byte
+		expectedRoot                  []byte
+		expectedErr                   error
+	}{
+		{
+			testname:                      "valid mainnet deposit",
+			network:                       core.MainNetwork,
+			validatorPubKey:               must(hex.DecodeString("b3d50de8d77299da8d830de1edfb34d3ce03c1941846e73870bb33f6de7b8a01383f6b32f55a1d038a4ddcb21a765194")),
+			validatorPrivKey:              must(hex.DecodeString("175db1c5411459893301c3f2ebe740e5da07db8f17c2df4fa0be6d31a48a4f79")),
+			withdrawalPubKey:              must(hex.DecodeString("8d176708b908f288cc0e9d43f75674e73c0db94026822c5ce2c3e0f9e773c9ee95fdba824302f1208c225b0ed2d54154")),
+			expectedWithdrawalCredentials: must(hex.DecodeString("005b55a6c968852666b132a80f53712e5097b0fca86301a16992e695a8e86f16")),
+			expectedSig:                   must(hex.DecodeString("8ab63bb2ef45d5fe4b5ba3b6aa2db122db350c05846b6ffc1415c603ba998226599a21aa65a8cb55c1b888767bdac2b51901d34cde41003c689b8c125fc67d3abd2527ccaf1390c13c3fc65a7422de8a7e29ae8e9736321606172c7b3bf6de36")),
+			expectedRoot:                  must(hex.DecodeString("76139d2c8d8e87a4737ce7acbf97ce8980732921550c5443a8754635c11296d3")),
+			expectedErr:                   nil,
+		},
+		{
+			testname:                      "invalid mainnet deposit",
+			network:                       core.MainNetwork,
+			validatorPubKey:               must(hex.DecodeString("b3d50de8d77299da8d830de1edfb34d3ce03c1941846e73870bb33f6de7b8a01383f6b32f55a1d038a4ddcb21a765194")),
+			validatorPrivKey:              must(hex.DecodeString("165db1c5411459893301c3f2ebe740e5da07db8f17c2df4fa0be6d31a48a4f79")),
+			withdrawalPubKey:              must(hex.DecodeString("8d176708b908f288cc0e9d43f75674e73c0db94026822c5ce2c3e0f9e773c9ee95fdba824302f1208c225b0ed2d54154")),
+			expectedWithdrawalCredentials: must(hex.DecodeString("005b55a6c968852666b132a80f53712e5097b0fca86301a16992e695a8e86f16")),
+			expectedSig:                   must(hex.DecodeString("a88d0fd588836c5756ec7f2fe2bc8b6fc5723d018c8d31c8f42b239ac6cf7c2f9ae129caafaebb5f2f25e7821678b41819bc24f6eeebe0d8196cea13581f72ac501f3e7e9e4bc596e6a545ac109fb2ff1d7eb03923454dc5258718b43427a757")),
+			expectedRoot:                  must(hex.DecodeString("76139d2c8d8e87a4737ce7acbf97ce8980732921550c5443a8754635c11296d3")),
+			expectedErr:                   errors.New("failed to verify deposit roots: failed to verify deposit data: invalid signature"),
+		},
+		{
+			testname:                      "valid prater deposit",
+			network:                       core.PraterNetwork,
+			validatorPubKey:               must(hex.DecodeString("b3d50de8d77299da8d830de1edfb34d3ce03c1941846e73870bb33f6de7b8a01383f6b32f55a1d038a4ddcb21a765194")),
+			validatorPrivKey:              must(hex.DecodeString("175db1c5411459893301c3f2ebe740e5da07db8f17c2df4fa0be6d31a48a4f79")),
+			withdrawalPubKey:              must(hex.DecodeString("8d176708b908f288cc0e9d43f75674e73c0db94026822c5ce2c3e0f9e773c9ee95fdba824302f1208c225b0ed2d54154")),
+			expectedWithdrawalCredentials: must(hex.DecodeString("005b55a6c968852666b132a80f53712e5097b0fca86301a16992e695a8e86f16")),
+			expectedSig:                   must(hex.DecodeString("a88d0fd588836c5756ec7f2fe2bc8b6fc5723d018c8d31c8f42b239ac6cf7c2f9ae129caafaebb5f2f25e7821678b41819bc24f6eeebe0d8196cea13581f72ac501f3e7e9e4bc596e6a545ac109fb2ff1d7eb03923454dc5258718b43427a757")),
+			expectedRoot:                  must(hex.DecodeString("aa940a26af67a676bcd807b0fd3f39aadbfc6862e380e115051683e1fccc0171")),
+			expectedErr:                   nil,
+		},
+	}
+
+	require.NoError(t, core.InitBLS())
+
+	for _, test := range tests {
+		t.Run(test.testname, func(t *testing.T) {
+			sk := &bls.SecretKey{}
+			err := sk.SetHexString(hex.EncodeToString(test.validatorPrivKey))
+			require.NoError(t, err)
+
+			// create data
+			depositData, err := crypto.SignDepositMessage(
+				test.network,
+				sk,
+				&phase0.DepositMessage{
+					PublicKey:             phase0.BLSPubKey(test.validatorPubKey),
+					WithdrawalCredentials: crypto.BLSWithdrawalCredentials(test.withdrawalPubKey),
+					Amount:                dkg.MaxEffectiveBalanceInGwei,
+				},
+			)
+			require.NoError(t, err)
+
+			depositDataCLI, err := initiator.BuildDepositDataCLI(test.network, depositData, initiator.DepositCliVersion)
+			require.NoError(t, err)
+			err = initiator.ValidateDepositDataCLI(depositDataCLI)
+			if test.expectedErr != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErr.Error())
+				return
+			}
+			require.NoError(t, err)
+
+			require.Equal(t, sk.GetPublicKey().SerializeToHexStr(), depositDataCLI.PubKey, "0x")
+			require.Equal(t, test.expectedWithdrawalCredentials, depositData.WithdrawalCredentials)
+			require.Equal(t, dkg.MaxEffectiveBalanceInGwei, depositData.Amount)
+			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot[:])
+			require.Equal(t, hex.EncodeToString(test.expectedSig), depositDataCLI.Signature, "0x")
+		})
+	}
+}
+
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
