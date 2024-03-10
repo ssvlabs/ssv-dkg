@@ -388,7 +388,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 			require.Equal(t, sk.GetPublicKey().SerializeToHexStr(), depositDataCLI.PubKey, "0x")
 			require.Equal(t, test.expectedWithdrawalCredentials, depositData.WithdrawalCredentials)
 			require.Equal(t, dkg.MaxEffectiveBalanceInGwei, depositData.Amount)
-			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot[:])
+			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot)
 			require.Equal(t, hex.EncodeToString(test.expectedSig), depositDataCLI.Signature, "0x")
 		})
 	}
