@@ -308,20 +308,23 @@ func ETH1WithdrawalCredentials(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
-func ComputeDepositDataSigningRoot(network e2m_core.Network, message *phase0.DepositMessage) ([]byte, error) {
+func ComputeDepositMessageSigningRoot(network e2m_core.Network, message *phase0.DepositMessage) (phase0.Root, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
-		return nil, fmt.Errorf("network %s is not supported", network)
+		return phase0.Root{}, fmt.Errorf("network %s is not supported", network)
+	}
+	if len(message.WithdrawalCredentials) != 32 {
+		return phase0.Root{}, fmt.Errorf("withdrawal credentials must be 32 bytes")
 	}
 
 	// Compute DepositMessage root.
 	depositMsgRoot, err := message.HashTreeRoot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
+		return phase0.Root{}, fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
 	}
 	genesisForkVersion := network.GenesisForkVersion()
 	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate domain: %s", err)
+		return phase0.Root{}, fmt.Errorf("failed to calculate domain: %s", err)
 	}
 	container := &phase0.SigningData{
 		ObjectRoot: depositMsgRoot,
@@ -329,19 +332,19 @@ func ComputeDepositDataSigningRoot(network e2m_core.Network, message *phase0.Dep
 	}
 	signingRoot, err := container.HashTreeRoot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine the root hash of signing container: %s", err)
+		return phase0.Root{}, fmt.Errorf("failed to determine the root hash of signing container: %s", err)
 	}
-	return signingRoot[:], nil
+	return signingRoot, nil
 }
 
 func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *phase0.DepositMessage) (*phase0.DepositData, error) {
-	signingRoot, err := ComputeDepositDataSigningRoot(network, message)
+	signingRoot, err := ComputeDepositMessageSigningRoot(network, message)
 	if err != nil {
 		return nil, err
 	}
 
 	// Sign.
-	sig := sk.SignByte(signingRoot)
+	sig := sk.SignByte(signingRoot[:])
 	if sig == nil {
 		return nil, fmt.Errorf("failed to sign the root")
 	}
@@ -359,28 +362,13 @@ func SignDepositMessage(network e2m_core.Network, sk *bls.SecretKey, message *ph
 
 // VerifyDepositData reconstructs and checks BLS signatures for ETH2 deposit message
 func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData) error {
-	// Compute DepositMessage root.
-	depositMessage := &phase0.DepositMessage{
+	signingRoot, err := ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             depositData.PublicKey,
 		Amount:                depositData.Amount,
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-	}
-	depositMsgRoot, err := depositMessage.HashTreeRoot()
+	})
 	if err != nil {
-		return fmt.Errorf("failed to determine the root hash of deposit data: %s", err)
-	}
-	genesisForkVersion := network.GenesisForkVersion()
-	domain, err := types.ComputeDomain(types.DomainDeposit, genesisForkVersion[:], types.ZeroGenesisValidatorsRoot)
-	if err != nil {
-		return fmt.Errorf("failed to calculate domain: %s", err)
-	}
-	container := &phase0.SigningData{
-		ObjectRoot: depositMsgRoot,
-		Domain:     phase0.Domain(domain),
-	}
-	signingRoot, err := container.HashTreeRoot()
-	if err != nil {
-		return fmt.Errorf("failed to determine the root hash of signing container: %s", err)
+		return fmt.Errorf("failed to compute signing root: %s", err)
 	}
 
 	// Verify the signature.

@@ -384,7 +384,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.broadcastError(err)
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
-	signingRoot, err := crypto.ComputeDepositDataSigningRoot(network, &phase0.DepositMessage{
+	signingRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
 		Amount:                MaxEffectiveBalanceInGwei,
@@ -394,14 +394,14 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to generate deposit data with root %w", err)
 	}
 	// Sign.
-	signature := secretKeyBLS.SignByte(signingRoot)
+	signature := secretKeyBLS.SignByte(signingRoot[:])
 	if signature == nil {
 		o.broadcastError(err)
 		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
 	}
 
 	// Validate partial signature
-	if val := signature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot); !val {
+	if val := signature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
 		err = fmt.Errorf("partial deposit root signature is not valid %x", signature.Serialize())
 		o.broadcastError(err)
 		return err

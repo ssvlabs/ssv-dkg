@@ -502,7 +502,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 	if err != nil {
 		return nil, err
 	}
-	shareRoot, err := crypto.ComputeDepositDataSigningRoot(network, &phase0.DepositMessage{
+	shareRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
 		Amount:                dkg.MaxEffectiveBalanceInGwei,
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials)})
@@ -510,7 +510,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
 	}
 	// Verify partial signatures and recovered threshold signature
-	err = crypto.VerifyPartialSigs(shareSigs, sharePks, shareRoot)
+	err = crypto.VerifyPartialSigs(shareSigs, sharePks, shareRoot[:])
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify partial signatures: %v", err)
 	}
