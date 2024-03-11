@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
@@ -173,18 +174,28 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 		return nil, nil, err
 	}
 	for _, op := range reshare.OldOperators {
-		if op.ID == operatorID {
-			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
-			if err != nil {
-				return nil, nil, err
-			}
-			if secretShare == nil {
-				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
-			}
-			owner.SecretShare = &kyber_dkg.DistKeyShare{
-				Commits: commits,
-				Share:   secretShare,
-			}
+		if op.ID != operatorID {
+			continue
+		}
+		secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if secretShare == nil {
+			return nil, nil, fmt.Errorf("cant decrypt incoming private share")
+		}
+		owner.SecretShare = &kyber_dkg.DistKeyShare{
+			Commits: commits,
+			Share:   secretShare,
+		}
+		// check if we get same public key as at keyshares file
+		pubKey, err := crypto.ResultToValidatorPK(owner.SecretShare, owner.Suite.G1().(kyber_dkg.Suite))
+		if err != nil {
+			return nil, nil, fmt.Errorf("cant get validator public key from secret share %w", err)
+		}
+		pubKeyBytes := pubKey.Serialize()
+		if !bytes.Equal(pubKeyBytes, reshare.ValidatorPub) {
+			return nil, nil, fmt.Errorf("validator public key defers from submitted keyshares file: recovered from share %x, received %x", pubKeyBytes, reshare.ValidatorPub)
 		}
 	}
 	resp, err := owner.InitReshare(reqID, reshare, commits)
@@ -211,21 +222,6 @@ func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
 // Decrypt with RSA private key private DKG share key
 func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
-}
-
-// EncryptSecretDB encrypts secret share object bytes using RSA key to store at DB
-func (s *Switch) EncryptSecretDB(bin []byte) ([]byte, error) {
-	// brake to chunks of 256 byte
-	chuncks := utils.SplitBytes(bin, 128)
-	var encrypted []byte
-	for _, chunk := range chuncks {
-		encBin, err := s.Encrypt(chunk)
-		if err != nil {
-			return nil, err
-		}
-		encrypted = append(encrypted, encBin...)
-	}
-	return encrypted, nil
 }
 
 // CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
@@ -271,6 +267,9 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	init := &wire.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
+	}
+	if err := validateInitMessage(init); err != nil {
+		return nil, err
 	}
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
@@ -325,6 +324,9 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	logger.Info("🚀 Initializing DKG instance")
 	reshare := &wire.Reshare{}
 	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
+		return nil, err
+	}
+	if err := validateReshareMessage(reshare); err != nil {
 		return nil, err
 	}
 	// Check that incoming message signature is valid
@@ -426,21 +428,6 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	resp := inst.ReadResponse()
 
 	return resp, nil
-}
-
-// DecryptSecretDB decrypts a secret share using operator's private key
-func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
-	// brake to chunks of 256 byte
-	chuncks := utils.SplitBytes(bin, 256)
-	var decrypted []byte
-	for _, chunk := range chuncks {
-		decBin, err := s.Decrypt(chunk)
-		if err != nil {
-			return nil, err
-		}
-		decrypted = append(decrypted, decBin...)
-	}
-	return decrypted, nil
 }
 
 func (s *Switch) Pong() ([]byte, error) {
@@ -607,4 +594,98 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 	}
 
 	return signed.MarshalSSZ()
+}
+
+func validateReshareMessage(reshare *wire.Reshare) error {
+	if len(reshare.ValidatorPub) != 48 || bytes.Equal(reshare.ValidatorPub, make([]byte, 48)) {
+		return fmt.Errorf("validator pub keys field should be non empty 48 bytes")
+	}
+	if len(reshare.Owner) != 20 || bytes.Equal(reshare.Owner[:], make([]byte, 20)) {
+		return fmt.Errorf("owner field should be non empty 20 bytes")
+	}
+	if len(reshare.CeremonySigs) == 0 {
+		return fmt.Errorf("ceremony sigs field should not be empty")
+	}
+	if len(reshare.Keyshares) == 0 {
+		return fmt.Errorf("keyshares field should not be empty")
+	}
+	if len(reshare.OldOperators) < 4 {
+		return fmt.Errorf("wrong old operators len: < 4")
+	}
+	if len(reshare.OldOperators) > 13 {
+		return fmt.Errorf("wrong old operators len: > 13")
+	}
+	if len(reshare.OldOperators)%3 != 1 {
+		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	sorted := sort.SliceIsSorted(reshare.OldOperators, func(p, q int) bool {
+		return reshare.OldOperators[p].ID < reshare.OldOperators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("old operator not sorted by ID")
+	}
+	if len(reshare.NewOperators) < 4 {
+		return fmt.Errorf("wrong new operators len: < 4")
+	}
+	if len(reshare.NewOperators) > 13 {
+		return fmt.Errorf("wrong new operators len: > 13")
+	}
+	if len(reshare.NewOperators)%3 != 1 {
+		return fmt.Errorf("amount of new operators should be 4,7,10,13")
+	}
+	sorted = sort.SliceIsSorted(reshare.NewOperators, func(p, q int) bool {
+		return reshare.NewOperators[p].ID < reshare.NewOperators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("old operator not sorted by ID")
+	}
+	if len(reshare.InitiatorPublicKey) == 0 {
+		return fmt.Errorf("initiator public key field should not be empty")
+	}
+	// compute threshold (3f+1)
+	oldThreshold := len(reshare.OldOperators) - ((len(reshare.OldOperators) - 1) / 3)
+	newThreshold := len(reshare.NewOperators) - ((len(reshare.NewOperators) - 1) / 3)
+	if reshare.OldT != uint64(oldThreshold) {
+		return fmt.Errorf("old threshold field is wrong: expected %d, received %d", oldThreshold, reshare.OldT)
+	}
+	if reshare.NewT != uint64(newThreshold) {
+		return fmt.Errorf("new threshold field is wrong: expected %d, received %d", newThreshold, reshare.NewT)
+	}
+	return nil
+}
+
+func validateInitMessage(init *wire.Init) error {
+	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
+		return fmt.Errorf("owner field should be non empty 20 bytes")
+	}
+	if len(init.Operators) < 4 {
+		return fmt.Errorf("wrong old operators len: < 4")
+	}
+	if len(init.Operators) > 13 {
+		return fmt.Errorf("wrong old operators len: > 13")
+	}
+	if len(init.Operators)%3 != 1 {
+		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	sorted := sort.SliceIsSorted(init.Operators, func(p, q int) bool {
+		return init.Operators[p].ID < init.Operators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("operator not sorted by ID")
+	}
+	if len(init.InitiatorPublicKey) == 0 {
+		return fmt.Errorf("initiator public key field should not be empty")
+	}
+	// compute threshold (3f+1)
+	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
+	if init.T != uint64(threshold) {
+		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
+	}
+	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials, make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials, make([]byte, 20)) {
+		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
+	}
+	if len(init.Fork) != 4 {
+		return fmt.Errorf("fork field should be 4 bytes empty")
+	}
+	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
@@ -158,18 +157,6 @@ func Contains(s []*rsa.PrivateKey, i int) bool {
 		}
 	}
 	return false
-}
-
-func CommitsToBytes(cs []kyber.Point) []byte {
-	var commits []byte
-	for _, point := range cs {
-		b, err := point.MarshalBinary()
-		if err != nil {
-			panic(err)
-		}
-		commits = append(commits, b...)
-	}
-	return commits
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {

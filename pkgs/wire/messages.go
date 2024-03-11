@@ -117,6 +117,8 @@ type Init struct {
 }
 
 type Reshare struct {
+	// Validator public key
+	ValidatorPub []byte `ssz-max:"48"`
 	// Operators involved in the DKG
 	OldOperators []*Operator `ssz-max:"13"`
 	// Operators involved in the resharing

@@ -33,11 +33,6 @@ const (
 	ceremonySigsFilePath              = "ceremonySigsFilePath"
 )
 
-// ThresholdFlag adds threshold flag to the command
-func ThresholdFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, threshold, 0, "Threshold for distributed signature", false)
-}
-
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", false)

@@ -77,15 +77,6 @@ func SignRSA(sk *rsa.PrivateKey, byts []byte) ([]byte, error) {
 	})
 }
 
-// Encrypt with secret key (base64) the bytes, return the encrypted key string
-func Encrypt(pk *rsa.PublicKey, plainText []byte) ([]byte, error) {
-	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, pk, plainText)
-	if err != nil {
-		return nil, err
-	}
-	return encrypted, nil
-}
-
 // VerifyRSA verifies RSA signature for incoming message
 func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 	r := sha256.Sum256(msg)
@@ -221,25 +212,6 @@ func ReadEncryptedPrivateKey(keyData []byte, password string) (*rsa.PrivateKey, 
 	}
 
 	return rsaKey, nil
-}
-
-// ConvertPemToPrivateKey return rsa private key from secret key
-func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(skPem))
-	if block == nil {
-		return nil, errors.New("decode PEM block")
-	}
-	b := block.Bytes
-	return parsePrivateKey(b)
-}
-
-// parsePrivateKey parses an encoded x509 RSA private key
-func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
-	parsedSk, err := x509.ParsePKCS1PrivateKey(derBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key %w", err)
-	}
-	return parsedSk, nil
 }
 
 // RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
@@ -519,6 +491,9 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
+	if len(pubKeys) != len(reshare.OldOperators) {
+		return nil, fmt.Errorf("n of pub keys at keyshares != n of old operators")
+	}
 	for i, pubk := range pubKeys {
 		blsPub := &bls.PublicKey{}
 		err := blsPub.Deserialize(pubk)
@@ -531,7 +506,7 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 			return nil, err
 		}
 		kyberPubhare := &share.PubShare{
-			I: int(i),
+			I: int(reshare.OldOperators[i].ID - 1),
 			V: v,
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
@@ -571,7 +546,7 @@ func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []
 	}
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
-		I: int(operatorID),
+		I: int(operatorID - 1),
 		V: v,
 	}
 	return kyberPrivShare, nil

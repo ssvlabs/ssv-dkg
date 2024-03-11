@@ -2,7 +2,6 @@ package utils
 
 import (
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
@@ -123,47 +121,6 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
 	return privateKey, nil
-}
-
-// GenerateRSAKeyPair generates a RSA key pair. Password either supplied as path or generated at random.
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte, error) {
-	var privateKey *rsa.PrivateKey
-	var err error
-	var password string
-	_, priv, err := rsaencryption.GenerateKeys()
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-	}
-	if passwordFilePath != "" {
-		logger.Info("🔑 path to password file is provided")
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		password = string(keyStorePassword)
-	} else {
-		password, err = crypto.GenerateSecurePassword()
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-		}
-	}
-	encryptedData, err := keystorev4.New().Encrypt(priv, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
-	}
-	encryptedRSAJSON, err := json.Marshal(encryptedData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-	}
-	privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-	}
-	return privateKey, encryptedRSAJSON, nil
 }
 
 // ReadOperatorsInfoFile reads operators data from path
