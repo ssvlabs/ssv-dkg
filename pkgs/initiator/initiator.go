@@ -264,9 +264,9 @@ func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 }
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
-	resc := make(chan opReqResult, len(operatorsIDs))
-	for _, op := range operatorsIDs {
+func (c *Initiator) SendToAll(method string, msg []byte, operators []*wire.Operator) (map[uint64][]byte, map[uint64]error) {
+	resc := make(chan opReqResult, len(operators))
+	for _, op := range operators {
 		go func(operator Operator) {
 			res, err := c.SendAndCollect(operator, method, msg)
 			resc <- opReqResult{
@@ -276,26 +276,17 @@ func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Op
 			}
 		}(c.Operators[op.ID])
 	}
-	final := make([][]byte, 0, len(operatorsIDs))
-
-	errarr := make([]error, 0)
-
-	for i := 0; i < len(operatorsIDs); i++ {
+	responses := make(map[uint64][]byte)
+	errors := make(map[uint64]error, 0)
+	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {
-			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
+			errors[res.operatorID] = fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err)
 			continue
 		}
-		final = append(final, res.result)
+		responses[res.operatorID] = res.result
 	}
-
-	finalerr := error(nil)
-
-	if len(errarr) > 0 {
-		finalerr = errors.Join(errarr...)
-	}
-
-	return final, finalerr
+	return responses, errors
 }
 
 // parseAsError parses the error from an operator
@@ -413,7 +404,7 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 }
 
 // messageFlowHandling main steps of DKG at initiator
-func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) messageFlowHandlingInit(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
@@ -587,7 +578,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	c.Logger = c.Logger.With(instanceIDField)
 
-	dkgResultsBytes, err := c.messageFlowHandling(init, id, ops)
+	dkgResultsBytes, err := c.messageFlowHandlingInit(init, id, ops)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -879,70 +870,75 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 }
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
-func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	signedInitMsgBts, err := c.prepareAndSignMessage(init, wire.InitMessageType, id, c.Version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
+	responses, errors := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
+	return responses, errors, nil
 }
 
-func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wire.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	signedReshareMsgBts, err := c.prepareAndSignMessage(reshare, wire.ReshareMessageType, id, c.Version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
+	responses, errors := c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
+	return responses, errors, nil
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
-func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	mltplbyts, err := mltpl.MarshalSSZ()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
+	responses, errors := c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
+	return responses, errors, nil
 }
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
-func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	mltpl2, err := c.MakeMultiple(id, kyberDeals)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mltpl2byts, err := mltpl2.MarshalSSZ()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
+	responses, errors := c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
+	return responses, errors, nil
 }
 
-func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	signedPingMsgBts, err := c.prepareAndSignMessage(ping, wire.PingMessageType, [24]byte{}, c.Version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
+	responses, errors := c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
+	return responses, errors, nil
 }
 
-func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {
+func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) (map[uint64][]byte, map[uint64]error, error) {
 	signedMsgBts, err := c.prepareAndSignMessage(resData, wire.ResultMessageType, id, c.Version)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	_, err = c.SendToAll(method, signedMsgBts, operators)
+	responses, errors := c.SendToAll(method, signedMsgBts, operators)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	return nil
+	return responses, errors, nil
 }
 
 // LoadOperatorsJson deserialize operators data from JSON
