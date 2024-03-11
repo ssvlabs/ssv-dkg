@@ -98,16 +98,16 @@ func JoinSets(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
 // GetNetworkByFork translates the network fork bytes into name
 //
 //	TODO: once eth2_key_manager implements this we can get rid of it and support all networks ekm supports automatically
-func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
+func GetNetworkByFork(fork [4]byte) (eth2_key_manager_core.Network, error) {
 	switch fork {
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork
+		return eth2_key_manager_core.PraterNetwork, nil
 	case [4]byte{0x01, 0x01, 0x70, 0x00}:
-		return eth2_key_manager_core.HoleskyNetwork
+		return eth2_key_manager_core.HoleskyNetwork, nil
 	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork
+		return eth2_key_manager_core.MainNetwork, nil
 	default:
-		return eth2_key_manager_core.MainNetwork
+		return eth2_key_manager_core.MainNetwork, errors.New("unknown network")
 	}
 }
 

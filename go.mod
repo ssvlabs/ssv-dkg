@@ -9,6 +9,7 @@ require (
 	github.com/ethereum/go-ethereum v1.12.2
 	github.com/ferranbt/fastssz v0.1.3
 	github.com/go-chi/chi/v5 v5.0.10
+	github.com/hashicorp/go-version v1.6.0
 	github.com/herumi/bls-eth-go-binary v1.29.1
 	github.com/imroc/req/v3 v3.37.2
 	github.com/pkg/errors v0.9.1

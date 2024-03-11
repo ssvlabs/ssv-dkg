@@ -469,7 +469,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 			return err
 		}
 	}
-	var depJson *initiator.DepositDataJson
+	var depJson *initiator.DepositDataCLI
 	if len(resData.DepositData) != 0 {
 		err = json.Unmarshal(resData.DepositData, &depJson)
 		if err != nil {

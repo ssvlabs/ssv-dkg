@@ -557,7 +557,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
+func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
 	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -626,9 +626,11 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
 	return nil
 }
 
+
 func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) error {
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
+
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
 	}

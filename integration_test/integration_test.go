@@ -74,7 +74,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators happy flow", func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators happy flow", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 10, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators happy flow", func(t *testing.T) {
@@ -113,7 +113,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	srv1.HttpSrv.Close()
@@ -312,7 +312,7 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 	require.NoError(t, err)
-	err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+	err = initiator.ValidateDepositDataCLI(depositData)
 	require.NoError(t, err)
 	marshalledKs, err := json.Marshal(ks)
 	require.NoError(t, err)
@@ -452,7 +452,7 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 		newIds := []uint64{5, 6, 7, 8}
 		newId := crypto.NewID()
@@ -486,7 +486,7 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 		newIds := []uint64{1, 7, 8, 9}
 		newId := crypto.NewID()
@@ -520,7 +520,7 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = initiator.VerifyDepositData(depositData, withdraw.Bytes(), owner, 0)
+		err = initiator.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 		newIds := []uint64{1, 2, 3, 4, 5, 8, 9}
 		newId := crypto.NewID()

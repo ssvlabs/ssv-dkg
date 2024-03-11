@@ -379,23 +379,39 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	// Sign root
-	depositRootSig, signRoot, err := crypto.SignDepositData(secretKeyBLS, o.data.init.WithdrawalCredentials, validatorPubKey, utils.GetNetworkByFork(o.data.init.Fork), MaxEffectiveBalanceInGwei)
+	network, err := utils.GetNetworkByFork(o.data.init.Fork)
 	if err != nil {
 		o.broadcastError(err)
-		return fmt.Errorf("failed to sign deposit data: %w", err)
+		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
-	// Validate partial signature
-	val := depositRootSig.VerifyByte(secretKeyBLS.GetPublicKey(), signRoot)
-	if !val {
+	signingRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
+		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
+		Amount:                MaxEffectiveBalanceInGwei,
+	})
+	if err != nil {
 		o.broadcastError(err)
-		return fmt.Errorf("partial deposit root signature is not valid %x", depositRootSig.Serialize())
+		return fmt.Errorf("failed to generate deposit data with root %w", err)
+	}
+	// Sign.
+	signature := secretKeyBLS.SignByte(signingRoot[:])
+	if signature == nil {
+		o.broadcastError(err)
+		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
+	}
+
+	// Validate partial signature
+	if val := signature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
+		err = fmt.Errorf("partial deposit root signature is not valid %x", signature.Serialize())
+		o.broadcastError(err)
+		return err
 	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	// Verify partial SSV owner + nonce signature
-	val = sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
+	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
 	if !val {
 		o.broadcastError(err)
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
@@ -410,7 +426,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		EncryptedShare:             ciphertext,
 		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
 		ValidatorPubKey:            validatorPubKey.Serialize(),
-		DepositPartialSignature:    depositRootSig.Serialize(),
+		DepositPartialSignature:    signature.Serialize(),
 		PubKeyRSA:                  o.RSAPub,
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),

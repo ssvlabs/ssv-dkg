@@ -1,0 +1,29 @@
+{
+  "name": "dkg-verify",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "npx ts-node -r dotenv/config src/index.ts"
+  },
+  "dependencies": {
+    "@chainsafe/bls": "^2.0.0",
+    "@chainsafe/ssz": "^0.6.7",
+    "axios": "^0.21.2",
+    "chalk": "^5.3.0",
+    "compare-versions": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "lodash.every": "^4.6.0",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/lodash.every": "^4.6.9",
+    "@types/node": "^20.11.18",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "description": ""
+}
