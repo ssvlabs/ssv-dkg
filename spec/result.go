@@ -13,22 +13,37 @@ import (
 )
 
 // ValidateResults returns nil if results array is valid
-func ValidateResults(init *Init, requestID [24]byte, results []*Result) error {
-	if len(results) != len(init.Operators) {
+func ValidateResults(
+	operators []*Operator,
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	ownerAddress [20]byte,
+	nonce uint64,
+	requestID [24]byte,
+	results []*Result,
+) error {
+	if len(results) != len(operators) {
 		return fmt.Errorf("mistmatch results count")
-	}
-
-	for _, result := range results {
-		if err := ValidateResult(init, requestID, result); err != nil {
-			return err
-		}
 	}
 
 	if err := VerifyValidatorPubKey(results); err != nil {
 		return err
 	}
 
-	if err := VerifyPartialSignatures(init, results[0].SignedProof.Proof.ValidatorPubKey, results); err != nil {
+	for _, result := range results {
+		if err := ValidateResult(operators, ownerAddress, requestID, result); err != nil {
+			return err
+		}
+	}
+
+	if err := VerifyPartialSignatures(
+		withdrawalCredentials,
+		fork,
+		ownerAddress,
+		nonce,
+		results[0].SignedProof.Proof.ValidatorPubKey,
+		results,
+	); err != nil {
 		return err
 	}
 
@@ -36,9 +51,14 @@ func ValidateResults(init *Init, requestID [24]byte, results []*Result) error {
 }
 
 // ValidateResult returns nil if result is valid against init object
-func ValidateResult(init *Init, requestID [24]byte, result *Result) error {
+func ValidateResult(
+	operators []*Operator,
+	ownerAddress [20]byte,
+	requestID [24]byte,
+	result *Result,
+) error {
 	// verify operator
-	operator := GetOperator(init.Operators, result.OperatorID)
+	operator := GetOperator(operators, result.OperatorID)
 	if operator == nil {
 		return fmt.Errorf("operator not found")
 	}
@@ -49,7 +69,11 @@ func ValidateResult(init *Init, requestID [24]byte, result *Result) error {
 	}
 
 	// verify ceremony proof
-	if err := VerifyCeremonyProof(operator.PubKey, result.SignedProof); err != nil {
+	if err := ValidateCeremonyProof(
+		ownerAddress,
+		operator,
+		result.SignedProof,
+	); err != nil {
 		return err
 	}
 
@@ -82,7 +106,14 @@ func VerifyValidatorPubKey(results []*Result) error {
 	return nil
 }
 
-func VerifyPartialSignatures(init *Init, validatorPubKey []byte, results []*Result) error {
+func VerifyPartialSignatures(
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	ownerAddress [20]byte,
+	nonce uint64,
+	validatorPubKey []byte,
+	results []*Result,
+) error {
 	pks := make([]*bls.PublicKey, len(results))
 	depositSigs := make([]*bls.Sign, len(results))
 	nonceSigs := make([]*bls.Sign, len(results))
@@ -107,19 +138,24 @@ func VerifyPartialSignatures(init *Init, validatorPubKey []byte, results []*Resu
 		nonceSigs[i] = nonceSig
 	}
 
-	if err := VerifyPartialDepositDataSignatures(init, validatorPubKey, depositSigs, pks); err != nil {
+	if err := VerifyPartialDepositDataSignatures(withdrawalCredentials, fork, validatorPubKey, depositSigs, pks); err != nil {
 		return err
 	}
 
-	if err := VerifyPartialNonceSignatures(init, nonceSigs, pks); err != nil {
+	if err := VerifyPartialNonceSignatures(ownerAddress, nonce, nonceSigs, pks); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func VerifyPartialNonceSignatures(init *Init, sigs []*bls.Sign, pks []*bls.PublicKey) error {
-	data := fmt.Sprintf("%s:%d", common.Address(init.Owner).String(), init.Nonce)
+func VerifyPartialNonceSignatures(
+	ownerAddress [20]byte,
+	nonce uint64,
+	sigs []*bls.Sign,
+	pks []*bls.PublicKey,
+) error {
+	data := fmt.Sprintf("%s:%d", common.Address(ownerAddress).String(), nonce)
 	hash := eth_crypto.Keccak256([]byte(data))
 
 	// Verify partial signatures and recovered threshold signature
@@ -130,8 +166,14 @@ func VerifyPartialNonceSignatures(init *Init, sigs []*bls.Sign, pks []*bls.Publi
 	return nil
 }
 
-func VerifyPartialDepositDataSignatures(init *Init, validatorPubKey []byte, sigs []*bls.Sign, pks []*bls.PublicKey) error {
-	network, err := utils.GetNetworkByFork(init.Fork)
+func VerifyPartialDepositDataSignatures(
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	validatorPubKey []byte,
+	sigs []*bls.Sign,
+	pks []*bls.PublicKey,
+) error {
+	network, err := utils.GetNetworkByFork(fork)
 	if err != nil {
 		return err
 	}
@@ -139,7 +181,7 @@ func VerifyPartialDepositDataSignatures(init *Init, validatorPubKey []byte, sigs
 	shareRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey),
 		Amount:                dkg.MaxEffectiveBalanceInGwei,
-		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(init.WithdrawalCredentials)})
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(withdrawalCredentials)})
 	if err != nil {
 		return fmt.Errorf("failed to compute deposit data root")
 	}

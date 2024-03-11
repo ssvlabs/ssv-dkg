@@ -1,6 +1,9 @@
 package spec
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 // ValidateInitMessage returns nil if init message is valid
 func ValidateInitMessage(init *Init) error {
@@ -39,6 +42,22 @@ func UniqueAndOrderedOperators(operators []*Operator) bool {
 			return false
 		}
 		highestID = op.ID
+	}
+	return true
+}
+
+// EqualOperators returns true if both arrays of operators are equal
+func EqualOperators(a, b []*Operator) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !bytes.Equal(a[i].PubKey, b[i].PubKey) {
+			return false
+		}
+		if a[i].ID != b[i].ID {
+			return false
+		}
 	}
 	return true
 }

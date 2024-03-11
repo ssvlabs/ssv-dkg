@@ -1,12 +1,8 @@
 package spec
 
-import (
-	"crypto/rsa"
-)
-
 type Operator struct {
 	ID     uint64
-	PubKey *rsa.PublicKey
+	PubKey []byte `ssz-max:"2048"`
 }
 
 type Init struct {
@@ -37,12 +33,12 @@ type Reshare struct {
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
-	// Encrypted BLS shares
-	Keyshares []byte `ssz-max:"32768"`
-	// Ceremony signatures
-	CeremonySigs []byte `ssz-max:"16384"`
-	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"612"`
+}
+
+type SignedReshare struct {
+	Reshare Reshare
+	// Signature is an ECDSA signature over proof
+	Signature []byte `ssz-size:"64"`
 }
 
 // Result is the last message in every DKG which marks a specific node's end of process
@@ -73,6 +69,6 @@ type Proof struct {
 
 type SignedProof struct {
 	Proof *Proof
-	// Signature is an ECDSA signature over proof
-	Signature []byte `ssz-size:"64"`
+	// Signature is an RSA signature over proof
+	Signature []byte `ssz-size:"256"`
 }
