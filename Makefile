@@ -120,7 +120,7 @@ deadcode-prepare:
 	go install golang.org/x/tools/cmd/deadcode@latest
 
 deadcode:
-	deadcode ./...
+	deadcode -test ./...
 
 gosec-prepare:
 	@echo "Preparing Gosec"

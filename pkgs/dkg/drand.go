@@ -96,26 +96,6 @@ type OwnerOpts struct {
 	Version            []byte
 }
 
-type PriShare struct {
-	I int    `json:"index"`
-	V []byte `json:"secret_point"`
-}
-
-type DistKeyShare struct {
-	Commits []byte   `json:"commits"`
-	Share   PriShare `json:"secret_share"`
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *DistKeyShare) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *DistKeyShare) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
-}
-
 var ErrAlreadyExists = errors.New("duplicate message")
 
 // LocalOwner as a main structure created for a new DKG initiation or resharing ceremony

@@ -31,7 +31,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
 // Operator structure represents operators info which is public
@@ -731,21 +730,6 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	return keyshares, ceremonySigsNew, nil
 }
 
-type KeySign struct {
-	ValidatorPK ssvspec_types.ValidatorPK
-	SigningRoot []byte
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *KeySign) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *KeySign) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
-}
-
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
 func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) error {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
@@ -930,17 +914,6 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 		return nil, err
 	}
 	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
-}
-
-func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([][]byte, error) {
-	signedPingMsgBts, err := c.prepareAndSignMessage(ping, wire.PingMessageType, [24]byte{}, c.Version)
-	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
-	}
-	return c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
 }
 
 func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {

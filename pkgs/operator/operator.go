@@ -3,7 +3,6 @@ package operator
 import (
 	"crypto/rsa"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
 // request limits
@@ -33,21 +31,6 @@ type Server struct {
 	HttpServer *http.Server // http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
-}
-
-type KeySign struct {
-	ValidatorPK ssvspec_types.ValidatorPK
-	SigningRoot []byte
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *KeySign) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *KeySign) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
 }
 
 // TODO: either do all json or all SSZ
@@ -213,11 +196,6 @@ func (s *Server) Start(port uint16) error {
 	}
 	s.Logger.Info("✅ Server is listening for incoming requests", zap.Uint16("port", port))
 	return nil
-}
-
-// Stop closes http server instance
-func (s *Server) Stop() error {
-	return s.HttpServer.Close()
 }
 
 func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {

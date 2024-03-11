@@ -224,21 +224,6 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
 }
 
-// EncryptSecretDB encrypts secret share object bytes using RSA key to store at DB
-func (s *Switch) EncryptSecretDB(bin []byte) ([]byte, error) {
-	// brake to chunks of 256 byte
-	chuncks := utils.SplitBytes(bin, 128)
-	var encrypted []byte
-	for _, chunk := range chuncks {
-		encBin, err := s.Encrypt(chunk)
-		if err != nil {
-			return nil, err
-		}
-		encrypted = append(encrypted, encBin...)
-	}
-	return encrypted, nil
-}
-
 // CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
@@ -443,21 +428,6 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	resp := inst.ReadResponse()
 
 	return resp, nil
-}
-
-// DecryptSecretDB decrypts a secret share using operator's private key
-func (s *Switch) DecryptSecretDB(bin []byte) ([]byte, error) {
-	// brake to chunks of 256 byte
-	chuncks := utils.SplitBytes(bin, 256)
-	var decrypted []byte
-	for _, chunk := range chuncks {
-		decBin, err := s.Decrypt(chunk)
-		if err != nil {
-			return nil, err
-		}
-		decrypted = append(decrypted, decBin...)
-	}
-	return decrypted, nil
 }
 
 func (s *Switch) Pong() ([]byte, error) {

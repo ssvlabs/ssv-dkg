@@ -77,15 +77,6 @@ func SignRSA(sk *rsa.PrivateKey, byts []byte) ([]byte, error) {
 	})
 }
 
-// Encrypt with secret key (base64) the bytes, return the encrypted key string
-func Encrypt(pk *rsa.PublicKey, plainText []byte) ([]byte, error) {
-	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, pk, plainText)
-	if err != nil {
-		return nil, err
-	}
-	return encrypted, nil
-}
-
 // VerifyRSA verifies RSA signature for incoming message
 func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 	r := sha256.Sum256(msg)
@@ -221,25 +212,6 @@ func ReadEncryptedPrivateKey(keyData []byte, password string) (*rsa.PrivateKey, 
 	}
 
 	return rsaKey, nil
-}
-
-// ConvertPemToPrivateKey return rsa private key from secret key
-func ConvertPemToPrivateKey(skPem string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(skPem))
-	if block == nil {
-		return nil, errors.New("decode PEM block")
-	}
-	b := block.Bytes
-	return parsePrivateKey(b)
-}
-
-// parsePrivateKey parses an encoded x509 RSA private key
-func parsePrivateKey(derBytes []byte) (*rsa.PrivateKey, error) {
-	parsedSk, err := x509.ParsePKCS1PrivateKey(derBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key %w", err)
-	}
-	return parsedSk, nil
 }
 
 // RecoverValidatorPublicKey recovers a BLS master public key (validator pub key) from provided partial pub keys
