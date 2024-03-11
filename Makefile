@@ -3,7 +3,7 @@
 # don't need to bother with make.
 
 .PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare
-.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec
+.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec deadcode-prepare deadcode
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -114,6 +114,13 @@ critic-prepare:
 
 critic:
 	gocritic check -enableAll ./...
+
+deadcode-prepare:
+	@echo "Preparing Deadcode"
+	go install golang.org/x/tools/cmd/deadcode@latest
+
+deadcode:
+	deadcode ./...
 
 gosec-prepare:
 	@echo "Preparing Gosec"
