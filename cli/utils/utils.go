@@ -626,10 +626,9 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
 	return nil
 }
 
-
-func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) error {
+func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error {
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
-	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
+	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataCLI{depositData})
 
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
