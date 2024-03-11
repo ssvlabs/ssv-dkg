@@ -101,7 +101,7 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		var depositDataArr []*initiator.DepositDataJson
+		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
 		var ceremonySigsArr []*initiator.CeremonySigs
 		var nonces []uint64
@@ -137,7 +137,7 @@ var StartDKG = &cobra.Command{
 type Result struct {
 	id           [24]byte
 	nonce        uint64
-	depositData  *initiator.DepositDataJson
+	depositData  *initiator.DepositDataCLI
 	keyShares    *initiator.KeyShares
 	ceremonySigs *initiator.CeremonySigs
 }
