@@ -181,7 +181,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
 	if !bytes.Equal(initMsg.Version, s.Version) {
-		return nil, utils.ErrVersion
+		return nil, fmt.Errorf("wrong version: remote %s local %s", initMsg.Version, s.Version)
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")

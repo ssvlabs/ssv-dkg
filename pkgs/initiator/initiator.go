@@ -700,7 +700,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			continue
 		}
 		if !bytes.Equal(result.RequestID[:], id[:]) {
-			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID "))
+			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
 			continue
 		}
 		dkgResults = append(dkgResults, result)
