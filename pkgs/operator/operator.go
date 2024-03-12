@@ -92,6 +92,34 @@ func RegisterRoutes(s *Server) {
 			writer.Write(b)
 		})
 	})
+	s.Router.Route("/results", func(r chi.Router) {
+		r.Use(rateLimit(s.Logger, routeLimit))
+		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			signedResultMsg := &wire.SignedTransport{}
+			if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+
+			// Validate that incoming message is a result message
+			if signedResultMsg.Message.Type != wire.ResultMessageType {
+				utils.WriteErrorResponse(s.Logger, writer, errors.New("received wrong message type"), http.StatusBadRequest)
+				return
+			}
+			s.Logger.Debug("received a result message")
+			err = s.State.SaveResultData(signedResultMsg)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+		})
+	})
 }
 
 // New creates Server structure using operator's RSA private key
