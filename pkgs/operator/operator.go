@@ -40,9 +40,9 @@ const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(rateLimit(s.Logger, generalLimit))
-	s.Router.Route("/init", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming INIT msg")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
@@ -71,12 +71,14 @@ func RegisterRoutes(s *Server) {
 			logger.Info("✅ Instance started successfully")
 
 			writer.WriteHeader(http.StatusOK)
-			writer.Write(b)
+			if _, err := writer.Write(b); err != nil {
+				logger.Error("error writing init response: " + err.Error())
+				return
+			}
 		})
-	})
-	s.Router.Route("/dkg", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
@@ -89,9 +91,52 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 			writer.WriteHeader(http.StatusOK)
-			writer.Write(b)
+			if _, err := writer.Write(b); err != nil {
+				s.Logger.Error("error writing dkg response: " + err.Error())
+				return
+			}
 		})
-	})
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Get("/health_check", func(writer http.ResponseWriter, request *http.Request) {
+			b, err := s.State.Pong()
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+			if _, err := writer.Write(b); err != nil {
+				s.Logger.Error("error writing health_check response: " + err.Error())
+				return
+			}
+		})
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/results", func(writer http.ResponseWriter, request *http.Request) {
+			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			signedResultMsg := &wire.SignedTransport{}
+			if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+
+			// Validate that incoming message is a result message
+			if signedResultMsg.Message.Type != wire.ResultMessageType {
+				utils.WriteErrorResponse(s.Logger, writer, errors.New("received wrong message type"), http.StatusBadRequest)
+				return
+			}
+			s.Logger.Debug("received a result message")
+			err = s.State.SaveResultData(signedResultMsg)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+		})
 }
 
 // New creates Server structure using operator's RSA private key
