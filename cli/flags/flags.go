@@ -11,7 +11,6 @@ const (
 	threshold                         = "threshold"
 	withdrawAddress                   = "withdrawAddress"
 	operatorIDs                       = "operatorIDs"
-	newOperatorIDs                    = "newOperatorIDs"
 	operatorsInfo                     = "operatorsInfo"
 	operatorsInfoPath                 = "operatorsInfoPath"
 	privKey                           = "privKey"
@@ -29,14 +28,7 @@ const (
 	logFilePath                       = "logFilePath"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
-	keysharesFilePath                 = "keysharesFilePath"
-	ceremonySigsFilePath              = "ceremonySigsFilePath"
 )
-
-// ThresholdFlag adds threshold flag to the command
-func ThresholdFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, threshold, 0, "Threshold for distributed signature", false)
-}
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
 func WithdrawAddressFlag(c *cobra.Command) {
@@ -46,11 +38,6 @@ func WithdrawAddressFlag(c *cobra.Command) {
 // operatorIDsFlag adds operators IDs flag to the command
 func OperatorIDsFlag(c *cobra.Command) {
 	AddPersistentStringSliceFlag(c, operatorIDs, []string{"1", "2", "3"}, "Operator IDs", false)
-}
-
-// operatorIDsFlag adds new operators IDs flag to the command
-func NewOperatorIDsFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs", false)
 }
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
@@ -135,14 +122,6 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
-}
-
-func KeysharesFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, keysharesFilePath, "", "Path to keyshares json file", false)
-}
-
-func CeremonySigsFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, ceremonySigsFilePath, "", "Path to ceremony signatures json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

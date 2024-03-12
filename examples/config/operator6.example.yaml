@@ -1,7 +1,7 @@
 privKey: /data/operator6/encrypted_private_key.json
 privKeyPassword: /data/operator6/password
 port: 3030
-operatorID: 6
+operatorID: 66
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor

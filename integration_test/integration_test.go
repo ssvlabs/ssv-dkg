@@ -315,8 +315,10 @@ func TestUnhappyFlows(t *testing.T) {
 	err = initiator.ValidateDepositDataCLI(depositData)
 	require.NoError(t, err)
 	marshalledKs, err := json.Marshal(ks)
+	require.NotEmpty(t, marshalledKs)
 	require.NoError(t, err)
 	cSigs, err := json.Marshal(ceremeonySigs)
+	require.NotEmpty(t, cSigs)
 	require.NoError(t, err)
 	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
 		withdraw := newEthAddress(t)
@@ -375,170 +377,6 @@ func TestUnhappyFlows(t *testing.T) {
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-
-		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{1, 2, 3}, marshalledKs, cSigs, 1)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
-		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7}, marshalledKs, cSigs, 1)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
-		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9}, marshalledKs, cSigs, 1)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9, 10, 11, 12}, marshalledKs, cSigs, 1)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-		_, _, err = clnt.StartReshare(crypto.NewID(), []uint64{5, 6, 7, 8, 9, 10, 11, 12, 13}, marshalledKs, cSigs, 1)
-		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
-	})
-	srv1.HttpSrv.Close()
-	srv2.HttpSrv.Close()
-	srv3.HttpSrv.Close()
-	srv4.HttpSrv.Close()
-	srv5.HttpSrv.Close()
-	srv6.HttpSrv.Close()
-	srv7.HttpSrv.Close()
-	srv8.HttpSrv.Close()
-	srv9.HttpSrv.Close()
-	srv10.HttpSrv.Close()
-	srv11.HttpSrv.Close()
-	srv12.HttpSrv.Close()
-	srv13.HttpSrv.Close()
-}
-
-func TestReshareHappyFlow(t *testing.T) {
-	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("integration-tests")
-	ops := make(map[uint64]initiator.Operator)
-	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
-	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
-	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
-	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
-	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	srv5 := test_utils.CreateTestOperator(t, 5, "v1.0.2")
-	ops[5] = initiator.Operator{Addr: srv5.HttpSrv.URL, ID: 5, PubKey: &srv5.PrivKey.PublicKey}
-	srv6 := test_utils.CreateTestOperator(t, 6, "v1.0.2")
-	ops[6] = initiator.Operator{Addr: srv6.HttpSrv.URL, ID: 6, PubKey: &srv6.PrivKey.PublicKey}
-	srv7 := test_utils.CreateTestOperator(t, 7, "v1.0.2")
-	ops[7] = initiator.Operator{Addr: srv7.HttpSrv.URL, ID: 7, PubKey: &srv7.PrivKey.PublicKey}
-	srv8 := test_utils.CreateTestOperator(t, 8, "v1.0.2")
-	ops[8] = initiator.Operator{Addr: srv8.HttpSrv.URL, ID: 8, PubKey: &srv8.PrivKey.PublicKey}
-	srv9 := test_utils.CreateTestOperator(t, 9, "v1.0.2")
-	ops[9] = initiator.Operator{Addr: srv9.HttpSrv.URL, ID: 9, PubKey: &srv9.PrivKey.PublicKey}
-	srv10 := test_utils.CreateTestOperator(t, 10, "v1.0.2")
-	ops[10] = initiator.Operator{Addr: srv10.HttpSrv.URL, ID: 10, PubKey: &srv10.PrivKey.PublicKey}
-	srv11 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
-	ops[11] = initiator.Operator{Addr: srv11.HttpSrv.URL, ID: 11, PubKey: &srv11.PrivKey.PublicKey}
-	srv12 := test_utils.CreateTestOperator(t, 12, "v1.0.2")
-	ops[12] = initiator.Operator{Addr: srv12.HttpSrv.URL, ID: 12, PubKey: &srv12.PrivKey.PublicKey}
-	srv13 := test_utils.CreateTestOperator(t, 13, "v1.0.2")
-	ops[13] = initiator.Operator{Addr: srv13.HttpSrv.URL, ID: 13, PubKey: &srv13.PrivKey.PublicKey}
-	// Initiator priv key
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-	require.NoError(t, err)
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-	i := initiator.New(priv, ops, logger, "v1.0.2")
-	t.Run("test reshare 4 new disjoint operators", func(t *testing.T) {
-		id := crypto.NewID()
-		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = initiator.ValidateDepositDataCLI(depositData)
-		require.NoError(t, err)
-		newIds := []uint64{5, 6, 7, 8}
-		newId := crypto.NewID()
-		marshalledKs, err := json.Marshal(ks)
-		require.NoError(t, err)
-		cSigs, err := json.Marshal(ceremeonySigs)
-		require.NoError(t, err)
-		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.NoError(t, err)
-		// check if old nodes cant decrypt
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
-	})
-	t.Run("test reshare 4 joint operators: 1 old + 3 new", func(t *testing.T) {
-		id := crypto.NewID()
-		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = initiator.ValidateDepositDataCLI(depositData)
-		require.NoError(t, err)
-		newIds := []uint64{1, 7, 8, 9}
-		newId := crypto.NewID()
-		marshalledKs, err := json.Marshal(ks)
-		require.NoError(t, err)
-		cSigs, err := json.Marshal(ceremeonySigs)
-		require.NoError(t, err)
-		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.NoError(t, err)
-		// check if old nodes cant decrypt
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.ErrorContains(t, err, "could not decrypt key: crypto/rsa: decryption error")
-	})
-	t.Run("test reshare 7 joint operators: 4 old + 3 new", func(t *testing.T) {
-		id := crypto.NewID()
-		ids := []uint64{1, 2, 3, 4}
-		depositData, ks, ceremeonySigs, err := i.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
-		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = initiator.ValidateDepositDataCLI(depositData)
-		require.NoError(t, err)
-		newIds := []uint64{1, 2, 3, 4, 5, 8, 9}
-		newId := crypto.NewID()
-		marshalledKs, err := json.Marshal(ks)
-		require.NoError(t, err)
-		cSigs, err := json.Marshal(ceremeonySigs)
-		require.NoError(t, err)
-		ks, _, err = i.StartReshare(newId, newIds, marshalledKs, cSigs, 1)
-		require.NoError(t, err)
-		sharesDataSigned, err = hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err = hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		// check if threshold holds
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv8.PrivKey, srv9.PrivKey}, sharesDataSigned, pubkeyraw, owner, 1)
-		require.NoError(t, err)
 	})
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
@@ -633,12 +471,11 @@ func testSharesData(ops map[uint64]initiator.Operator, operatorCount int, keys [
 	sigs2 := make(map[uint64][]byte)
 	opsIDs := make([]uint64, 0)
 	for i, enck := range encryptedKeys {
-		var priv *rsa.PrivateKey
-		if utils.Contains(keys, i) {
-			priv = keys[i]
-		} else {
+		if len(keys) <= i {
 			continue
 		}
+		priv := keys[i]
+
 		share, err := rsaencryption.DecodeKey(priv, enck)
 		if err != nil {
 			return err

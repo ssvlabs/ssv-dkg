@@ -31,7 +31,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	ssvspec_types "github.com/bloxapp/ssv-spec/types"
 )
 
 // Operator structure represents operators info which is public
@@ -386,14 +385,13 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		return nil, fmt.Errorf("amount of operators should be 4,7,10,13")
 	}
 
-	ops := make([]*wire.Operator, 0)
+	ops := make([]*wire.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
-	for _, id := range ids {
+	for i, id := range ids {
 		op, ok := operators[id]
 		if !ok {
 			return nil, errors.New("operator is not in given operator data list")
 		}
-
 		_, exist := opMap[id]
 		if exist {
 			return nil, errors.New("operators ids should be unique in the list")
@@ -404,10 +402,10 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
-		ops = append(ops, &wire.Operator{
+		ops[i] = &wire.Operator{
 			ID:     op.ID,
 			PubKey: pkBytes,
-		})
+		}
 	}
 	return ops, nil
 }
@@ -441,42 +439,6 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 		return nil, err
 	}
 	err = c.VerifyAll(id, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 2: ✅ verified operator dkg results signatures")
-	return dkgResult, nil
-}
-
-func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators, newOperators []*wire.Operator) ([][]byte, error) {
-	c.Logger.Info("phase 1: sending reshare message to old operators")
-	allOps := utils.JoinSets(oldOperators, newOperators)
-	results, err := c.SendReshareMsg(reshare, newID, allOps)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 1: ✅ verified operator resharing responses signatures")
-	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
-	results, err = c.SendExchangeMsgs(results, newID, allOps)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 2: ✅ verified old operator responses (deal messages) signatures")
-	c.Logger.Info("phase 3: ➡️ sending deal dkg data to new operators")
-
-	dkgResult, err := c.SendKyberMsgs(results, newID, newOperators)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
 	if err != nil {
 		return nil, err
 	}
@@ -632,109 +594,6 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, ceremonySigs, nil
 }
 
-func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, ceremonySigs []byte, nonce uint64) (*KeyShares, *CeremonySigs, error) {
-	var ks *KeyShares
-	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
-		return nil, nil, err
-	}
-	var cSigs *CeremonySigs
-	if err := json.Unmarshal(ceremonySigs, &cSigs); err != nil {
-		return nil, nil, err
-	}
-	cSigBytes, err := hex.DecodeString(cSigs.Sigs)
-	if err != nil {
-		return nil, nil, err
-	}
-	oldOpIDs := ks.Shares[0].Payload.OperatorIDs
-	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
-	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, fmt.Errorf("old %w", err)
-	}
-	newOps, err := ValidatedOperatorData(newOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, fmt.Errorf("new %w", err)
-	}
-	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldOpIDs), zap.Uint64s("new_operator_ids", newOpIDs), instanceIDField)
-	// compute threshold (3f+1)
-	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
-	newThreshold := len(newOpIDs) - ((len(newOpIDs) - 1) / 3)
-	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-	if err != nil {
-		return nil, nil, err
-	}
-	reshare := &wire.Reshare{
-		OldOperators:       oldOps,
-		NewOperators:       newOps,
-		OldT:               uint64(oldThreshold),
-		NewT:               uint64(newThreshold),
-		Owner:              owner,
-		Nonce:              nonce,
-		Keyshares:          sharesData,
-		CeremonySigs:       cSigBytes,
-		InitiatorPublicKey: pkBytes,
-	}
-	dkgResultsBytes, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
-	if err != nil {
-		return nil, nil, err
-	}
-	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
-	keyshares, err := c.processDKGResultResponseResharing(dkgResults, reshare)
-	if err != nil {
-		return nil, nil, err
-	}
-	c.Logger.Info("✅ verified master signature for ssv contract data")
-	// sending back to operators results
-	keysharesData, err := json.Marshal(keyshares)
-	if err != nil {
-		return nil, nil, err
-	}
-	ceremonySigsNew, err := c.getCeremonySigs(dkgResults)
-	if err != nil {
-		return nil, nil, err
-	}
-	ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
-	if err != nil {
-		return nil, nil, err
-	}
-	resultMsg := &wire.ResultData{
-		Operators:     newOps,
-		Identifier:    id,
-		DepositData:   nil,
-		KeysharesData: keysharesData,
-		CeremonySigs:  ceremonySigsNewBytes,
-	}
-	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, id)
-	if err != nil {
-		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
-	}
-	return keyshares, ceremonySigsNew, nil
-}
-
-type KeySign struct {
-	ValidatorPK ssvspec_types.ValidatorPK
-	SigningRoot []byte
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *KeySign) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *KeySign) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
-}
-
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
 func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) error {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
@@ -769,22 +628,6 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []dkg.Result, ini
 		return nil, nil, err
 	}
 	return depositDataJson, keyshares, nil
-}
-
-// processDKGResultResponseResharing deserializes incoming DKG result messages from operators after successful resharing ceremony
-func (c *Initiator) processDKGResultResponseResharing(dkgResults []dkg.Result, reshare *wire.Reshare) (*KeyShares, error) {
-	// check results sorted by operatorID
-	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
-		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
-	})
-	if !sorted {
-		return nil, fmt.Errorf("slice is not sorted")
-	}
-	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, reshare.Owner, reshare.Nonce)
-	if err != nil {
-		return nil, err
-	}
-	return keyshares, nil
 }
 
 func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []dkg.Result) ([]*bls.PublicKey, []*bls.Sign, error) {
@@ -835,33 +678,35 @@ func (c *Initiator) prepareOwnerNonceSigs(dkgResults []dkg.Result, owner [20]byt
 	return ssvContractOwnerNonceSigShares, nil
 }
 
-func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []dkg.Result, err error) {
+func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []dkg.Result, finalErr error) {
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			return nil, err
+			finalErr = errors.Join(finalErr, err)
+			continue
 		}
-		// check message type
 		if tsp.Message.Type == wire.ErrorMessageType {
-			var msgErr string
-			err := json.Unmarshal(tsp.Message.Data, &msgErr)
-			if err != nil {
-				return nil, err
-			}
-			return nil, fmt.Errorf("%s", msgErr)
+			finalErr = errors.Join(finalErr, fmt.Errorf("%s", string(tsp.Message.Data)))
+			continue
 		}
 		if tsp.Message.Type != wire.OutputMessageType {
-			return nil, fmt.Errorf("wrong DKG result message type, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String())
+			finalErr = errors.Join(finalErr, fmt.Errorf("wrong DKG result message type: exp %s, got %s ", wire.OutputMessageType.String(), tsp.Message.Type.String()))
+			continue
 		}
 		result := dkg.Result{}
 		if err := result.Decode(tsp.Message.Data); err != nil {
-			return nil, err
+			finalErr = errors.Join(finalErr, err)
+			continue
 		}
 		if !bytes.Equal(result.RequestID[:], id[:]) {
-			return nil, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String())
+			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
+			continue
 		}
 		dkgResults = append(dkgResults, result)
+	}
+	if finalErr != nil {
+		return nil, finalErr
 	}
 	// sort the results by operatorID
 	sort.SliceStable(dkgResults, func(i, j int) bool {
@@ -882,14 +727,6 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 		return nil, err
 	}
 	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
-}
-
-func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wire.Operator) ([][]byte, error) {
-	signedReshareMsgBts, err := c.prepareAndSignMessage(reshare, wire.ReshareMessageType, id, c.Version)
-	if err != nil {
-		return nil, err
-	}
-	return c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
@@ -917,17 +754,6 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 		return nil, err
 	}
 	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
-}
-
-func (c *Initiator) SendPingMsg(ping *wire.Ping, operators []*wire.Operator) ([][]byte, error) {
-	signedPingMsgBts, err := c.prepareAndSignMessage(ping, wire.PingMessageType, [24]byte{}, c.Version)
-	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
-	}
-	return c.SendToAll(consts.API_HEALTH_CHECK_URL, signedPingMsgBts, operators)
 }
 
 func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {

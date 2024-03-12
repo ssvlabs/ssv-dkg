@@ -2,7 +2,6 @@ package utils
 
 import (
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
@@ -46,13 +44,6 @@ var (
 	OwnerAddress                      common.Address
 	Nonce                             uint64
 	Validators                        uint64
-)
-
-// reshare flags
-var (
-	NewOperatorIDs       []string
-	KeysharesFilePath    string
-	CeremonySigsFilePath string
 )
 
 // operator flags
@@ -125,47 +116,6 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 	return privateKey, nil
 }
 
-// GenerateRSAKeyPair generates a RSA key pair. Password either supplied as path or generated at random.
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte, error) {
-	var privateKey *rsa.PrivateKey
-	var err error
-	var password string
-	_, priv, err := rsaencryption.GenerateKeys()
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-	}
-	if passwordFilePath != "" {
-		logger.Info("🔑 path to password file is provided")
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		password = string(keyStorePassword)
-	} else {
-		password, err = crypto.GenerateSecurePassword()
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-		}
-	}
-	encryptedData, err := keystorev4.New().Encrypt(priv, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
-	}
-	encryptedRSAJSON, err := json.Marshal(encryptedData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-	}
-	privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-	}
-	return privateKey, encryptedRSAJSON, nil
-}
-
 // ReadOperatorsInfoFile reads operators data from path
 func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
 	var opMap initiator.Operators
@@ -207,16 +157,6 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
-}
-
-func SetReshareFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.NewOperatorIDsFlag(cmd)
-	flags.KeysharesFilePathFlag(cmd)
-	flags.CeremonySigsFilePathFlag(cmd)
-	flags.NonceFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -354,77 +294,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
-	if len(NewOperatorIDs) == 0 {
-		return fmt.Errorf("😥 New operator IDs flag cant be empty")
-	}
-	KeysharesFilePath = viper.GetString("keysharesFilePath")
-	if KeysharesFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to keyshares json file")
-	}
-	if strings.Contains(KeysharesFilePath, "../") {
-		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
-	}
-	stat, err := os.Stat(KeysharesFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 keysharesFilePath should not be a folder")
-	}
-	CeremonySigsFilePath = viper.GetString("ceremonySigsFilePath")
-	if CeremonySigsFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to ceremony signatures json file")
-	}
-	if strings.Contains(CeremonySigsFilePath, "../") {
-		return fmt.Errorf("😥 ceremonySigsFilePath flag should not contain traversal")
-	}
-	stat, err = os.Stat(CeremonySigsFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 ceremonySigsFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
-	}
-	Nonce = viper.GetUint64("nonce")
-	return nil
-}
-
-// BindOperatorFlags binds flags to yaml config parameters for the resharing ceremony of DKG
+// BindOperatorFlags binds flags to yaml config parameters for the operator
 func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
