@@ -57,10 +57,6 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
 		logger.Info("🔑 opening initiator RSA private key file")
-		privateKey, err := cli_utils.LoadInitiatorRSAPrivKey(cli_utils.GenerateInitiatorKeyIfNotExisting)
-		if err != nil {
-			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
-		}
 		ethnetwork := e2m_core.MainNetwork
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
@@ -72,14 +68,15 @@ var StartDKG = &cobra.Command{
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
-				dkgInitiator := initiator.New(privateKey, opMap.Clone(), logger, cmd.Version)
-
+				dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version)
+				if err != nil {
+					return nil, err
+				}
 				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
-
 				// Perform the ceremony.
-				depositData, keyShares, ceremonySigs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}
@@ -89,11 +86,10 @@ var StartDKG = &cobra.Command{
 					zap.String("pubkey", depositData.PubKey),
 				)
 				return &Result{
-					id:           id,
-					depositData:  depositData,
-					keyShares:    keyShares,
-					ceremonySigs: ceremonySigs,
-					nonce:        nonce,
+					id:          id,
+					depositData: depositData,
+					keyShares:   keyShares,
+					nonce:       nonce,
 				}, nil
 			})
 		}
@@ -103,17 +99,15 @@ var StartDKG = &cobra.Command{
 		}
 		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
-		var ceremonySigsArr []*initiator.CeremonySigs
 		var nonces []uint64
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
-			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
 			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
@@ -135,9 +129,8 @@ var StartDKG = &cobra.Command{
 }
 
 type Result struct {
-	id           [24]byte
-	nonce        uint64
-	depositData  *initiator.DepositDataCLI
-	keyShares    *initiator.KeyShares
-	ceremonySigs *initiator.CeremonySigs
+	id          [24]byte
+	nonce       uint64
+	depositData *initiator.DepositDataCLI
+	keyShares   *initiator.KeyShares
 }

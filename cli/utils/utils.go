@@ -38,7 +38,6 @@ var (
 	OperatorsInfo                     string
 	OperatorsInfoPath                 string
 	OperatorIDs                       []string
-	GenerateInitiatorKeyIfNotExisting bool
 	WithdrawAddress                   common.Address
 	Network                           string
 	OwnerAddress                      common.Address
@@ -290,7 +289,6 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
-	GenerateInitiatorKeyIfNotExisting = viper.GetBool("generateInitiatorKeyIfNotExisting")
 	return nil
 }
 
@@ -427,7 +425,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
+func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, logger *zap.Logger) {
 	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -453,10 +451,6 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr [
 		if err != nil {
 			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 		}
-		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir)
-		if err != nil {
-			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
-		}
 	}
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
@@ -475,11 +469,6 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr [
 	if err != nil {
 		logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 	}
-	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
-	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
-	if err != nil {
-		logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
-	}
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
@@ -496,15 +485,6 @@ func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error
 	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataCLI{depositData})
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
-	}
-	return nil
-}
-
-func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
-	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, ceremonySigs.ValidatorPubKey)
-	err := utils.WriteJSON(finalPath, ceremonySigs)
-	if err != nil {
-		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
 	}
 	return nil
 }

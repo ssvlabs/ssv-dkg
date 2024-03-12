@@ -71,7 +71,7 @@ type Transport struct {
 
 type SignedTransport struct {
 	Message   *Transport
-	Signer    uint64
+	Signer    []byte `ssz-max:"2048"`
 	Signature []byte `ssz-max:"2048"`
 }
 
@@ -98,21 +98,44 @@ type Init struct {
 	Owner [20]byte `ssz-size:"20"`
 	// Owner nonce
 	Nonce uint64
-	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"612"`
+}
+
+// Result is the last message in every DKG which marks a specific node's end of process
+type Result struct {
+	// Operator ID
+	OperatorID uint64
+	// RequestID for the DKG instance (not used for signing)
+	RequestID [24]byte `ssz-size:"24"`
+	// Partial Operator Signature of Deposit data
+	DepositPartialSignature []byte `ssz-size:"96"`
+	// SSV owner + nonce signature
+	OwnerNoncePartialSignature []byte `ssz-size:"96"`
+	// Signed proof for the ceremony
+	SignedProof SignedProof
+}
+
+// Proof for a DKG ceremony
+type Proof struct {
+	// ValidatorPubKey the resulting public key corresponding to the shared private key
+	ValidatorPubKey []byte `ssz-size:"48"`
+	// EncryptedShare standard SSV encrypted shares
+	EncryptedShare []byte `ssz-max:"8528"` // 656 * 13
+	// SharePubKey is the share's BLS pubkey
+	SharePubKey []byte `ssz-size:"48"`
+	// Owner address
+	Owner [20]byte `ssz-size:"20"`
+}
+
+type SignedProof struct {
+	Proof *Proof
+	// Signature is an RSA signature over proof
+	Signature []byte `ssz-size:"256"`
 }
 
 // Exchange contains the session auth/ encryption key for each node
 type Exchange struct {
 	PK      []byte `ssz-max:"2048"`
 	Commits []byte `ssz-max:"2048"`
-}
-
-type Output struct {
-	EncryptedShare              []byte `ssz-max:"4096"`
-	SharePK                     []byte `ssz-max:"4096"`
-	ValidatorPK                 []byte `ssz-size:"48"`
-	DepositDataPartialSignature []byte `ssz-size:"96"`
 }
 
 type Ping struct {
@@ -133,5 +156,4 @@ type ResultData struct {
 	Identifier    [24]byte `ssz-size:"24"`
 	DepositData   []byte   `ssz-max:"8192"`
 	KeysharesData []byte   `ssz-max:"32768"`
-	CeremonySigs  []byte   `ssz-max:"16384"`
 }

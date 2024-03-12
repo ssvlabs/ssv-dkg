@@ -63,7 +63,7 @@ func RegisterRoutes(s *Server) {
 			reqid := signedInitMsg.Message.Identifier
 			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 			logger.Debug("initiating instance with init data")
-			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signature)
+			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signer, signedInitMsg.Signature)
 			if err != nil {
 				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to initialize instance, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return

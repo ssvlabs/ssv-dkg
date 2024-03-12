@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
-	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
@@ -28,13 +28,6 @@ const (
 	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
 )
 
-// Operator structure contains information about external operator participating in the DKG ceremony
-type Operator struct {
-	IP     string
-	ID     uint64
-	Pubkey *rsa.PublicKey
-}
-
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGdata struct {
 	// Request ID formed by initiator to identify DKG ceremony
@@ -45,50 +38,18 @@ type DKGdata struct {
 	secret kyber.Scalar
 }
 
-// Result is the last message in every DKG which marks a specific node's end of process
-type Result struct {
-	// Operator ID
-	OperatorID uint64
-	// Operator RSA pubkey
-	PubKeyRSA *rsa.PublicKey
-	// RequestID for the DKG instance (not used for signing)
-	RequestID [24]byte
-	// EncryptedShare standard SSV encrypted shares
-	EncryptedShare []byte
-	// SharePubKey is the share's BLS pubkey
-	SharePubKey []byte
-	// ValidatorPubKey the resulting public key corresponding to the shared private key
-	ValidatorPubKey []byte
-	// Partial Operator Signature of Deposit data
-	DepositPartialSignature []byte
-	// SSV owner + nonce signature
-	OwnerNoncePartialSignature []byte
-	// Signed priv share + initiator pub
-	CeremonySig []byte
-}
-
-// Encode returns a msg encoded bytes or error
-func (msg *Result) Encode() ([]byte, error) {
-	return json.Marshal(msg)
-}
-
-// Decode returns error if decoding failed
-func (msg *Result) Decode(data []byte) error {
-	return json.Unmarshal(data, msg)
-}
-
 // OwnerOpts structure to pass parameters from Switch to LocalOwner structure
 type OwnerOpts struct {
 	Logger             *zap.Logger
 	ID                 uint64
 	BroadcastF         func([]byte) error
 	Suite              pairing.Suite
-	VerifyFunc         func(id uint64, msg, sig []byte) error
+	VerifyFunc         func(pub, msg, sig []byte) error
 	SignFunc           func([]byte) ([]byte, error)
 	EncryptFunc        func([]byte) ([]byte, error)
 	DecryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
-	RSAPub             *rsa.PublicKey
+	OperatorPublicKey  *rsa.PublicKey
 	Owner              [20]byte
 	Nonce              uint64
 	Version            []byte
@@ -107,16 +68,12 @@ type LocalOwner struct {
 	Suite              pairing.Suite
 	broadcastF         func([]byte) error
 	exchanges          map[uint64]*wire.Exchange
-	deals              map[uint64]*kyber_dkg.DealBundle
-	verifyFunc         func(id uint64, msg, sig []byte) error
+	verifyFunc         func(pub, msg, sig []byte) error
 	signFunc           func([]byte) ([]byte, error)
 	encryptFunc        func([]byte) ([]byte, error)
 	decryptFunc        func([]byte) ([]byte, error)
-	SecretShare        *kyber_dkg.DistKeyShare
 	InitiatorPublicKey *rsa.PublicKey
-	RSAPub             *rsa.PublicKey
-	owner              common.Address
-	nonce              uint64
+	OperatorPublicKey  *rsa.PublicKey
 	done               chan struct{}
 	version            []byte
 }
@@ -130,17 +87,14 @@ func New(opts *OwnerOpts) *LocalOwner {
 		ID:                 opts.ID,
 		broadcastF:         opts.BroadcastF,
 		exchanges:          make(map[uint64]*wire.Exchange),
-		deals:              make(map[uint64]*kyber_dkg.DealBundle),
 		signFunc:           opts.SignFunc,
 		verifyFunc:         opts.VerifyFunc,
 		encryptFunc:        opts.EncryptFunc,
 		decryptFunc:        opts.DecryptFunc,
 		InitiatorPublicKey: opts.InitiatorPublicKey,
-		RSAPub:             opts.RSAPub,
+		OperatorPublicKey:  opts.OperatorPublicKey,
 		done:               make(chan struct{}, 1),
 		Suite:              opts.Suite,
-		owner:              opts.Owner,
-		nonce:              opts.Nonce,
 		version:            opts.Version,
 	}
 	return owner
@@ -157,7 +111,6 @@ func (o *LocalOwner) StartDKG() error {
 		if err := p.UnmarshalBinary(e.PK); err != nil {
 			return err
 		}
-
 		nodes = append(nodes, kyber_dkg.Node{
 			Index:  kyber_dkg.Index(id - 1),
 			Public: p,
@@ -190,13 +143,6 @@ func (o *LocalOwner) StartDKG() error {
 	return nil
 }
 
-func (o *LocalOwner) PushDealsOldNodes() error {
-	for _, b := range o.deals {
-		o.board.DealC <- *b
-	}
-	return nil
-}
-
 // Function to send signed messages back to initiator
 func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	bts, err := ts.MarshalSSZ()
@@ -208,10 +154,10 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	if err != nil {
 		return err
 	}
-
+	pub, err := crypto.EncodePublicKey(o.OperatorPublicKey)
 	signed := &wire.SignedTransport{
 		Message:   ts,
-		Signer:    o.ID,
+		Signer:    pub,
 		Signature: sign,
 	}
 
@@ -230,7 +176,6 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("dkg protocol failed: %w", res.Error)
 	}
 	o.Logger.Info("DKG ceremony finished successfully")
-	o.SecretShare = res.Result.Key
 	// Get validator BLS public key from result
 	validatorPubKey, err := crypto.ResultToValidatorPK(res.Result.Key, o.Suite.G1().(kyber_dkg.Suite))
 	if err != nil {
@@ -242,7 +187,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to get BLS partial secret key share: %w", err)
 	}
 	// Encrypt BLS share for SSV contract
-	ciphertext, err := o.encryptFunc([]byte(secretKeyBLS.SerializeToHexStr()))
+	encryptedShare, err := o.encryptFunc([]byte(secretKeyBLS.SerializeToHexStr()))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
@@ -260,18 +205,20 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to generate deposit data with root %w", err)
 	}
 	// Sign.
-	signature := secretKeyBLS.SignByte(signingRoot[:])
-	if signature == nil {
+	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
+	if depositPartialSignature == nil {
 		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
 	}
-
 	// Validate partial signature
-	if val := signature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
-		err = fmt.Errorf("partial deposit root signature is not valid %x", signature.Serialize())
+	if val := depositPartialSignature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
+		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
 		return err
 	}
+	fmt.Printf("Share pub %x \n", secretKeyBLS.GetPublicKey().Serialize())
+	fmt.Printf("Partial sig %x \n", depositPartialSignature.Serialize())
+	fmt.Printf("Root %x \n", signingRoot)
 	// Sign SSV owner + nonce
-	data := []byte(fmt.Sprintf("%s:%d", o.owner.String(), o.nonce))
+	data := []byte(fmt.Sprintf("%s:%d", o.data.init.Owner, o.data.init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	// Verify partial SSV owner + nonce signature
@@ -279,34 +226,41 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	if !val {
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
-	ceremonySig, err := o.GetCeremonySig(secretKeyBLS)
+	// Generate and sign proof
+	proof := &wire.Proof{
+		ValidatorPubKey: validatorPubKey.Serialize(),
+		EncryptedShare:  encryptedShare,
+		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
+		Owner:           o.data.init.Owner,
+	}
+	encProof, err := proof.MarshalSSZ()
 	if err != nil {
 		return err
 	}
-	out := Result{
+	proofSig, err := o.signFunc(encProof)
+	if err != nil {
+		return err
+	}
+	out := &wire.Result{
 		RequestID:                  o.data.reqID,
-		EncryptedShare:             ciphertext,
-		SharePubKey:                secretKeyBLS.GetPublicKey().Serialize(),
-		ValidatorPubKey:            validatorPubKey.Serialize(),
-		DepositPartialSignature:    signature.Serialize(),
-		PubKeyRSA:                  o.RSAPub,
+		DepositPartialSignature:    depositPartialSignature.Serialize(),
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		CeremonySig:                ceremonySig,
+		SignedProof: wire.SignedProof{
+			Proof:     proof,
+			Signature: proofSig,
+		},
 	}
-
-	encodedOutput, err := out.Encode()
+	encodedOutput, err := out.MarshalSSZ()
 	if err != nil {
 		return fmt.Errorf("failed to encode output: %w", err)
 	}
-
 	tsMsg := &wire.Transport{
 		Type:       wire.OutputMessageType,
 		Identifier: o.data.reqID,
 		Data:       encodedOutput,
 		Version:    o.version,
 	}
-
 	o.Broadcast(tsMsg)
 	close(o.done)
 	return nil
@@ -400,7 +354,11 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 }
 
 // Process processes incoming messages from initiator at /dkg route
-func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
+func (o *LocalOwner) Process(st *wire.SignedTransport) error {
+	from, err := o.findID(st.Signer)
+	if err != nil {
+		return err
+	}
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
 		return err
@@ -409,18 +367,16 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 	if err := o.verifyFunc(st.Signer, msgbts, st.Signature); err != nil {
 		return err
 	}
-	t := st.Message
-	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", t.Type.String()), zap.Uint64("from", st.Signer))
-	switch t.Type {
+	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", st.Message.Type.String()), zap.Uint64("from", from))
+	switch st.Message.Type {
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}
-		if err := exchMsg.UnmarshalSSZ(t.Data); err != nil {
+		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
 			return err
 		}
 		if _, ok := o.exchanges[from]; ok {
 			return ErrAlreadyExists
 		}
-
 		o.exchanges[from] = exchMsg
 
 		// check if have all participating operators pub keys, then start dkg protocol
@@ -432,7 +388,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 
 	case wire.KyberMessageType:
 		<-o.startedDKG
-		return o.processDKG(from, t)
+		return o.processDKG(from, st.Message)
 	default:
 		return fmt.Errorf("unknown message type")
 	}
@@ -522,4 +478,18 @@ func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error)
 	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
 	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
 	return o.signFunc(dataToSign)
+}
+
+func (o *LocalOwner) findID(pub []byte) (uint64, error) {
+	var id uint64
+	for _, op := range o.data.init.Operators {
+		if bytes.Equal(op.PubKey, pub) {
+			id = op.ID
+			break
+		}
+	}
+	if id == 0 {
+		return 0, fmt.Errorf("cant find operator ID related to RSA public key")
+	}
+	return id, nil
 }
