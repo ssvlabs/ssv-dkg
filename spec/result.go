@@ -31,20 +31,9 @@ func ValidateResults(
 	}
 
 	for _, result := range results {
-		if err := ValidateResult(operators, ownerAddress, requestID, result); err != nil {
+		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, fork, nonce, result); err != nil {
 			return err
 		}
-	}
-
-	if err := VerifyPartialSignatures(
-		withdrawalCredentials,
-		fork,
-		ownerAddress,
-		nonce,
-		results[0].SignedProof.Proof.ValidatorPubKey,
-		results,
-	); err != nil {
-		return err
 	}
 
 	return nil
@@ -55,6 +44,9 @@ func ValidateResult(
 	operators []*Operator,
 	ownerAddress [20]byte,
 	requestID [24]byte,
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	nonce uint64,
 	result *Result,
 ) error {
 	// verify operator
@@ -66,6 +58,16 @@ func ValidateResult(
 	// verify request ID
 	if !bytes.Equal(requestID[:], result.RequestID[:]) {
 		return fmt.Errorf("invalid request ID")
+	}
+
+	if err := VerifyPartialSignatures(
+		withdrawalCredentials,
+		fork,
+		ownerAddress,
+		nonce,
+		result,
+	); err != nil {
+		return err
 	}
 
 	// verify ceremony proof
@@ -80,6 +82,7 @@ func ValidateResult(
 	return nil
 }
 
+// VerifyValidatorPubKey returns error shares reconstructed validator pub key != individual result validator pub key
 func VerifyValidatorPubKey(results []*Result) error {
 	ids := make([]uint64, len(results))
 	pks := make([]*bls.PublicKey, len(results))
@@ -111,38 +114,34 @@ func VerifyPartialSignatures(
 	fork [4]byte,
 	ownerAddress [20]byte,
 	nonce uint64,
-	validatorPubKey []byte,
-	results []*Result,
+	result *Result,
 ) error {
-	pks := make([]*bls.PublicKey, len(results))
-	depositSigs := make([]*bls.Sign, len(results))
-	nonceSigs := make([]*bls.Sign, len(results))
-
-	for i, result := range results {
-		pk, err := BLSPKEncode(result.SignedProof.Proof.SharePubKey)
-		if err != nil {
-			return err
-		}
-		pks[i] = pk
-
-		depositSig, err := BLSSignatureEncode(result.DepositPartialSignature)
-		if err != nil {
-			return err
-		}
-		depositSigs[i] = depositSig
-
-		nonceSig, err := BLSSignatureEncode(result.OwnerNoncePartialSignature)
-		if err != nil {
-			return err
-		}
-		nonceSigs[i] = nonceSig
-	}
-
-	if err := VerifyPartialDepositDataSignatures(withdrawalCredentials, fork, validatorPubKey, depositSigs, pks); err != nil {
+	pk, err := BLSPKEncode(result.SignedProof.Proof.SharePubKey)
+	if err != nil {
 		return err
 	}
 
-	if err := VerifyPartialNonceSignatures(ownerAddress, nonce, nonceSigs, pks); err != nil {
+	depositSig, err := BLSSignatureEncode(result.DepositPartialSignature)
+	if err != nil {
+		return err
+	}
+
+	nonceSig, err := BLSSignatureEncode(result.OwnerNoncePartialSignature)
+	if err != nil {
+		return err
+	}
+
+	if err := VerifyPartialDepositDataSignatures(
+		withdrawalCredentials,
+		fork,
+		result.SignedProof.Proof.ValidatorPubKey,
+		[]*bls.Sign{depositSig},
+		[]*bls.PublicKey{pk},
+	); err != nil {
+		return err
+	}
+
+	if err := VerifyPartialNonceSignatures(ownerAddress, nonce, []*bls.Sign{nonceSig}, []*bls.PublicKey{pk}); err != nil {
 		return err
 	}
 

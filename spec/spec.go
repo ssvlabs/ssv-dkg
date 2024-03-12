@@ -27,9 +27,10 @@ func RunDKG(init *Init) ([]*Result, error) {
 func RunReshare(
 	withdrawalCredentials []byte,
 	fork [4]byte,
-	reshare *Reshare,
+	signedReshare *SignedReshare,
+	proofs map[*Operator]SignedProof,
 ) ([]*Result, error) {
-	if err := ValidateReshareMessage(reshare); err != nil {
+	if err := ValidateReshareMessage(signedReshare, proofs); err != nil {
 		return nil, err
 	}
 
@@ -41,11 +42,11 @@ func RunReshare(
 	*/
 
 	return results, ValidateResults(
-		reshare.NewOperators,
+		signedReshare.Reshare.NewOperators,
 		withdrawalCredentials,
 		fork,
-		reshare.Owner,
-		reshare.Nonce,
+		signedReshare.Reshare.Owner,
+		signedReshare.Reshare.Nonce,
 		id,
 		results)
 }

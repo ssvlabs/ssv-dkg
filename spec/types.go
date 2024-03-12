@@ -58,11 +58,11 @@ type Result struct {
 // Proof for a DKG ceremony
 type Proof struct {
 	// ValidatorPubKey the resulting public key corresponding to the shared private key
-	ValidatorPubKey []byte `ssz-size:"64"`
+	ValidatorPubKey []byte `ssz-size:"48"`
 	// EncryptedShare standard SSV encrypted shares
 	EncryptedShare []byte `ssz-max:"8528"` // 656 * 13
 	// SharePubKey is the share's BLS pubkey
-	SharePubKey []byte `ssz-size:"96"`
+	SharePubKey []byte `ssz-size:"48"`
 	// Owner address
 	Owner [20]byte `ssz-size:"20"`
 }

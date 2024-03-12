@@ -38,7 +38,7 @@ func ValidThresholdSet(t uint64, operators []*Operator) bool {
 func UniqueAndOrderedOperators(operators []*Operator) bool {
 	highestID := uint64(0)
 	for _, op := range operators {
-		if op.ID < highestID {
+		if op.ID <= highestID {
 			return false
 		}
 		highestID = op.ID
