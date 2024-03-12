@@ -3,18 +3,13 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"reflect"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -33,39 +28,16 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-// Operator structure represents operators info which is public
-type Operator struct {
-	Addr   string         // ip:port
-	ID     uint64         // operators ID
-	PubKey *rsa.PublicKey // operators RSA public key
-}
-
-// OperatorDataJson is used to store operators info ar JSON
-type OperatorDataJson struct {
-	Addr   string `json:"ip"`
-	ID     uint64 `json:"id"`
-	PubKey string `json:"public_key"`
-}
-
-// Operators mapping storage for operator structs [ID]operator
-type Operators map[uint64]Operator
-
-func (o Operators) Clone() Operators {
-	clone := make(Operators)
-	for k, v := range o {
-		clone[k] = v
-	}
-	return clone
-}
+type VerifyMessageSignature func(id uint64, msg, sig []byte) error
 
 // Initiator main structure for initiator
 type Initiator struct {
-	Logger     *zap.Logger                            // logger
-	Client     *req.Client                            // http client
-	Operators  Operators                              // operators info mapping
-	VerifyFunc func(id uint64, msg, sig []byte) error // function to verify signatures of incoming messages
-	PrivateKey *rsa.PrivateKey                        // a unique initiator's RSA private key used for signing messages and identity
-	Version    []byte
+	Logger                 *zap.Logger            // logger
+	Client                 *req.Client            // http client
+	Operators              Operators              // operators info mapping
+	VerifyMessageSignature VerifyMessageSignature // function to verify signatures of incoming messages
+	PrivateKey             *rsa.PrivateKey        // a unique initiator's RSA private key used for signing messages and identity
+	Version                []byte
 }
 
 // KeyShares structure to create an json file for ssv smart contract
@@ -83,7 +55,7 @@ type Data struct {
 
 type ShareData struct {
 	OwnerNonce   uint64         `json:"ownerNonce"`
-	OwnerAddress string         `json:"ownerAddress "`
+	OwnerAddress string         `json:"ownerAddress"`
 	PublicKey    string         `json:"publicKey"`
 	Operators    []OperatorData `json:"operators"`
 }
@@ -209,17 +181,17 @@ func GenerateAggregatesKeyshares(keySharesArr []*KeyShares) (*KeyShares, error) 
 }
 
 // New creates a main initiator structure
-func New(privKey *rsa.PrivateKey, operatorMap Operators, logger *zap.Logger, ver string) *Initiator {
+func New(privKey *rsa.PrivateKey, operators Operators, logger *zap.Logger, ver string) *Initiator {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	c := &Initiator{
-		Logger:     logger,
-		Client:     client,
-		Operators:  operatorMap,
-		PrivateKey: privKey,
-		VerifyFunc: CreateVerifyFunc(operatorMap),
-		Version:    []byte(ver),
+		Logger:                 logger,
+		Client:                 client,
+		Operators:              operators,
+		PrivateKey:             privKey,
+		VerifyMessageSignature: CreateVerifyFunc(operators),
+		Version:                []byte(ver),
 	}
 	return c
 }
@@ -307,72 +279,6 @@ func ParseAsError(msg []byte) (parsedErr, err error) {
 	return errors.New(string(sszerr.Error)), nil
 }
 
-// VerifyAll verifies incoming to initiator messages from operators.
-// Incoming message from operator should have same DKG ceremony ID and a valid signature
-func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
-	var errs error
-	for i := 0; i < len(allmsgs); i++ {
-		msg := allmsgs[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
-			if parseErr == nil {
-				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
-				continue
-			}
-			return err
-		}
-		signedBytes, err := tsp.Message.MarshalSSZ()
-		if err != nil {
-			return err
-		}
-		// Verify that incoming messages have valid DKG ceremony ID
-		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
-			return fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
-		}
-		// Verification operator signatures
-		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
-			return err
-		}
-	}
-	return errs
-}
-
-// MakeMultiple creates a one combined message from operators with initiator signature
-func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
-	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
-	final := &wire.MultipleSignedTransports{
-		Identifier: id,
-		Messages:   make([]*wire.SignedTransport, len(allmsgs)),
-	}
-	var allMsgsBytes []byte
-	for i := 0; i < len(allmsgs); i++ {
-		msg := allmsgs[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
-			if parseErr == nil {
-				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
-			}
-			return nil, err
-		}
-		// Verify that incoming messages have valid DKG ceremony ID
-		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
-			return nil, fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
-		}
-		final.Messages[i] = tsp
-		allMsgsBytes = append(allMsgsBytes, msg...)
-	}
-	// sign message by initiator
-	c.Logger.Debug("Signing combined messages from operators", zap.String("initiator_id", hex.EncodeToString(c.PrivateKey.N.Bytes())))
-	sig, err := crypto.SignRSA(c.PrivateKey, allMsgsBytes)
-	if err != nil {
-		return nil, err
-	}
-	final.Signature = sig
-	return final, nil
-}
-
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
 func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator, error) {
 	if len(ids) < 4 {
@@ -417,7 +323,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = VerifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +334,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = VerifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +344,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = VerifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -731,7 +637,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
 func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
-	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
+	mltpl, err := MakeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
@@ -744,7 +650,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
 func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
-	mltpl2, err := c.MakeMultiple(id, kyberDeals)
+	mltpl2, err := MakeMultipleSignedTransports(c.PrivateKey, id, kyberDeals)
 	if err != nil {
 		return nil, err
 	}
@@ -766,41 +672,6 @@ func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Opera
 		return err
 	}
 	return nil
-}
-
-// LoadOperatorsJson deserialize operators data from JSON
-func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
-	opmap := make(map[uint64]Operator)
-	var operators []OperatorDataJson
-	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
-	if err != nil {
-		return nil, err
-	}
-	for _, opdata := range operators {
-		_, err := url.ParseRequestURI(opdata.Addr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid operator URL %s", err.Error())
-		}
-		operatorKeyByte, err := base64.StdEncoding.DecodeString(opdata.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		pemBlock, _ := pem.Decode(operatorKeyByte)
-		if pemBlock == nil {
-			return nil, errors.New("decode PEM block")
-		}
-		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		opmap[opdata.ID] = Operator{
-			Addr:   strings.TrimRight(opdata.Addr, "/"),
-			ID:     opdata.ID,
-			PubKey: pbKey.(*rsa.PublicKey),
-		}
-	}
-	return opmap, nil
 }
 
 func (c *Initiator) Ping(ips []string) error {
