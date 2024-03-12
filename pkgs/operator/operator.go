@@ -40,9 +40,9 @@ const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 func RegisterRoutes(s *Server) {
 	// Add general rate limiter
 	s.Router.Use(rateLimit(s.Logger, generalLimit))
-	s.Router.Route("/init", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming INIT msg")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
@@ -76,10 +76,9 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 		})
-	})
-	s.Router.Route("/dkg", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
@@ -97,10 +96,9 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 		})
-	})
-	s.Router.Route("/health_check", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Get("/health_check", func(writer http.ResponseWriter, request *http.Request) {
 			b, err := s.State.Pong()
 			if err != nil {
 				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
@@ -112,10 +110,9 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 		})
-	})
-	s.Router.Route("/results", func(r chi.Router) {
-		r.Use(rateLimit(s.Logger, routeLimit))
-		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/results", func(writer http.ResponseWriter, request *http.Request) {
 			rawdata, err := io.ReadAll(request.Body)
 			if err != nil {
 				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
@@ -140,7 +137,6 @@ func RegisterRoutes(s *Server) {
 			}
 			writer.WriteHeader(http.StatusOK)
 		})
-	})
 }
 
 // New creates Server structure using operator's RSA private key
