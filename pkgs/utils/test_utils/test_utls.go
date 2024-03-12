@@ -33,11 +33,11 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
+	priv, err := crypto.OpenRSAKeystore(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
@@ -66,7 +66,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	r := chi.NewRouter()
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	s := &operator.Server{
@@ -121,12 +121,24 @@ func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeySha
 		sig := secret.SignByte(msg)
 		sigs2[i] = sig.Serialize()
 	}
-	recon, err := crypto.ReconstructSignatures(ids, sigs2)
+	deserializedSigs2 := make([]*bls.Sign, len(sigs2))
+	for i, sig := range sigs2 {
+		deserializedSigs2[i] = &bls.Sign{}
+		if err := deserializedSigs2[i].Deserialize(sig); err != nil {
+			return err
+		}
+	}
+	recon, err := crypto.RecoverBLSSignature(ids, deserializedSigs2)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg); err != nil {
-		return err
+	blsPK := &bls.PublicKey{}
+	if err := blsPK.Deserialize(validatorPublicKey); err != nil {
+		return fmt.Errorf("could not deserialize validator pk %w", err)
+	}
+	// verify reconstructed sig
+	if res := recon.VerifyByte(blsPK, msg); !res {
+		return fmt.Errorf("could not reconstruct a valid signature")
 	}
 	return nil
 }

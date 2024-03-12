@@ -109,7 +109,7 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 	if err != nil {
 		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 	}
-	privateKey, err := crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
@@ -399,11 +399,11 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 			}
-			encryptedRSAJSON, err := crypto.EncryptPrivateKey(priv, string(keyStorePassword))
+			encryptedRSAJSON, err := crypto.EncryptRSAKeystore(priv, string(keyStorePassword))
 			if err != nil {
 				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
 			}
-			privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+			privateKey, err = crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
 			if err != nil {
 				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 			}
@@ -412,7 +412,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 				return nil, err
 			}
 		} else if err == nil {
-			return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
+			return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
 		}
 	} else {
 		// check if a password string a valid path, then read password from the file
@@ -422,7 +422,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 		if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("🔑 password file: %s", err)
 		}
-		return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
+		return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
 	}
 	return privateKey, nil
 }

@@ -46,7 +46,7 @@ type instWrapper struct {
 
 // VerifyInitiatorMessage verifies initiator message signature
 func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
-	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
+	pubKey, err := crypto.EncodeRSAPublicKey(iw.InitiatorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(id uint64, msg []byte, sig []byte) error, error) {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
 	for _, op := range ops {
-		pk, err := crypto.ParseRSAPubkey(op.PubKey)
+		pk, err := crypto.ParseRSAPublicKey(op.PubKey)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +193,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, err
 	}
 	// Check that incoming message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPubkey(init.InitiatorPublicKey)
+	initiatorPubKey, err := crypto.ParseRSAPublicKey(init.InitiatorPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
 	}
@@ -444,7 +444,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 			return 0, err
 		}
 		// Check that incoming message signature is valid
-		initiatorPubKey, err = crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
+		initiatorPubKey, err = crypto.ParseRSAPublicKey(ping.InitiatorPublicKey)
 		if err != nil {
 			return 0, err
 		}
