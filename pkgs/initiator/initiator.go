@@ -921,21 +921,6 @@ func (c *Initiator) getCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, err
 	return ceremonySigs, nil
 }
 
-func getValPubsAtKeysharesFile(ks *KeyShares) ([]byte, error) {
-	valPub, err := hex.DecodeString(ks.Shares[0].PublicKey[2:])
-	if err != nil {
-		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
-	}
-	valPubPayload, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-	if err != nil {
-		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
-	}
-	if !bytes.Equal(valPub, valPubPayload) {
-		return nil, fmt.Errorf("validator pub key defers at keyshares file, shares %s, payload %s", ks.Shares[0].PublicKey, ks.Shares[0].Payload.PublicKey)
-	}
-	return valPub, nil
-}
-
 func ValidateDepositDataCLI(d *DepositDataCLI) error {
 	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
 	b, err := json.Marshal(d)
