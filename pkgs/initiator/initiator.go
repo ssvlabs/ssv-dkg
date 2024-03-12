@@ -446,42 +446,6 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	return dkgResult, nil
 }
 
-func (c *Initiator) messageFlowHandlingReshare(reshare *wire.Reshare, newID [24]byte, oldOperators, newOperators []*wire.Operator) ([][]byte, error) {
-	c.Logger.Info("phase 1: sending reshare message to old operators")
-	allOps := utils.JoinSets(oldOperators, newOperators)
-	results, err := c.SendReshareMsg(reshare, newID, allOps)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 1: ✅ verified operator resharing responses signatures")
-	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
-	results, err = c.SendExchangeMsgs(results, newID, allOps)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 2: ✅ verified old operator responses (deal messages) signatures")
-	c.Logger.Info("phase 3: ➡️ sending deal dkg data to new operators")
-
-	dkgResult, err := c.SendKyberMsgs(results, newID, newOperators)
-	if err != nil {
-		return nil, err
-	}
-	err = c.VerifyAll(newID, results)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("phase 2: ✅ verified operator dkg results signatures")
-	return dkgResult, nil
-}
-
 // reconstructAndVerifyDepositData verifies incoming from operators DKG result data and creates a resulting DepositDataJson structure to store as JSON file
 func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, init *wire.Init) (*DepositDataCLI, error) {
 	ids := make([]uint64, len(dkgResults))
@@ -630,106 +594,6 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, ceremonySigs, nil
 }
 
-func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, ceremonySigs []byte, nonce uint64) (*KeyShares, *CeremonySigs, error) {
-	var ks *KeyShares
-	if err := json.Unmarshal(keysharesFile, &ks); err != nil {
-		return nil, nil, err
-	}
-	var cSigs *CeremonySigs
-	if err := json.Unmarshal(ceremonySigs, &cSigs); err != nil {
-		return nil, nil, err
-	}
-	if cSigs.Sigs == "" {
-		return nil, nil, fmt.Errorf("ceremony sigs data not provided")
-	}
-	cSigBytes, err := hex.DecodeString(cSigs.Sigs)
-	if err != nil {
-		return nil, nil, err
-	}
-	oldOpIDs := ks.Shares[0].Payload.OperatorIDs
-	owner := common.HexToAddress(ks.Shares[0].OwnerAddress)
-	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
-	newOps, err := ValidatedOperatorData(newOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
-	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldOpIDs), zap.Uint64s("new_operator_ids", newOpIDs), instanceIDField)
-	// compute threshold (3f+1)
-	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
-	newThreshold := len(newOpIDs) - ((len(newOpIDs) - 1) / 3)
-	if ks.Shares[0].Payload.SharesData == "" {
-		return nil, nil, fmt.Errorf("encrypted shares data not provided")
-	}
-	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-	if err != nil {
-		return nil, nil, err
-	}
-	// Validator's BLS public key
-	valPub, err := getValPubsAtKeysharesFile(ks)
-	if err != nil {
-		return nil, nil, err
-	}
-	reshare := &wire.Reshare{
-		ValidatorPub:       valPub,
-		OldOperators:       oldOps,
-		NewOperators:       newOps,
-		OldT:               uint64(oldThreshold),
-		NewT:               uint64(newThreshold),
-		Owner:              owner,
-		Nonce:              nonce,
-		Keyshares:          sharesData,
-		CeremonySigs:       cSigBytes,
-		InitiatorPublicKey: pkBytes,
-	}
-	dkgResultsBytes, err := c.messageFlowHandlingReshare(reshare, id, oldOps, newOps)
-	if err != nil {
-		return nil, nil, err
-	}
-	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
-	keyshares, err := c.processDKGResultResponseResharing(dkgResults, reshare)
-	if err != nil {
-		return nil, nil, err
-	}
-	c.Logger.Info("✅ verified master signature for ssv contract data")
-	// sending back to operators results
-	keysharesData, err := json.Marshal(keyshares)
-	if err != nil {
-		return nil, nil, err
-	}
-	ceremonySigsNew, err := c.getCeremonySigs(dkgResults)
-	if err != nil {
-		return nil, nil, err
-	}
-	ceremonySigsNewBytes, err := json.Marshal(ceremonySigsNew)
-	if err != nil {
-		return nil, nil, err
-	}
-	resultMsg := &wire.ResultData{
-		Operators:     newOps,
-		Identifier:    id,
-		DepositData:   nil,
-		KeysharesData: keysharesData,
-		CeremonySigs:  ceremonySigsNewBytes,
-	}
-	err = c.sendResult(resultMsg, newOps, consts.API_RESULTS_URL, id)
-	if err != nil {
-		c.Logger.Error("🤖 Error storing results at operators", zap.Error(err))
-	}
-	return keyshares, ceremonySigsNew, nil
-}
-
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
 func CreateVerifyFunc(ops Operators) func(id uint64, msg []byte, sig []byte) error {
 	inst_ops := make(map[uint64]*rsa.PublicKey)
@@ -764,22 +628,6 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []dkg.Result, ini
 		return nil, nil, err
 	}
 	return depositDataJson, keyshares, nil
-}
-
-// processDKGResultResponseResharing deserializes incoming DKG result messages from operators after successful resharing ceremony
-func (c *Initiator) processDKGResultResponseResharing(dkgResults []dkg.Result, reshare *wire.Reshare) (*KeyShares, error) {
-	// check results sorted by operatorID
-	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
-		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
-	})
-	if !sorted {
-		return nil, fmt.Errorf("slice is not sorted")
-	}
-	keyshares, err := c.generateSSVKeysharesPayload(dkgResults, reshare.Owner, reshare.Nonce)
-	if err != nil {
-		return nil, err
-	}
-	return keyshares, nil
 }
 
 func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []dkg.Result) ([]*bls.PublicKey, []*bls.Sign, error) {
@@ -879,14 +727,6 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 		return nil, err
 	}
 	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
-}
-
-func (c *Initiator) SendReshareMsg(reshare *wire.Reshare, id [24]byte, ops []*wire.Operator) ([][]byte, error) {
-	signedReshareMsgBts, err := c.prepareAndSignMessage(reshare, wire.ReshareMessageType, id, c.Version)
-	if err != nil {
-		return nil, err
-	}
-	return c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, ops)
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony

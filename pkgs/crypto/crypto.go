@@ -19,7 +19,6 @@ import (
 	"unicode"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	drand_dkg "github.com/drand/kyber/share/dkg"
@@ -478,45 +477,6 @@ func EncryptPrivateKey(priv []byte, keyStorePassword string) ([]byte, error) {
 		return nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
 	}
 	return json.Marshal(encryptedData)
-}
-
-func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
-	suite := kyber_bls12381.NewBLS12381Suite()
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(reshare.OldOperators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(reshare.OldOperators) + pubKeysOffset
-	if len(reshare.Keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(reshare.Keyshares))
-	}
-	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
-	// try to recover commits
-	var kyberPubShares []*share.PubShare
-	if len(pubKeys) != len(reshare.OldOperators) {
-		return nil, fmt.Errorf("n of pub keys at keyshares != n of old operators")
-	}
-	for i, pubk := range pubKeys {
-		blsPub := &bls.PublicKey{}
-		err := blsPub.Deserialize(pubk)
-		if err != nil {
-			return nil, err
-		}
-		v := suite.G1().Point()
-		err = v.UnmarshalBinary(blsPub.Serialize())
-		if err != nil {
-			return nil, err
-		}
-		kyberPubhare := &share.PubShare{
-			I: int(reshare.OldOperators[i].ID - 1),
-			V: v,
-		}
-		kyberPubShares = append(kyberPubShares, kyberPubhare)
-	}
-	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, int(reshare.OldT), len(reshare.OldOperators))
-	if err != nil {
-		return nil, err
-	}
-	_, commits := pubPoly.Info()
-	return commits, nil
 }
 
 func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {

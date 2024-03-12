@@ -46,13 +46,6 @@ var (
 	Validators                        uint64
 )
 
-// reshare flags
-var (
-	NewOperatorIDs       []string
-	KeysharesFilePath    string
-	CeremonySigsFilePath string
-)
-
 // operator flags
 var (
 	PrivKey         string
@@ -164,16 +157,6 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
-}
-
-func SetReshareFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.NewOperatorIDsFlag(cmd)
-	flags.KeysharesFilePathFlag(cmd)
-	flags.CeremonySigsFilePathFlag(cmd)
-	flags.NonceFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -311,77 +294,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
-	if len(NewOperatorIDs) == 0 {
-		return fmt.Errorf("😥 New operator IDs flag cant be empty")
-	}
-	KeysharesFilePath = viper.GetString("keysharesFilePath")
-	if KeysharesFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to keyshares json file")
-	}
-	if strings.Contains(KeysharesFilePath, "../") {
-		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
-	}
-	stat, err := os.Stat(KeysharesFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 keysharesFilePath should not be a folder")
-	}
-	CeremonySigsFilePath = viper.GetString("ceremonySigsFilePath")
-	if CeremonySigsFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to ceremony signatures json file")
-	}
-	if strings.Contains(CeremonySigsFilePath, "../") {
-		return fmt.Errorf("😥 ceremonySigsFilePath flag should not contain traversal")
-	}
-	stat, err = os.Stat(CeremonySigsFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 ceremonySigsFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
-	}
-	Nonce = viper.GetUint64("nonce")
-	return nil
-}
-
-// BindOperatorFlags binds flags to yaml config parameters for the resharing ceremony of DKG
+// BindOperatorFlags binds flags to yaml config parameters for the operator
 func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err

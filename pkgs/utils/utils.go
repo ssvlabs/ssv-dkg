@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -75,26 +74,6 @@ func GetThreshold(ids []uint64) (int, error) {
 	return threshold, nil
 }
 
-// JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
-func JoinSets(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range oldOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
-}
-
 // GetNetworkByFork translates the network fork bytes into name
 //
 //	TODO: once eth2_key_manager implements this we can get rid of it and support all networks ekm supports automatically
@@ -109,54 +88,6 @@ func GetNetworkByFork(fork [4]byte) (eth2_key_manager_core.Network, error) {
 	default:
 		return eth2_key_manager_core.MainNetwork, errors.New("unknown network")
 	}
-}
-
-// GetDisjointOldOperators returns an old set of operators disjoint from new set
-// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
-func GetDisjointOldOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			set = append(set, op)
-		}
-	}
-	return set
-}
-
-// GetDisjointNewOperators returns a new set of operators disjoint from old set
-// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
-func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			delete(tmp, op.ID)
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
-}
-
-func Contains(s []*rsa.PrivateKey, i int) bool {
-	for k := range s {
-		if k == i {
-			return true
-		}
-	}
-	return false
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {

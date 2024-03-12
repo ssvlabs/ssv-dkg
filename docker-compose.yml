@@ -101,23 +101,6 @@ services:
     volumes:
       - ./examples:/data
 
-  resharing:
-    image: ssv-dkg:latest
-    depends_on:
-      - operator1
-      - operator2
-      - operator3
-      - operator4
-      - operator5
-      - operator6
-      - operator7
-      - operator8
-    networks:
-      - shared_network
-    command: ["reshare", "--configPath", "/data/config/reshare.example.yaml"]
-    volumes:
-      - ./examples:/data
-
   ping:
     image: ssv-dkg:latest
     depends_on:
