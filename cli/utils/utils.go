@@ -459,32 +459,43 @@ func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr [
 		}
 	}
 	// if there is only one Validator, do not create summary files
-	if Validators == 1 {
-		return
+	if Validators > 1 {
+		err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
+		if err != nil {
+			logger.Fatal("Failed writing aggregated results: ", zap.Error(err))
+		}
 	}
+}
+
+func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
-	err = utils.WriteJSON(depositFinalPath, depositDataArr)
+	err := utils.WriteJSON(depositFinalPath, depositDataArr)
 	if err != nil {
-		logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+		logger.Error("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+		return err
 	}
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
 	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
 	if err != nil {
-		logger.Fatal("error: ", zap.Error(err))
+		return err
 	}
 	err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
 	if err != nil {
-		logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+		return err
 	}
 	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
 
 	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
 	if err != nil {
-		logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
+		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
+		return err
 	}
+
+	return nil
 }
 
 func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
