@@ -306,6 +306,37 @@ func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
 	return operatorID, nil
 }
 
+func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
+	data, err := msg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	ts := &wire.Transport{
+		Type:       msgType,
+		Identifier: id,
+		Data:       data,
+		Version:    s.Version,
+	}
+
+	bts, err := ts.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	// Sign message with RSA private key
+	sign, err := s.Sign(bts)
+	if err != nil {
+		return nil, err
+	}
+
+	signed := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    operatorID,
+		Signature: sign,
+	}
+
+	return signed.MarshalSSZ()
+}
+
 func validateInitMessage(init *wire.Init) error {
 	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
 		return fmt.Errorf("owner field should be non empty 20 bytes")
@@ -340,6 +371,13 @@ func validateInitMessage(init *wire.Init) error {
 		return fmt.Errorf("fork field should be 4 bytes empty")
 	}
 	return nil
+}
+
+func (s *Switch) Pong() ([]byte, error) {
+	pong := &wire.Pong{
+		PubKey: s.PubKeyBytes,
+	}
+	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }
 
 func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {

@@ -71,7 +71,10 @@ func RegisterRoutes(s *Server) {
 			logger.Info("✅ Instance started successfully")
 
 			writer.WriteHeader(http.StatusOK)
-			writer.Write(b)
+			if _, err := writer.Write(b); err != nil {
+				logger.Error("error writing init response: " + err.Error())
+				return
+			}
 		})
 	})
 	s.Router.Route("/dkg", func(r chi.Router) {
@@ -89,7 +92,25 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 			writer.WriteHeader(http.StatusOK)
-			writer.Write(b)
+			if _, err := writer.Write(b); err != nil {
+				s.Logger.Error("error writing dkg response: " + err.Error())
+				return
+			}
+		})
+	})
+	s.Router.Route("/health_check", func(r chi.Router) {
+		r.Use(rateLimit(s.Logger, routeLimit))
+		r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
+			b, err := s.State.Pong()
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			writer.WriteHeader(http.StatusOK)
+			if _, err := writer.Write(b); err != nil {
+				s.Logger.Error("error writing health_check response: " + err.Error())
+				return
+			}
 		})
 	})
 	s.Router.Route("/results", func(r chi.Router) {
