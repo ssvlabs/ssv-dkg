@@ -104,16 +104,16 @@ var StartDKG = &cobra.Command{
 		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
 		var ceremonySigsArr []*initiator.CeremonySigs
-		var nonces []uint64
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			ceremonySigsArr = append(ceremonySigsArr, res.ceremonySigs)
-			nonces = append(nonces, res.nonce)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
+		if err := cli_utils.WriteResults(depositDataArr, keySharesArr, ceremonySigsArr, logger); err != nil {
+			logger.Fatal("Could not save deposit file", zap.Error(err))
+		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒

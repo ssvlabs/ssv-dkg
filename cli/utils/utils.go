@@ -427,47 +427,51 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
-	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
+func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
+	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
+
 	timestamp := time.Now().Format(time.RFC3339)
 	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
-	err := os.Mkdir(dir, os.ModePerm)
-	if err != nil {
-		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+	if err := os.Mkdir(dir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create a ceremony directory: %w", err)
 	}
-	for i := 0; i < int(Validators); i++ {
+
+	for i := 0; i < len(depositDataArr); i++ {
 		nestedDir := fmt.Sprintf("%s/%d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
-			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
+			return fmt.Errorf("failed to create a validator key directory: %w", err)
 		}
 		logger.Info("💾 Writing deposit data json", zap.String("path", nestedDir))
 		err = WriteDepositResult(depositDataArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
+			logger.Error("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
+			return fmt.Errorf("failed writing deposit data file: %w", err)
 		}
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", nestedDir))
 		err = WriteKeysharesResult(keySharesArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
+			logger.Error("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
+			return fmt.Errorf("failed writing keyshares file: %w", err)
 		}
 		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
+			logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
+			return fmt.Errorf("failed writing ceremony sig file: %w", err)
 		}
 	}
 	// if there is only one Validator, do not create summary files
 	if Validators > 1 {
-		err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, nonces, ceremonySigsArr, logger)
-		if err != nil {
-			logger.Fatal("Failed writing aggregated results: ", zap.Error(err))
+		if err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, ceremonySigsArr, logger); err != nil {
+			return fmt.Errorf("failed writing aggregated results: %w", err)
 		}
 	}
+	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
