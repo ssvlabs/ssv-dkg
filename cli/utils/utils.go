@@ -104,7 +104,7 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 	}
 	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
 	}
 	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 	if err != nil {

@@ -148,7 +148,7 @@ func OpenRSAKeystore(privKeyPath, privKeyPassPath string) (*rsa.PrivateKey, erro
 	}
 	keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
 	}
 	return DecryptRSAKeystore(privKey, string(keyStorePassword))
 }

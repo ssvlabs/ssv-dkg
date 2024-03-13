@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -33,7 +35,12 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	priv, err := crypto.OpenRSAKeystore(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
+	privKey, err := os.ReadFile(filepath.Clean(examplePath + "operator" + fmt.Sprintf("%v", id) + "/encrypted_private_key.json"))
+	if err != nil {
+		logger.Fatal("failed to read file", zap.Error(err))
+		return nil
+	}
+	priv, err := crypto.DecryptRSAKeystore(privKey, "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
