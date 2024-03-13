@@ -59,8 +59,8 @@ type Result struct {
 type Proof struct {
 	// ValidatorPubKey the resulting public key corresponding to the shared private key
 	ValidatorPubKey []byte `ssz-size:"48"`
-	// EncryptedShare standard SSV encrypted shares
-	EncryptedShare []byte `ssz-max:"8528"` // 656 * 13
+	// EncryptedShare standard SSV encrypted share
+	EncryptedShare []byte `ssz-max:"512"`
 	// SharePubKey is the share's BLS pubkey
 	SharePubKey []byte `ssz-size:"48"`
 	// Owner address
