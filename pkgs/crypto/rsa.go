@@ -5,37 +5,16 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"unicode"
 
 	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 )
-
-// GenerateSecurePassword randomly generates a password consisting of digits + english letters
-func GenerateSecurePassword() (string, error) {
-	const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	var pass []rune
-	p := make([]byte, 64)
-	if _, err := rand.Reader.Read(p); err != nil {
-		return "", err
-	}
-	hash := sha512.Sum512(p)
-	for _, r := range string(hash[:]) {
-		if unicode.IsDigit(r) || strings.Contains(alpha, strings.ToLower(string(r))) {
-			pass = append(pass, r)
-		}
-	}
-	return string(pass), nil
-}
 
 // GenerateRSAKeys creates a random RSA key pair
 func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
@@ -98,15 +77,6 @@ func EncodeRSAPublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
 }
 
-// EncryptRSAKeystore encrypts an RSA private key using the given password.
-func EncryptRSAKeystore(priv []byte, keyStorePassword string) ([]byte, error) {
-	encryptedData, err := keystorev4.New().Encrypt(priv, keyStorePassword)
-	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
-	}
-	return json.Marshal(encryptedData)
-}
-
 // DecryptRSAKeystore reads an encrypted RSA private key using the given password.
 func DecryptRSAKeystore(keyData []byte, password string) (*rsa.PrivateKey, error) {
 	if strings.TrimSpace(password) == "" {
@@ -138,17 +108,4 @@ func DecryptRSAKeystore(keyData []byte, password string) (*rsa.PrivateKey, error
 	}
 
 	return rsaKey, nil
-}
-
-// OpenRSAKeystore reads an encrypted RSA private key from the given key file and password file.
-func OpenRSAKeystore(privKeyPath, privKeyPassPath string) (*rsa.PrivateKey, error) {
-	privKey, err := os.ReadFile(filepath.Clean(privKeyPath))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-	keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
-	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
-	}
-	return DecryptRSAKeystore(privKey, string(keyStorePassword))
 }

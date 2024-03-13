@@ -147,7 +147,6 @@ type TestNode struct {
 	Private kyber.Scalar
 	Public  kyber.Point
 	dkg     *dkg.DistKeyGenerator
-	res     *dkg.Result
 }
 
 func NewTestNode(s dkg.Suite, index int) *TestNode {

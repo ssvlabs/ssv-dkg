@@ -54,27 +54,21 @@ func TestCreateInstance(t *testing.T) {
 	logger := zap.L().Named("state-tests")
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-		pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
+		s, err := New(privateKey, logger, []byte("v1.0.2"), 1)
 		require.NoError(t, err)
-		s := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
-		require.NoError(t, err)
-
 		init := &wire.Init{
-			Operators:          ops,
-			Owner:              common.HexToAddress("0x0000000"),
-			Nonce:              1,
-			InitiatorPublicKey: encPubKey,
+			Operators: ops,
+			Owner:     common.HexToAddress("0x0000000"),
+			Nonce:     1,
 		}
 
-		inst, resp, err := s.CreateInstance(reqID, init, &priv.PublicKey)
+		inst, resp, err := s.State.CreateInstance(reqID, init, &priv.PublicKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, inst)
@@ -82,7 +76,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.True(t, wrapper.LocalOwner.RSAPub.Equal(&privateKey.PublicKey))
+		require.True(t, wrapper.LocalOwner.OperatorPublicKey.Equal(&privateKey.PublicKey))
 	}
 
 	testParams := []struct {
@@ -105,10 +99,9 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
-	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
+	swtch, err := New(privateKey, logger, []byte("v1.0.2"), 1)
+	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
@@ -118,13 +111,13 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
+
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
 		Operators:             ops,
 		Owner:                 common.HexToAddress("0x0000001"),
 		Nonce:                 1,
-		InitiatorPublicKey:    encPubKey,
 		T:                     3,
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	}
@@ -142,13 +135,14 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	sig, err := crypto.SignRSA(priv, tsssz)
 	require.NoError(t, err)
-	resp, err := swtch.InitInstance(reqID, initMessage, sig)
+
+	resp, err := swtch.State.InitInstance(reqID, initMessage, encPubKey, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	require.Len(t, swtch.Instances, 1)
+	require.Len(t, swtch.State.Instances, 1)
 
-	resp2, err2 := swtch.InitInstance(reqID, initMessage, sig)
+	resp2, err2 := swtch.State.InitInstance(reqID, initMessage, encPubKey, sig)
 	require.Equal(t, err2, utils.ErrAlreadyExists)
 	require.Nil(t, resp2)
 
@@ -157,7 +151,7 @@ func TestInitInstance(t *testing.T) {
 	for i := 0; i < MaxInstances; i++ {
 		var reqIDx [24]byte
 		copy(reqIDx[:], fmt.Sprintf("testRequestID111111%v1", i)) // Just a sample value
-		respx, errx := swtch.InitInstance(reqIDx, initMessage, sig)
+		respx, errx := swtch.State.InitInstance(reqIDx, initMessage, encPubKey, sig)
 		if i == MaxInstances-1 {
 			require.Equal(t, errx, utils.ErrMaxInstances)
 			require.Nil(t, respx)
@@ -170,9 +164,9 @@ func TestInitInstance(t *testing.T) {
 
 	require.True(t, tested)
 
-	swtch.InstanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
+	swtch.State.InstanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
 
-	resp, err = swtch.InitInstance(reqID, initMessage, sig)
+	_, resp, err = swtch.State.CreateInstance(reqID, init, &priv.PublicKey)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -202,7 +196,6 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Operators:             ops,
 		Owner:                 common.HexToAddress("0x0000001"),
 		Nonce:                 1,
-		InitiatorPublicKey:    encPubKey,
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		T:                     3,
 	}
@@ -220,7 +213,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	sig, err := crypto.SignRSA(priv, tsssz)
 	require.NoError(t, err)
-	resp, err := swtch.InitInstance(reqID, initMessage, sig)
+	resp, err := swtch.InitInstance(reqID, initMessage, encPubKey, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, swtch.CleanInstances(), 0)

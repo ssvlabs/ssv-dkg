@@ -11,16 +11,15 @@ import (
 )
 
 // standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
-func standardMessageVerification(ops Operators) func(id uint64, msg []byte, sig []byte) error {
-	inst_ops := make(map[uint64]*rsa.PublicKey)
-	for _, op := range ops {
-		inst_ops[op.ID] = op.PubKey
-	}
-	return func(id uint64, msg []byte, sig []byte) error {
-		pk, ok := inst_ops[id]
-		if !ok {
-			return fmt.Errorf("cant find operator, was it provided at operators information file %d", id)
+func standardMessageVerification(ops Operators) func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
+	return func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
+		op := ops.ByPubKey(pk)
+
+		if op == nil {
+			encodedPk, _ := crypto.EncodeRSAPublicKey(pk)
+			return fmt.Errorf("cant find operator participating at DKG %s", string(encodedPk))
 		}
+
 		return crypto.VerifyRSA(pk, msg, sig)
 	}
 }
@@ -42,15 +41,19 @@ func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 		}
 		signedBytes, err := tsp.Message.MarshalSSZ()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to marshal message: %w", err)
 		}
 		// Verify that incoming messages have valid DKG ceremony ID
 		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
 			return fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
 		}
 		// Verification operator signatures
-		if err := verify(tsp.Signer, signedBytes, tsp.Signature); err != nil {
-			return err
+		pk, err := crypto.ParseRSAPublicKey(tsp.Signer)
+		if err != nil {
+			return fmt.Errorf("failed to parse RSA key: %w", err)
+		}
+		if err := verify(pk, signedBytes, tsp.Signature); err != nil {
+			return fmt.Errorf("failed to verify RSA signature: %w", err)
 		}
 	}
 	return errs

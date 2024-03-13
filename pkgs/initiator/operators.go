@@ -1,6 +1,7 @@
 package initiator
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,24 @@ type Operators []Operator
 func (o Operators) ByID(id uint64) *Operator {
 	for _, op := range o {
 		if op.ID == id {
+			return &op
+		}
+	}
+	return nil
+}
+
+func (o Operators) ByPubKey(pk *rsa.PublicKey) *Operator {
+	encodedPk, err := crypto.EncodeRSAPublicKey(pk)
+	if err != nil {
+		return nil
+	}
+
+	for _, op := range o {
+		opPK, err := crypto.EncodeRSAPublicKey(op.PubKey)
+		if err != nil {
+			return nil
+		}
+		if bytes.Equal(opPK, encodedPk) {
 			return &op
 		}
 	}

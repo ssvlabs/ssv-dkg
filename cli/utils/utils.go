@@ -21,7 +21,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // global base flags
@@ -36,15 +35,14 @@ var (
 
 // init flags
 var (
-	OperatorsInfo                     string
-	OperatorsInfoPath                 string
-	OperatorIDs                       []string
-	GenerateInitiatorKeyIfNotExisting bool
-	WithdrawAddress                   common.Address
-	Network                           string
-	OwnerAddress                      common.Address
-	Nonce                             uint64
-	Validators                        uint64
+	OperatorsInfo     string
+	OperatorsInfoPath string
+	OperatorIDs       []string
+	WithdrawAddress   common.Address
+	Network           string
+	OwnerAddress      common.Address
+	Nonce             uint64
+	Validators        uint64
 )
 
 // operator flags
@@ -291,7 +289,6 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
-	GenerateInitiatorKeyIfNotExisting = viper.GetBool("generateInitiatorKeyIfNotExisting")
 	return nil
 }
 
@@ -375,60 +372,7 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	return operators, nil
 }
 
-// LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
-func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
-	var privateKey *rsa.PrivateKey
-	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", OutputPath)
-	privKeyPassPath := fmt.Sprintf("%s/initiator_password", OutputPath)
-	if generate {
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			_, priv, err := rsaencryption.GenerateKeys()
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-			}
-			if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-				password, err := crypto.GenerateSecurePassword()
-				if err != nil {
-					return nil, err
-				}
-				err = os.WriteFile(privKeyPassPath, []byte(password), 0o600)
-				if err != nil {
-					return nil, err
-				}
-			}
-			keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-			}
-			encryptedRSAJSON, err := crypto.EncryptRSAKeystore(priv, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-			}
-			privateKey, err = crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-			}
-			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o600)
-			if err != nil {
-				return nil, err
-			}
-		} else if err == nil {
-			return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
-		}
-	} else {
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 private key file: %s", err)
-		}
-		if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 password file: %s", err)
-		}
-		return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
-	}
-	return privateKey, nil
-}
-
-func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
+func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
 	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -457,22 +401,24 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 			logger.Error("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 			return fmt.Errorf("failed writing keyshares file: %w", err)
 		}
-		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir)
+		logger.Info("💾 Writing proofs to file", zap.String("path", nestedDir))
+		err = WriteProofs(proofs[i], nestedDir)
 		if err != nil {
-			logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
-			return fmt.Errorf("failed writing ceremony sig file: %w", err)
+			logger.Error("Failed writing proofs file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("proof", proofs[i]))
+			return fmt.Errorf("failed writing proofs file: %w", err)
 		}
 	}
 	// if there is only one Validator, do not create summary files
 	if Validators > 1 {
-		if err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, ceremonySigsArr, logger); err != nil {
-			return fmt.Errorf("failed writing aggregated results: %w", err)
+		err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, proofs, logger)
+		if err != nil {
+			logger.Fatal("Failed writing aggregated results: ", zap.Error(err))
 		}
 	}
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -492,11 +438,10 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositD
 		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		return err
 	}
-	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
-
-	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
+	proofsFinalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	err = utils.WriteJSON(proofsFinalPath, proofs)
 	if err != nil {
-		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
+		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", proofsFinalPath), zap.Any("proofs", proofs))
 		return err
 	}
 
@@ -522,11 +467,11 @@ func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error
 	return nil
 }
 
-func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
-	finalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
-	err := utils.WriteJSON(finalPath, ceremonySigs)
+func WriteProofs(proofs []*initiator.SignedProof, dir string) error {
+	finalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
-		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
+		return fmt.Errorf("failed writing data file: %w, %v", err, proofs)
 	}
 	return nil
 }

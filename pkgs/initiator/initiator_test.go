@@ -20,7 +20,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 var jsonStr = []byte(`[
@@ -65,14 +64,11 @@ func TestStartDKG(t *testing.T) {
 		initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey},
 		initiator.Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey},
 	)
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-	require.NoError(t, err)
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		intr := initiator.New(priv, ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "v1.0.2")
+		require.NoError(t, err)
 		id := crypto.NewID()
 		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
@@ -82,19 +78,22 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		intr := initiator.New(priv, ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "v1.0.2")
+		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: < 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		intr := initiator.New(priv, ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "v1.0.2")
+		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: > 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		intr := initiator.New(priv, ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "v1.0.2")
+		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
