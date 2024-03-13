@@ -21,7 +21,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // global base flags
@@ -371,59 +370,6 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
 	return operators, nil
-}
-
-// LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
-func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
-	var privateKey *rsa.PrivateKey
-	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", OutputPath)
-	privKeyPassPath := fmt.Sprintf("%s/initiator_password", OutputPath)
-	if generate {
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			_, priv, err := rsaencryption.GenerateKeys()
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-			}
-			if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-				password, err := crypto.GenerateSecurePassword()
-				if err != nil {
-					return nil, err
-				}
-				err = os.WriteFile(privKeyPassPath, []byte(password), 0o600)
-				if err != nil {
-					return nil, err
-				}
-			}
-			keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-			}
-			encryptedRSAJSON, err := crypto.EncryptRSAKeystore(priv, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-			}
-			privateKey, err = crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-			}
-			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o600)
-			if err != nil {
-				return nil, err
-			}
-		} else if err == nil {
-			return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
-		}
-	} else {
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 private key file: %s", err)
-		}
-		if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 password file: %s", err)
-		}
-		return crypto.OpenRSAKeystore(privKeyPath, privKeyPassPath)
-	}
-	return privateKey, nil
 }
 
 func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {

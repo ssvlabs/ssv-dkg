@@ -67,25 +67,6 @@ func (ts *testState) ForAll(f func(o *LocalOwner) error) error {
 	}
 	return nil
 }
-func (ts *testState) ForNew(f func(o *LocalOwner) error, newOps []*wire2.Operator) error {
-	for _, op := range newOps {
-		newOp := ts.ops[op.ID]
-		if err := f(newOp); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operator) error {
-	for _, op := range oldOps {
-		newOp := ts.ops[op.ID]
-		if err := f(newOp); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 	pv, pk, err := crypto.GenerateRSAKeys()
@@ -124,35 +105,6 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 	}, pv
 }
 
-func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
-	id := owner.ID
-	ts.tv.Add(id, owner.OperatorPublicKey)
-	sign := func(d []byte) ([]byte, error) {
-		return owner.signFunc(d)
-	}
-	ver := ts.tv.Verify
-	logger, _ := zap.NewDevelopment()
-	logger = logger.With(zap.Uint64("id", id))
-	return &LocalOwner{
-		Logger:    logger,
-		ID:        id,
-		Suite:     kyber_bls.NewBLS12381Suite(),
-		exchanges: make(map[uint64]*wire2.Exchange),
-		broadcastF: func(bytes []byte) error {
-			return ts.Broadcast(id, bytes)
-		},
-		signFunc:           sign,
-		verifyFunc:         ver,
-		encryptFunc:        owner.encryptFunc,
-		decryptFunc:        owner.decryptFunc,
-		InitiatorPublicKey: ts.ipk,
-		OperatorPublicKey:  owner.OperatorPublicKey,
-		done:               make(chan struct{}, 1),
-		startedDKG:         make(chan struct{}, 1),
-	}
-
-}
-
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
 	_, initatorPk, err := crypto.GenerateRSAKeys()
@@ -164,12 +116,10 @@ func TestDKGInit(t *testing.T) {
 		tv:      newTestVerify(),
 		ipk:     initatorPk,
 	}
-	var ids []uint64
 	for i := 1; i < 5; i++ {
 		op, priv := NewTestOperator(ts, uint64(i))
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
-		ids = append(ids, op.ID)
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
