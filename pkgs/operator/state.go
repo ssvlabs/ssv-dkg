@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"sync"
 	"time"
@@ -390,33 +389,18 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	// store deposit result
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	dir := fmt.Sprintf("%s/ceremony-%s", cli_utils.OutputPath, timestamp)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err = os.Mkdir(dir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
+
+	// Assuming depJson, ksJson, and ceremonySigs can be singular instances based on your logic
 	var depJson *initiator.DepositDataCLI
 	if len(resData.DepositData) != 0 {
 		err = json.Unmarshal(resData.DepositData, &depJson)
 		if err != nil {
 			return err
 		}
-		err = cli_utils.WriteDepositResult(depJson, dir)
-		if err != nil {
-			return err
-		}
 	}
-	// store keyshares result
+
 	var ksJson *initiator.KeyShares
 	err = json.Unmarshal(resData.KeysharesData, &ksJson)
-	if err != nil {
-		return err
-	}
-	err = cli_utils.WriteKeysharesResult(ksJson, dir)
 	if err != nil {
 		return err
 	}
@@ -426,11 +410,13 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	err = cli_utils.WriteCeremonySigs(ceremonySigs, dir)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	// Wrap singular instances in slices for correct parameter passing
+	depositDataArr := []*initiator.DepositDataCLI{depJson}
+	keySharesArr := []*initiator.KeyShares{ksJson}
+	ceremonySigsArr := []*initiator.CeremonySigs{ceremonySigs}
+
+	return cli_utils.WriteResults(depositDataArr, keySharesArr, ceremonySigsArr, s.Logger)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
