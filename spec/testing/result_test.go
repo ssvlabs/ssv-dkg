@@ -32,6 +32,30 @@ func TestValidateResults(t *testing.T) {
 			fixtures.Results7Operators(),
 		))
 	})
+
+	t.Run("valid 10 operators", func(t *testing.T) {
+		require.NoError(t, spec.ValidateResults(
+			fixtures.GenerateOperators(10),
+			fixtures.TestWithdrawalCred,
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			fixtures.Results10Operators(),
+		))
+	})
+
+	t.Run("valid 13 operators", func(t *testing.T) {
+		require.NoError(t, spec.ValidateResults(
+			fixtures.GenerateOperators(13),
+			fixtures.TestWithdrawalCred,
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			fixtures.Results13Operators(),
+		))
+	})
 }
 
 func TestValidateResult(t *testing.T) {
@@ -71,7 +95,6 @@ func TestValidateResult(t *testing.T) {
 		))
 	})
 
-	recompute proof sigs
 	t.Run("valid 10 operators", func(t *testing.T) {
 		require.NoError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(10),

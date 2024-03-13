@@ -132,15 +132,15 @@ func TestSignDeposit(t *testing.T) {
 
 func TestProof(t *testing.T) {
 	proof := &spec.Proof{
-		ValidatorPubKey: ShareSK(TestValidator7Operators).GetPublicKey().Serialize(),
-		EncryptedShare:  DecodeHexNoError(TestValidator7OperatorsEncShare7),
-		SharePubKey:     ShareSK(TestValidator7OperatorsShare7).GetPublicKey().Serialize(),
+		ValidatorPubKey: ShareSK(TestValidator13Operators).GetPublicKey().Serialize(),
+		EncryptedShare:  DecodeHexNoError(TestValidator13OperatorsEncShare13),
+		SharePubKey:     ShareSK(TestValidator13OperatorsShare13).GetPublicKey().Serialize(),
 		Owner:           TestOwnerAddress,
 	}
 
 	r, _ := proof.HashTreeRoot()
 
-	sig, err := crypto.SignRSA(OperatorSK(TestOperator7SK), r[:])
+	sig, err := crypto.SignRSA(OperatorSK(TestOperator13SK), r[:])
 	require.NoError(t, err)
 	fmt.Printf("%x\n", sig)
 }
