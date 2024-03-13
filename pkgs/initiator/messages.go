@@ -10,9 +10,24 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-// VerifyMessageSignatures verifies incoming to initiator messages from operators.
+// standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
+func standardMessageVerification(ops Operators) func(id uint64, msg []byte, sig []byte) error {
+	inst_ops := make(map[uint64]*rsa.PublicKey)
+	for _, op := range ops {
+		inst_ops[op.ID] = op.PubKey
+	}
+	return func(id uint64, msg []byte, sig []byte) error {
+		pk, ok := inst_ops[id]
+		if !ok {
+			return fmt.Errorf("cant find operator, was it provided at operators information file %d", id)
+		}
+		return crypto.VerifyRSA(pk, msg, sig)
+	}
+}
+
+// verifyMessageSignatures verifies incoming to initiator messages from operators.
 // Incoming message from operator should have same DKG ceremony ID and a valid signature
-func VerifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessageSignature) error {
+func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessageSignatureFunc) error {
 	var errs error
 	for i := 0; i < len(messages); i++ {
 		msg := messages[i]
@@ -41,8 +56,8 @@ func VerifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 	return errs
 }
 
-// MakeMultipleSignedTransports creates a one combined message from operators with initiator signature
-func MakeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messages [][]byte) (*wire.MultipleSignedTransports, error) {
+// makeMultipleSignedTransports creates a one combined message from operators with initiator signature
+func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messages [][]byte) (*wire.MultipleSignedTransports, error) {
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
