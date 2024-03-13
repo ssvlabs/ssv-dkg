@@ -20,11 +20,18 @@ type Operator struct {
 // Operators mapping storage for operator structs [ID]operator
 type Operators []Operator
 
-func (o Operators) Clone() Operators {
-	clone := make(Operators)
-	for k, v := range o {
-		clone[k] = v
+func (o Operators) ByID(id uint64) *Operator {
+	for _, op := range o {
+		if op.ID == id {
+			return &op
+		}
 	}
+	return nil
+}
+
+func (o Operators) Clone() Operators {
+	clone := make(Operators, len(o))
+	copy(clone, o)
 	return clone
 }
 

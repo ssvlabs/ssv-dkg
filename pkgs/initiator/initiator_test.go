@@ -115,7 +115,7 @@ func TestLoadOperators(t *testing.T) {
 		require.True(t, ops[2].PubKey.Equal(key3), "pubkey not equal")
 	})
 	t.Run("test wrong pub key encoding", func(t *testing.T) {
-		var ops initiator.Operator
+		var ops initiator.Operators
 		err := json.Unmarshal([]byte(`[
       {
         "id": 1,
@@ -308,8 +308,8 @@ func TestRemoveTrailSlash(t *testing.T) {
 	err := json.Unmarshal(jsonStr, &ops)
 
 	require.Nil(t, err)
-	require.Equal(t, "http://localhost:3030", ops[1].Addr)
-	require.Equal(t, "http://localhost:3031", ops[2].Addr)
+	require.Equal(t, "http://localhost:3030", ops[0].Addr)
+	require.Equal(t, "http://localhost:3031", ops[1].Addr)
 }
 
 func TestDepositDataSigningAndVerification(t *testing.T) {

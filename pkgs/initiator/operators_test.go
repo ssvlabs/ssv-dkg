@@ -59,8 +59,17 @@ func TestOperatorsEncoding(t *testing.T) {
 	ops := Operators{}
 	err := json.Unmarshal(inputJSON, &ops)
 	require.NoError(t, err)
-	require.Len(t, ops, 4)
-	require.Equal(t, input, ops)
+	require.Len(t, ops, len(input))
+	for i := range ops {
+		require.Equal(t, input[i], ops[i])
+
+		b1, err := crypto.EncodeRSAPublicKey(ops[i].PubKey)
+		require.NoError(t, err)
+		b2, err := crypto.EncodeRSAPublicKey(input[i].PubKey)
+		require.NoError(t, err)
+		require.Equal(t, b1, b2)
+	}
+	require.NotEqual(t, input[0], ops[1]) // Sanity check
 
 	// Test encoding
 	encoded, err := json.Marshal(ops)

@@ -235,23 +235,27 @@ func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
 }
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
-	resc := make(chan opReqResult, len(operatorsIDs))
-	for _, op := range operatorsIDs {
-		go func(operator Operator) {
-			res, err := c.SendAndCollect(operator, method, msg)
+func (c *Initiator) SendToAll(method string, msg []byte, operators []*wire.Operator) ([][]byte, error) {
+	resc := make(chan opReqResult, len(operators))
+	for _, wireOp := range operators {
+		operator := c.Operators.ByID(wireOp.ID)
+		if operator == nil {
+			return nil, fmt.Errorf("operator ID: %d not found in operators list", wireOp.ID)
+		}
+		go func() {
+			res, err := c.SendAndCollect(*operator, method, msg)
 			resc <- opReqResult{
 				operatorID: operator.ID,
 				err:        err,
 				result:     res,
 			}
-		}(c.Operators[op.ID])
+		}()
 	}
-	final := make([][]byte, 0, len(operatorsIDs))
+	final := make([][]byte, 0, len(operators))
 
 	errarr := make([]error, 0)
 
-	for i := 0; i < len(operatorsIDs); i++ {
+	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {
 			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
@@ -294,8 +298,8 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 	ops := make([]*wire.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
 	for i, id := range ids {
-		op, ok := operators[id]
-		if !ok {
+		op := operators.ByID(id)
+		if op == nil {
 			return nil, errors.New("operator is not in given operator data list")
 		}
 		_, exist := opMap[id]
