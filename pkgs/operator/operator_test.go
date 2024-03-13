@@ -44,7 +44,7 @@ func TestRateLimit(t *testing.T) {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
-	initPubBytes, err := crypto.EncodePublicKey(pubKey)
+	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
 		ops := make(map[uint64]initiator.Operator)
@@ -56,7 +56,7 @@ func TestRateLimit(t *testing.T) {
 			if !ok {
 				t.Fatalf("no op")
 			}
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
@@ -190,7 +190,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		for _, id := range ids {
 			op, ok := c.Operators[id]
 			require.True(t, ok)
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
@@ -202,9 +202,9 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		newPriv, err := rsaencryption.ConvertPemToPrivateKey(string(newPv))
 		require.NoError(t, err)
-		wrongPub, err := crypto.EncodePublicKey(&newPriv.PublicKey)
+		wrongPub, err := crypto.EncodeRSAPublicKey(&newPriv.PublicKey)
 		require.NoError(t, err)
-		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		encPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
@@ -252,16 +252,16 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		for _, id := range ids {
 			op, ok := c.Operators[id]
 			require.True(t, ok)
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
-		wrongPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		wrongPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		encPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
@@ -398,7 +398,7 @@ func TestRecoverSharesData(t *testing.T) {
 		// Find operator ID by PubKey
 		var operatorID uint64
 		for _, op := range ks.Shares[0].Operators {
-			b, err := crypto.EncodePublicKey(&priv.PublicKey)
+			b, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
 			if bytes.Equal(b, []byte(op.OperatorKey)) {
 				operatorID = op.ID

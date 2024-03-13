@@ -93,7 +93,7 @@ func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operato
 }
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
-	pv, pk, err := crypto.GenerateKeys()
+	pv, pk, err := crypto.GenerateRSAKeys()
 	if err != nil {
 		ts.T.Error(err)
 	}
@@ -162,7 +162,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
-	_, initatorPk, err := crypto.GenerateKeys()
+	_, initatorPk, err := crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	ts := &testState{
 		T:       t,
@@ -180,14 +180,14 @@ func TestDKGInit(t *testing.T) {
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
-		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
+		pktobytes, err := crypto.EncodeRSAPublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &wire2.Operator{
 			ID:     id,
 			PubKey: pktobytes,
 		})
 	}
-	encodedInitiatorPk, err := crypto.EncodePublicKey(initatorPk)
+	encodedInitiatorPk, err := crypto.EncodeRSAPublicKey(initatorPk)
 	require.NoError(t, err)
 	// sort ops
 	sort.SliceStable(opsarr, func(i, j int) bool {
@@ -244,7 +244,7 @@ func TestDKGInit(t *testing.T) {
 	var sharesData []byte
 	sharesData = append(sharesData, pubkeys...)
 	sharesData = append(sharesData, encShares...)
-	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ids, ssvContractOwnerNonceSigShares)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverBLSSignature(ids, ssvContractOwnerNonceSigShares)
 	require.NoError(t, err)
 	var sharesDataSigned []byte
 	sharesDataSigned = append(sharesDataSigned, reconstructedOwnerNonceMasterSig.Serialize()...)

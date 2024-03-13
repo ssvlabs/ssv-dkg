@@ -26,7 +26,7 @@ func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
 
 func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.Operator) {
 	privateKey := singleOperatorKeys(t)
-	pkbytes, err := crypto.EncodePublicKey(&privateKey.PublicKey)
+	pkbytes, err := crypto.EncodeRSAPublicKey(&privateKey.PublicKey)
 	require.NoError(t, err)
 
 	ops := make([]*wire.Operator, numOps)
@@ -38,7 +38,7 @@ func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.O
 
 	for i := 1; i <= numOps-1; i++ {
 		priv := singleOperatorKeys(t)
-		oppkbytes, err := crypto.EncodePublicKey(&priv.PublicKey)
+		oppkbytes, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 		require.NoError(t, err)
 		ops[i] = &wire.Operator{
 			ID:     uint64(i + 1),
@@ -55,7 +55,7 @@ func TestCreateInstance(t *testing.T) {
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-		pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+		pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 		require.NoError(t, err)
 		s := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 		var reqID [24]byte
@@ -64,7 +64,7 @@ func TestCreateInstance(t *testing.T) {
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+		encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 		require.NoError(t, err)
 
 		init := &wire.Init{
@@ -106,7 +106,7 @@ func TestInitInstance(t *testing.T) {
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
@@ -116,7 +116,7 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+	encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
 	init := &wire.Init{
 		// Populate the Init message fields as needed for testing
@@ -184,7 +184,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, []byte("v1.0.2"), pkBytes, 1)
 	var reqID [24]byte
@@ -193,7 +193,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	encPubKey, err := crypto.EncodePublicKey(&priv.PublicKey)
+	encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
 
 	init := &wire.Init{

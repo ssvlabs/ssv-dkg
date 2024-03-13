@@ -124,7 +124,7 @@ func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner c
 		return nil, err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ids, ssvContractOwnerNoncePartialSigs)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverBLSSignature(ids, ssvContractOwnerNoncePartialSigs)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (c *Initiator) generateSSVKeysharesPayload(dkgResults []dkg.Result, owner c
 		pubkeys = append(pubkeys, dkgResults[i].SharePubKey...)
 		encryptedShares = append(encryptedShares, dkgResults[i].EncryptedShare...)
 
-		encPubKey, err := crypto.EncodePublicKey(dkgResults[i].PubKeyRSA)
+		encPubKey, err := crypto.EncodeRSAPublicKey(dkgResults[i].PubKeyRSA)
 		if err != nil {
 			return nil, err
 		}
@@ -398,7 +398,7 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		}
 		opMap[id] = struct{}{}
 
-		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+		pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
@@ -488,7 +488,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []dkg.Result, ini
 		return nil, fmt.Errorf("incoming validator pub key is not equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(ids, shareSigs)
+	reconstructedDepositMasterSig, err := crypto.RecoverBLSSignature(ids, shareSigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
@@ -524,7 +524,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 
-	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -889,7 +889,7 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.ParseRSAPubkey(pong.PubKey)
+	pub, err := crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
 		return err
 	}
@@ -912,7 +912,7 @@ func (c *Initiator) getCeremonySigs(dkgResults []dkg.Result) (*CeremonySigs, err
 		sigsBytes = append(sigsBytes, dkgResults[i].CeremonySig...)
 	}
 	ceremonySigs.Sigs = hex.EncodeToString(sigsBytes)
-	encInitPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	encInitPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}

@@ -514,7 +514,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error)
 }
 
 func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error) {
-	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	encInitPub, err := crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
 	if err != nil {
 		return nil, err
 	}
