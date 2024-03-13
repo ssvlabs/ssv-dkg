@@ -170,10 +170,13 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
-	ops = append(ops, initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
+	ops = append(
+		ops,
+		initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
+	)
 	t.Run("test wrong pub key in init message", func(t *testing.T) {
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)

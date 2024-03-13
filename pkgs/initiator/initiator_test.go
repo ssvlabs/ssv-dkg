@@ -58,10 +58,13 @@ func TestStartDKG(t *testing.T) {
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
-	ops = append(ops, initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey})
-	ops = append(ops, initiator.Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey})
+	ops = append(
+		ops,
+		initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey},
+		initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey},
+		initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey},
+		initiator.Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey},
+	)
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
