@@ -386,8 +386,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-
-	// Assuming depJson, ksJson, and ceremonySigs can be singular instances based on your logic
+	// Assuming depJson, ksJson, and proofs can be singular instances based on your logic
 	var depJson *initiator.DepositDataCLI
 	if len(resData.DepositData) != 0 {
 		err = json.Unmarshal(resData.DepositData, &depJson)
@@ -395,17 +394,21 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 			return err
 		}
 	}
-
 	var ksJson *initiator.KeyShares
 	err = json.Unmarshal(resData.KeysharesData, &ksJson)
+	if err != nil {
+		return err
+	}
+	var proof []*initiator.SignedProof
+	err = json.Unmarshal(resData.Proofs, &proof)
 	if err != nil {
 		return err
 	}
 	// Wrap singular instances in slices for correct parameter passing
 	depositDataArr := []*initiator.DepositDataCLI{depJson}
 	keySharesArr := []*initiator.KeyShares{ksJson}
-
-	return cli_utils.WriteResults(depositDataArr, keySharesArr, nil, s.Logger)
+	proofsArr := [][]*initiator.SignedProof{proof}
+	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, s.Logger)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {

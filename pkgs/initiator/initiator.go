@@ -493,7 +493,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*wire.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*SignedProof, error) {
 
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
@@ -547,21 +547,34 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var proofsArray []*wire.SignedProof
+	var proofs []*SignedProof
 	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &res.SignedProof)
+		proofs = append(proofs, &SignedProof{
+			Proof: &Proof{
+				ValidatorPubKey: hex.EncodeToString(res.SignedProof.Proof.ValidatorPubKey),
+				EncryptedShare:  hex.EncodeToString(res.SignedProof.Proof.EncryptedShare),
+				SharePubKey:     hex.EncodeToString(res.SignedProof.Proof.SharePubKey),
+				Owner:           hex.EncodeToString(res.SignedProof.Proof.Owner[:]),
+			},
+			Signature: hex.EncodeToString(res.SignedProof.Signature),
+		})
+	}
+	proofsData, err := json.Marshal(proofs)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
 		Operators:     ops,
 		Identifier:    id,
 		DepositData:   depositData,
 		KeysharesData: keysharesData,
+		Proofs:        proofsData,
 	}
 	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
 	}
-	return depositDataJson, keyshares, proofsArray, nil
+	return depositDataJson, keyshares, proofs, nil
 }
 
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
