@@ -155,7 +155,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.EncodePublicKey(o.OperatorPublicKey)
+	pub, err := crypto.EncodeRSAPublicKey(o.OperatorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -471,7 +471,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error)
 }
 
 func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error) {
-	encInitPub, err := crypto.EncodePublicKey(o.InitiatorPublicKey)
+	encInitPub, err := crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
 	if err != nil {
 		return nil, err
 	}

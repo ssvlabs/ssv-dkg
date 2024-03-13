@@ -111,7 +111,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgR
 		return nil, err
 	}
 	// Recover and verify Master Signature for SSV contract owner+nonce
-	reconstructedOwnerNonceMasterSig, err := crypto.RecoverMasterSig(ids, ssvContractOwnerNoncePartialSigs)
+	reconstructedOwnerNonceMasterSig, err := crypto.RecoverBLSSignature(ids, ssvContractOwnerNoncePartialSigs)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func New(operatorMap Operators, logger *zap.Logger, ver string) (*Initiator, err
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	priv, _, err := crypto.GenerateKeys()
+	priv, _, err := crypto.GenerateRSAKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
@@ -379,7 +379,7 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 		}
 		opMap[id] = struct{}{}
 
-		pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+		pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
@@ -464,7 +464,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 		return nil, fmt.Errorf("incoming validator pub key is not equal recovered from shares: want %x, got %x", validatorRecoveredPK.Serialize(), validatorPubKey.Serialize())
 	}
 	// 2. Recover master signature from shares
-	reconstructedDepositMasterSig, err := crypto.RecoverMasterSig(ids, shareSigs)
+	reconstructedDepositMasterSig, err := crypto.RecoverBLSSignature(ids, shareSigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
@@ -500,7 +500,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 
-	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -569,7 +569,7 @@ func CreateVerifyFunc(ops Operators) func(pub, msg []byte, sig []byte) error {
 	return func(pub, msg []byte, sig []byte) error {
 		var ok bool
 		for _, op := range ops {
-			opPubKeyEnc, err := crypto.EncodePublicKey(op.PubKey)
+			opPubKeyEnc, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			if err != nil {
 				return err
 			}
@@ -583,7 +583,7 @@ func CreateVerifyFunc(ops Operators) func(pub, msg []byte, sig []byte) error {
 		if !ok {
 			return fmt.Errorf("cant find operator participating at DKG %x", pub)
 		}
-		rsaPub, err := crypto.ParseRSAPubkey(pub)
+		rsaPub, err := crypto.ParseRSAPublicKey(pub)
 		if err != nil {
 			return err
 		}
@@ -817,7 +817,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 	if err != nil {
 		return nil, err
 	}
-	pub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	pub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -874,7 +874,7 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.ParseRSAPubkey(pong.PubKey)
+	pub, err := crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
 		return err
 	}

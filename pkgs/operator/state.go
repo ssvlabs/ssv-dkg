@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"sync"
 	"time"
@@ -46,7 +45,7 @@ type instWrapper struct {
 
 // VerifyInitiatorMessage verifies initiator message signature
 func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
-	pubKey, err := crypto.EncodePublicKey(iw.InitiatorPublicKey)
+	pubKey, err := crypto.EncodeRSAPublicKey(iw.InitiatorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -148,9 +147,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, s
 	return func(pub, msg []byte, sig []byte) error {
 		var ok bool
 		for _, op := range ops {
-			if !bytes.Equal(op.PubKey, pub) {
-				continue
-			} else {
+			if bytes.Equal(op.PubKey, pub) {
 				ok = true
 				break
 			}
@@ -158,7 +155,7 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, s
 		if !ok {
 			return fmt.Errorf("cant find operator participating at DKG %x", pub)
 		}
-		rsaPub, err := crypto.ParseRSAPubkey(pub)
+		rsaPub, err := crypto.ParseRSAPublicKey(pub)
 		if err != nil {
 			return err
 		}
@@ -195,7 +192,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, err
 	}
 	// Check that incoming message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPubkey(initiatorPub)
+	initiatorPubKey, err := crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
 	}
@@ -389,37 +386,26 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	// store deposit result
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	dir := fmt.Sprintf("%s/ceremony-%s", cli_utils.OutputPath, timestamp)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err = os.Mkdir(dir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
+
+	// Assuming depJson, ksJson, and ceremonySigs can be singular instances based on your logic
 	var depJson *initiator.DepositDataCLI
 	if len(resData.DepositData) != 0 {
 		err = json.Unmarshal(resData.DepositData, &depJson)
 		if err != nil {
 			return err
 		}
-		err = cli_utils.WriteDepositResult(depJson, dir)
-		if err != nil {
-			return err
-		}
 	}
-	// store keyshares result
+
 	var ksJson *initiator.KeyShares
 	err = json.Unmarshal(resData.KeysharesData, &ksJson)
 	if err != nil {
 		return err
 	}
-	err = cli_utils.WriteKeysharesResult(ksJson, dir)
-	if err != nil {
-		return err
-	}
-	return nil
+	// Wrap singular instances in slices for correct parameter passing
+	depositDataArr := []*initiator.DepositDataCLI{depJson}
+	keySharesArr := []*initiator.KeyShares{ksJson}
+
+	return cli_utils.WriteResults(depositDataArr, keySharesArr, nil, s.Logger)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
@@ -433,7 +419,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 			return 0, err
 		}
 		// Check that incoming message signature is valid
-		initiatorPubKey, err = crypto.ParseRSAPubkey(ping.InitiatorPublicKey)
+		initiatorPubKey, err = crypto.ParseRSAPublicKey(ping.InitiatorPublicKey)
 		if err != nil {
 			return 0, err
 		}

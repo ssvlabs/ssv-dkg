@@ -31,7 +31,7 @@ func (tv *testVerify) Add(id uint64, pk *rsa.PublicKey) {
 }
 
 func (tv *testVerify) Verify(pub, msg, sig []byte) error {
-	p, err := crypto.ParseRSAPubkey(pub)
+	p, err := crypto.ParseRSAPublicKey(pub)
 	if err != nil {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (ts *testState) ForOld(f func(o *LocalOwner) error, oldOps []*wire2.Operato
 }
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
-	pv, pk, err := crypto.GenerateKeys()
+	pv, pk, err := crypto.GenerateRSAKeys()
 	if err != nil {
 		ts.T.Error(err)
 	}
@@ -155,7 +155,7 @@ func AddExistingOperator(ts *testState, owner *LocalOwner) *LocalOwner {
 
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
-	_, initatorPk, err := crypto.GenerateKeys()
+	_, initatorPk, err := crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	ts := &testState{
 		T:       t,
@@ -173,7 +173,7 @@ func TestDKGInit(t *testing.T) {
 	}
 	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
-		pktobytes, err := crypto.EncodePublicKey(ts.tv.ops[id])
+		pktobytes, err := crypto.EncodeRSAPublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &wire2.Operator{
 			ID:     id,

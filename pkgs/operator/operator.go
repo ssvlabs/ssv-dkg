@@ -143,7 +143,7 @@ func RegisterRoutes(s *Server) {
 func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	if err != nil {
 		return nil, err
 	}
