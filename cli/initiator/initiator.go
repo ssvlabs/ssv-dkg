@@ -13,6 +13,7 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const (
@@ -76,7 +77,7 @@ var StartDKG = &cobra.Command{
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the ceremony.
-				depositData, keyShares, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}
@@ -90,6 +91,7 @@ var StartDKG = &cobra.Command{
 					depositData: depositData,
 					keyShares:   keyShares,
 					nonce:       nonce,
+					proof: proofs,
 				}, nil
 			})
 		}
@@ -100,14 +102,16 @@ var StartDKG = &cobra.Command{
 		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
 		var nonces []uint64
+		var proofs [][]*wire.SignedProof
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			nonces = append(nonces, res.nonce)
+			proofs = append(proofs, res.proof)
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		cli_utils.WriteInitResults(depositDataArr, keySharesArr, nonces, logger)
+		cli_utils.WriteInitResults(depositDataArr, keySharesArr, proofs, nonces, logger)
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  
 		▒██▀ ██▌▓██▒▒██    ▒ ▒██▀ ▀█  ▓██▒   ▒████▄    ▓██▒▓██▒▀█▀ ██▒▓█   ▀ ▓██ ▒ ██▒
@@ -133,4 +137,5 @@ type Result struct {
 	nonce       uint64
 	depositData *initiator.DepositDataCLI
 	keyShares   *initiator.KeyShares
+	proof       []*wire.SignedProof
 }

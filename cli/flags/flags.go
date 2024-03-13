@@ -28,7 +28,6 @@ const (
 	logFilePath                       = "logFilePath"
 	validators                        = "validators"
 	operatorID                        = "operatorID"
-	keysharesFilePath                 = "keysharesFilePath"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -123,10 +122,6 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
-}
-
-func KeysharesFilePathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, keysharesFilePath, "", "Path to keyshares json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

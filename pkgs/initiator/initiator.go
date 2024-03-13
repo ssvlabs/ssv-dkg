@@ -493,16 +493,16 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*wire.SignedProof, error) {
 
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	instanceIDField := zap.String("init ID", hex.EncodeToString(id[:]))
@@ -523,29 +523,33 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 
 	dkgResultsBytes, err := c.messageFlowHandling(init, id, ops)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
 	depositDataJson, keyshares, err := c.processDKGResultResponseInitial(dkgResults, init)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
 	if err := ValidateDepositDataCLI(depositDataJson); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// sending back to operators results
 	depositData, err := json.Marshal(depositDataJson)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	keysharesData, err := json.Marshal(keyshares)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+	var proofsArray []*wire.SignedProof
+	for _, res := range dkgResults {
+		proofsArray = append(proofsArray, &res.SignedProof)
 	}
 	resultMsg := &wire.ResultData{
 		Operators:     ops,
@@ -555,9 +559,9 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
+		return nil, nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
 	}
-	return depositDataJson, keyshares, nil
+	return depositDataJson, keyshares, proofsArray, nil
 }
 
 // CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
@@ -678,7 +682,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			continue
 		}
 		if !bytes.Equal(result.RequestID[:], id[:]) {
-			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID "))
+			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
 			continue
 		}
 		dkgResults = append(dkgResults, result)
@@ -814,6 +818,9 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 		return nil, err
 	}
 	pub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
 	// Create the transport message
 	transportMsg := &wire.Transport{
 		Type:       msgType,
@@ -876,21 +883,6 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	return nil
-}
-
-func getValPubsAtKeysharesFile(ks *KeyShares) ([]byte, error) {
-	valPub, err := hex.DecodeString(ks.Shares[0].PublicKey[2:])
-	if err != nil {
-		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
-	}
-	valPubPayload, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-	if err != nil {
-		return nil, fmt.Errorf("cant decode validator pub at keyshares file: %w", err)
-	}
-	if !bytes.Equal(valPub, valPubPayload) {
-		return nil, fmt.Errorf("validator pub key defers at keyshares file, shares %s, payload %s", ks.Shares[0].PublicKey, ks.Shares[0].Payload.PublicKey)
-	}
-	return valPub, nil
 }
 
 func ValidateDepositDataCLI(d *DepositDataCLI) error {

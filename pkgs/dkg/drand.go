@@ -156,6 +156,9 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 		return err
 	}
 	pub, err := crypto.EncodePublicKey(o.OperatorPublicKey)
+	if err != nil {
+		return err
+	}
 	signed := &wire.SignedTransport{
 		Message:   ts,
 		Signer:    pub,

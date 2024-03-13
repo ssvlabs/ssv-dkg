@@ -156,4 +156,5 @@ type ResultData struct {
 	Identifier    [24]byte `ssz-size:"24"`
 	DepositData   []byte   `ssz-max:"8192"`
 	KeysharesData []byte   `ssz-max:"32768"`
+	Proofs        []byte   `ssz-max:"32768"`
 }

@@ -212,6 +212,9 @@ This will create `initiator_encrypted_key.json` with encrypted by password RSA k
 
 </details>
 
+#### Caution for Windows Users
+Due to Windows operating system's [limitation](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry) on handling file paths exceeding 260 characters, please verify the length of output file paths to avoid potential issues, as this could render them inaccessible.
+
 #### Build from source
 
 To build from source you'll need to have Go version 1.20 installed on your system

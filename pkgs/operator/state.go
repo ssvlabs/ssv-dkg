@@ -183,7 +183,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
 	if !bytes.Equal(initMsg.Version, s.Version) {
-		return nil, utils.ErrVersion
+		return nil, fmt.Errorf("wrong version: remote %s local %s", initMsg.Version, s.Version)
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
@@ -294,6 +294,84 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	return resp, nil
 }
 
+func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
+	operatorID := uint64(0)
+	for _, op := range operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			operatorID = op.ID
+			break
+		}
+	}
+	if operatorID == 0 {
+		return 0, fmt.Errorf("wrong operator")
+	}
+	return operatorID, nil
+}
+
+func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
+	data, err := msg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	ts := &wire.Transport{
+		Type:       msgType,
+		Identifier: id,
+		Data:       data,
+		Version:    s.Version,
+	}
+
+	bts, err := ts.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	// Sign message with RSA private key
+	sign, err := s.Sign(bts)
+	if err != nil {
+		return nil, err
+	}
+
+	signed := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    s.PubKeyBytes,
+		Signature: sign,
+	}
+
+	return signed.MarshalSSZ()
+}
+
+func validateInitMessage(init *wire.Init) error {
+	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
+		return fmt.Errorf("owner field should be non empty 20 bytes")
+	}
+	if len(init.Operators) < 4 {
+		return fmt.Errorf("wrong old operators len: < 4")
+	}
+	if len(init.Operators) > 13 {
+		return fmt.Errorf("wrong old operators len: > 13")
+	}
+	if len(init.Operators)%3 != 1 {
+		return fmt.Errorf("amount of old operators should be 4,7,10,13")
+	}
+	sorted := sort.SliceIsSorted(init.Operators, func(p, q int) bool {
+		return init.Operators[p].ID < init.Operators[q].ID
+	})
+	if !sorted {
+		return fmt.Errorf("operator not sorted by ID")
+	}
+	// compute threshold (3f+1)
+	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
+	if init.T != uint64(threshold) {
+		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
+	}
+	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials, make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials, make([]byte, 20)) {
+		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
+	}
+	if len(init.Fork) != 4 {
+		return fmt.Errorf("fork field should be 4 bytes empty")
+	}
+	return nil
+}
+
 func (s *Switch) Pong() ([]byte, error) {
 	pong := &wire.Pong{
 		PubKey: s.PubKeyBytes,
@@ -401,84 +479,6 @@ func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.Pu
 	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
 	if err != nil {
 		return fmt.Errorf("signature isn't valid: %s", err.Error())
-	}
-	return nil
-}
-
-func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
-	operatorID := uint64(0)
-	for _, op := range operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return 0, fmt.Errorf("wrong operator")
-	}
-	return operatorID, nil
-}
-
-func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
-	data, err := msg.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	ts := &wire.Transport{
-		Type:       msgType,
-		Identifier: id,
-		Data:       data,
-		Version:    s.Version,
-	}
-
-	bts, err := ts.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-	// Sign message with RSA private key
-	sig, err := s.Sign(bts)
-	if err != nil {
-		return nil, err
-	}
-
-	signed := &wire.SignedTransport{
-		Message:   ts,
-		Signer:    s.PubKeyBytes,
-		Signature: sig,
-	}
-
-	return signed.MarshalSSZ()
-}
-
-func validateInitMessage(init *wire.Init) error {
-	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
-		return fmt.Errorf("owner field should be non empty 20 bytes")
-	}
-	if len(init.Operators) < 4 {
-		return fmt.Errorf("wrong old operators len: < 4")
-	}
-	if len(init.Operators) > 13 {
-		return fmt.Errorf("wrong old operators len: > 13")
-	}
-	if len(init.Operators)%3 != 1 {
-		return fmt.Errorf("amount of old operators should be 4,7,10,13")
-	}
-	sorted := sort.SliceIsSorted(init.Operators, func(p, q int) bool {
-		return init.Operators[p].ID < init.Operators[q].ID
-	})
-	if !sorted {
-		return fmt.Errorf("operator not sorted by ID")
-	}
-	// compute threshold (3f+1)
-	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
-	if init.T != uint64(threshold) {
-		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
-	}
-	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials, make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials, make([]byte, 20)) {
-		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
-	}
-	if len(init.Fork) != 4 {
-		return fmt.Errorf("fork field should be 4 bytes empty")
 	}
 	return nil
 }
