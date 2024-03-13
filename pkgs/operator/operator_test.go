@@ -47,13 +47,13 @@ func TestRateLimit(t *testing.T) {
 	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
-		ops := make(map[uint64]initiator.Operator)
-		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
+		ops := initiator.Operators{}
+		ops = append(ops, initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
 
 		parts := make([]*wire.Operator, 0)
 		for _, id := range []uint64{1} {
-			op, ok := ops[id]
-			if !ok {
+			op := ops.ByID(id)
+			if op == nil {
 				t.Fatalf("no op")
 			}
 			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
@@ -164,16 +164,19 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	ops := make(map[uint64]initiator.Operator)
+	ops := initiator.Operators{}
 	version := "v1.0.2"
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
-	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
+	ops = append(
+		ops,
+		initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
+	)
 	t.Run("test wrong pub key in init message", func(t *testing.T) {
 		_, pv, err := rsaencryption.GenerateKeys()
 		require.NoError(t, err)
@@ -188,8 +191,8 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
 		for _, id := range ids {
-			op, ok := c.Operators[id]
-			require.True(t, ok)
+			op := c.Operators.ByID(id)
+			require.NotNil(t, op)
 			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
@@ -250,8 +253,8 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
 		for _, id := range ids {
-			op, ok := c.Operators[id]
-			require.True(t, ok)
+			op := c.Operators.ByID(id)
+			require.NotNil(t, op)
 			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
