@@ -180,7 +180,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
 func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
 	if !bytes.Equal(initMsg.Version, s.Version) {
-		return nil, fmt.Errorf("wrong version: remote %s local %s", initMsg.Version, s.Version)
+		return nil, fmt.Errorf("wrong version: remote %s local %s", s.Version, initMsg.Version)
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
@@ -356,7 +356,7 @@ func validateInitMessage(init *wire.Init) error {
 		return fmt.Errorf("operator not sorted by ID")
 	}
 	// compute threshold (3f+1)
-	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
+	threshold := utils.GetThreshold(init.Operators)
 	if init.T != uint64(threshold) {
 		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
 	}

@@ -328,7 +328,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
 
 	// compute threshold (3f+1)
-	threshold := len(ids) - ((len(ids) - 1) / 3)
+	threshold := utils.GetThreshold(ids)
 	// make init message
 	init := &wire.Init{
 		Operators:             ops,
