@@ -56,6 +56,64 @@ func TestValidateResults(t *testing.T) {
 			fixtures.Results13Operators(),
 		))
 	})
+
+	t.Run("invalid share pub key", func(t *testing.T) {
+		res := fixtures.Results4Operators()[:3]
+		res = append(res, &spec.Result{
+			OperatorID:                 4,
+			RequestID:                  fixtures.TestRequestID,
+			DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator4DepositSignature4Operators),
+			OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator4NonceSignature4Operators),
+			SignedProof: spec.SignedProof{
+				Proof: &spec.Proof{
+					ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
+					SharePubKey:     fixtures.ShareSK(fixtures.TestValidator7OperatorsShare1).GetPublicKey().Serialize(),
+				},
+			},
+		})
+		require.EqualError(t, spec.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		), "mistmatch result validator PK")
+	})
+
+	t.Run("too many results", func(t *testing.T) {
+		res := fixtures.Results7Operators()
+		require.EqualError(t, spec.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		), "mistmatch results count")
+	})
+
+	t.Run("invalid result", func(t *testing.T) {
+		res := fixtures.Results4Operators()[:3]
+		res = append(res, &spec.Result{
+			OperatorID:                 1,
+			RequestID:                  fixtures.TestRequestID,
+			DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator1DepositSignature4Operators),
+			OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature7Operators),
+			SignedProof:                fixtures.TestOperator1Proof4Operators,
+		})
+		require.EqualError(t, spec.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		), "failed to recover validator public key from results")
+	})
 }
 
 func TestValidateResult(t *testing.T) {
