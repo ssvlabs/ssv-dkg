@@ -101,12 +101,10 @@ var StartDKG = &cobra.Command{
 		}
 		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
-		var nonces []uint64
 		var proofs [][]*wire.SignedProof
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
-			nonces = append(nonces, res.nonce)
 			proofs = append(proofs, res.proof)
 		}
 		// Save deposit file
