@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,22 +119,22 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 
 // ReadOperatorsInfoFile reads operators data from path
 func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
-	var opMap initiator.Operators
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
 	logger.Info("📖 reading operators info JSON file")
-	opsfile, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
+	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
-	opMap, err = initiator.LoadOperatorsJson(opsfile)
+	var operators initiator.Operators
+	err = json.Unmarshal(operatorsInfoJSON, &operators)
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 	}
-	return opMap, nil
+	return operators, nil
 }
 
 func SetBaseFlags(cmd *cobra.Command) {
@@ -354,23 +355,23 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 
 // LoadOperators loads operators data from raw json or file path
 func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
-	var opmap map[uint64]initiator.Operator
+	var operators initiator.Operators
 	var err error
 	if OperatorsInfo != "" {
-		opmap, err = initiator.LoadOperatorsJson([]byte(OperatorsInfo))
+		err = json.Unmarshal([]byte(OperatorsInfo), &operators)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
+		operators, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if opmap == nil {
+	if operators == nil {
 		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
-	return opmap, nil
+	return operators, nil
 }
 
 // LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair

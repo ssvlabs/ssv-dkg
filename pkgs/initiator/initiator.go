@@ -3,24 +3,16 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
-	"net/url"
-	"reflect"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/hashicorp/go-version"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
@@ -33,39 +25,16 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-// Operator structure represents operators info which is public
-type Operator struct {
-	Addr   string         // ip:port
-	ID     uint64         // operators ID
-	PubKey *rsa.PublicKey // operators RSA public key
-}
-
-// OperatorDataJson is used to store operators info ar JSON
-type OperatorDataJson struct {
-	Addr   string `json:"ip"`
-	ID     uint64 `json:"id"`
-	PubKey string `json:"public_key"`
-}
-
-// Operators mapping storage for operator structs [ID]operator
-type Operators map[uint64]Operator
-
-func (o Operators) Clone() Operators {
-	clone := make(Operators)
-	for k, v := range o {
-		clone[k] = v
-	}
-	return clone
-}
+type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
 
 // Initiator main structure for initiator
 type Initiator struct {
-	Logger     *zap.Logger                      // logger
-	Client     *req.Client                      // http client
-	Operators  Operators                        // operators info mapping
-	VerifyFunc func(pub, msg, sig []byte) error // function to verify signatures of incoming messages
-	PrivateKey *rsa.PrivateKey                  // a unique initiator's RSA private key used for signing messages and identity
-	Version    []byte
+	Logger                 *zap.Logger                // logger
+	Client                 *req.Client                // http client
+	Operators              Operators                  // operators info mapping
+	VerifyMessageSignature VerifyMessageSignatureFunc // function to verify signatures of incoming messages
+	PrivateKey             *rsa.PrivateKey            // a unique initiator's RSA private key used for signing messages and identity
+	Version                []byte
 }
 
 // KeyShares structure to create an json file for ssv smart contract
@@ -83,7 +52,7 @@ type Data struct {
 
 type ShareData struct {
 	OwnerNonce   uint64           `json:"ownerNonce"`
-	OwnerAddress string           `json:"ownerAddress "`
+	OwnerAddress string           `json:"ownerAddress"`
 	PublicKey    string           `json:"publicKey"`
 	Operators    []*wire.Operator `json:"operators"`
 }
@@ -186,172 +155,23 @@ func GenerateAggregatesKeyshares(keySharesArr []*KeyShares) (*KeyShares, error) 
 }
 
 // New creates a main initiator structure
-func New(operatorMap Operators, logger *zap.Logger, ver string) (*Initiator, error) {
+func New(operators Operators, logger *zap.Logger, ver string) (*Initiator, error) {
 	client := req.C()
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	priv, _, err := crypto.GenerateRSAKeys()
+	privKey, _, err := crypto.GenerateRSAKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
 	c := &Initiator{
-		Logger:     logger,
-		Client:     client,
-		Operators:  operatorMap,
-		PrivateKey: priv,
-		VerifyFunc: CreateVerifyFunc(operatorMap),
-		Version:    []byte(ver),
+		Logger:                 logger,
+		Client:                 client,
+		Operators:              operators,
+		PrivateKey:             privKey,
+		VerifyMessageSignature: standardMessageVerification(operators),
+		Version:                []byte(ver),
 	}
 	return c, nil
-}
-
-// opReqResult structure to represent http communication messages incoming to initiator from operators
-type opReqResult struct {
-	operatorID uint64
-	err        error
-	result     []byte
-}
-
-// SendAndCollect ssends http message to operator and read the response
-func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
-	r := c.Client.R()
-	r.SetBodyBytes(data)
-	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
-	if err != nil {
-		return nil, err
-	}
-	resdata, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
-	return resdata, nil
-}
-
-// GetAndCollect request Get at operator route
-func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
-	r := c.Client.R()
-	res, err := r.Get(fmt.Sprintf("%v/%v", op.Addr, method))
-	if err != nil {
-		return nil, err
-	}
-	resdata, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Debug("operator responded", zap.String("IP", op.Addr), zap.String("method", method))
-	return resdata, nil
-}
-
-// SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operatorsIDs []*wire.Operator) ([][]byte, error) {
-	resc := make(chan opReqResult, len(operatorsIDs))
-	for _, op := range operatorsIDs {
-		go func(operator Operator) {
-			res, err := c.SendAndCollect(operator, method, msg)
-			resc <- opReqResult{
-				operatorID: operator.ID,
-				err:        err,
-				result:     res,
-			}
-		}(c.Operators[op.ID])
-	}
-	final := make([][]byte, 0, len(operatorsIDs))
-
-	errarr := make([]error, 0)
-
-	for i := 0; i < len(operatorsIDs); i++ {
-		res := <-resc
-		if res.err != nil {
-			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
-			continue
-		}
-		final = append(final, res.result)
-	}
-
-	finalerr := error(nil)
-
-	if len(errarr) > 0 {
-		finalerr = errors.Join(errarr...)
-	}
-
-	return final, finalerr
-}
-
-// parseAsError parses the error from an operator
-func ParseAsError(msg []byte) (parsedErr, err error) {
-	sszerr := &wire.ErrSSZ{}
-	err = sszerr.UnmarshalSSZ(msg)
-	if err != nil {
-		return nil, err
-	}
-	return errors.New(string(sszerr.Error)), nil
-}
-
-// VerifyAll verifies incoming to initiator messages from operators.
-// Incoming message from operator should have same DKG ceremony ID and a valid signature
-func (c *Initiator) VerifyAll(id [24]byte, allmsgs [][]byte) error {
-	var errs error
-	for i := 0; i < len(allmsgs); i++ {
-		msg := allmsgs[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
-			if parseErr == nil {
-				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
-				continue
-			}
-			return err
-		}
-		signedBytes, err := tsp.Message.MarshalSSZ()
-		if err != nil {
-			return err
-		}
-		// Verify that incoming messages have valid DKG ceremony ID
-		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
-			return fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
-		}
-		// Verification operator signatures
-		if err := c.VerifyFunc(tsp.Signer, signedBytes, tsp.Signature); err != nil {
-			return err
-		}
-	}
-	return errs
-}
-
-// MakeMultiple creates a one combined message from operators with initiator signature
-func (c *Initiator) MakeMultiple(id [24]byte, allmsgs [][]byte) (*wire.MultipleSignedTransports, error) {
-	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
-	final := &wire.MultipleSignedTransports{
-		Identifier: id,
-		Messages:   make([]*wire.SignedTransport, len(allmsgs)),
-	}
-	var allMsgsBytes []byte
-	for i := 0; i < len(allmsgs); i++ {
-		msg := allmsgs[i]
-		tsp := &wire.SignedTransport{}
-		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
-			if parseErr == nil {
-				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
-			}
-			return nil, err
-		}
-		// Verify that incoming messages have valid DKG ceremony ID
-		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
-			return nil, fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
-		}
-		final.Messages[i] = tsp
-		allMsgsBytes = append(allMsgsBytes, msg...)
-	}
-	// sign message by initiator
-	c.Logger.Debug("Signing combined messages from operators", zap.String("initiator_id", hex.EncodeToString(c.PrivateKey.N.Bytes())))
-	sig, err := crypto.SignRSA(c.PrivateKey, allMsgsBytes)
-	if err != nil {
-		return nil, err
-	}
-	final.Signature = sig
-	return final, nil
 }
 
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
@@ -369,8 +189,8 @@ func ValidatedOperatorData(ids []uint64, operators Operators) ([]*wire.Operator,
 	ops := make([]*wire.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
 	for i, id := range ids {
-		op, ok := operators[id]
-		if !ok {
+		op := operators.ByID(id)
+		if op == nil {
 			return nil, errors.New("operator is not in given operator data list")
 		}
 		_, exist := opMap[id]
@@ -398,7 +218,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = verifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +229,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = verifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +239,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 	if err != nil {
 		return nil, err
 	}
-	err = c.VerifyAll(id, results)
+	err = verifyMessageSignatures(id, results, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +314,6 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
 func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*wire.SignedProof, error) {
-
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
@@ -562,33 +381,6 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
 	}
 	return depositDataJson, keyshares, proofsArray, nil
-}
-
-// CreateVerifyFunc creates function to verify each participating operator RSA signature for incoming to initiator messages
-func CreateVerifyFunc(ops Operators) func(pub, msg []byte, sig []byte) error {
-	return func(pub, msg []byte, sig []byte) error {
-		var ok bool
-		for _, op := range ops {
-			opPubKeyEnc, err := crypto.EncodeRSAPublicKey(op.PubKey)
-			if err != nil {
-				return err
-			}
-			if !bytes.Equal(opPubKeyEnc, pub) {
-				continue
-			} else {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return fmt.Errorf("cant find operator participating at DKG %x", pub)
-		}
-		rsaPub, err := crypto.ParseRSAPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		return crypto.VerifyRSA(rsaPub, msg, sig)
-	}
 }
 
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
@@ -713,7 +505,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
 func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
-	mltpl, err := c.MakeMultiple(id, exchangeMsgs)
+	mltpl, err := makeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
 	if err != nil {
 		return nil, err
 	}
@@ -726,7 +518,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
 func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
-	mltpl2, err := c.MakeMultiple(id, kyberDeals)
+	mltpl2, err := makeMultipleSignedTransports(c.PrivateKey, id, kyberDeals)
 	if err != nil {
 		return nil, err
 	}
@@ -748,41 +540,6 @@ func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Opera
 		return err
 	}
 	return nil
-}
-
-// LoadOperatorsJson deserialize operators data from JSON
-func LoadOperatorsJson(operatorsMetaData []byte) (Operators, error) {
-	opmap := make(map[uint64]Operator)
-	var operators []OperatorDataJson
-	err := json.Unmarshal(bytes.TrimSpace(operatorsMetaData), &operators)
-	if err != nil {
-		return nil, err
-	}
-	for _, opdata := range operators {
-		_, err := url.ParseRequestURI(opdata.Addr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid operator URL %s", err.Error())
-		}
-		operatorKeyByte, err := base64.StdEncoding.DecodeString(opdata.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		pemBlock, _ := pem.Decode(operatorKeyByte)
-		if pemBlock == nil {
-			return nil, errors.New("decode PEM block")
-		}
-		pbKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		opmap[opdata.ID] = Operator{
-			Addr:   strings.TrimRight(opdata.Addr, "/"),
-			ID:     opdata.ID,
-			PubKey: pbKey.(*rsa.PublicKey),
-		}
-	}
-	return opmap, nil
 }
 
 func (c *Initiator) Ping(ips []string) error {
@@ -882,119 +639,5 @@ func (c *Initiator) processPongMessage(res pongResult) error {
 		return err
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.ip), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
-	return nil
-}
-
-func ValidateDepositDataCLI(d *DepositDataCLI) error {
-	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
-	b, err := json.Marshal(d)
-	if err != nil {
-		return fmt.Errorf("failed to marshal deposit data json: %v", err)
-	}
-	var depositData DepositDataCLI
-	if err := json.Unmarshal(b, &depositData); err != nil {
-		return fmt.Errorf("failed to unmarshal deposit data json: %v", err)
-	}
-	if !reflect.DeepEqual(d, &depositData) {
-		return fmt.Errorf("failed to validate deposit data json")
-	}
-	d = &depositData
-
-	// 1. Validate format
-	if err := validateFieldFormatting(d); err != nil {
-		return fmt.Errorf("failed to validate deposit data json: %v", err)
-	}
-	// 2. Verify deposit roots and signature
-	if err := verifyDepositRoots(d); err != nil {
-		return fmt.Errorf("failed to verify deposit roots: %v", err)
-	}
-	return nil
-}
-
-func validateFieldFormatting(d *DepositDataCLI) error {
-	// check existence of required keys
-	if d.PubKey == "" ||
-		d.WithdrawalCredentials == "" ||
-		d.Amount == 0 ||
-		d.Signature == "" ||
-		d.DepositMessageRoot == "" ||
-		d.DepositDataRoot == "" ||
-		d.ForkVersion == "" ||
-		d.DepositCliVersion == "" {
-		return fmt.Errorf("resulting deposit data json has wrong format")
-	}
-	// check type of values
-	if reflect.TypeOf(d.PubKey).String() != "string" ||
-		reflect.TypeOf(d.WithdrawalCredentials).String() != "string" ||
-		reflect.TypeOf(d.Amount).String() != "phase0.Gwei" ||
-		reflect.TypeOf(d.Signature).String() != "string" ||
-		reflect.TypeOf(d.DepositMessageRoot).String() != "string" ||
-		reflect.TypeOf(d.DepositDataRoot).String() != "string" ||
-		reflect.TypeOf(d.ForkVersion).String() != "string" ||
-		reflect.TypeOf(d.DepositCliVersion).String() != "string" {
-		return fmt.Errorf("resulting deposit data json has wrong fields type")
-	}
-	// check length of strings (note: using string length, so 1 byte = 2 chars)
-	if len(d.PubKey) != 96 ||
-		len(d.WithdrawalCredentials) != 64 ||
-		len(d.Signature) != 192 ||
-		len(d.DepositMessageRoot) != 64 ||
-		len(d.DepositDataRoot) != 64 ||
-		len(d.ForkVersion) != 8 {
-		return fmt.Errorf("resulting deposit data json has wrong fields length")
-	}
-	// check the deposit amount
-	if d.Amount != 32000000000 {
-		return fmt.Errorf("resulting deposit data json has wrong amount")
-	}
-	v, err := version.NewVersion(d.DepositCliVersion)
-	if err != nil {
-		return err
-	}
-	vMin, err := version.NewVersion("2.7.0")
-	if err != nil {
-		return err
-	}
-	// check the deposit-cli version
-	if v.LessThan(vMin) {
-		return fmt.Errorf("resulting deposit data json has wrong amount")
-	}
-	return nil
-}
-
-func verifyDepositRoots(d *DepositDataCLI) error {
-	pubKey, err := hex.DecodeString(d.PubKey)
-	if err != nil {
-		return fmt.Errorf("failed to decode public key: %v", err)
-	}
-	withdrCreds, err := hex.DecodeString(d.WithdrawalCredentials)
-	if err != nil {
-		return fmt.Errorf("failed to decode withdrawal credentials: %v", err)
-	}
-	sig, err := hex.DecodeString(d.Signature)
-	if err != nil {
-		return fmt.Errorf("failed to decode signature: %v", err)
-	}
-	fork, err := hex.DecodeString(d.ForkVersion)
-	if err != nil {
-		return fmt.Errorf("failed to decode fork version: %v", err)
-	}
-	if len(fork) != 4 {
-		return fmt.Errorf("fork version has wrong length")
-	}
-	network, err := utils.GetNetworkByFork([4]byte(fork))
-	if err != nil {
-		return fmt.Errorf("failed to get network by fork: %v", err)
-	}
-	depositData := &phase0.DepositData{
-		PublicKey:             phase0.BLSPubKey(pubKey),
-		WithdrawalCredentials: withdrCreds,
-		Amount:                d.Amount,
-		Signature:             phase0.BLSSignature(sig),
-	}
-	err = crypto.VerifyDepositData(network, depositData)
-	if err != nil {
-		return fmt.Errorf("failed to verify deposit data: %v", err)
-	}
 	return nil
 }
