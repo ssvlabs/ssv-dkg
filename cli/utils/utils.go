@@ -20,6 +20,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 )
 
@@ -372,7 +373,7 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	return operators, nil
 }
 
-func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
+func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -418,7 +419,7 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -467,7 +468,7 @@ func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error
 	return nil
 }
 
-func WriteProofs(proofs []*initiator.SignedProof, dir string) error {
+func WriteProofs(proofs []*wire.SignedProof, dir string) error {
 	finalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {

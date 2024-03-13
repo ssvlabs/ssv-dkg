@@ -111,7 +111,7 @@ type Result struct {
 	// SSV owner + nonce signature
 	OwnerNoncePartialSignature []byte `ssz-size:"96"`
 	// Signed proof for the ceremony
-	SignedProof SignedProof
+	SignedProof *SignedProof
 }
 
 // Proof for a DKG ceremony

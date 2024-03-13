@@ -84,10 +84,6 @@ type Switch struct {
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	verify, err := s.CreateVerifyFunc(init.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
 	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
@@ -104,8 +100,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
+		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
@@ -399,7 +394,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	var proof []*initiator.SignedProof
+	var proof []*wire.SignedProof
 	err = json.Unmarshal(resData.Proofs, &proof)
 	if err != nil {
 		return err
@@ -407,7 +402,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	// Wrap singular instances in slices for correct parameter passing
 	depositDataArr := []*initiator.DepositDataCLI{depJson}
 	keySharesArr := []*initiator.KeyShares{ksJson}
-	proofsArr := [][]*initiator.SignedProof{proof}
+	proofsArr := [][]*wire.SignedProof{proof}
 	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, s.Logger)
 }
 

@@ -74,16 +74,12 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		ts.T.Error(err)
 	}
 	ts.tv.Add(id, pk)
-	sign := func(d []byte) ([]byte, error) {
-		return crypto.SignRSA(pv, d)
-	}
 	encrypt := func(d []byte) ([]byte, error) {
 		return rsa.EncryptPKCS1v15(rand.Reader, pk, d)
 	}
 	decrypt := func(d []byte) ([]byte, error) {
 		return rsaencryption.DecodeKey(pv, d)
 	}
-	ver := ts.tv.Verify
 	logger, _ := zap.NewDevelopment()
 	logger = logger.With(zap.Uint64("id", id))
 	return &LocalOwner{
@@ -94,8 +90,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signFunc:           sign,
-		verifyFunc:         ver,
+		signer:             crypto.RSASigner(pv),
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,
