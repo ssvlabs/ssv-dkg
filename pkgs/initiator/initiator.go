@@ -433,10 +433,6 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 	for i := 0; i < len(dkgResults); i++ {
 		ids[i] = dkgResults[i].OperatorID
 	}
-	sharePks, shareSigs, err := c.prepareDepositSigsAndPubs(dkgResults)
-	if err != nil {
-		return nil, err
-	}
 	var validatorPubKey bls.PublicKey
 	if err := validatorPubKey.Deserialize(dkgResults[0].SignedProof.Proof.ValidatorPubKey); err != nil {
 		return nil, err
@@ -453,11 +449,10 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
 	}
 	// Verify partial signatures and recovered threshold signature
-	err = crypto.VerifyPartialSigs(shareSigs, sharePks, shareRoot[:])
+	sharePks, shareSigs, err := c.prepareDepositSigsAndPubs(dkgResults, shareRoot[:])
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify partial signatures: %v", err)
+		return nil, err
 	}
-
 	// Recover and verify Master Signature
 	// 1. Recover validator pub key
 	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, sharePks)
@@ -613,7 +608,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 	return depositDataJson, keyshares, nil
 }
 
-func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []*wire.Result) ([]*bls.PublicKey, []*bls.Sign, error) {
+func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []*wire.Result, shareRoot []byte) ([]*bls.PublicKey, []*bls.Sign, error) {
 	sharePks := make([]*bls.PublicKey, 0)
 	sigDepositShares := make([]*bls.Sign, 0)
 	for i := 0; i < len(dkgResults); i++ {
@@ -629,6 +624,9 @@ func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []*wire.Result) ([]*bls
 		if err := depositShareSig.Deserialize(dkgResults[i].DepositPartialSignature); err != nil {
 			return nil, nil, err
 		}
+		if !depositShareSig.VerifyByte(sharePubKey, shareRoot) {
+			return nil, nil, fmt.Errorf(" deposit partial signature invalid  #%d: sig %x root %x ID %d", i, depositShareSig.Serialize(), shareRoot, dkgResults[i].OperatorID)
+		}
 		sharePks = append(sharePks, sharePubKey)
 		sigDepositShares = append(sigDepositShares, depositShareSig)
 	}
@@ -636,28 +634,25 @@ func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []*wire.Result) ([]*bls
 }
 
 func (c *Initiator) prepareOwnerNonceSigs(dkgResults []*wire.Result, owner [20]byte, nonce uint64) ([]*bls.Sign, error) {
-	sharePks := make([]*bls.PublicKey, 0)
 	ssvContractOwnerNonceSigShares := make([]*bls.Sign, 0)
+	data := []byte(fmt.Sprintf("%s:%d", common.Address(owner).String(), nonce))
+	hash := eth_crypto.Keccak256([]byte(data))
 	for i := 0; i < len(dkgResults); i++ {
 		sharePubKey := &bls.PublicKey{}
 		if err := sharePubKey.Deserialize(dkgResults[i].SignedProof.Proof.SharePubKey); err != nil {
 			return nil, err
 		}
-		sharePks = append(sharePks, sharePubKey)
 		ownerNonceShareSig := &bls.Sign{}
 		if err := ownerNonceShareSig.Deserialize(dkgResults[i].OwnerNoncePartialSignature); err != nil {
 			return nil, err
 		}
+		// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
+		if !ownerNonceShareSig.VerifyByte(sharePubKey, hash) {
+			return nil, fmt.Errorf("owner/nonce partial signature invalid #%d: sig %x root %x ID %d", i, ownerNonceShareSig.Serialize(), hash, dkgResults[i].OperatorID)
+		}
+		c.Logger.Info("✅ verified partial signatures from operators")
 		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, ownerNonceShareSig)
 	}
-	// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
-	data := []byte(fmt.Sprintf("%s:%d", common.Address(owner).String(), nonce))
-	hash := eth_crypto.Keccak256([]byte(data))
-	err := crypto.VerifyPartialSigs(ssvContractOwnerNonceSigShares, sharePks, hash)
-	if err != nil {
-		return nil, err
-	}
-	c.Logger.Info("✅ verified partial signatures from operators")
 	return ssvContractOwnerNonceSigShares, nil
 }
 

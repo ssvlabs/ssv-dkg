@@ -12,6 +12,7 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
@@ -214,11 +215,8 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
 		return err
 	}
-	fmt.Printf("Share pub %x \n", secretKeyBLS.GetPublicKey().Serialize())
-	fmt.Printf("Partial sig %x \n", depositPartialSignature.Serialize())
-	fmt.Printf("Root %x \n", signingRoot)
 	// Sign SSV owner + nonce
-	data := []byte(fmt.Sprintf("%s:%d", o.data.init.Owner, o.data.init.Nonce))
+	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(o.data.init.Owner).String(), o.data.init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
 	// Verify partial SSV owner + nonce signature

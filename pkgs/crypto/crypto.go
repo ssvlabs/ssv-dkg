@@ -362,24 +362,6 @@ func VerifyDepositData(network e2m_core.Network, depositData *phase0.DepositData
 	return nil
 }
 
-// VerifyPartialSigs verifies provided partial BLS signatures
-func VerifyPartialSigs(sigShares []*bls.Sign, sharePks []*bls.PublicKey, data []byte) error {
-	if len(sigShares) != len(sharePks) {
-		return fmt.Errorf("inconsistent slice lengths")
-	}
-	var verificationErrs error
-	for i := 0; i < len(sigShares); i++ {
-		if !sigShares[i].VerifyByte(sharePks[i], data) {
-			verificationErrs = errors.Join(verificationErrs, fmt.Errorf(" signature #%d: sig %x root %x", i, sigShares[i].Serialize(), data))
-		}
-	}
-
-	if verificationErrs != nil {
-		return fmt.Errorf("failed to verify partial signatures: %v", verificationErrs)
-	}
-	return nil
-}
-
 // EncryptedPrivateKey reads  an encoded RSA priv key from path encrypted with password
 func EncryptedPrivateKey(path, pass string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(filepath.Clean(path))
