@@ -313,7 +313,7 @@ func (c *Initiator) reconstructAndVerifyDepositData(dkgResults []*wire.Result, i
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*wire.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*DepositDataCLI, *KeyShares, []*SignedProof, error) {
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
@@ -366,15 +366,28 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var proofsArray []*wire.SignedProof
+	var proofsArray []*SignedProof
 	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &res.SignedProof)
+		proofsArray = append(proofsArray, &SignedProof{
+			Proof: &Proof{
+				ValidatorPubKey: hex.EncodeToString(res.SignedProof.Proof.ValidatorPubKey),
+				EncryptedShare:  hex.EncodeToString(res.SignedProof.Proof.EncryptedShare),
+				SharePubKey:     hex.EncodeToString(res.SignedProof.Proof.SharePubKey),
+				Owner:           hex.EncodeToString(res.SignedProof.Proof.Owner[:]),
+			},
+			Signature: hex.EncodeToString(res.SignedProof.Signature),
+		})
+	}
+	proofsData, err := json.Marshal(proofsArray)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
 		Operators:     ops,
 		Identifier:    id,
 		DepositData:   depositData,
 		KeysharesData: keysharesData,
+		Proofs:        proofsData,
 	}
 	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {

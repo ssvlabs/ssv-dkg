@@ -13,7 +13,6 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const (
@@ -101,7 +100,7 @@ var StartDKG = &cobra.Command{
 		}
 		var depositDataArr []*initiator.DepositDataCLI
 		var keySharesArr []*initiator.KeyShares
-		var proofs [][]*wire.SignedProof
+		var proofs [][]*initiator.SignedProof
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
@@ -137,5 +136,5 @@ type Result struct {
 	nonce       uint64
 	depositData *initiator.DepositDataCLI
 	keyShares   *initiator.KeyShares
-	proof       []*wire.SignedProof
+	proof       []*initiator.SignedProof
 }

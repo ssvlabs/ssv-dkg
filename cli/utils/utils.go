@@ -20,7 +20,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -427,7 +426,7 @@ func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
+func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
 	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
@@ -456,6 +455,12 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 			logger.Error("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
 			return fmt.Errorf("failed writing keyshares file: %w", err)
 		}
+		logger.Info("💾 Writing proofs to file", zap.String("path", nestedDir))
+		err = WriteProofs(proofs[i], nestedDir)
+		if err != nil {
+			logger.Error("Failed writing proofs file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("proof", proofs[i]))
+			return fmt.Errorf("failed writing proofs file: %w", err)
+		}
 	}
 	// if there is only one Validator, do not create summary files
 	if Validators > 1 {
@@ -467,7 +472,7 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -487,10 +492,10 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositD
 		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		return err
 	}
-	ceremonySigsFinalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
-	err = utils.WriteJSON(ceremonySigsFinalPath, proofs)
+	proofsFinalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	err = utils.WriteJSON(proofsFinalPath, proofs)
 	if err != nil {
-		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", proofs))
+		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", proofsFinalPath), zap.Any("proofs", proofs))
 		return err
 	}
 
@@ -516,7 +521,7 @@ func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error
 	return nil
 }
 
-func WriteProofs(proofs *wire.SignedProof, dir string) error {
+func WriteProofs(proofs []*initiator.SignedProof, dir string) error {
 	finalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
