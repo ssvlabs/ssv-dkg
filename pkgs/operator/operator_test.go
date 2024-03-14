@@ -228,7 +228,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Signature: sig}
 		signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
 		require.NoError(t, err)
-		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts)
+		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts, false)
 		require.NoError(t, err)
 		var errs []error
 		for i := 0; i < len(results); i++ {

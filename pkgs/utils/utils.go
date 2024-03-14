@@ -21,6 +21,15 @@ var ErrMissingInstance = errors.New("got message to instance that I don't have, 
 var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
 
+type SensitiveError struct {
+	Err          error
+	PresentedErr string
+}
+
+func (e *SensitiveError) Error() string {
+	return e.Err.Error()
+}
+
 // WriteJSON writes data to JSON file
 func WriteJSON(filePth string, data any) error {
 	file, err := os.OpenFile(filepath.Clean(filePth), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
@@ -92,7 +101,19 @@ func GetNetworkByFork(fork [4]byte) (eth2_key_manager_core.Network, error) {
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
 	logger.Error("request error: " + err.Error())
 	writer.WriteHeader(statusCode)
-	writer.Write(wire.MakeErr(err))
+
+	presentedErr := err
+
+	// Don't expose internal errors to the client.
+	var sensitiveError *SensitiveError
+	if errors.As(err, &sensitiveError) {
+		presentedErr = errors.New(sensitiveError.PresentedErr)
+	}
+
+	_, writeErr := writer.Write(wire.MakeErr(presentedErr))
+	if writeErr != nil {
+		logger.Error("error writing error response: " + writeErr.Error())
+	}
 }
 
 // GetNonce returns a suitable nonce to feed in the DKG config.
