@@ -26,46 +26,6 @@ import (
 const MaxInstances = 1024
 const MaxInstanceTime = 5 * time.Minute
 
-// Instance interface to process messages at DKG instances incoming from initiator
-type Instance interface {
-	Process(*wire.SignedTransport) error
-	ReadResponse() []byte
-	ReadError() error
-	VerifyInitiatorMessage(msg, sig []byte) error
-	GetLocalOwner() *dkg.LocalOwner
-}
-
-// instWrapper wraps LocalOwner instance with RSA public key
-type instWrapper struct {
-	*dkg.LocalOwner                   // main DKG ceremony instance
-	InitiatorPublicKey *rsa.PublicKey // initiator's RSA public key to verify its identity. Makes sure that in the DKG process messages received only from one initiator who started it.
-	respChan           chan []byte    // channel to receive response
-	errChan            chan error     // channel to receive error
-}
-
-// VerifyInitiatorMessage verifies initiator message signature
-func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
-	pubKey, err := crypto.EncodeRSAPublicKey(iw.InitiatorPublicKey)
-	if err != nil {
-		return err
-	}
-	if err := crypto.VerifyRSA(iw.InitiatorPublicKey, msg, sig); err != nil {
-		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
-	}
-	iw.Logger.Info("Successfully verified initiator message signature", zap.Uint64("from", iw.ID))
-	return nil
-}
-
-// ReadResponse reads from response channel
-func (iw *instWrapper) ReadResponse() []byte {
-	return <-iw.respChan
-}
-
-// ReadError reads from error channel
-func (iw *instWrapper) ReadError() error {
-	return <-iw.errChan
-}
-
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
 type InstanceID [24]byte
 
@@ -79,6 +39,20 @@ type Switch struct {
 	Version          []byte
 	PubKeyBytes      []byte
 	OperatorID       uint64
+}
+
+// NewSwitch creates a new Switch
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64) *Switch {
+	return &Switch{
+		Logger:           logger,
+		Mtx:              sync.RWMutex{},
+		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
+		Instances:        make(map[InstanceID]Instance, MaxInstances),
+		PrivateKey:       pv,
+		Version:          ver,
+		PubKeyBytes:      pkBytes,
+		OperatorID:       id,
+	}
 }
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -161,20 +135,6 @@ func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, s
 		}
 		return crypto.VerifyRSA(rsaPub, msg, sig)
 	}, nil
-}
-
-// NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64) *Switch {
-	return &Switch{
-		Logger:           logger,
-		Mtx:              sync.RWMutex{},
-		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
-		Instances:        make(map[InstanceID]Instance, MaxInstances),
-		PrivateKey:       pv,
-		Version:          ver,
-		PubKeyBytes:      pkBytes,
-		OperatorID:       id,
-	}
 }
 
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
