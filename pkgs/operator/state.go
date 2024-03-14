@@ -98,7 +98,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		return nil, nil, err
 	}
 	res := <-bchan
-	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
+	return &instWrapper{owner, initiatorPublicKey, bchan}, res, nil
 }
 
 // Sign creates a RSA signature for the message at operator before sending it to initiator
@@ -168,7 +168,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	s.Mtx.Lock()
 	l := len(s.Instances)
 	if l >= MaxInstances {
-		cleaned := s.CleanInstances()
+		cleaned := s.cleanInstances()
 		if l-cleaned >= MaxInstances {
 			s.Mtx.Unlock()
 			return nil, utils.ErrMaxInstances
@@ -196,8 +196,8 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	return resp, nil
 }
 
-// CleanInstances removes all instances at Switch
-func (s *Switch) CleanInstances() int {
+// cleanInstances removes all instances at Switch
+func (s *Switch) cleanInstances() int {
 	count := 0
 	for id, instime := range s.InstanceInitTime {
 		if time.Now().After(instime.Add(MaxInstanceTime)) {
@@ -227,28 +227,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if !ok {
 		return nil, utils.ErrMissingInstance
 	}
-	var mltplMsgsBytes []byte
-	for _, ts := range st.Messages {
-		tsBytes, err := ts.MarshalSSZ()
-		if err != nil {
-			return nil, fmt.Errorf("process message: failed to marshal message: %s", err.Error())
-		}
-		mltplMsgsBytes = append(mltplMsgsBytes, tsBytes...)
-	}
-	// Verify initiator signature
-	err = inst.VerifyInitiatorMessage(mltplMsgsBytes, st.Signature)
-	if err != nil {
-		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
-	}
-	for _, ts := range st.Messages {
-		err = inst.Process(ts)
-		if err != nil {
-			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
-		}
-	}
-	resp := inst.ReadResponse()
-
-	return resp, nil
+	return inst.ProcessMessages(st)
 }
 
 func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {

@@ -12,11 +12,8 @@ import (
 
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
-	Process(*wire.SignedTransport) error
-	ReadResponse() []byte
-	ReadError() error
+	ProcessMessages(msg *wire.MultipleSignedTransports) ([]byte, error)
 	VerifyInitiatorMessage(msg, sig []byte) error
-	GetLocalOwner() *dkg.LocalOwner
 }
 
 // instWrapper wraps LocalOwner instance with RSA public key
@@ -24,7 +21,6 @@ type instWrapper struct {
 	*dkg.LocalOwner                   // main DKG ceremony instance
 	InitiatorPublicKey *rsa.PublicKey // initiator's RSA public key to verify its identity. Makes sure that in the DKG process messages received only from one initiator who started it.
 	respChan           chan []byte    // channel to receive response
-	errChan            chan error     // channel to receive error
 }
 
 // VerifyInitiatorMessage verifies initiator message signature
@@ -40,12 +36,25 @@ func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
 	return nil
 }
 
-// ReadResponse reads from response channel
-func (iw *instWrapper) ReadResponse() []byte {
-	return <-iw.respChan
-}
-
-// ReadError reads from error channel
-func (iw *instWrapper) ReadError() error {
-	return <-iw.errChan
+func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]byte, error) {
+	var multipleMsgsBytes []byte
+	for _, transportMsg := range msg.Messages {
+		msgBytes, err := transportMsg.MarshalSSZ()
+		if err != nil {
+			return nil, fmt.Errorf("process message: failed to marshal message: %s", err.Error())
+		}
+		multipleMsgsBytes = append(multipleMsgsBytes, msgBytes...)
+	}
+	// Verify initiator signature
+	err := iw.VerifyInitiatorMessage(multipleMsgsBytes, msg.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
+	}
+	for _, ts := range msg.Messages {
+		err = iw.Process(ts)
+		if err != nil {
+			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
+		}
+	}
+	return <-iw.respChan, nil
 }
