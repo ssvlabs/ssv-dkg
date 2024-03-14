@@ -12,7 +12,6 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
@@ -330,51 +329,6 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 		return nil, nil, err
 	}
 	return depositDataJson, keyshares, nil
-}
-
-func (c *Initiator) prepareDepositSigsAndPubs(dkgResults []*wire.Result, shareRoot []byte) ([]*bls.PublicKey, []*bls.Sign, error) {
-	sharePks := make([]*bls.PublicKey, 0)
-	sigDepositShares := make([]*bls.Sign, 0)
-	for i := 0; i < len(dkgResults); i++ {
-		if dkgResults[i].DepositPartialSignature == nil {
-			// TODO: when threshold DKG is implemented, this should probably not error here.
-			return nil, nil, fmt.Errorf("operator %d sent empty deposit partial signature", dkgResults[i].OperatorID)
-		}
-		sharePubKey := &bls.PublicKey{}
-		if err := sharePubKey.Deserialize(dkgResults[i].SignedProof.Proof.SharePubKey); err != nil {
-			return nil, nil, err
-		}
-		depositShareSig := &bls.Sign{}
-		if err := depositShareSig.Deserialize(dkgResults[i].DepositPartialSignature); err != nil {
-			return nil, nil, err
-		}
-		sharePks = append(sharePks, sharePubKey)
-		sigDepositShares = append(sigDepositShares, depositShareSig)
-	}
-	return sharePks, sigDepositShares, nil
-}
-
-func (c *Initiator) prepareOwnerNonceSigs(dkgResults []*wire.Result, owner [20]byte, nonce uint64) ([]*bls.Sign, error) {
-	ssvContractOwnerNonceSigShares := make([]*bls.Sign, 0)
-	data := []byte(fmt.Sprintf("%s:%d", common.Address(owner).String(), nonce))
-	hash := eth_crypto.Keccak256([]byte(data))
-	for i := 0; i < len(dkgResults); i++ {
-		sharePubKey := &bls.PublicKey{}
-		if err := sharePubKey.Deserialize(dkgResults[i].SignedProof.Proof.SharePubKey); err != nil {
-			return nil, err
-		}
-		ownerNonceShareSig := &bls.Sign{}
-		if err := ownerNonceShareSig.Deserialize(dkgResults[i].OwnerNoncePartialSignature); err != nil {
-			return nil, err
-		}
-		// Verify partial signatures for SSV contract owner+nonce and recovered threshold signature
-		if !ownerNonceShareSig.VerifyByte(sharePubKey, hash) {
-			return nil, fmt.Errorf("owner/nonce partial signature invalid #%d: sig %x root %x ID %d", i, ownerNonceShareSig.Serialize(), hash, dkgResults[i].OperatorID)
-		}
-		c.Logger.Info("✅ verified partial signatures from operators")
-		ssvContractOwnerNonceSigShares = append(ssvContractOwnerNonceSigShares, ownerNonceShareSig)
-	}
-	return ssvContractOwnerNonceSigShares, nil
 }
 
 func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*wire.Result, finalErr error) {

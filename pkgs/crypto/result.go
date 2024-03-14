@@ -195,7 +195,7 @@ func VerifyPartialNonceSignatures(
 	hash := eth_crypto.Keccak256([]byte(data))
 
 	// Verify partial signatures and recovered threshold signature
-	err := VerifyPartialSigs(sigs, pks, hash[:])
+	err := VerifyPartialSigs(sigs, pks, hash)
 	if err != nil {
 		return fmt.Errorf("failed to verify nonce partial signatures")
 	}
@@ -242,36 +242,43 @@ func GetOperator(operators []*wire.Operator, id uint64) *wire.Operator {
 
 func BLSPKEncode(pkBytes []byte) (*bls.PublicKey, error) {
 	ret := &bls.PublicKey{}
-	return ret, ret.Deserialize(pkBytes)
+	if err := ret.Deserialize(pkBytes); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
 func BLSSignatureEncode(pkBytes []byte) (*bls.Sign, error) {
 	ret := &bls.Sign{}
-	return ret, ret.Deserialize(pkBytes)
+	if err := ret.Deserialize(pkBytes); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
-func GetPartialSigsFromResult(result *wire.Result) (*bls.PublicKey, *bls.Sign, *bls.Sign, error) {
-	sharePubKey := &bls.PublicKey{}
+func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, depositShareSig *bls.Sign, ownerNonceShareSig *bls.Sign, err error) {
+	sharePubKey = &bls.PublicKey{}
 	if err := sharePubKey.Deserialize(result.SignedProof.Proof.SharePubKey); err != nil {
 		return nil, nil, nil, err
 	}
-	depositShareSig := &bls.Sign{}
+	depositShareSig = &bls.Sign{}
 	if err := depositShareSig.Deserialize(result.DepositPartialSignature); err != nil {
 		return nil, nil, nil, err
 	}
-	ownerNonceShareSig := &bls.Sign{}
+	ownerNonceShareSig = &bls.Sign{}
 	if err := ownerNonceShareSig.Deserialize(result.OwnerNoncePartialSignature); err != nil {
 		return nil, nil, nil, err
 	}
 	return sharePubKey, depositShareSig, ownerNonceShareSig, nil
 }
 
-func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (*bls.Sign, *bls.Sign, error) {
-	reconstructedDepositMasterSig, err := RecoverBLSSignature(ids, sigsPartialDeposit)
+func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (reconstructedDepositMasterSig *bls.Sign, reconstructedOwnerNonceMasterSig *bls.Sign, err error) {
+	reconstructedDepositMasterSig, err = RecoverBLSSignature(ids, sigsPartialDeposit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
-	reconstructedOwnerNonceMasterSig, err := RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
+	reconstructedOwnerNonceMasterSig, err = RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
