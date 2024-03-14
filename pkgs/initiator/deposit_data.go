@@ -7,11 +7,11 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/hashicorp/go-version"
+
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/hashicorp/go-version"
 )
 
 // DepositDataCLI  is a deposit structure from the eth2 deposit CLI (https://github.com/ethereum/staking-deposit-cli).
@@ -33,7 +33,7 @@ const DepositCliVersion = "2.7.0"
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*DepositDataCLI, error) {
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                dkg.MaxEffectiveBalanceInGwei,
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, err := depositMsg.HashTreeRoot()
@@ -47,14 +47,14 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	}
 
 	// Final checks of prepared deposit data
-	if !(dkg.MaxEffectiveBalanceInGwei == depositData.Amount) {
+	if !(crypto.MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
 	forkbytes := network.GenesisForkVersion()
 	depositDataJson := &DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                dkg.MaxEffectiveBalanceInGwei,
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),

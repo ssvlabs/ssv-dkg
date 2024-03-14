@@ -16,7 +16,6 @@ import (
 
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv/logging"
@@ -376,7 +375,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 				&phase0.DepositMessage{
 					PublicKey:             phase0.BLSPubKey(test.validatorPubKey),
 					WithdrawalCredentials: crypto.BLSWithdrawalCredentials(test.withdrawalPubKey),
-					Amount:                dkg.MaxEffectiveBalanceInGwei,
+					Amount:                crypto.MaxEffectiveBalanceInGwei,
 				},
 			)
 			require.NoError(t, err)
@@ -393,7 +392,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 
 			require.Equal(t, sk.GetPublicKey().SerializeToHexStr(), depositDataCLI.PubKey, "0x")
 			require.Equal(t, test.expectedWithdrawalCredentials, depositData.WithdrawalCredentials)
-			require.Equal(t, dkg.MaxEffectiveBalanceInGwei, depositData.Amount)
+			require.Equal(t, crypto.MaxEffectiveBalanceInGwei, depositData.Amount)
 			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot)
 			require.Equal(t, hex.EncodeToString(test.expectedSig), depositDataCLI.Signature, "0x")
 		})

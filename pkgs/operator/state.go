@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 
@@ -84,10 +83,6 @@ type Switch struct {
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	verify, err := s.CreateVerifyFunc(init.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
 	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
@@ -104,8 +99,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
+		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
@@ -188,7 +182,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
-	if err := validateInitMessage(init); err != nil {
+	if err := crypto.ValidateInitMessage(init); err != nil {
 		return nil, err
 	}
 	// Check that incoming message signature is valid
@@ -336,39 +330,6 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 	return signed.MarshalSSZ()
 }
 
-func validateInitMessage(init *wire.Init) error {
-	if len(init.Owner) != 20 || bytes.Equal(init.Owner[:], make([]byte, 20)) {
-		return fmt.Errorf("owner field should be non empty 20 bytes")
-	}
-	if len(init.Operators) < 4 {
-		return fmt.Errorf("wrong old operators len: < 4")
-	}
-	if len(init.Operators) > 13 {
-		return fmt.Errorf("wrong old operators len: > 13")
-	}
-	if len(init.Operators)%3 != 1 {
-		return fmt.Errorf("amount of old operators should be 4,7,10,13")
-	}
-	sorted := sort.SliceIsSorted(init.Operators, func(p, q int) bool {
-		return init.Operators[p].ID < init.Operators[q].ID
-	})
-	if !sorted {
-		return fmt.Errorf("operator not sorted by ID")
-	}
-	// compute threshold (3f+1)
-	threshold := len(init.Operators) - ((len(init.Operators) - 1) / 3)
-	if init.T != uint64(threshold) {
-		return fmt.Errorf("threshold field is wrong: expected %d, received %d", threshold, init.T)
-	}
-	if len(init.WithdrawalCredentials) == 0 || bytes.Equal(init.WithdrawalCredentials, make([]byte, 32)) || bytes.Equal(init.WithdrawalCredentials, make([]byte, 20)) {
-		return fmt.Errorf("withdrawal credentials field should be non empty 32 bytes")
-	}
-	if len(init.Fork) != 4 {
-		return fmt.Errorf("fork field should be 4 bytes empty")
-	}
-	return nil
-}
-
 func (s *Switch) Pong() ([]byte, error) {
 	pong := &wire.Pong{
 		PubKey: s.PubKeyBytes,
@@ -399,7 +360,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	var proof []*initiator.SignedProof
+	var proof []*wire.SignedProof
 	err = json.Unmarshal(resData.Proofs, &proof)
 	if err != nil {
 		return err
@@ -407,7 +368,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	// Wrap singular instances in slices for correct parameter passing
 	depositDataArr := []*initiator.DepositDataCLI{depJson}
 	keySharesArr := []*initiator.KeyShares{ksJson}
-	proofsArr := [][]*initiator.SignedProof{proof}
+	proofsArr := [][]*wire.SignedProof{proof}
 	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, s.Logger)
 }
 
