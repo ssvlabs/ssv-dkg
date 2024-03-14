@@ -62,7 +62,6 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger             *zap.Logger
 	startedDKG         chan struct{}
-	ErrorChan          chan error
 	ID                 uint64
 	data               *DKGdata
 	board              *board.Board
@@ -84,7 +83,6 @@ func New(opts *OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:             opts.Logger,
 		startedDKG:         make(chan struct{}, 1),
-		ErrorChan:          make(chan error, 1),
 		ID:                 opts.ID,
 		broadcastF:         opts.BroadcastF,
 		exchanges:          make(map[uint64]*wire.Exchange),
@@ -443,10 +441,6 @@ func (o *LocalOwner) checkOperators() bool {
 		}
 	}
 	return true
-}
-
-func (o *LocalOwner) GetLocalOwner() *LocalOwner {
-	return o
 }
 
 // GetDKGNodes returns a slice of DKG node instances used for the protocol

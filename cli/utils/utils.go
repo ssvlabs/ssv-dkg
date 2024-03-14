@@ -153,7 +153,6 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
-	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
 }
@@ -258,9 +257,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 // BindInitFlags binds flags to yaml config parameters for the initial DKG
 func BindInitFlags(cmd *cobra.Command) error {
 	if err := BindInitiatorBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("generateInitiatorKeyIfNotExisting", cmd.PersistentFlags().Lookup("generateInitiatorKeyIfNotExisting")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
