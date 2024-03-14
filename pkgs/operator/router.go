@@ -20,19 +20,10 @@ func RegisterRoutes(s *Server) {
 
 // Add route with optional middleware
 func addRoute(router chi.Router, method, path string, handler http.HandlerFunc, middleware ...func(http.Handler) http.Handler) {
-	switch method {
-	case "GET":
-		if len(middleware) > 0 {
-			router.With(middleware...).Get(path, handler)
-		} else {
-			router.Get(path, handler)
-		}
-	case "POST":
-		if len(middleware) > 0 {
-			router.With(middleware...).Post(path, handler)
-		} else {
-			router.Post(path, handler)
-		}
+	if len(middleware) > 0 {
+		router.With(middleware...).MethodFunc(method, path, handler)
+	} else {
+		router.MethodFunc(method, path, handler)
 	}
 }
 

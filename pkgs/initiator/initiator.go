@@ -163,7 +163,7 @@ func New(operators Operators, logger *zap.Logger, ver string) (*Initiator, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
-	wireOps, err := operators.Convert()
+	wireOps, err := operators.Wire()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert operators: %s", err)
 	}
