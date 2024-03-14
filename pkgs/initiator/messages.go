@@ -10,17 +10,20 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-// standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
-func standardMessageVerification(ops Operators) func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
-	return func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
-		op := ops.ByPubKey(pk)
+// StandardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
+func StandardMessageVerification(ops []*wire.Operator) func(pk, msg []byte, sig []byte) error {
+	return func(pk, msg []byte, sig []byte) error {
+		op := wire.ByPubKey(pk, ops)
 
 		if op == nil {
-			encodedPk, _ := crypto.EncodeRSAPublicKey(pk)
-			return fmt.Errorf("cant find operator participating at DKG %s", string(encodedPk))
+			return fmt.Errorf("cant find operator participating at DKG %s", string(pk))
 		}
 
-		return crypto.VerifyRSA(pk, msg, sig)
+		rsaPK, err := crypto.ParseRSAPublicKey(pk)
+		if err != nil {
+			return fmt.Errorf("can't parse RSA pub key %s", string(pk))
+		}
+		return crypto.VerifyRSA(rsaPK, msg, sig)
 	}
 }
 
@@ -48,11 +51,7 @@ func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 			return fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
 		}
 		// Verification operator signatures
-		pk, err := crypto.ParseRSAPublicKey(tsp.Signer)
-		if err != nil {
-			return fmt.Errorf("failed to parse RSA key: %w", err)
-		}
-		if err := verify(pk, signedBytes, tsp.Signature); err != nil {
+		if err := verify(tsp.Signer, signedBytes, tsp.Signature); err != nil {
 			return fmt.Errorf("failed to verify RSA signature: %w", err)
 		}
 	}

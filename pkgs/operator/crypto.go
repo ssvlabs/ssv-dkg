@@ -1,7 +1,6 @@
 package operator
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -24,27 +23,6 @@ func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
 // Decrypt with RSA private key private DKG share key
 func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
-}
-
-// CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
-func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, sig []byte) error, error) {
-	return func(pub, msg []byte, sig []byte) error {
-		var ok bool
-		for _, op := range ops {
-			if bytes.Equal(op.PubKey, pub) {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return fmt.Errorf("cant find operator participating at DKG %x", pub)
-		}
-		rsaPub, err := crypto.ParseRSAPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		return crypto.VerifyRSA(rsaPub, msg, sig)
-	}, nil
 }
 
 func VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {

@@ -30,7 +30,12 @@ func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	s.Logger.Debug("received a result message")
-	err = s.State.SaveResultData(signedResultMsg)
+	_, err = s.State.VerifyIncomingMessage(signedResultMsg)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	err = SaveResultData(signedResultMsg, s.Logger)
 	if err != nil {
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return

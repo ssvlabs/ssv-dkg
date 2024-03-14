@@ -11,6 +11,7 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
@@ -19,10 +20,6 @@ import (
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	verify, err := s.CreateVerifyFunc(init.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
 	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
@@ -40,7 +37,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
 		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
+		VerifyFunc:         initiator.StandardMessageVerification(init.Operators),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),

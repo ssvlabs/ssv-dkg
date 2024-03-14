@@ -25,7 +25,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
+type VerifyMessageSignatureFunc func(pub, msg, sig []byte) error
 
 // Initiator main structure for initiator
 type Initiator struct {
@@ -163,12 +163,16 @@ func New(operators Operators, logger *zap.Logger, ver string) (*Initiator, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
+	wireOps, err := operators.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert operators: %s", err)
+	}
 	c := &Initiator{
 		Logger:                 logger,
 		Client:                 client,
 		Operators:              operators,
 		PrivateKey:             privKey,
-		VerifyMessageSignature: standardMessageVerification(operators),
+		VerifyMessageSignature: StandardMessageVerification(wireOps),
 		Version:                []byte(ver),
 	}
 	return c, nil

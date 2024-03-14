@@ -1,7 +1,6 @@
 package initiator
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 // Operator structure represents operators info which is public
@@ -30,22 +30,16 @@ func (o Operators) ByID(id uint64) *Operator {
 	return nil
 }
 
-func (o Operators) ByPubKey(pk *rsa.PublicKey) *Operator {
-	encodedPk, err := crypto.EncodeRSAPublicKey(pk)
-	if err != nil {
-		return nil
-	}
-
+func (o Operators) Convert() ([]*wire.Operator, error) {
+	output := make([]*wire.Operator, 0, len(o))
 	for _, op := range o {
 		opPK, err := crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		if bytes.Equal(opPK, encodedPk) {
-			return &op
-		}
+		output = append(output, &wire.Operator{ID: op.ID, PubKey: opPK})
 	}
-	return nil
+	return output, nil
 }
 
 func (o Operators) Clone() Operators {

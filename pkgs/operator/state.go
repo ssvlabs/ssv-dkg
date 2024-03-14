@@ -2,25 +2,20 @@ package operator
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/rsa"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 const MaxInstances = 1024
@@ -55,160 +50,6 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 	}
 }
 
-// CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
-// new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
-func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	verify, err := s.CreateVerifyFunc(init.Operators)
-	if err != nil {
-		return nil, nil, err
-	}
-	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	// sanity check of operator ID
-	if s.OperatorID != operatorID {
-		return nil, nil, fmt.Errorf("wrong operator ID")
-	}
-	bchan := make(chan []byte, 1)
-	broadcast := func(msg []byte) error {
-		bchan <- msg
-		return nil
-	}
-	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:         broadcast,
-		SignFunc:           s.Sign,
-		VerifyFunc:         verify,
-		EncryptFunc:        s.Encrypt,
-		DecryptFunc:        s.Decrypt,
-		Suite:              kyber_bls12381.NewBLS12381Suite(),
-		ID:                 operatorID,
-		InitiatorPublicKey: initiatorPublicKey,
-		OperatorPublicKey:  &s.PrivateKey.PublicKey,
-		Version:            s.Version,
-	}
-	owner := dkg.New(&opts)
-	// wait for exchange msg
-	resp, err := owner.Init(reqID, init)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := owner.Broadcast(resp); err != nil {
-		return nil, nil, err
-	}
-	res := <-bchan
-	return &instWrapper{owner, initiatorPublicKey, bchan}, res, nil
-}
-
-// Sign creates a RSA signature for the message at operator before sending it to initiator
-func (s *Switch) Sign(msg []byte) ([]byte, error) {
-	return crypto.SignRSA(s.PrivateKey, msg)
-}
-
-// Encrypt with RSA public key private DKG share key
-func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
-	return rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, msg)
-}
-
-// Decrypt with RSA private key private DKG share key
-func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
-	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
-}
-
-// CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
-func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, sig []byte) error, error) {
-	return func(pub, msg []byte, sig []byte) error {
-		var ok bool
-		for _, op := range ops {
-			if bytes.Equal(op.PubKey, pub) {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return fmt.Errorf("cant find operator participating at DKG %x", pub)
-		}
-		rsaPub, err := crypto.ParseRSAPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		return crypto.VerifyRSA(rsaPub, msg, sig)
-	}, nil
-}
-
-// InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
-func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
-	if !bytes.Equal(initMsg.Version, s.Version) {
-		return nil, fmt.Errorf("wrong version: remote %s local %s", s.Version, initMsg.Version)
-	}
-	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
-	logger.Info("🚀 Initializing DKG instance")
-	init := &wire.Init{}
-	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
-		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
-	}
-	if err := validateInitMessage(init); err != nil {
-		return nil, err
-	}
-	// Check that incoming message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPublicKey(initiatorPub)
-	if err != nil {
-		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
-	}
-	marshalledWireMsg, err := initMsg.MarshalSSZ()
-	if err != nil {
-		return nil, fmt.Errorf("init: failed to marshal transport message: %s", err.Error())
-	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
-	if err != nil {
-		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
-	}
-	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
-	s.Mtx.Lock()
-	l := len(s.Instances)
-	if l >= MaxInstances {
-		cleaned := s.cleanInstances()
-		if l-cleaned >= MaxInstances {
-			s.Mtx.Unlock()
-			return nil, utils.ErrMaxInstances
-		}
-	}
-	_, ok := s.Instances[reqID]
-	if ok {
-		tm := s.InstanceInitTime[reqID]
-		if time.Now().Before(tm.Add(MaxInstanceTime)) {
-			s.Mtx.Unlock()
-			return nil, utils.ErrAlreadyExists
-		}
-		delete(s.Instances, reqID)
-		delete(s.InstanceInitTime, reqID)
-	}
-	s.Mtx.Unlock()
-	inst, resp, err := s.CreateInstance(reqID, init, initiatorPubKey)
-	if err != nil {
-		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
-	}
-	s.Mtx.Lock()
-	s.Instances[reqID] = inst
-	s.InstanceInitTime[reqID] = time.Now()
-	s.Mtx.Unlock()
-	return resp, nil
-}
-
-// cleanInstances removes all instances at Switch
-func (s *Switch) cleanInstances() int {
-	count := 0
-	for id, instime := range s.InstanceInitTime {
-		if time.Now().After(instime.Add(MaxInstanceTime)) {
-			delete(s.Instances, id)
-			delete(s.InstanceInitTime, id)
-			count++
-		}
-	}
-	return count
-}
-
 // ProcessMessage processes incoming message to /dkg route
 func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	// get instanceID
@@ -228,20 +69,6 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 		return nil, utils.ErrMissingInstance
 	}
 	return inst.ProcessMessages(st)
-}
-
-func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
-	operatorID := uint64(0)
-	for _, op := range operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return 0, fmt.Errorf("wrong operator")
-	}
-	return operatorID, nil
 }
 
 func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
@@ -315,41 +142,6 @@ func (s *Switch) Pong() ([]byte, error) {
 	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }
 
-func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
-	resData := &wire.ResultData{}
-	err := resData.UnmarshalSSZ(incMsg.Message.Data)
-	if err != nil {
-		return err
-	}
-	_, err = s.VerifyIncomingMessage(incMsg)
-	if err != nil {
-		return err
-	}
-	// Assuming depJson, ksJson, and proofs can be singular instances based on your logic
-	var depJson *initiator.DepositDataCLI
-	if len(resData.DepositData) != 0 {
-		err = json.Unmarshal(resData.DepositData, &depJson)
-		if err != nil {
-			return err
-		}
-	}
-	var ksJson *initiator.KeyShares
-	err = json.Unmarshal(resData.KeysharesData, &ksJson)
-	if err != nil {
-		return err
-	}
-	var proof []*initiator.SignedProof
-	err = json.Unmarshal(resData.Proofs, &proof)
-	if err != nil {
-		return err
-	}
-	// Wrap singular instances in slices for correct parameter passing
-	depositDataArr := []*initiator.DepositDataCLI{depJson}
-	keySharesArr := []*initiator.KeyShares{ksJson}
-	proofsArr := [][]*initiator.SignedProof{proof}
-	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, s.Logger)
-}
-
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
 	var initiatorPubKey *rsa.PublicKey
 	var ops []*wire.Operator
@@ -366,7 +158,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 			return 0, err
 		}
 		ops = ping.Operators
-		err = s.VerifySig(incMsg, initiatorPubKey)
+		err = VerifySig(incMsg, initiatorPubKey)
 		if err != nil {
 			return 0, err
 		}
@@ -399,14 +191,47 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 	return operatorID, nil
 }
 
-func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {
-	marshalledWireMsg, err := incMsg.Message.MarshalSSZ()
+func SaveResultData(incMsg *wire.SignedTransport, logger *zap.Logger) error {
+	resData := &wire.ResultData{}
+	err := resData.UnmarshalSSZ(incMsg.Message.Data)
 	if err != nil {
 		return err
 	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
-	if err != nil {
-		return fmt.Errorf("signature isn't valid: %s", err.Error())
+	// Assuming depJson, ksJson, and proofs can be singular instances based on your logic
+	var depJson *initiator.DepositDataCLI
+	if len(resData.DepositData) != 0 {
+		err = json.Unmarshal(resData.DepositData, &depJson)
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	var ksJson *initiator.KeyShares
+	err = json.Unmarshal(resData.KeysharesData, &ksJson)
+	if err != nil {
+		return err
+	}
+	var proof []*initiator.SignedProof
+	err = json.Unmarshal(resData.Proofs, &proof)
+	if err != nil {
+		return err
+	}
+	// Wrap singular instances in slices for correct parameter passing
+	depositDataArr := []*initiator.DepositDataCLI{depJson}
+	keySharesArr := []*initiator.KeyShares{ksJson}
+	proofsArr := [][]*initiator.SignedProof{proof}
+	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, logger)
+}
+
+func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
+	operatorID := uint64(0)
+	for _, op := range operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			operatorID = op.ID
+			break
+		}
+	}
+	if operatorID == 0 {
+		return 0, fmt.Errorf("wrong operator")
+	}
+	return operatorID, nil
 }
