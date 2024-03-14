@@ -28,6 +28,7 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte, chec
 	if err != nil {
 		return nil, err
 	}
+	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method), zap.Int("status", res.StatusCode))
 	if checkError {
 		if res.StatusCode < 200 || res.StatusCode >= 300 {
 			errmsg, parseErr := ParseAsError(resdata)
@@ -37,7 +38,6 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte, chec
 			return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(string(resdata)))
 		}
 	}
-	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method), zap.Int("status", res.StatusCode))
 	return resdata, nil
 }
 
