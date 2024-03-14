@@ -30,7 +30,7 @@ func (o Operators) ByID(id uint64) *Operator {
 	return nil
 }
 
-func (o Operators) Convert() ([]*wire.Operator, error) {
+func (o Operators) Wire() ([]*wire.Operator, error) {
 	output := make([]*wire.Operator, 0, len(o))
 	for _, op := range o {
 		opPK, err := crypto.EncodeRSAPublicKey(op.PubKey)
