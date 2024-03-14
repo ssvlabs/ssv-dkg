@@ -379,8 +379,11 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 
 	timestamp := time.Now().Format(time.RFC3339)
 	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
-	if err := os.Mkdir(dir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create a ceremony directory: %w", err)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.Mkdir(dir, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("failed to create a ceremony directory: %w", err)
+		}
 	}
 
 	for i := 0; i < len(depositDataArr); i++ {
