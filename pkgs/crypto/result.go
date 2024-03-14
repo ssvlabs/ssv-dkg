@@ -257,7 +257,7 @@ func BLSSignatureEncode(pkBytes []byte) (*bls.Sign, error) {
 	return ret, nil
 }
 
-func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, depositShareSig *bls.Sign, ownerNonceShareSig *bls.Sign, err error) {
+func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, depositShareSig, ownerNonceShareSig *bls.Sign, err error) {
 	sharePubKey = &bls.PublicKey{}
 	if err := sharePubKey.Deserialize(result.SignedProof.Proof.SharePubKey); err != nil {
 		return nil, nil, nil, err
@@ -273,7 +273,7 @@ func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, 
 	return sharePubKey, depositShareSig, ownerNonceShareSig, nil
 }
 
-func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (reconstructedDepositMasterSig *bls.Sign, reconstructedOwnerNonceMasterSig *bls.Sign, err error) {
+func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (reconstructedDepositMasterSig, reconstructedOwnerNonceMasterSig *bls.Sign, err error) {
 	reconstructedDepositMasterSig, err = RecoverBLSSignature(ids, sigsPartialDeposit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
