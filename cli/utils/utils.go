@@ -368,13 +368,13 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	return operators, nil
 }
 
-func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
+func WriteResults(outputPath string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*initiator.SignedProof, logger *zap.Logger) error {
 	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
+	dir := fmt.Sprintf("%s/ceremony-%s", outputPath, timestamp)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, os.ModePerm)
 		if err != nil {

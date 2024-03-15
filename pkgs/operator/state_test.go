@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -54,7 +55,9 @@ func TestCreateInstance(t *testing.T) {
 	logger := zap.L().Named("state-tests")
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
-		s, err := New(privateKey, logger, []byte("v1.0.2"), 1)
+		tempDir, err := os.MkdirTemp("", "dkg")
+		require.NoError(t, err)
+		s, err := New(privateKey, logger, []byte("v1.0.2"), 1, tempDir)
 		require.NoError(t, err)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -100,7 +103,9 @@ func TestInitInstance(t *testing.T) {
 	logger := zap.L().Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
 	require.NoError(t, err)
-	swtch, err := New(privateKey, logger, []byte("v1.0.2"), 1)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
+	swtch, err := New(privateKey, logger, []byte("v1.0.2"), 1, tempDir)
 	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value

@@ -35,7 +35,7 @@ func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Reques
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return
 	}
-	err = SaveResultData(signedResultMsg, s.Logger)
+	err = SaveResultData(signedResultMsg, s.Logger, s.OutputPath)
 	if err != nil {
 		err := &utils.SensitiveError{Err: err, PresentedErr: "failed to write results"}
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
