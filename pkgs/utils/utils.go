@@ -77,9 +77,8 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 }
 
 // GetThreshold computes threshold from amount of operators following 3f+1 tolerance
-func GetThreshold(ids []uint64) (int, error) {
-	threshold := len(ids) - ((len(ids) - 1) / 3)
-	return threshold, nil
+func GetThreshold[S ~[]E, E any](ids S) int {
+	return len(ids) - ((len(ids) - 1) / 3)
 }
 
 // GetNetworkByFork translates the network fork bytes into name

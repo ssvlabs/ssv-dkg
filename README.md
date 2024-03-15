@@ -149,7 +149,6 @@ network: "holesky" # network name (default: mainnet)
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
-generateInitiatorKeyIfNotExisting: true
 # true - generates new RSA key pair + random secure password. The result is stored at ` config`. If files exist `configPath` - use them instead of generating new ones.
 # false - look for `initiator_encrypted_key.json` and `initiator_password` at `configPath`. If not found - error.
 logLevel: info # logger's log level (default: debug)
@@ -177,10 +176,6 @@ docker rm ssv_dkg_initiator
 
 Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.
 You can, of course, change the configuration above to one that suits you better, just be mindful about changing the path references in the docker command **and** in the `init.yaml` file as well.
-
-> ℹ️ Note: The Initiator needs to sign all messages exchanged with DKG participants with an RSA key. The `--generateInitiatorKeyIfNotExisting` option will automatically create it, and encrypt it with a random password. Both the key and the password will be returned as output.
->
-> If you already have a password-encrypted RSA key, make sure to omit this option and place
 
 <details>
   <summary><b>Click here if you want to generate an RSA with a password of your choosing</b></summary>
@@ -256,7 +251,6 @@ ssv-dkg init \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
           --network "holesky" \
           --outputPath ./output \
-          --generateInitiatorKeyIfNotExisting true \
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
@@ -277,7 +271,6 @@ Here's an explanation of each parameter:
 | `--network`                           | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                                        |
 | `--outputPath`                        | string                                    | Path to store the output files (default `./output`)                                                      |
 | `--configPath`                        | string                                    | Path to config file                                                                                      |
-| `--generateInitiatorKeyIfNotExisting` | boolean                                   | Generates new RSA key pair + random secure password. The result is stored at ` config` (default: `true`) |
 | `--logLevel`                          | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                                    |
 | `--logFormat`                         | json / console                            | Logger's encoding (default: `json`)                                                                      |
 | `--logLevelFormat`                    | capitalColor / capital / lowercase        | Logger's level format (default: `capitalColor`)                                                          |
@@ -318,7 +311,6 @@ operatorsInfoPath: /data/initiator/operators_info.json
 # Alternatively:
 # operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
-generateInitiatorKeyIfNotExisting: true # (default: `true`)
 # true - generates new RSA key pair + random secure password. The result is stored at ` config`. If files exist `configPath` - use them instead of generating new ones.
 # false - look for `initiator_encrypted_key.json` and `initiator_password` at `configPath`. If not found - error.
 logLevel: info # Logger's log level (default: debug)

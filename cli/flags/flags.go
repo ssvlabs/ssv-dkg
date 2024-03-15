@@ -8,26 +8,25 @@ import (
 
 // Flag names.
 const (
-	threshold                         = "threshold"
-	withdrawAddress                   = "withdrawAddress"
-	operatorIDs                       = "operatorIDs"
-	operatorsInfo                     = "operatorsInfo"
-	operatorsInfoPath                 = "operatorsInfoPath"
-	privKey                           = "privKey"
-	privKeyPassword                   = "privKeyPassword"
-	configPath                        = "configPath"
-	generateInitiatorKeyIfNotExisting = "generateInitiatorKeyIfNotExisting"
-	operatorPort                      = "port"
-	owner                             = "owner"
-	nonce                             = "nonce"
-	network                           = "network"
-	outputPath                        = "outputPath"
-	logLevel                          = "logLevel"
-	logFormat                         = "logFormat"
-	logLevelFormat                    = "logLevelFormat"
-	logFilePath                       = "logFilePath"
-	validators                        = "validators"
-	operatorID                        = "operatorID"
+	threshold         = "threshold"
+	withdrawAddress   = "withdrawAddress"
+	operatorIDs       = "operatorIDs"
+	operatorsInfo     = "operatorsInfo"
+	operatorsInfoPath = "operatorsInfoPath"
+	privKey           = "privKey"
+	privKeyPassword   = "privKeyPassword"
+	configPath        = "configPath"
+	operatorPort      = "port"
+	owner             = "owner"
+	nonce             = "nonce"
+	network           = "network"
+	outputPath        = "outputPath"
+	logLevel          = "logLevel"
+	logFormat         = "logFormat"
+	logLevelFormat    = "logLevelFormat"
+	logFilePath       = "logFilePath"
+	validators        = "validators"
+	operatorID        = "operatorID"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -68,11 +67,6 @@ func NetworkFlag(c *cobra.Command) {
 // OperatorPrivateKeyFlag  adds private key flag to the command
 func PrivateKeyFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, privKey, "", "Path to initiator Private Key file", false)
-}
-
-// GenerateInitiatorKeyIfNotExistingFlag adds flag to generate a random secure password and initiator RSA key pair encrypted with this password
-func GenerateInitiatorKeyIfNotExistingFlag(c *cobra.Command) {
-	AddPersistentBoolFlag(c, generateInitiatorKeyIfNotExisting, false, "Generates a random secure password and initiator RSA key pair encrypted with this password", false)
 }
 
 // OperatorPrivateKeyPassFlag  adds private key flag to the command

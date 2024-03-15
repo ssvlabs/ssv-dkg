@@ -26,7 +26,6 @@ validators: 1
 #   }]'
 operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/initiator/output
-generateInitiatorKeyIfNotExisting: true
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
