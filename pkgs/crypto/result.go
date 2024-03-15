@@ -111,7 +111,7 @@ func ValidateResult(
 	if err := ValidateCeremonyProof(
 		ownerAddress,
 		operator,
-		result.SignedProof,
+		&result.SignedProof,
 	); err != nil {
 		return err
 	}

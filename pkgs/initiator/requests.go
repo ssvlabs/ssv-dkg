@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 // opReqResult structure to represent http communication messages incoming to initiator from operators
@@ -17,7 +18,7 @@ type opReqResult struct {
 }
 
 // SendAndCollect ssends http message to operator and read the response
-func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]byte, error) {
+func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
 	r.SetBodyBytes(data)
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -33,7 +34,7 @@ func (c *Initiator) SendAndCollect(op Operator, method string, data []byte) ([]b
 }
 
 // GetAndCollect request Get at operator route
-func (c *Initiator) GetAndCollect(op Operator, method string) ([]byte, error) {
+func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, error) {
 	r := c.Client.R()
 	res, err := r.Get(fmt.Sprintf("%v/%v", op.Addr, method))
 	if err != nil {
@@ -84,14 +85,4 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*wire.Opera
 	}
 
 	return final, finalerr
-}
-
-// parseAsError parses the error from an operator
-func ParseAsError(msg []byte) (parsedErr, err error) {
-	sszerr := &wire.ErrSSZ{}
-	err = sszerr.UnmarshalSSZ(msg)
-	if err != nil {
-		return nil, err
-	}
-	return errors.New(string(sszerr.Error)), nil
 }

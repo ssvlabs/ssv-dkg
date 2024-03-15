@@ -1,5 +1,12 @@
 package wire
 
+import (
+	"crypto/rsa"
+	"time"
+
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+)
+
 type SSZMarshaller interface {
 	MarshalSSZ() ([]byte, error)
 	UnmarshalSSZ(buf []byte) error
@@ -157,4 +164,59 @@ type ResultData struct {
 	DepositData   []byte   `ssz-max:"8192"`
 	KeysharesData []byte   `ssz-max:"32768"`
 	Proofs        []byte   `ssz-max:"32768"`
+}
+
+// DepositDataCLI  is a deposit structure from the eth2 deposit CLI (https://github.com/ethereum/staking-deposit-cli).
+type DepositDataCLI struct {
+	PubKey                string      `json:"pubkey"`
+	WithdrawalCredentials string      `json:"withdrawal_credentials"`
+	Amount                phase0.Gwei `json:"amount"`
+	Signature             string      `json:"signature"`
+	DepositMessageRoot    string      `json:"deposit_message_root"`
+	DepositDataRoot       string      `json:"deposit_data_root"`
+	ForkVersion           string      `json:"fork_version"`
+	NetworkName           string      `json:"network_name"`
+	DepositCliVersion     string      `json:"deposit_cli_version"`
+}
+
+// DepositCliVersion is last version accepted by launchpad
+const DepositCliVersion = "2.7.0"
+
+// KeyShares structure to create an json file for ssv smart contract
+type KeySharesCLI struct {
+	Version   string    `json:"version"`
+	CreatedAt time.Time `json:"createdAt"`
+	Shares    []Data    `json:"shares"`
+}
+
+// Data structure as a part of KeyShares representing BLS validator public key and information about validators
+type Data struct {
+	ShareData `json:"data"`
+	Payload   Payload `json:"payload"`
+}
+
+type ShareData struct {
+	OwnerNonce   uint64      `json:"ownerNonce"`
+	OwnerAddress string      `json:"ownerAddress"`
+	PublicKey    string      `json:"publicKey"`
+	Operators    []*Operator `json:"operators"`
+}
+
+type Payload struct {
+	PublicKey   string   `json:"publicKey"`   // validator's public key
+	OperatorIDs []uint64 `json:"operatorIds"` // operators IDs
+	SharesData  string   `json:"sharesData"`  // encrypted private BLS shares of each operator participating in DKG
+}
+
+type PongResult struct {
+	IP     string
+	Err    error
+	Result []byte
+}
+
+// Operator structure represents operators info which is public
+type OperatorCLI struct {
+	Addr   string         // ip:port
+	ID     uint64         // operators ID
+	PubKey *rsa.PublicKey // operators RSA public key
 }

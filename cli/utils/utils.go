@@ -20,6 +20,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 )
@@ -43,7 +44,7 @@ var (
 	Network           string
 	OwnerAddress      common.Address
 	Nonce             uint64
-	Validators        uint64
+	Validators        uint
 )
 
 // operator flags
@@ -117,7 +118,7 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 }
 
 // ReadOperatorsInfoFile reads operators data from path
-func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
+func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.OperatorsCLI, error) {
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
@@ -128,7 +129,7 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initia
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
-	var operators initiator.Operators
+	var operators wire.OperatorsCLI
 	err = json.Unmarshal(operatorsInfoJSON, &operators)
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
@@ -286,7 +287,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Network == "" {
 		return fmt.Errorf("😥 Failed to get fork version flag value")
 	}
-	Validators = viper.GetUint64("validators")
+	Validators = viper.GetUint("validators")
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
@@ -353,8 +354,8 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 }
 
 // LoadOperators loads operators data from raw json or file path
-func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
-	var operators initiator.Operators
+func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
+	var operators wire.OperatorsCLI
 	var err error
 	if OperatorsInfo != "" {
 		err = json.Unmarshal([]byte(OperatorsInfo), &operators)
@@ -373,11 +374,23 @@ func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
 	return operators, nil
 }
 
-func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
+func WriteResults(depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
 		logger.Fatal("Incoming result arrays have inconsistent length")
 	}
-
+	// order the keyshares by nonce
+	sort.SliceStable(keySharesArr, func(i, j int) bool {
+		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
+	})
+	sorted := sort.SliceIsSorted(keySharesArr, func(p, q int) bool {
+		return keySharesArr[p].Shares[0].OwnerNonce < keySharesArr[q].Shares[0].OwnerNonce
+	})
+	if !sorted {
+		return fmt.Errorf("slice is not sorted")
+	}
+	if err := validator.ValidateResults(depositDataArr, keySharesArr, proofs, int(Validators)); err != nil {
+		return err
+	}
 	timestamp := time.Now().Format(time.RFC3339)
 	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
 	if err := os.Mkdir(dir, os.ModePerm); err != nil {
@@ -419,7 +432,7 @@ func WriteResults(depositDataArr []*initiator.DepositDataCLI, keySharesArr []*in
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositDataCLI, keySharesArr []*initiator.KeyShares, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -449,7 +462,7 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*initiator.DepositD
 	return nil
 }
 
-func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
+func WriteKeysharesResult(keyShares *wire.KeySharesCLI, dir string) error {
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
@@ -458,9 +471,9 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
 	return nil
 }
 
-func WriteDepositResult(depositData *initiator.DepositDataCLI, dir string) error {
+func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
-	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataCLI{depositData})
+	err := utils.WriteJSON(depositFinalPath, []*wire.DepositDataCLI{depositData})
 
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)

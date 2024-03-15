@@ -18,6 +18,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 )
 
@@ -50,7 +51,7 @@ func TestStartDKG(t *testing.T) {
 	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	ops := initiator.Operators{}
+	ops := wire.OperatorsCLI{}
 	version := "v1.0.2"
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
@@ -58,10 +59,10 @@ func TestStartDKG(t *testing.T) {
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops = append(
 		ops,
-		initiator.Operator{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey},
-		initiator.Operator{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey},
-		initiator.Operator{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey},
-		initiator.Operator{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey},
+		wire.OperatorCLI{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey},
+		wire.OperatorCLI{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey},
+		wire.OperatorCLI{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey},
+		wire.OperatorCLI{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey},
 	)
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
@@ -73,7 +74,7 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
 		require.NoError(t, err)
-		err = initiator.ValidateDepositDataCLI(depositData)
+		err = crypto.ValidateDepositDataCLI(depositData)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
@@ -106,7 +107,7 @@ func TestStartDKG(t *testing.T) {
 
 func TestLoadOperators(t *testing.T) {
 	t.Run("test load happy flow", func(t *testing.T) {
-		var ops initiator.Operators
+		var ops wire.OperatorsCLI
 		err := json.Unmarshal(jsonStr, &ops)
 		require.NoError(t, err)
 		require.Len(t, ops, 4)
@@ -116,7 +117,7 @@ func TestLoadOperators(t *testing.T) {
 		require.True(t, ops[2].PubKey.Equal(key3), "pubkey not equal")
 	})
 	t.Run("test wrong pub key encoding", func(t *testing.T) {
-		var ops initiator.Operators
+		var ops wire.OperatorsCLI
 		err := json.Unmarshal([]byte(`[
       {
         "id": 1,
@@ -127,7 +128,7 @@ func TestLoadOperators(t *testing.T) {
 		require.ErrorContains(t, err, "decode PEM block")
 	})
 	t.Run("test wrong operator URL", func(t *testing.T) {
-		var ops initiator.Operators
+		var ops wire.OperatorsCLI
 		err := json.Unmarshal([]byte(`[
       {
         "id": 1,
@@ -139,10 +140,10 @@ func TestLoadOperators(t *testing.T) {
 	})
 }
 
-func generateOperators(ids []uint64) initiator.Operators {
-	m := make([]initiator.Operator, 0, len(ids))
+func generateOperators(ids []uint64) wire.OperatorsCLI {
+	m := make([]wire.OperatorCLI, 0, len(ids))
 	for _, i := range ids {
-		m = append(m, initiator.Operator{
+		m = append(m, wire.OperatorCLI{
 			Addr: "",
 			ID:   i,
 			PubKey: &rsa.PublicKey{
@@ -162,7 +163,7 @@ func TestValidateDKGParams(t *testing.T) {
 	tests := []struct {
 		name    string
 		ids     []uint64
-		ops     initiator.Operators
+		ops     wire.OperatorsCLI
 		wantErr bool
 		errMsg  string
 	}{
@@ -305,7 +306,7 @@ func TestRemoveTrailSlash(t *testing.T) {
 	}
 	]`)
 
-	var ops initiator.Operators
+	var ops wire.OperatorsCLI
 	err := json.Unmarshal(jsonStr, &ops)
 
 	require.Nil(t, err)
@@ -380,9 +381,9 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			depositDataCLI, err := initiator.BuildDepositDataCLI(test.network, depositData, initiator.DepositCliVersion)
+			depositDataCLI, err := crypto.BuildDepositDataCLI(test.network, depositData, wire.DepositCliVersion)
 			require.NoError(t, err)
-			err = initiator.ValidateDepositDataCLI(depositDataCLI)
+			err = crypto.ValidateDepositDataCLI(depositDataCLI)
 			if test.expectedErr != nil {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), test.expectedErr.Error())
