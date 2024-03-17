@@ -1,9 +1,12 @@
 package crypto
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber/share"
 	drand_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +24,8 @@ const (
 	EncryptedKeyLength = 256
 	// Signature len
 	SignatureLength = 256
+	// MaxEffectiveBalanceInGwei is the max effective balance
+	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
 )
 
 func init() {
@@ -130,4 +135,18 @@ func RecoverBLSSignature(ids []uint64, partialSigs []*bls.Sign) (*bls.Sign, erro
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 	return &reconstructed, nil
+}
+
+func VerifyPartialSigs(sigs []*bls.Sign, pubs []*bls.PublicKey, data []byte) error {
+	for i, sig := range sigs {
+		if !sig.VerifyByte(pubs[i], data) {
+			return fmt.Errorf("partial signature is invalid  #%d: sig %x root %x", i, sig.Serialize(), data)
+		}
+	}
+	return nil
+}
+
+// Encrypt with RSA public key private DKG share key
+func Encrypt(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
+	return rsa.EncryptPKCS1v15(rand.Reader, pub, msg)
 }

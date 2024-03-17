@@ -13,6 +13,7 @@ import (
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 const (
@@ -98,9 +99,9 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		var depositDataArr []*initiator.DepositDataCLI
-		var keySharesArr []*initiator.KeyShares
-		var proofs [][]*initiator.SignedProof
+		var depositDataArr []*wire.DepositDataCLI
+		var keySharesArr []*wire.KeySharesCLI
+		var proofs [][]*wire.SignedProof
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
@@ -108,7 +109,16 @@ var StartDKG = &cobra.Command{
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		if err := cli_utils.WriteResults(depositDataArr, keySharesArr, proofs, logger); err != nil {
+		if err := cli_utils.WriteResults(
+			logger,
+			depositDataArr,
+			keySharesArr,
+			proofs,
+			int(cli_utils.Validators),
+			cli_utils.OwnerAddress,
+			cli_utils.Nonce,
+			cli_utils.WithdrawAddress,
+		); err != nil {
 			logger.Fatal("Could not save deposit file", zap.Error(err))
 		}
 		fmt.Println(`
@@ -134,7 +144,7 @@ var StartDKG = &cobra.Command{
 type Result struct {
 	id          [24]byte
 	nonce       uint64
-	depositData *initiator.DepositDataCLI
-	keyShares   *initiator.KeyShares
-	proof       []*initiator.SignedProof
+	depositData *wire.DepositDataCLI
+	keyShares   *wire.KeySharesCLI
+	proof       []*wire.SignedProof
 }

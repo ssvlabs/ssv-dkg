@@ -1,4 +1,4 @@
-package initiator
+package crypto
 
 import (
 	"encoding/hex"
@@ -7,33 +7,18 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/eth2-key-manager/core"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
+
+	"github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-// DepositDataCLI  is a deposit structure from the eth2 deposit CLI (https://github.com/ethereum/staking-deposit-cli).
-type DepositDataCLI struct {
-	PubKey                string      `json:"pubkey"`
-	WithdrawalCredentials string      `json:"withdrawal_credentials"`
-	Amount                phase0.Gwei `json:"amount"`
-	Signature             string      `json:"signature"`
-	DepositMessageRoot    string      `json:"deposit_message_root"`
-	DepositDataRoot       string      `json:"deposit_data_root"`
-	ForkVersion           string      `json:"fork_version"`
-	NetworkName           string      `json:"network_name"`
-	DepositCliVersion     string      `json:"deposit_cli_version"`
-}
-
-// DepositCliVersion is last version accepted by launchpad
-const DepositCliVersion = "2.7.0"
-
-func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*DepositDataCLI, error) {
+func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                dkg.MaxEffectiveBalanceInGwei,
+		Amount:                MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, err := depositMsg.HashTreeRoot()
@@ -47,14 +32,14 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	}
 
 	// Final checks of prepared deposit data
-	if !(dkg.MaxEffectiveBalanceInGwei == depositData.Amount) {
+	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
 	forkbytes := network.GenesisForkVersion()
-	depositDataJson := &DepositDataCLI{
+	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                dkg.MaxEffectiveBalanceInGwei,
+		Amount:                MaxEffectiveBalanceInGwei,
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
@@ -65,13 +50,21 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	return depositDataJson, nil
 }
 
-func ValidateDepositDataCLI(d *DepositDataCLI) error {
+func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress common.Address) error {
+	return validateDepositDataCLI(d, ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes()))
+}
+
+func ValidateDepositDataCLIBLS(d *wire.DepositDataCLI, expectedWithdrawalPubKey []byte) error {
+	return validateDepositDataCLI(d, BLSWithdrawalCredentials(expectedWithdrawalPubKey))
+}
+
+func validateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredentials []byte) error {
 	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
 	b, err := json.Marshal(d)
 	if err != nil {
 		return fmt.Errorf("failed to marshal deposit data json: %v", err)
 	}
-	var depositData DepositDataCLI
+	var depositData wire.DepositDataCLI
 	if err := json.Unmarshal(b, &depositData); err != nil {
 		return fmt.Errorf("failed to unmarshal deposit data json: %v", err)
 	}
@@ -88,10 +81,14 @@ func ValidateDepositDataCLI(d *DepositDataCLI) error {
 	if err := verifyDepositRoots(d); err != nil {
 		return fmt.Errorf("failed to verify deposit roots: %v", err)
 	}
+	// 3. Verify withdrawal address
+	if d.WithdrawalCredentials != hex.EncodeToString(expectedWithdrawalCredentials) {
+		return fmt.Errorf("failed to verify withdrawal address (%s != %x)", d.WithdrawalCredentials, expectedWithdrawalCredentials)
+	}
 	return nil
 }
 
-func validateFieldFormatting(d *DepositDataCLI) error {
+func validateFieldFormatting(d *wire.DepositDataCLI) error {
 	// check existence of required keys
 	if d.PubKey == "" ||
 		d.WithdrawalCredentials == "" ||
@@ -142,7 +139,7 @@ func validateFieldFormatting(d *DepositDataCLI) error {
 	return nil
 }
 
-func verifyDepositRoots(d *DepositDataCLI) error {
+func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	pubKey, err := hex.DecodeString(d.PubKey)
 	if err != nil {
 		return fmt.Errorf("failed to decode public key: %v", err)
@@ -172,7 +169,7 @@ func verifyDepositRoots(d *DepositDataCLI) error {
 		Amount:                d.Amount,
 		Signature:             phase0.BLSSignature(sig),
 	}
-	err = crypto.VerifyDepositData(network, depositData)
+	err = VerifyDepositData(network, depositData)
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit data: %v", err)
 	}

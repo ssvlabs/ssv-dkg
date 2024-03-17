@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -24,11 +23,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-const (
-	// MaxEffectiveBalanceInGwei is the max effective balance
-	MaxEffectiveBalanceInGwei phase0.Gwei = 32000000000
-)
-
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGdata struct {
 	// Request ID formed by initiator to identify DKG ceremony
@@ -45,8 +39,7 @@ type OwnerOpts struct {
 	ID                 uint64
 	BroadcastF         func([]byte) error
 	Suite              pairing.Suite
-	VerifyFunc         func(pub, msg, sig []byte) error
-	SignFunc           func([]byte) ([]byte, error)
+	Signer             crypto.Signer
 	EncryptFunc        func([]byte) ([]byte, error)
 	DecryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -69,8 +62,7 @@ type LocalOwner struct {
 	Suite              pairing.Suite
 	broadcastF         func([]byte) error
 	exchanges          map[uint64]*wire.Exchange
-	verifyFunc         func(pub, msg, sig []byte) error
-	signFunc           func([]byte) ([]byte, error)
+	signer             crypto.Signer
 	encryptFunc        func([]byte) ([]byte, error)
 	decryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -88,8 +80,7 @@ func New(opts *OwnerOpts) *LocalOwner {
 		ID:                 opts.ID,
 		broadcastF:         opts.BroadcastF,
 		exchanges:          make(map[uint64]*wire.Exchange),
-		signFunc:           opts.SignFunc,
-		verifyFunc:         opts.VerifyFunc,
+		signer:             opts.Signer,
 		encryptFunc:        opts.EncryptFunc,
 		decryptFunc:        opts.DecryptFunc,
 		InitiatorPublicKey: opts.InitiatorPublicKey,
@@ -151,7 +142,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 		return err
 	}
 	// Sign message with RSA private key
-	sign, err := o.signFunc(bts)
+	sign, err := o.signer.Sign(bts)
 	if err != nil {
 		return err
 	}
@@ -203,7 +194,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	signingRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
 		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
-		Amount:                MaxEffectiveBalanceInGwei,
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to generate deposit data with root %w", err)
@@ -234,23 +225,16 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
 		Owner:           o.data.init.Owner,
 	}
-	encProof, err := proof.MarshalSSZ()
+	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)
 	if err != nil {
-		return err
-	}
-	proofSig, err := o.signFunc(encProof)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to sign proof: %w", err)
 	}
 	out := &wire.Result{
 		RequestID:                  o.data.reqID,
 		DepositPartialSignature:    depositPartialSignature.Serialize(),
 		OperatorID:                 o.ID,
 		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		SignedProof: wire.SignedProof{
-			Proof:     proof,
-			Signature: proofSig,
-		},
+		SignedProof:                *signedProof,
 	}
 	encodedOutput, err := out.MarshalSSZ()
 	if err != nil {
@@ -356,7 +340,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(st *wire.SignedTransport) error {
-	from, err := o.findID(st.Signer)
+	from, err := crypto.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
 	if err != nil {
 		return err
 	}
@@ -365,7 +349,11 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 		return err
 	}
 	// Verify operator signatures
-	if err := o.verifyFunc(st.Signer, msgbts, st.Signature); err != nil {
+	pk, err := crypto.ParseRSAPublicKey(st.Signer)
+	if err != nil {
+		return err
+	}
+	if err := crypto.VerifyRSA(pk, msgbts, st.Signature); err != nil {
 		return err
 	}
 	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", st.Message.Type.String()), zap.Uint64("from", from))
@@ -478,19 +466,5 @@ func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error)
 	dataToSign := make([]byte, len(secretKeyBLS.Serialize())+len(encInitPub))
 	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
 	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
-	return o.signFunc(dataToSign)
-}
-
-func (o *LocalOwner) findID(pub []byte) (uint64, error) {
-	var id uint64
-	for _, op := range o.data.init.Operators {
-		if bytes.Equal(op.PubKey, pub) {
-			id = op.ID
-			break
-		}
-	}
-	if id == 0 {
-		return 0, fmt.Errorf("cant find operator ID related to RSA public key")
-	}
-	return id, nil
+	return o.signer.Sign(dataToSign)
 }
