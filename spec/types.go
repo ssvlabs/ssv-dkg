@@ -21,6 +21,8 @@ type Init struct {
 }
 
 type Reshare struct {
+	// ValidatorPubKey public key corresponding to the shared private key
+	ValidatorPubKey []byte `ssz-size:"48"`
 	// Operators involved in the DKG
 	OldOperators []*Operator `ssz-max:"13"`
 	// Operators involved in the resharing

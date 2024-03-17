@@ -22,6 +22,7 @@ func RunDKG(init *Init) ([]*Result, error) {
 	return results, ValidateResults(
 		init.Operators,
 		init.WithdrawalCredentials,
+		results[0].SignedProof.Proof.ValidatorPubKey,
 		init.Fork,
 		init.Owner,
 		init.Nonce,
@@ -30,6 +31,7 @@ func RunDKG(init *Init) ([]*Result, error) {
 }
 
 func RunReshare(
+	validatorPK []byte,
 	withdrawalCredentials []byte,
 	fork [4]byte,
 	signedReshare *SignedReshare,
@@ -53,6 +55,7 @@ func RunReshare(
 	return results, ValidateResults(
 		signedReshare.Reshare.NewOperators,
 		withdrawalCredentials,
+		validatorPK,
 		fork,
 		signedReshare.Reshare.Owner,
 		signedReshare.Reshare.Nonce,

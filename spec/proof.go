@@ -27,11 +27,17 @@ func SignCeremonyProof(sk *rsa.PrivateKey, proof *Proof) (*SignedProof, error) {
 
 func ValidateCeremonyProof(
 	ownerAddress [20]byte,
+	validatorPK []byte,
 	operator *Operator,
 	signedProof SignedProof,
 ) error {
 	if !bytes.Equal(ownerAddress[:], signedProof.Proof.Owner[:]) {
 		return fmt.Errorf("invalid owner address")
+	}
+
+	// verify validator pk
+	if !bytes.Equal(validatorPK, signedProof.Proof.ValidatorPubKey) {
+		return fmt.Errorf("invalid proof validator pubkey")
 	}
 
 	if err := VerifyCeremonyProof(operator.PubKey, signedProof); err != nil {

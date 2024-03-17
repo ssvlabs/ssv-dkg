@@ -16,6 +16,7 @@ import (
 func ValidateResults(
 	operators []*Operator,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	ownerAddress [20]byte,
 	nonce uint64,
@@ -26,12 +27,26 @@ func ValidateResults(
 		return fmt.Errorf("mistmatch results count")
 	}
 
-	if err := VerifyValidatorPubKey(results); err != nil {
+	// recover and validate validator pk
+	pk, err := RecoverValidatorPKFromResults(results)
+	if err != nil {
 		return err
+	}
+	if !bytes.Equal(validatorPK, pk) {
+		return fmt.Errorf("invalid recovered validator pubkey")
 	}
 
 	for _, result := range results {
-		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, fork, nonce, result); err != nil {
+		if err := ValidateResult(
+			operators,
+			ownerAddress,
+			requestID,
+			withdrawalCredentials,
+			validatorPK,
+			fork,
+			nonce,
+			result,
+		); err != nil {
 			return err
 		}
 	}
@@ -45,6 +60,7 @@ func ValidateResult(
 	ownerAddress [20]byte,
 	requestID [24]byte,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	nonce uint64,
 	result *Result,
@@ -73,6 +89,7 @@ func ValidateResult(
 	// verify ceremony proof
 	if err := ValidateCeremonyProof(
 		ownerAddress,
+		validatorPK,
 		operator,
 		result.SignedProof,
 	); err != nil {
@@ -82,15 +99,15 @@ func ValidateResult(
 	return nil
 }
 
-// VerifyValidatorPubKey returns error shares reconstructed validator pub key != individual result validator pub key
-func VerifyValidatorPubKey(results []*Result) error {
+// RecoverValidatorPKFromResults returns validator PK recovered from results
+func RecoverValidatorPKFromResults(results []*Result) ([]byte, error) {
 	ids := make([]uint64, len(results))
 	pks := make([]*bls.PublicKey, len(results))
 
 	for i, result := range results {
 		pk, err := BLSPKEncode(result.SignedProof.Proof.SharePubKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pks[i] = pk
 		ids[i] = result.OperatorID
@@ -98,15 +115,10 @@ func VerifyValidatorPubKey(results []*Result) error {
 
 	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, pks)
 	if err != nil {
-		return fmt.Errorf("failed to recover validator public key from results")
+		return nil, fmt.Errorf("failed to recover validator public key from results")
 	}
 
-	for _, result := range results {
-		if !bytes.Equal(validatorRecoveredPK.Serialize(), result.SignedProof.Proof.ValidatorPubKey) {
-			return fmt.Errorf("mistmatch result validator PK")
-		}
-	}
-	return nil
+	return validatorRecoveredPK.Serialize(), nil
 }
 
 func VerifyPartialSignatures(

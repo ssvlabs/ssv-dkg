@@ -4,7 +4,8 @@ import "github.com/bloxapp/ssv-dkg/spec"
 
 var (
 	TestReshare4Operators = spec.Reshare{
-		OldOperators: GenerateOperators(4),
+		ValidatorPubKey: ShareSK(TestValidator4Operators).GetPublicKey().Serialize(),
+		OldOperators:    GenerateOperators(4),
 		NewOperators: []*spec.Operator{
 			GenerateOperators(4)[0],
 			GenerateOperators(4)[1],
@@ -17,7 +18,8 @@ var (
 		Nonce: 1,
 	}
 	TestReshare7Operators = spec.Reshare{
-		OldOperators: GenerateOperators(7),
+		ValidatorPubKey: ShareSK(TestValidator7Operators).GetPublicKey().Serialize(),
+		OldOperators:    GenerateOperators(7),
 		NewOperators: []*spec.Operator{
 			GenerateOperators(7)[0],
 			GenerateOperators(7)[1],
@@ -33,7 +35,8 @@ var (
 		Nonce: 1,
 	}
 	TestReshare10Operators = spec.Reshare{
-		OldOperators: GenerateOperators(10),
+		ValidatorPubKey: ShareSK(TestValidator10Operators).GetPublicKey().Serialize(),
+		OldOperators:    GenerateOperators(10),
 		NewOperators: []*spec.Operator{
 			GenerateOperators(10)[0],
 			GenerateOperators(10)[1],
@@ -52,7 +55,8 @@ var (
 		Nonce: 1,
 	}
 	TestReshare13Operators = spec.Reshare{
-		OldOperators: GenerateOperators(13),
+		ValidatorPubKey: ShareSK(TestValidator13Operators).GetPublicKey().Serialize(),
+		OldOperators:    GenerateOperators(13),
 		NewOperators: []*spec.Operator{
 			GenerateOperators(13)[0],
 			GenerateOperators(13)[1],

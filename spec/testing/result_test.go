@@ -13,6 +13,7 @@ func TestValidateResults(t *testing.T) {
 		require.NoError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -25,6 +26,7 @@ func TestValidateResults(t *testing.T) {
 		require.NoError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(7),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -37,6 +39,7 @@ func TestValidateResults(t *testing.T) {
 		require.NoError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(10),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator10Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -49,6 +52,7 @@ func TestValidateResults(t *testing.T) {
 		require.NoError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(13),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator13Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -74,12 +78,13 @@ func TestValidateResults(t *testing.T) {
 		require.EqualError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
 			fixtures.TestRequestID,
 			res,
-		), "mistmatch result validator PK")
+		), "invalid recovered validator pubkey")
 	})
 
 	t.Run("too many results", func(t *testing.T) {
@@ -87,6 +92,7 @@ func TestValidateResults(t *testing.T) {
 		require.EqualError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -107,6 +113,7 @@ func TestValidateResults(t *testing.T) {
 		require.EqualError(t, spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -123,6 +130,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -141,6 +149,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -159,6 +168,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator10Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -177,6 +187,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator13Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -195,6 +206,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -213,6 +225,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -231,6 +244,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -249,6 +263,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -267,6 +282,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -291,6 +307,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&spec.Result{
@@ -308,5 +325,24 @@ func TestValidateResult(t *testing.T) {
 				},
 			},
 		), "crypto/rsa: verification error")
+	})
+
+	t.Run("invalid validator pubkey", func(t *testing.T) {
+		require.EqualError(t, spec.ValidateResult(
+			fixtures.GenerateOperators(4),
+			fixtures.TestOwnerAddress,
+			fixtures.TestRequestID,
+			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
+			fixtures.TestFork,
+			fixtures.TestNonce,
+			&spec.Result{
+				OperatorID:                 1,
+				RequestID:                  fixtures.TestRequestID,
+				DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator1DepositSignature4Operators),
+				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature4Operators),
+				SignedProof:                fixtures.TestOperator1Proof4Operators,
+			},
+		), "invalid proof validator pubkey")
 	})
 }
