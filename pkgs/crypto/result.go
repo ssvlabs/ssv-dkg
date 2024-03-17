@@ -104,7 +104,7 @@ func ValidateResult(
 		nonce,
 		result,
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to verify partial signatures: %v", err)
 	}
 
 	// verify ceremony proof
@@ -113,7 +113,7 @@ func ValidateResult(
 		operator,
 		&result.SignedProof,
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to validate ceremony proof: %v", err)
 	}
 
 	return nil

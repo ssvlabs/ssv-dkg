@@ -188,7 +188,7 @@ func TestValidateResult(t *testing.T) {
 				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature4Operators),
 				SignedProof:                fixtures.TestOperator1Proof4Operators,
 			},
-		), "failed to verify deposit partial signatures")
+		), "failed to verify partial signatures: failed to verify deposit partial signatures")
 	})
 
 	t.Run("invalid partial nonce signature", func(t *testing.T) {
@@ -206,7 +206,7 @@ func TestValidateResult(t *testing.T) {
 				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature7Operators),
 				SignedProof:                fixtures.TestOperator1Proof4Operators,
 			},
-		), "failed to verify nonce partial signatures")
+		), "failed to verify partial signatures: failed to verify nonce partial signatures")
 	})
 
 	t.Run("invalid proof owner address", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestValidateResult(t *testing.T) {
 					},
 				},
 			},
-		), "invalid owner address")
+		), "failed to validate ceremony proof: invalid owner address")
 	})
 
 	t.Run("invalid proof signature", func(t *testing.T) {

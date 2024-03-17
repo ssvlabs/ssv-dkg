@@ -11,6 +11,7 @@ import (
 	"time"
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -364,11 +365,20 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 	if err != nil {
 		return err
 	}
-	// Wrap singular instances in slices for correct parameter passing
+	// Save results.
 	depositDataArr := []*wire.DepositDataCLI{depJson}
 	keySharesArr := []*wire.KeySharesCLI{ksJson}
 	proofsArr := [][]*wire.SignedProof{proof}
-	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, s.Logger)
+	withdrawCreds, err := hex.DecodeString(depJson.WithdrawalCredentials)
+	if err != nil {
+		return fmt.Errorf("failed to decode withdrawal credentials: %s", err.Error())
+	}
+	withdrawPrefix, withdrawAddress := crypto.ParseWithdrawalCredentials(withdrawCreds)
+	if withdrawPrefix != crypto.ETH1WithdrawalPrefixByte {
+		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
+	}
+	return cli_utils.WriteResults(s.Logger, depositDataArr, keySharesArr, proofsArr,
+		1, common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress), keySharesArr[0].Shares[0].OwnerNonce, common.BytesToAddress(withdrawAddress))
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {

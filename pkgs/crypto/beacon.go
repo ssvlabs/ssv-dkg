@@ -39,6 +39,10 @@ func ETH1WithdrawalCredentials(withdrawalAddr []byte) []byte {
 	return withdrawalCredentials
 }
 
+func ParseWithdrawalCredentials(withdrawalCredentials []byte) (prefix byte, addr []byte) {
+	return withdrawalCredentials[0], withdrawalCredentials[12:]
+}
+
 func ComputeDepositMessageSigningRoot(network e2m_core.Network, message *phase0.DepositMessage) (phase0.Root, error) {
 	if !e2m_deposit.IsSupportedDepositNetwork(network) {
 		return phase0.Root{}, fmt.Errorf("network %s is not supported", network)

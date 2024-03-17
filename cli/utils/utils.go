@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -374,10 +376,32 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 	return operators, nil
 }
 
-func WriteResults(depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
-	if Validators != 0 && (len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators)) {
-		logger.Fatal("Incoming result arrays have inconsistent length")
+func WriteResults(
+	logger *zap.Logger,
+	depositDataArr []*wire.DepositDataCLI,
+	keySharesArr []*wire.KeySharesCLI,
+	proofs [][]*wire.SignedProof,
+	expectedValidatorCount int,
+	expectedOwnerAddress common.Address,
+	expectedOwnerNonce uint64,
+	expectedWithdrawAddress common.Address,
+) (err error) {
+	if expectedValidatorCount == 0 {
+		return fmt.Errorf("expectedValidatorCount is 0")
 	}
+	if expectedOwnerNonce == 0 {
+		return fmt.Errorf("expectedOwnerNonce is 0")
+	}
+	if len(depositDataArr) != len(keySharesArr) || len(depositDataArr) != len(proofs) {
+		return fmt.Errorf("Incoming result arrays have inconsistent length")
+	}
+	if len(depositDataArr) == 0 {
+		return fmt.Errorf("no results to write")
+	}
+	if len(depositDataArr) != int(expectedValidatorCount) {
+		return fmt.Errorf("expectedValidatorCount is not equal to the length of given results")
+	}
+
 	// order the keyshares by nonce
 	sort.SliceStable(keySharesArr, func(i, j int) bool {
 		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
@@ -388,17 +412,68 @@ func WriteResults(depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.Ke
 	if !sorted {
 		return fmt.Errorf("slice is not sorted")
 	}
-	if err := validator.ValidateResults(depositDataArr, keySharesArr, proofs, int(Validators)); err != nil {
+
+	// order deposit data and proofs to match keyshares order
+	sortedDepositData := make([]*wire.DepositDataCLI, len(depositDataArr))
+	sortedProofs := make([][]*wire.SignedProof, len(depositDataArr))
+	for i, keyshare := range keySharesArr {
+		pk := strings.TrimPrefix(keyshare.Shares[0].Payload.PublicKey, "0x")
+		for _, deposit := range depositDataArr {
+			if deposit.PubKey == pk {
+				sortedDepositData[i] = deposit
+				break
+			}
+		}
+		if sortedDepositData[i] == nil {
+			return fmt.Errorf("failed to match deposit data with keyshares")
+		}
+		for _, proof := range proofs {
+			if hex.EncodeToString(proof[0].Proof.ValidatorPubKey) == pk {
+				sortedProofs[i] = proof
+				break
+			}
+		}
+		if sortedProofs[i] == nil {
+			return fmt.Errorf("failed to match proofs with keyshares")
+		}
+	}
+	depositDataArr = sortedDepositData
+	proofs = sortedProofs
+
+	// Validate the results.
+	aggregatedKeyshares := &wire.KeySharesCLI{
+		Version:   keySharesArr[0].Version,
+		CreatedAt: keySharesArr[0].CreatedAt,
+	}
+	for i := 0; i < len(keySharesArr); i++ {
+		aggregatedKeyshares.Shares = append(aggregatedKeyshares.Shares, keySharesArr[i].Shares...)
+	}
+	if err := validator.ValidateResults(depositDataArr, aggregatedKeyshares, proofs, expectedValidatorCount, expectedOwnerAddress, expectedOwnerNonce, expectedWithdrawAddress); err != nil {
 		return err
 	}
-	timestamp := time.Now().Format(time.RFC3339)
-	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
+
+	// Create the ceremony directory.
+	timestamp := time.Now().Format("2006-01-02T15:04:05.000Z07:00")
+	randomness := make([]byte, 4)
+	if _, err := rand.Read(randomness); err != nil {
+		return fmt.Errorf("failed to generate randomness: %w", err)
+	}
+	dir := filepath.Join(OutputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
 	if err := os.Mkdir(dir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create a ceremony directory: %w", err)
 	}
 
+	// If saving fails, create a "FAILED" file under the ceremony directory.
+	defer func() {
+		if err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "FAILED"), []byte(err.Error()), 0o600); err != nil {
+				logger.Error("failed to write error file", zap.Error(err))
+			}
+		}
+	}()
+
 	for i := 0; i < len(depositDataArr); i++ {
-		nestedDir := fmt.Sprintf("%s/%d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
+		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create a validator key directory: %w", err)
@@ -423,12 +498,18 @@ func WriteResults(depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.Ke
 		}
 	}
 	// if there is only one Validator, do not create summary files
-	if Validators > 1 {
+	if expectedValidatorCount > 1 {
 		err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, proofs, logger)
 		if err != nil {
-			logger.Fatal("Failed writing aggregated results: ", zap.Error(err))
+			return fmt.Errorf("failed writing aggregated results: %w", err)
 		}
 	}
+
+	err = validator.ValidateResultsDir(dir, expectedValidatorCount, expectedOwnerAddress, expectedOwnerNonce, expectedWithdrawAddress)
+	if err != nil {
+		return fmt.Errorf("failed validating results dir: %w", err)
+	}
+
 	return nil
 }
 

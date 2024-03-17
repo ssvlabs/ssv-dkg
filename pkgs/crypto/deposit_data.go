@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
 
 	"github.com/bloxapp/eth2-key-manager/core"
@@ -49,7 +50,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	return depositDataJson, nil
 }
 
-func ValidateDepositDataCLI(d *wire.DepositDataCLI) error {
+func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress common.Address) error {
 	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
 	b, err := json.Marshal(d)
 	if err != nil {
@@ -71,6 +72,10 @@ func ValidateDepositDataCLI(d *wire.DepositDataCLI) error {
 	// 2. Verify deposit roots and signature
 	if err := verifyDepositRoots(d); err != nil {
 		return fmt.Errorf("failed to verify deposit roots: %v", err)
+	}
+	// 3. Verify withdrawal address
+	if d.WithdrawalCredentials != hex.EncodeToString(ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes())) {
+		return fmt.Errorf("failed to verify withdrawal address")
 	}
 	return nil
 }
