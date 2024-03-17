@@ -29,10 +29,10 @@ func ValidateResults(
 	if err := VerifyValidatorPubKey(results); err != nil {
 		return nil, nil, nil, err
 	}
-	ids := make([]uint64, 0)
-	sharePubKeys := make([]*bls.PublicKey, 0)
-	sigsPartialDeposit := make([]*bls.Sign, 0)
-	sigsPartialOwnerNonce := make([]*bls.Sign, 0)
+	ids := make([]uint64, 0, len(results))
+	sharePubKeys := make([]*bls.PublicKey, 0, len(results))
+	sigsPartialDeposit := make([]*bls.Sign, 0, len(results))
+	sigsPartialOwnerNonce := make([]*bls.Sign, 0, len(results))
 	for _, result := range results {
 		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, fork, nonce, result); err != nil {
 			return nil, nil, nil, err
