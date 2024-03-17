@@ -40,7 +40,7 @@ type Reshare struct {
 type SignedReshare struct {
 	Reshare Reshare
 	// Signature is an ECDSA signature over proof
-	Signature []byte `ssz-size:"64"`
+	Signature []byte `ssz-max:"1536"` // 64 * 24
 }
 
 // Result is the last message in every DKG which marks a specific node's end of process
