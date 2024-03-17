@@ -29,7 +29,7 @@ func SignCeremonyProof(signer Signer, proof *wire.Proof) (*wire.SignedProof, err
 func ValidateCeremonyProof(
 	ownerAddress [20]byte,
 	operator *wire.Operator,
-	signedProof wire.SignedProof,
+	signedProof *wire.SignedProof,
 ) error {
 	if !bytes.Equal(ownerAddress[:], signedProof.Proof.Owner[:]) {
 		return fmt.Errorf("invalid owner address")
@@ -45,7 +45,7 @@ func ValidateCeremonyProof(
 }
 
 // VerifyCeremonyProof returns error if ceremony signed proof is invalid
-func VerifyCeremonyProof(pk *rsa.PublicKey, proof wire.SignedProof) error {
+func VerifyCeremonyProof(pk *rsa.PublicKey, proof *wire.SignedProof) error {
 	hash, err := proof.Proof.HashTreeRoot()
 	if err != nil {
 		return err

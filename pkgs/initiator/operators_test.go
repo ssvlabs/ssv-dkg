@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 func TestOperatorsEncoding(t *testing.T) {
@@ -33,7 +35,7 @@ func TestOperatorsEncoding(t *testing.T) {
 		}
 	]`)
 
-	input := []Operator{
+	input := []wire.OperatorCLI{
 		{
 			ID:     1,
 			Addr:   "http://localhost:3030",
@@ -56,7 +58,7 @@ func TestOperatorsEncoding(t *testing.T) {
 		},
 	}
 
-	ops := Operators{}
+	ops := wire.OperatorsCLI{}
 	err := json.Unmarshal(inputJSON, &ops)
 	require.NoError(t, err)
 	require.Len(t, ops, len(input))

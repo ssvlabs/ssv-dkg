@@ -17,9 +17,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -91,7 +91,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	}
 }
 
-func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
+func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *wire.KeySharesCLI, owner common.Address, nonce uint16) error {
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return err
