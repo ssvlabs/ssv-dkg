@@ -11,7 +11,7 @@ import (
 )
 
 // standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
-func standardMessageVerification(ops Operators) func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
+func standardMessageVerification(ops wire.OperatorsCLI) func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
 	return func(pk *rsa.PublicKey, msg []byte, sig []byte) error {
 		op := ops.ByPubKey(pk)
 
@@ -32,7 +32,7 @@ func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 		msg := messages[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
+			errmsg, parseErr := wire.ParseAsError(msg)
 			if parseErr == nil {
 				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
 				continue
@@ -71,7 +71,7 @@ func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messa
 		msg := messages[i]
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := ParseAsError(msg)
+			errmsg, parseErr := wire.ParseAsError(msg)
 			if parseErr == nil {
 				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
 			}

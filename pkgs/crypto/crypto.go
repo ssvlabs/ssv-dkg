@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 
@@ -142,4 +144,9 @@ func VerifyPartialSigs(sigs []*bls.Sign, pubs []*bls.PublicKey, data []byte) err
 		}
 	}
 	return nil
+}
+
+// Encrypt with RSA public key private DKG share key
+func Encrypt(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
+	return rsa.EncryptPKCS1v15(rand.Reader, pub, msg)
 }

@@ -47,8 +47,8 @@ func TestRateLimit(t *testing.T) {
 	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
-		ops := initiator.Operators{}
-		ops = append(ops, initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
+		ops := wire.OperatorsCLI{}
+		ops = append(ops, wire.OperatorCLI{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
 
 		parts := make([]*wire.Operator, 0)
 		for _, id := range []uint64{1} {
@@ -163,7 +163,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	ops := initiator.Operators{}
+	ops := wire.OperatorsCLI{}
 	version := "v1.0.2"
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
@@ -171,10 +171,10 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops = append(
 		ops,
-		initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
-		initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
-		initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
-		initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
 	)
 	t.Run("test wrong signature of init message", func(t *testing.T) {
 		withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
@@ -236,7 +236,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := initiator.ParseAsError(msg)
+				errmsg, parseErr := wire.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}
@@ -290,7 +290,7 @@ var testKeyshares = []byte(`{
   }`)
 
 func TestRecoverSharesData(t *testing.T) {
-	var ks *initiator.KeyShares
+	var ks *wire.KeySharesCLI
 	var keys []*rsa.PrivateKey
 	suite := kyber_bls12381.NewBLS12381Suite()
 	err := json.Unmarshal(testKeyshares, &ks)
