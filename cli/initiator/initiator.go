@@ -108,7 +108,7 @@ var StartDKG = &cobra.Command{
 		}
 		// Save deposit file
 		logger.Info("🎯 All data is validated.")
-		if err := cli_utils.WriteResults(depositDataArr, keySharesArr, proofs, logger); err != nil {
+		if err := cli_utils.WriteResults(cli_utils.OutputPath, depositDataArr, keySharesArr, proofs, logger); err != nil {
 			logger.Fatal("Could not save deposit file", zap.Error(err))
 		}
 		fmt.Println(`

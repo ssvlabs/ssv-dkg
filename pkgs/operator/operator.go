@@ -25,13 +25,14 @@ type Server struct {
 	HttpServer *http.Server // http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
+	OutputPath string
 }
 
 // TODO: either do all json or all SSZ
 const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Server, error) {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
@@ -40,9 +41,10 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Serve
 	}
 	swtch := NewSwitch(key, logger, ver, pkBytes, id)
 	s := &Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: outputPath,
 	}
 
 	RegisterRoutes(s)

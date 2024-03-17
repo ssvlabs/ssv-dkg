@@ -47,10 +47,13 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
 	s := &operator.Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
@@ -76,10 +79,13 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
 	s := &operator.Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)

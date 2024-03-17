@@ -191,7 +191,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 	return operatorID, nil
 }
 
-func SaveResultData(incMsg *wire.SignedTransport, logger *zap.Logger) error {
+func SaveResultData(incMsg *wire.SignedTransport, logger *zap.Logger, outputPath string) error {
 	resData := &wire.ResultData{}
 	err := resData.UnmarshalSSZ(incMsg.Message.Data)
 	if err != nil {
@@ -219,7 +219,7 @@ func SaveResultData(incMsg *wire.SignedTransport, logger *zap.Logger) error {
 	depositDataArr := []*initiator.DepositDataCLI{depJson}
 	keySharesArr := []*initiator.KeyShares{ksJson}
 	proofsArr := [][]*initiator.SignedProof{proof}
-	return cli_utils.WriteResults(depositDataArr, keySharesArr, proofsArr, logger)
+	return cli_utils.WriteResults(outputPath, depositDataArr, keySharesArr, proofsArr, logger)
 }
 
 func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
