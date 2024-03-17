@@ -255,6 +255,6 @@ func TestValidateResult(t *testing.T) {
 					},
 				},
 			},
-		), "crypto/rsa: verification error")
+		), "failed to validate ceremony proof: crypto/rsa: verification error")
 	})
 }

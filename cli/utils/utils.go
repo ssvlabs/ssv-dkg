@@ -389,9 +389,6 @@ func WriteResults(
 	if expectedValidatorCount == 0 {
 		return fmt.Errorf("expectedValidatorCount is 0")
 	}
-	if expectedOwnerNonce == 0 {
-		return fmt.Errorf("expectedOwnerNonce is 0")
-	}
 	if len(depositDataArr) != len(keySharesArr) || len(depositDataArr) != len(proofs) {
 		return fmt.Errorf("Incoming result arrays have inconsistent length")
 	}

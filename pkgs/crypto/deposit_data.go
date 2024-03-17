@@ -51,6 +51,14 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 }
 
 func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress common.Address) error {
+	return validateDepositDataCLI(d, ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes()))
+}
+
+func ValidateDepositDataCLIBLS(d *wire.DepositDataCLI, expectedWithdrawalPubKey []byte) error {
+	return validateDepositDataCLI(d, BLSWithdrawalCredentials(expectedWithdrawalPubKey))
+}
+
+func validateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredentials []byte) error {
 	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
 	b, err := json.Marshal(d)
 	if err != nil {
@@ -74,8 +82,8 @@ func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress co
 		return fmt.Errorf("failed to verify deposit roots: %v", err)
 	}
 	// 3. Verify withdrawal address
-	if d.WithdrawalCredentials != hex.EncodeToString(ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes())) {
-		return fmt.Errorf("failed to verify withdrawal address")
+	if d.WithdrawalCredentials != hex.EncodeToString(expectedWithdrawalCredentials) {
+		return fmt.Errorf("failed to verify withdrawal address (%s != %x)", d.WithdrawalCredentials, expectedWithdrawalCredentials)
 	}
 	return nil
 }

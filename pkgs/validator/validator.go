@@ -28,6 +28,9 @@ func ValidateResults(
 	if len(allDepositData) != len(allKeyshares.Shares) || len(allDepositData) != len(allProofs) || len(allDepositData) != expectedValidatorCount {
 		return fmt.Errorf("incorrect len of results")
 	}
+	if expectedWithdrawAddress == (common.Address{}) {
+		return fmt.Errorf("withdraw address is empty")
+	}
 	if err := checkValidatorsCorrectAtDeposits(allDepositData); err != nil {
 		return err
 	}

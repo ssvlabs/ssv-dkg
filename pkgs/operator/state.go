@@ -83,7 +83,7 @@ type Switch struct {
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	operatorID, err := GetOperatorID(init.Operators, s.PubKeyBytes)
+	operatorID, err := crypto.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -285,20 +285,6 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	return resp, nil
 }
 
-func GetOperatorID(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
-	operatorID := uint64(0)
-	for _, op := range operators {
-		if bytes.Equal(op.PubKey, pkBytes) {
-			operatorID = op.ID
-			break
-		}
-	}
-	if operatorID == 0 {
-		return 0, fmt.Errorf("wrong operator")
-	}
-	return operatorID, nil
-}
-
 func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
 	data, err := msg.MarshalSSZ()
 	if err != nil {
@@ -423,7 +409,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		}
 		ops = resData.Operators
 	}
-	operatorID, err := GetOperatorID(ops, s.PubKeyBytes)
+	operatorID, err := crypto.OperatorIDByPubKey(ops, s.PubKeyBytes)
 	if err != nil {
 		return 0, err
 	}

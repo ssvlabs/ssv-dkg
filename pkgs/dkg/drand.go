@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -341,7 +340,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(st *wire.SignedTransport) error {
-	from, err := FindID(st.Signer, o.data.init.Operators)
+	from, err := crypto.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
 	if err != nil {
 		return err
 	}
@@ -468,13 +467,4 @@ func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error)
 	copy(dataToSign[:len(secretKeyBLS.Serialize())], secretKeyBLS.Serialize())
 	copy(dataToSign[len(secretKeyBLS.Serialize()):], encInitPub)
 	return o.signer.Sign(dataToSign)
-}
-
-func FindID(pub []byte, ops []*wire.Operator) (uint64, error) {
-	for _, op := range ops {
-		if bytes.Equal(op.PubKey, pub) {
-			return op.ID, nil
-		}
-	}
-	return 0, fmt.Errorf("cant find operator ID related to RSA public key")
 }

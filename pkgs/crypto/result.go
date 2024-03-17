@@ -87,7 +87,7 @@ func ValidateResult(
 	result *wire.Result,
 ) error {
 	// verify operator
-	operator := GetOperator(operators, result.OperatorID)
+	operator := OperatorByID(operators, result.OperatorID)
 	if operator == nil {
 		return fmt.Errorf("operator not found")
 	}
@@ -230,14 +230,23 @@ func VerifyPartialDepositDataSignatures(
 	return nil
 }
 
-// GetOperator returns operator by ID or nil if not found
-func GetOperator(operators []*wire.Operator, id uint64) *wire.Operator {
+// OperatorByID returns operator by ID or nil if not found
+func OperatorByID(operators []*wire.Operator, id uint64) *wire.Operator {
 	for _, operator := range operators {
 		if operator.ID == id {
 			return operator
 		}
 	}
 	return nil
+}
+
+func OperatorIDByPubKey(operators []*wire.Operator, pkBytes []byte) (uint64, error) {
+	for _, op := range operators {
+		if bytes.Equal(op.PubKey, pkBytes) {
+			return op.ID, nil
+		}
+	}
+	return 0, fmt.Errorf("wrong operator")
 }
 
 func BLSPKEncode(pkBytes []byte) (*bls.PublicKey, error) {
