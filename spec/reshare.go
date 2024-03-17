@@ -1,55 +1,60 @@
 package spec
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/exp/maps"
+	"sort"
 )
 
 // ValidateReshareMessage returns nil if re-share message is valid
 func ValidateReshareMessage(
-	signedReshare *SignedReshare,
+	reshare Reshare,
 	proofs map[*Operator]SignedProof,
 ) error {
-	if !UniqueAndOrderedOperators(signedReshare.Reshare.NewOperators) {
-		return fmt.Errorf("operators and not unique and ordered")
+	if !UniqueAndOrderedOperators(reshare.NewOperators) {
+		return fmt.Errorf("operators are not unique and ordered")
 	}
-	if !EqualOperators(signedReshare.Reshare.OldOperators, maps.Keys(proofs)) {
-		return fmt.Errorf("operators and not unique and ordered")
+	if !EqualOperators(reshare.OldOperators, OrderOperators(maps.Keys(proofs))) {
+		return fmt.Errorf("operators are not unique and ordered")
 	}
-	if !ValidThresholdSet(signedReshare.Reshare.NewT, signedReshare.Reshare.NewOperators) {
-		return fmt.Errorf("threshold set is invalid")
+	if EqualOperators(reshare.OldOperators, reshare.NewOperators) {
+		return fmt.Errorf("old and new operators are the same")
 	}
-
-	if err := VerifySignedReshare(signedReshare); err != nil {
-		return err
+	if !ValidThresholdSet(reshare.OldT, reshare.OldOperators) {
+		return fmt.Errorf("old threshold set is invalid")
+	}
+	if !ValidThresholdSet(reshare.NewT, reshare.NewOperators) {
+		return fmt.Errorf("new threshold set is invalid")
 	}
 
 	for operator, proof := range proofs {
-		if err := ValidateCeremonyProof(signedReshare.Reshare.Owner, operator, proof); err != nil {
+		if err := ValidateCeremonyProof(reshare.Owner, operator, proof); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// VerifySignedReshare returns nil if signature over re-share message is valid
-func VerifySignedReshare(signedReshare *SignedReshare) error {
-	hash, err := signedReshare.Reshare.HashTreeRoot()
-	if err != nil {
-		return err
+// EqualOperators returns true if both arrays of operators are equal
+func EqualOperators(a, b []*Operator) bool {
+	if len(a) != len(b) {
+		return false
 	}
-
-	pk, err := eth_crypto.SigToPub(hash[:], signedReshare.Signature)
-	if err != nil {
-		return err
+	for i := range a {
+		if !bytes.Equal(a[i].PubKey, b[i].PubKey) {
+			return false
+		}
+		if a[i].ID != b[i].ID {
+			return false
+		}
 	}
+	return true
+}
 
-	address := eth_crypto.PubkeyToAddress(*pk)
-
-	if common.Address(signedReshare.Reshare.Owner).Cmp(address) != 0 {
-		return fmt.Errorf("invalid signed reshare signature")
-	}
-	return nil
+func OrderOperators(in []*Operator) []*Operator {
+	sort.Slice(in, func(i, j int) bool {
+		return in[i].ID < in[j].ID
+	})
+	return in
 }

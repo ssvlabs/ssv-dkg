@@ -192,7 +192,7 @@ func TestDdD(t *testing.T) {
 	fmt.Printf("%s\n", sk.GetHexString())
 }
 
-func TestDD(t *testing.T) {
+func TestOperatorSK(t *testing.T) {
 	sk, _, _ := crypto.GenerateKeys()
 	byts := pem.EncodeToMemory(
 		&pem.Block{
