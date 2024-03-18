@@ -424,6 +424,7 @@ func (o *LocalOwner) broadcastError(err error) {
 		Version:    o.version,
 	}
 	o.Broadcast(errMsg)
+	close(o.done)
 }
 
 // checkOperators checks that operator received all participating parties DKG public keys
