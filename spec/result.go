@@ -1,4 +1,4 @@
-package crypto
+package spec
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -17,6 +18,7 @@ import (
 func ValidateResults(
 	operators []*wire.Operator,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	ownerAddress [20]byte,
 	nonce uint64,
@@ -26,15 +28,21 @@ func ValidateResults(
 	if len(results) != len(operators) {
 		return nil, nil, nil, fmt.Errorf("mistmatch results count")
 	}
-	if err := VerifyValidatorPubKey(results); err != nil {
+	// recover and validate validator pk
+	pk, err := RecoverValidatorPKFromResults(results)
+	if err != nil {
 		return nil, nil, nil, err
 	}
+	if !bytes.Equal(validatorPK, pk) {
+		return nil, nil, nil, fmt.Errorf("invalid recovered validator pubkey")
+	}
+
 	ids := make([]uint64, 0, len(results))
 	sharePubKeys := make([]*bls.PublicKey, 0, len(results))
 	sigsPartialDeposit := make([]*bls.Sign, 0, len(results))
 	sigsPartialOwnerNonce := make([]*bls.Sign, 0, len(results))
 	for _, result := range results {
-		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, fork, nonce, result); err != nil {
+		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, validatorPK, fork, nonce, result); err != nil {
 			return nil, nil, nil, err
 		}
 		pub, deposit, ownerNonce, err := GetPartialSigsFromResult(result)
@@ -46,7 +54,7 @@ func ValidateResults(
 		sigsPartialDeposit = append(sigsPartialDeposit, deposit)
 		sigsPartialOwnerNonce = append(sigsPartialOwnerNonce, ownerNonce)
 	}
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, sharePubKeys)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, sharePubKeys)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to recover validator public key from results")
 	}
@@ -60,11 +68,11 @@ func ValidateResults(
 	}
 	depositData := &phase0.DepositData{
 		PublicKey:             phase0.BLSPubKey(validatorRecoveredPK.Serialize()),
-		Amount:                MaxEffectiveBalanceInGwei,
-		WithdrawalCredentials: ETH1WithdrawalCredentials(withdrawalCredentials),
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(withdrawalCredentials),
 		Signature:             phase0.BLSSignature(masterDepositSig.Serialize()),
 	}
-	err = VerifyDepositData(network, depositData)
+	err = crypto.VerifyDepositData(network, depositData)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to verify master deposit signature: %v", err)
 	}
@@ -82,12 +90,13 @@ func ValidateResult(
 	ownerAddress [20]byte,
 	requestID [24]byte,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	nonce uint64,
 	result *wire.Result,
 ) error {
 	// verify operator
-	operator := OperatorByID(operators, result.OperatorID)
+	operator := GetOperator(operators, result.OperatorID)
 	if operator == nil {
 		return fmt.Errorf("operator not found")
 	}
@@ -110,8 +119,9 @@ func ValidateResult(
 	// verify ceremony proof
 	if err := ValidateCeremonyProof(
 		ownerAddress,
+		validatorPK,
 		operator,
-		&result.SignedProof,
+		result.SignedProof,
 	); err != nil {
 		return fmt.Errorf("failed to validate ceremony proof: %v", err)
 	}
@@ -119,31 +129,26 @@ func ValidateResult(
 	return nil
 }
 
-// VerifyValidatorPubKey returns error shares reconstructed validator pub key != individual result validator pub key
-func VerifyValidatorPubKey(results []*wire.Result) error {
+// RecoverValidatorPKFromResults returns validator PK recovered from results
+func RecoverValidatorPKFromResults(results []*wire.Result) ([]byte, error) {
 	ids := make([]uint64, len(results))
 	pks := make([]*bls.PublicKey, len(results))
 
 	for i, result := range results {
 		pk, err := BLSPKEncode(result.SignedProof.Proof.SharePubKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pks[i] = pk
 		ids[i] = result.OperatorID
 	}
 
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, pks)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, pks)
 	if err != nil {
-		return fmt.Errorf("failed to recover validator public key from results")
+		return nil, fmt.Errorf("failed to recover validator public key from results")
 	}
 
-	for _, result := range results {
-		if !bytes.Equal(validatorRecoveredPK.Serialize(), result.SignedProof.Proof.ValidatorPubKey) {
-			return fmt.Errorf("mistmatch result validator PK")
-		}
-	}
-	return nil
+	return validatorRecoveredPK.Serialize(), nil
 }
 
 func VerifyPartialSignatures(
@@ -195,7 +200,7 @@ func VerifyPartialNonceSignatures(
 	hash := eth_crypto.Keccak256([]byte(data))
 
 	// Verify partial signatures and recovered threshold signature
-	err := VerifyPartialSigs(sigs, pks, hash)
+	err := crypto.VerifyPartialSigs(sigs, pks, hash)
 	if err != nil {
 		return fmt.Errorf("failed to verify nonce partial signatures")
 	}
@@ -214,24 +219,24 @@ func VerifyPartialDepositDataSignatures(
 		return err
 	}
 
-	shareRoot, err := ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
+	shareRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey),
-		Amount:                MaxEffectiveBalanceInGwei,
-		WithdrawalCredentials: ETH1WithdrawalCredentials(withdrawalCredentials)})
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(withdrawalCredentials)})
 	if err != nil {
 		return fmt.Errorf("failed to compute deposit data root")
 	}
 
 	// Verify partial signatures and recovered threshold signature
-	err = VerifyPartialSigs(sigs, pks, shareRoot[:])
+	err = crypto.VerifyPartialSigs(sigs, pks, shareRoot[:])
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit partial signatures")
 	}
 	return nil
 }
 
-// OperatorByID returns operator by ID or nil if not found
-func OperatorByID(operators []*wire.Operator, id uint64) *wire.Operator {
+// GetOperator returns operator by ID or nil if not found
+func GetOperator(operators []*wire.Operator, id uint64) *wire.Operator {
 	for _, operator := range operators {
 		if operator.ID == id {
 			return operator
@@ -283,11 +288,11 @@ func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, 
 }
 
 func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (reconstructedDepositMasterSig, reconstructedOwnerNonceMasterSig *bls.Sign, err error) {
-	reconstructedDepositMasterSig, err = RecoverBLSSignature(ids, sigsPartialDeposit)
+	reconstructedDepositMasterSig, err = crypto.RecoverBLSSignature(ids, sigsPartialDeposit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
-	reconstructedOwnerNonceMasterSig, err = RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
+	reconstructedOwnerNonceMasterSig, err = crypto.RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}

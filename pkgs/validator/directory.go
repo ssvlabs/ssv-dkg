@@ -133,7 +133,7 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 }
 
 func loadJSONFile(file string, v interface{}) error {
-	data, err := os.ReadFile(file)
+	data, err := os.ReadFile(filepath.Clean(file))
 	if err != nil {
 		return err
 	}

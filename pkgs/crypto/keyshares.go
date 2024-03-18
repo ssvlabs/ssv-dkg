@@ -82,7 +82,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 	return nil
 }
 
-func VerifyValidatorAtSharesData(ids []uint64, keyShares []byte, expValPubKey []byte) error {
+func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) error {
 	// Verify that IDs are unique and ordered.
 	if !sort.SliceIsSorted(ids, func(i, j int) bool { return ids[i] < ids[j] }) {
 		return fmt.Errorf("operators and not unique and ordered")

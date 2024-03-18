@@ -13,6 +13,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 func ValidateResults(
@@ -114,19 +115,19 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 			return fmt.Errorf("encrypted share doesnt match it at proof")
 		}
 		// validate proof
-		if err := crypto.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].OwnerAddress), keyshare.Shares[0].Operators[i], proofs[i]); err != nil {
+		if err := spec.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].OwnerAddress), valShares, keyshare.Shares[0].Operators[i], *proofs[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey string, expectedOwnerAddress string, expectedOwnerNonce uint64) error {
+func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expectedOwnerAddress string, expectedOwnerNonce uint64) error {
 	if keyshare.CreatedAt.String() == "" {
 		return fmt.Errorf("keyshares creation time is empty")
 	}
 	for _, share := range keyshare.Shares {
-		if !crypto.UniqueAndOrderedOperators(share.Operators) {
+		if !spec.UniqueAndOrderedOperators(share.Operators) {
 			return fmt.Errorf("operators and not unique and ordered")
 		}
 

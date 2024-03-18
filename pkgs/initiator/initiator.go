@@ -21,6 +21,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -275,7 +276,11 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 	if !sorted {
 		return nil, nil, fmt.Errorf("slice is not sorted")
 	}
-	_, depositData, masterSigOwnerNonce, err := crypto.ValidateResults(init.Operators, init.WithdrawalCredentials, init.Fork, init.Owner, init.Nonce, requestID, dkgResults)
+	validatorPK, err := spec.RecoverValidatorPKFromResults(dkgResults)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -39,7 +40,7 @@ type OwnerOpts struct {
 	ID                 uint64
 	BroadcastF         func([]byte) error
 	Suite              pairing.Suite
-	Signer             crypto.Signer
+	Signer             spec.Signer
 	EncryptFunc        func([]byte) ([]byte, error)
 	DecryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -62,7 +63,7 @@ type LocalOwner struct {
 	Suite              pairing.Suite
 	broadcastF         func([]byte) error
 	exchanges          map[uint64]*wire.Exchange
-	signer             crypto.Signer
+	signer             spec.Signer
 	encryptFunc        func([]byte) ([]byte, error)
 	decryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -225,7 +226,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
 		Owner:           o.data.init.Owner,
 	}
-	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)
+	signedProof, err := spec.SignCeremonyProof(o.signer, proof)
 	if err != nil {
 		return fmt.Errorf("failed to sign proof: %w", err)
 	}
@@ -246,7 +247,9 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		Data:       encodedOutput,
 		Version:    o.version,
 	}
-	o.Broadcast(tsMsg)
+	if err := o.Broadcast(tsMsg); err != nil {
+		o.Logger.Error("failed to broadcast output in PostDKG", zap.Error(err))
+	}
 	close(o.done)
 	return nil
 }
@@ -340,7 +343,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(st *wire.SignedTransport) error {
-	from, err := crypto.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
+	from, err := spec.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
 	if err != nil {
 		return err
 	}
@@ -421,6 +424,7 @@ func (o *LocalOwner) broadcastError(err error) {
 		Version:    o.version,
 	}
 	o.Broadcast(errMsg)
+	close(o.done)
 }
 
 // checkOperators checks that operator received all participating parties DKG public keys
