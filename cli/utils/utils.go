@@ -385,6 +385,7 @@ func WriteResults(
 	expectedOwnerAddress common.Address,
 	expectedOwnerNonce uint64,
 	expectedWithdrawAddress common.Address,
+	outputPath string,
 ) (err error) {
 	if expectedValidatorCount == 0 {
 		return fmt.Errorf("expectedValidatorCount is 0")
@@ -450,13 +451,17 @@ func WriteResults(
 	}
 
 	// Create the ceremony directory.
-	timestamp := time.Now().Format("2006-01-02T15:04:05.000Z07:00")
+	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00")
 	randomness := make([]byte, 4)
 	if _, err := rand.Read(randomness); err != nil {
 		return fmt.Errorf("failed to generate randomness: %w", err)
 	}
-	dir := filepath.Join(OutputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
-	if err := os.Mkdir(dir, os.ModePerm); err != nil {
+	dir := filepath.Join(outputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
+	err = os.Mkdir(dir, os.ModePerm)
+	if os.IsExist(err) {
+		return fmt.Errorf("ceremony directory already exists: %w", err)
+	}
+	if err != nil {
 		return fmt.Errorf("failed to create a ceremony directory: %w", err)
 	}
 
@@ -530,7 +535,7 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCL
 		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		return err
 	}
-	proofsFinalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	proofsFinalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err = utils.WriteJSON(proofsFinalPath, proofs)
 	if err != nil {
 		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", proofsFinalPath), zap.Any("proofs", proofs))
@@ -560,7 +565,7 @@ func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
 }
 
 func WriteProofs(proofs []*wire.SignedProof, dir string) error {
-	finalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	finalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, proofs)

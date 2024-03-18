@@ -36,7 +36,7 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 		if err := loadJSONFile(filepath.Join(dir, "keyshares.json"), &results.AggregatedKeyShares); err != nil {
 			return err
 		}
-		if err := loadJSONFile(filepath.Join(dir, "signed_proofs.json"), &results.AggregatedProofs); err != nil {
+		if err := loadJSONFile(filepath.Join(dir, "proofs.json"), &results.AggregatedProofs); err != nil {
 			return err
 		}
 	}
@@ -63,7 +63,7 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 		if err := loadJSONFile(filepath.Join(validatorDir, "keyshares.json"), &validator.KeyShares); err != nil {
 			return err
 		}
-		if err := loadJSONFile(filepath.Join(validatorDir, "signed_proofs.json"), &validator.Proofs); err != nil {
+		if err := loadJSONFile(filepath.Join(validatorDir, "proofs.json"), &validator.Proofs); err != nil {
 			return err
 		}
 		if len(validator.DepositData) != 1 {
@@ -103,7 +103,7 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 	dirs := 0
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			if entry.Name() == "deposit_data.json" || entry.Name() == "keyshares.json" || entry.Name() == "signed_proofs.json" {
+			if entry.Name() == "deposit_data.json" || entry.Name() == "keyshares.json" || entry.Name() == "proofs.json" {
 				continue
 			}
 			return fmt.Errorf("unexpected file in directory: %s", entry.Name())

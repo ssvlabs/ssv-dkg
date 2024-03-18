@@ -126,6 +126,10 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey strin
 		return fmt.Errorf("keyshares creation time is empty")
 	}
 	for _, share := range keyshare.Shares {
+		if !crypto.UniqueAndOrderedOperators(share.Operators) {
+			return fmt.Errorf("operators and not unique and ordered")
+		}
+
 		if share.OwnerAddress != expectedOwnerAddress {
 			return fmt.Errorf("incorrect keyshares owner address")
 		}

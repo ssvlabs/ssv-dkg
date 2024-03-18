@@ -347,7 +347,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 	if err != nil {
 		return nil, err
 	}
-	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators)
+	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators, false)
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
@@ -360,7 +360,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 	if err != nil {
 		return nil, err
 	}
-	return c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
+	return c.SendToAll(consts.API_DKG_URL, mltplbyts, operators, false)
 }
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
@@ -374,7 +374,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	if err != nil {
 		return nil, err
 	}
-	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators)
+	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators, false)
 }
 
 func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {
@@ -382,7 +382,7 @@ func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Opera
 	if err != nil {
 		return err
 	}
-	_, err = c.SendToAll(method, signedMsgBts, operators)
+	_, err = c.SendToAll(method, signedMsgBts, operators, true)
 	if err != nil {
 		return err
 	}
