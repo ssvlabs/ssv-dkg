@@ -1,0 +1,127 @@
+version: "3"
+services:
+  operator1:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3030:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator2:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3031:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator3:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3032:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator4:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3033:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator5:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3034:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator5.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator6:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3035:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator6.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator7:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3036:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator7.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator8:
+    image: ssv-dkg-e2e
+    networks:
+      - dkg-e2e-network
+    ports:
+      - "3037:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator8.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  initiator:
+    image: ssv-dkg-e2e
+    depends_on:
+      - operator1
+      - operator2
+      - operator3
+      - operator4
+    networks:
+      - dkg-e2e-network
+    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  ping:
+    image: ssv-dkg-e2e
+    depends_on:
+      - operator1
+      - operator2
+      - operator3
+      - operator4
+      - operator5
+      - operator6
+      - operator7
+      - operator8
+    networks:
+      - dkg-e2e-network
+    command:
+      [
+        "ping",
+        "--ip",
+        "http://operator1:3030,http://operator2:3030,http://operator3:3030,http://operator4:3030,http://operator5:3030,http://operator6:3030,http://operator7:3030,http://operator8:3030",
+      ]
+    volumes:
+      - ./examples:/data
+
+networks:
+  dkg-e2e-network:

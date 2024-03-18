@@ -57,6 +57,11 @@ var (
 	OperatorID      uint64
 )
 
+// verify dkg flags
+var (
+	CeremonyDir string
+)
+
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -168,6 +173,11 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
 	flags.OperatorIDFlag(cmd)
+}
+
+func SetVerifyDKGFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.CeremonyDirFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -328,6 +338,18 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	OperatorID = viper.GetUint64("operatorID")
 	if OperatorID == 0 {
 		return fmt.Errorf("😥 Wrong operator ID provided")
+	}
+	return nil
+}
+
+func BindVerifyDKGFlags(cmd *cobra.Command) error {
+	err := viper.BindPFlag("ceremonyDir", cmd.PersistentFlags().Lookup("ceremonyDir"))
+	if err != nil {
+		return err
+	}
+	CeremonyDir = filepath.Clean(strings.TrimSpace(viper.GetString("ceremonyDir")))
+	if CeremonyDir == "" {
+		return fmt.Errorf("😥 ceremonyDir is empty")
 	}
 	return nil
 }

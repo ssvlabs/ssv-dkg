@@ -11,21 +11,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type resultsDir struct {
+type ResultsDir struct {
 	AggregatedDepositData []*wire.DepositDataCLI
 	AggregatedKeyShares   *wire.KeySharesCLI
 	AggregatedProofs      [][]*wire.SignedProof
-	Validators            []resultsValidatorDir
+	Validators            []ResultsValidatorDir
 }
 
-type resultsValidatorDir struct {
+type ResultsValidatorDir struct {
 	DepositData []*wire.DepositDataCLI
 	KeyShares   *wire.KeySharesCLI
 	Proofs      []*wire.SignedProof
 }
 
 func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Address, ownerNonce uint64, withdrawAddress common.Address) error {
-	var results resultsDir
+	var results ResultsDir
 
 	// Load aggregated data.
 	aggregations := validatorCount > 1
@@ -55,7 +55,7 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 			return fmt.Errorf("multiple validator directories found for nonce %d", currentNonce)
 		}
 
-		var validator resultsValidatorDir
+		var validator ResultsValidatorDir
 		validatorDir := matches[0]
 		if err := loadJSONFile(filepath.Join(validatorDir, "deposit_data.json"), &validator.DepositData); err != nil {
 			return err
@@ -130,6 +130,41 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 		}
 	}
 	return ValidateResults(aggregatedDepositData, aggregatedKeyShares, aggregatedProofs, validatorCount, ownerAddress, ownerNonce, withdrawAddress)
+}
+
+func OpenResultsDir(dir string) (*ResultsDir, error) {
+	var results ResultsDir
+	if err := loadJSONFile(filepath.Join(dir, "deposit_data.json"), &results.AggregatedDepositData); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to load deposit data: %w", err)
+	}
+	if err := loadJSONFile(filepath.Join(dir, "keyshares.json"), &results.AggregatedKeyShares); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to load keyshares: %w", err)
+	}
+	if err := loadJSONFile(filepath.Join(dir, "proofs.json"), &results.AggregatedProofs); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to load proofs: %w", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		var validator ResultsValidatorDir
+		validatorDir := filepath.Join(dir, entry.Name())
+		if err := loadJSONFile(filepath.Join(validatorDir, "deposit_data.json"), &validator.DepositData); err != nil {
+			return nil, fmt.Errorf("failed to load validator deposit data: %w", err)
+		}
+		if err := loadJSONFile(filepath.Join(validatorDir, "keyshares.json"), &validator.KeyShares); err != nil {
+			return nil, fmt.Errorf("failed to load validator keyshares: %w", err)
+		}
+		if err := loadJSONFile(filepath.Join(validatorDir, "proofs.json"), &validator.Proofs); err != nil {
+			return nil, fmt.Errorf("failed to load validator proofs: %w", err)
+		}
+		results.Validators = append(results.Validators, validator)
+	}
+	return &results, nil
 }
 
 func loadJSONFile(file string, v interface{}) error {

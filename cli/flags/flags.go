@@ -124,6 +124,11 @@ func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
 }
 
+// CeremonyDirFlag add ceremony directory flag to the command
+func CeremonyDirFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, "ceremonyDir", "", "Ceremony directory", true)
+}
+
 // AddPersistentStringFlag adds a string flag to the command
 func AddPersistentStringFlag(c *cobra.Command, flag, value, description string, isRequired bool) {
 	req := ""
