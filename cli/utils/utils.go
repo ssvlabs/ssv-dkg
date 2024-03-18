@@ -157,7 +157,6 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
-	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
 }
@@ -262,9 +261,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 // BindInitFlags binds flags to yaml config parameters for the initial DKG
 func BindInitFlags(cmd *cobra.Command) error {
 	if err := BindInitiatorBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("generateInitiatorKeyIfNotExisting", cmd.PersistentFlags().Lookup("generateInitiatorKeyIfNotExisting")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
@@ -451,12 +447,12 @@ func WriteResults(
 	}
 
 	// Create the ceremony directory.
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00")
+	timestamp := time.Now().UTC().Format("2006-01-02--15-04-05.000")
 	randomness := make([]byte, 4)
 	if _, err := rand.Read(randomness); err != nil {
 		return fmt.Errorf("failed to generate randomness: %w", err)
 	}
-	dir := filepath.Join(outputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
+	dir := filepath.Join(outputPath, fmt.Sprintf("ceremony-%s--%x", timestamp, randomness))
 	err = os.Mkdir(dir, os.ModePerm)
 	if os.IsExist(err) {
 		return fmt.Errorf("ceremony directory already exists: %w", err)
