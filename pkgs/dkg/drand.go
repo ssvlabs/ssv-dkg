@@ -248,7 +248,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		Version:    o.version,
 	}
 	if err := o.Broadcast(tsMsg); err != nil {
-		return fmt.Errorf("failed to broadcast output: %w", err)
+		o.Logger.Error("failed to broadcast output in PostDKG", zap.Error(err))
 	}
 	close(o.done)
 	return nil
