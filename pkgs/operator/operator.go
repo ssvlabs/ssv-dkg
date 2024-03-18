@@ -132,6 +132,7 @@ func RegisterRoutes(s *Server) {
 			s.Logger.Debug("received a result message")
 			err = s.State.SaveResultData(signedResultMsg)
 			if err != nil {
+				err := &utils.SensitiveError{Err: err, PresentedErr: "failed to write results"}
 				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
