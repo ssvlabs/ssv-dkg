@@ -110,7 +110,7 @@ func RecoverValidatorPublicKey(ids []uint64, sharePks []*bls.PublicKey) (*bls.Pu
 		pkVec = append(pkVec, *sharePks[i])
 	}
 	if err := validatorRecoveredPK.Recover(pkVec, idVec); err != nil {
-		return nil, fmt.Errorf("error recovering validator pub key from shares")
+		return nil, err
 	}
 	return &validatorRecoveredPK, nil
 }

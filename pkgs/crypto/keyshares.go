@@ -83,6 +83,16 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 }
 
 func VerifyValidatorAtSharesData(ids []uint64, keyShares []byte, expValPubKey []byte) error {
+	// Verify that IDs are unique and ordered.
+	if !sort.SliceIsSorted(ids, func(i, j int) bool { return ids[i] < ids[j] }) {
+		return fmt.Errorf("operators and not unique and ordered")
+	}
+	for i := 0; i < len(ids)-1; i++ {
+		if ids[i] == ids[i+1] {
+			return fmt.Errorf("operators and not unique and ordered")
+		}
+	}
+
 	pubKeyOffset := phase0.PublicKeyLength * len(ids)
 	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
 	sharesExpectedLength := EncryptedKeyLength*len(ids) + pubKeysSigOffset
@@ -106,7 +116,7 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares []byte, expValPubKey []
 	}
 	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, sharePublicKeys)
 	if err != nil {
-		return fmt.Errorf("failed to recover validator public key from shares data")
+		return fmt.Errorf("failed to recover validator public key from shares data: %w", err)
 	}
 	validatorRecoveredPKBytes := validatorRecoveredPK.Serialize()
 	if !bytes.Equal(expValPubKey, validatorRecoveredPKBytes) {

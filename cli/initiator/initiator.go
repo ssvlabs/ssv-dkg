@@ -107,7 +107,7 @@ var StartDKG = &cobra.Command{
 			keySharesArr = append(keySharesArr, res.keyShares)
 			proofs = append(proofs, res.proof)
 		}
-		// Save deposit file
+		// Save results
 		logger.Info("🎯 All data is validated.")
 		if err := cli_utils.WriteResults(
 			logger,
@@ -119,7 +119,7 @@ var StartDKG = &cobra.Command{
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,
 		); err != nil {
-			logger.Fatal("Could not save deposit file", zap.Error(err))
+			logger.Fatal("Could not save results", zap.Error(err))
 		}
 		fmt.Println(`
 		▓█████▄  ██▓  ██████  ▄████▄   ██▓    ▄▄▄       ██▓ ███▄ ▄███▓▓█████  ██▀███  

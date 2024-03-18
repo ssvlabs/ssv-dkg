@@ -89,14 +89,14 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 }
 
 type operatorJSON struct {
-	ID     uint64 `json:"ID"`
-	PubKey string `json:"public_key"`
+	ID     uint64 `json:"id"`
+	PubKey string `json:"operatorKey"`
 }
 
 func (op *Operator) MarshalJSON() ([]byte, error) {
 	return json.Marshal(operatorJSON{
 		ID:     op.ID,
-		PubKey: hex.EncodeToString(op.PubKey),
+		PubKey: string(op.PubKey),
 	})
 }
 
@@ -107,7 +107,7 @@ func (op *Operator) UnmarshalJSON(data []byte) error {
 	}
 	var err error
 	op.ID = operator.ID
-	op.PubKey, err = hex.DecodeString(operator.PubKey)
+	op.PubKey = []byte(operator.PubKey)
 	return err
 }
 
