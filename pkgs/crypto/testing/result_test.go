@@ -15,6 +15,7 @@ func TestValidateResults(t *testing.T) {
 		_, _, _, err := crypto.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -28,6 +29,7 @@ func TestValidateResults(t *testing.T) {
 		_, _, _, err := crypto.ValidateResults(
 			fixtures.GenerateOperators(7),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -41,6 +43,7 @@ func TestValidateResults(t *testing.T) {
 		_, _, _, err := crypto.ValidateResults(
 			fixtures.GenerateOperators(10),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator10Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -54,6 +57,7 @@ func TestValidateResults(t *testing.T) {
 		_, _, _, err := crypto.ValidateResults(
 			fixtures.GenerateOperators(13),
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator13Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestOwnerAddress,
 			fixtures.TestNonce,
@@ -61,6 +65,70 @@ func TestValidateResults(t *testing.T) {
 			fixtures.Results13Operators(),
 		)
 		require.NoError(t, err)
+	})
+
+	t.Run("invalid share pub key", func(t *testing.T) {
+		res := fixtures.Results4Operators()[:3]
+		res = append(res, &wire.Result{
+			OperatorID:                 4,
+			RequestID:                  fixtures.TestRequestID,
+			DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator4DepositSignature4Operators),
+			OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator4NonceSignature4Operators),
+			SignedProof: wire.SignedProof{
+				Proof: &wire.Proof{
+					ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
+					SharePubKey:     fixtures.ShareSK(fixtures.TestValidator7OperatorsShare1).GetPublicKey().Serialize(),
+				},
+			},
+		})
+		_, _, _, err := crypto.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		)
+		require.EqualError(t, err, "invalid recovered validator pubkey")
+	})
+
+	t.Run("too many results", func(t *testing.T) {
+		res := fixtures.Results7Operators()
+		_, _, _, err := crypto.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		)
+		require.EqualError(t, err, "mistmatch results count")
+	})
+
+	t.Run("invalid result", func(t *testing.T) {
+		res := fixtures.Results4Operators()[:3]
+		res = append(res, &wire.Result{
+			OperatorID:                 1,
+			RequestID:                  fixtures.TestRequestID,
+			DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator1DepositSignature4Operators),
+			OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature7Operators),
+			SignedProof:                fixtures.TestOperator1Proof4Operators,
+		})
+		_, _, _, err := crypto.ValidateResults(
+			fixtures.GenerateOperators(4),
+			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
+			fixtures.TestFork,
+			fixtures.TestOwnerAddress,
+			fixtures.TestNonce,
+			fixtures.TestRequestID,
+			res,
+		)
+		require.EqualError(t, err, "failed to recover validator public key from results")
 	})
 }
 
@@ -71,6 +139,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -89,6 +158,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -107,6 +177,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator10Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -125,6 +196,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator13Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -143,6 +215,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -161,6 +234,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -179,6 +253,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -188,7 +263,7 @@ func TestValidateResult(t *testing.T) {
 				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature4Operators),
 				SignedProof:                fixtures.TestOperator1Proof4Operators,
 			},
-		), "failed to verify partial signatures: failed to verify deposit partial signatures")
+		), "failed to verify deposit partial signatures")
 	})
 
 	t.Run("invalid partial nonce signature", func(t *testing.T) {
@@ -197,6 +272,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -206,7 +282,7 @@ func TestValidateResult(t *testing.T) {
 				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature7Operators),
 				SignedProof:                fixtures.TestOperator1Proof4Operators,
 			},
-		), "failed to verify partial signatures: failed to verify nonce partial signatures")
+		), "failed to verify nonce partial signatures")
 	})
 
 	t.Run("invalid proof owner address", func(t *testing.T) {
@@ -215,6 +291,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -230,7 +307,7 @@ func TestValidateResult(t *testing.T) {
 					},
 				},
 			},
-		), "failed to validate ceremony proof: invalid owner address")
+		), "invalid owner address")
 	})
 
 	t.Run("invalid proof signature", func(t *testing.T) {
@@ -239,6 +316,7 @@ func TestValidateResult(t *testing.T) {
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
 			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 			fixtures.TestFork,
 			fixtures.TestNonce,
 			&wire.Result{
@@ -255,6 +333,25 @@ func TestValidateResult(t *testing.T) {
 					},
 				},
 			},
-		), "failed to validate ceremony proof: crypto/rsa: verification error")
+		), "crypto/rsa: verification error")
+	})
+
+	t.Run("invalid validator pubkey", func(t *testing.T) {
+		require.EqualError(t, crypto.ValidateResult(
+			fixtures.GenerateOperators(4),
+			fixtures.TestOwnerAddress,
+			fixtures.TestRequestID,
+			fixtures.TestWithdrawalCred,
+			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
+			fixtures.TestFork,
+			fixtures.TestNonce,
+			&wire.Result{
+				OperatorID:                 1,
+				RequestID:                  fixtures.TestRequestID,
+				DepositPartialSignature:    fixtures.DecodeHexNoError(fixtures.TestOperator1DepositSignature4Operators),
+				OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature4Operators),
+				SignedProof:                fixtures.TestOperator1Proof4Operators,
+			},
+		), "invalid proof validator pubkey")
 	})
 }

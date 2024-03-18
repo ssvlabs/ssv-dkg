@@ -114,7 +114,7 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 			return fmt.Errorf("encrypted share doesnt match it at proof")
 		}
 		// validate proof
-		if err := crypto.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].OwnerAddress), keyshare.Shares[0].Operators[i], proofs[i]); err != nil {
+		if err := crypto.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].OwnerAddress), valShares, keyshare.Shares[0].Operators[i], *proofs[i]); err != nil {
 			return err
 		}
 	}

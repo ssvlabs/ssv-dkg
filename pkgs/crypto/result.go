@@ -17,6 +17,7 @@ import (
 func ValidateResults(
 	operators []*wire.Operator,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	ownerAddress [20]byte,
 	nonce uint64,
@@ -26,15 +27,21 @@ func ValidateResults(
 	if len(results) != len(operators) {
 		return nil, nil, nil, fmt.Errorf("mistmatch results count")
 	}
-	if err := VerifyValidatorPubKey(results); err != nil {
+	// recover and validate validator pk
+	pk, err := RecoverValidatorPKFromResults(results)
+	if err != nil {
 		return nil, nil, nil, err
 	}
+	if !bytes.Equal(validatorPK, pk) {
+		return nil, nil, nil, fmt.Errorf("invalid recovered validator pubkey")
+	}
+
 	ids := make([]uint64, 0, len(results))
 	sharePubKeys := make([]*bls.PublicKey, 0, len(results))
 	sigsPartialDeposit := make([]*bls.Sign, 0, len(results))
 	sigsPartialOwnerNonce := make([]*bls.Sign, 0, len(results))
 	for _, result := range results {
-		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, fork, nonce, result); err != nil {
+		if err := ValidateResult(operators, ownerAddress, requestID, withdrawalCredentials, validatorPK, fork, nonce, result); err != nil {
 			return nil, nil, nil, err
 		}
 		pub, deposit, ownerNonce, err := GetPartialSigsFromResult(result)
@@ -82,12 +89,13 @@ func ValidateResult(
 	ownerAddress [20]byte,
 	requestID [24]byte,
 	withdrawalCredentials []byte,
+	validatorPK []byte,
 	fork [4]byte,
 	nonce uint64,
 	result *wire.Result,
 ) error {
 	// verify operator
-	operator := OperatorByID(operators, result.OperatorID)
+	operator := GetOperator(operators, result.OperatorID)
 	if operator == nil {
 		return fmt.Errorf("operator not found")
 	}
@@ -110,8 +118,9 @@ func ValidateResult(
 	// verify ceremony proof
 	if err := ValidateCeremonyProof(
 		ownerAddress,
+		validatorPK,
 		operator,
-		&result.SignedProof,
+		result.SignedProof,
 	); err != nil {
 		return fmt.Errorf("failed to validate ceremony proof: %v", err)
 	}
@@ -119,15 +128,15 @@ func ValidateResult(
 	return nil
 }
 
-// VerifyValidatorPubKey returns error shares reconstructed validator pub key != individual result validator pub key
-func VerifyValidatorPubKey(results []*wire.Result) error {
+// RecoverValidatorPKFromResults returns validator PK recovered from results
+func RecoverValidatorPKFromResults(results []*wire.Result) ([]byte, error) {
 	ids := make([]uint64, len(results))
 	pks := make([]*bls.PublicKey, len(results))
 
 	for i, result := range results {
 		pk, err := BLSPKEncode(result.SignedProof.Proof.SharePubKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pks[i] = pk
 		ids[i] = result.OperatorID
@@ -135,15 +144,10 @@ func VerifyValidatorPubKey(results []*wire.Result) error {
 
 	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, pks)
 	if err != nil {
-		return fmt.Errorf("failed to recover validator public key from results")
+		return nil, fmt.Errorf("failed to recover validator public key from results")
 	}
 
-	for _, result := range results {
-		if !bytes.Equal(validatorRecoveredPK.Serialize(), result.SignedProof.Proof.ValidatorPubKey) {
-			return fmt.Errorf("mistmatch result validator PK")
-		}
-	}
-	return nil
+	return validatorRecoveredPK.Serialize(), nil
 }
 
 func VerifyPartialSignatures(
@@ -230,8 +234,8 @@ func VerifyPartialDepositDataSignatures(
 	return nil
 }
 
-// OperatorByID returns operator by ID or nil if not found
-func OperatorByID(operators []*wire.Operator, id uint64) *wire.Operator {
+// GetOperator returns operator by ID or nil if not found
+func GetOperator(operators []*wire.Operator, id uint64) *wire.Operator {
 	for _, operator := range operators {
 		if operator.ID == id {
 			return operator

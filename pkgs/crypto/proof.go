@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"bytes"
-	"crypto/rsa"
 	"fmt"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -28,25 +27,30 @@ func SignCeremonyProof(signer Signer, proof *wire.Proof) (*wire.SignedProof, err
 
 func ValidateCeremonyProof(
 	ownerAddress [20]byte,
+	validatorPK []byte,
 	operator *wire.Operator,
-	signedProof *wire.SignedProof,
+	signedProof wire.SignedProof,
 ) error {
 	if !bytes.Equal(ownerAddress[:], signedProof.Proof.Owner[:]) {
 		return fmt.Errorf("invalid owner address")
 	}
-	pk, err := ParseRSAPublicKey(operator.PubKey)
-	if err != nil {
-		return err
+	// verify validator pk
+	if !bytes.Equal(validatorPK, signedProof.Proof.ValidatorPubKey) {
+		return fmt.Errorf("invalid proof validator pubkey")
 	}
-	if err := VerifyCeremonyProof(pk, signedProof); err != nil {
+	if err := VerifyCeremonyProof(operator.PubKey, signedProof); err != nil {
 		return err
 	}
 	return nil
 }
 
 // VerifyCeremonyProof returns error if ceremony signed proof is invalid
-func VerifyCeremonyProof(pk *rsa.PublicKey, proof *wire.SignedProof) error {
+func VerifyCeremonyProof(pkBytes []byte, proof wire.SignedProof) error {
 	hash, err := proof.Proof.HashTreeRoot()
+	if err != nil {
+		return err
+	}
+	pk, err := ParseRSAPublicKey(pkBytes)
 	if err != nil {
 		return err
 	}
