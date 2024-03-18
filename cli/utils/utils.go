@@ -385,6 +385,7 @@ func WriteResults(
 	expectedOwnerAddress common.Address,
 	expectedOwnerNonce uint64,
 	expectedWithdrawAddress common.Address,
+	outputPath string,
 ) (err error) {
 	if expectedValidatorCount == 0 {
 		return fmt.Errorf("expectedValidatorCount is 0")
@@ -450,13 +451,17 @@ func WriteResults(
 	}
 
 	// Create the ceremony directory.
-	timestamp := time.Now().Format("2006-01-02T15:04:05.000Z07:00")
+	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00")
 	randomness := make([]byte, 4)
 	if _, err := rand.Read(randomness); err != nil {
 		return fmt.Errorf("failed to generate randomness: %w", err)
 	}
-	dir := filepath.Join(OutputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
-	if err := os.Mkdir(dir, os.ModePerm); err != nil {
+	dir := filepath.Join(outputPath, fmt.Sprintf("ceremony-%s-%x", timestamp, randomness))
+	err = os.Mkdir(dir, os.ModePerm)
+	if os.IsExist(err) {
+		return fmt.Errorf("ceremony directory already exists: %w", err)
+	}
+	if err != nil {
 		return fmt.Errorf("failed to create a ceremony directory: %w", err)
 	}
 

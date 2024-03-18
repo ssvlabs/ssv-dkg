@@ -31,6 +31,7 @@ type Server struct {
 	HttpServer *http.Server // http server
 	Router     chi.Router   // http router
 	State      *Switch      // structure to store instances of DKG ceremonies
+	OutputPath string
 }
 
 // TODO: either do all json or all SSZ
@@ -130,8 +131,9 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 			s.Logger.Debug("received a result message")
-			err = s.State.SaveResultData(signedResultMsg)
+			err = s.State.SaveResultData(signedResultMsg, s.OutputPath)
 			if err != nil {
+				err := &utils.SensitiveError{Err: err, PresentedErr: "failed to write results"}
 				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
@@ -140,7 +142,7 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Server, error) {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
@@ -149,9 +151,10 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64) (*Serve
 	}
 	swtch := NewSwitch(key, logger, ver, pkBytes, id)
 	s := &Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: outputPath,
 	}
 	RegisterRoutes(s)
 	return s, nil

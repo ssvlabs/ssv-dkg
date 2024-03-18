@@ -323,7 +323,7 @@ func (s *Switch) Pong() ([]byte, error) {
 	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }
 
-func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
+func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string) error {
 	resData := &wire.ResultData{}
 	err := resData.UnmarshalSSZ(incMsg.Message.Data)
 	if err != nil {
@@ -364,7 +364,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport) error {
 		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
 	}
 	return cli_utils.WriteResults(s.Logger, depositDataArr, keySharesArr, proofsArr,
-		1, common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress), keySharesArr[0].Shares[0].OwnerNonce, common.BytesToAddress(withdrawAddress))
+		1, common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress), keySharesArr[0].Shares[0].OwnerNonce, common.BytesToAddress(withdrawAddress), outputPath)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
