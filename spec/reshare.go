@@ -11,7 +11,7 @@ import (
 
 // ValidateReshareMessage returns nil if re-share message is valid
 func ValidateReshareMessage(
-	reshare wire.Reshare,
+	reshare *wire.Reshare,
 	proofs map[*wire.Operator]wire.SignedProof,
 ) error {
 	if !UniqueAndOrderedOperators(reshare.OldOperators) {

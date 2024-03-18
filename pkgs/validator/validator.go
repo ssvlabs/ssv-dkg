@@ -122,7 +122,7 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 	return nil
 }
 
-func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey string, expectedOwnerAddress string, expectedOwnerNonce uint64) error {
+func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expectedOwnerAddress string, expectedOwnerNonce uint64) error {
 	if keyshare.CreatedAt.String() == "" {
 		return fmt.Errorf("keyshares creation time is empty")
 	}

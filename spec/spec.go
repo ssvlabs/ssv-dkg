@@ -50,7 +50,7 @@ func RunReshare(
 		return nil, err
 	}
 
-	if err := ValidateReshareMessage(signedReshare.Reshare, proofs); err != nil {
+	if err := ValidateReshareMessage(&signedReshare.Reshare, proofs); err != nil {
 		return nil, err
 	}
 

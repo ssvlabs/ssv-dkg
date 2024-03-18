@@ -249,7 +249,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid partial deposit signature", func(t *testing.T) {
-		require.EqualError(t, spec.ValidateResult(
+		require.ErrorContains(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -268,7 +268,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid partial nonce signature", func(t *testing.T) {
-		require.EqualError(t, spec.ValidateResult(
+		require.ErrorContains(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -287,7 +287,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid proof owner address", func(t *testing.T) {
-		require.EqualError(t, spec.ValidateResult(
+		require.ErrorContains(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -312,7 +312,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid proof signature", func(t *testing.T) {
-		require.EqualError(t, spec.ValidateResult(
+		require.ErrorContains(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -338,7 +338,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid validator pubkey", func(t *testing.T) {
-		require.EqualError(t, spec.ValidateResult(
+		require.ErrorContains(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
