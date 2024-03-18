@@ -25,18 +25,18 @@ func TestKeysharesJSON(t *testing.T) {
 			expectedValidatorPubKey: "b1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
 			expectedOwnerAddress:    "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 			expectedNonce:           100,
-			filename:                "testdata/valid-keyshares.json",
+			filename:                "testdata/keyshares--valid.json",
 			expectedErr:             "",
 		},
 		{
-			filename:                "testdata/invalid-keyshares--duplicate-payload-operator.json",
+			filename:                "testdata/keyshares--duplicate-payload-operator.json",
 			expectedValidatorPubKey: "b1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
 			expectedOwnerAddress:    "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 			expectedNonce:           100,
 			expectedErr:             "operators and not unique and ordered",
 		},
 		{
-			filename:                "testdata/invalid-keyshares--duplicate-data-operator.json",
+			filename:                "testdata/keyshares--duplicate-data-operator.json",
 			expectedValidatorPubKey: "b1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
 			expectedOwnerAddress:    "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 			expectedNonce:           100,
@@ -73,22 +73,22 @@ func TestDepositDataJSON(t *testing.T) {
 		expectedErr                   string
 	}{
 		{
-			filename:                      "testdata/valid-depositdata.json",
+			filename:                      "testdata/depositdata--valid.json",
 			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
 			expectedErr:                   "",
 		},
 		{
-			filename:                      "testdata/valid-depositdata--invalid-pubkey.json",
+			filename:                      "testdata/depositdata--invalid-pubkey.json",
 			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
 			expectedErr:                   "err blsPublicKeyDeserialize",
 		},
 		{
-			filename:                      "testdata/valid-depositdata--invalid-signature.json",
+			filename:                      "testdata/depositdata--invalid-signature.json",
 			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
 			expectedErr:                   "err blsSignatureDeserialize",
 		},
 		{
-			filename:                      "testdata/valid-depositdata--invalid-fork.json",
+			filename:                      "testdata/depositdata--invalid-fork.json",
 			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
 			expectedErr:                   "failed to get network by fork: unknown network",
 		},
