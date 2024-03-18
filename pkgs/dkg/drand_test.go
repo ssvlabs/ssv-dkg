@@ -13,6 +13,7 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -90,7 +91,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signer:             crypto.RSASigner(pv),
+		signer:             spec.RSASigner(pv),
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,

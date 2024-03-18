@@ -1,4 +1,4 @@
-package crypto
+package spec
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -53,7 +54,7 @@ func ValidateResults(
 		sigsPartialDeposit = append(sigsPartialDeposit, deposit)
 		sigsPartialOwnerNonce = append(sigsPartialOwnerNonce, ownerNonce)
 	}
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, sharePubKeys)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, sharePubKeys)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to recover validator public key from results")
 	}
@@ -67,11 +68,11 @@ func ValidateResults(
 	}
 	depositData := &phase0.DepositData{
 		PublicKey:             phase0.BLSPubKey(validatorRecoveredPK.Serialize()),
-		Amount:                MaxEffectiveBalanceInGwei,
-		WithdrawalCredentials: ETH1WithdrawalCredentials(withdrawalCredentials),
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(withdrawalCredentials),
 		Signature:             phase0.BLSSignature(masterDepositSig.Serialize()),
 	}
-	err = VerifyDepositData(network, depositData)
+	err = crypto.VerifyDepositData(network, depositData)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to verify master deposit signature: %v", err)
 	}
@@ -142,7 +143,7 @@ func RecoverValidatorPKFromResults(results []*wire.Result) ([]byte, error) {
 		ids[i] = result.OperatorID
 	}
 
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, pks)
+	validatorRecoveredPK, err := crypto.RecoverValidatorPublicKey(ids, pks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover validator public key from results")
 	}
@@ -199,7 +200,7 @@ func VerifyPartialNonceSignatures(
 	hash := eth_crypto.Keccak256([]byte(data))
 
 	// Verify partial signatures and recovered threshold signature
-	err := VerifyPartialSigs(sigs, pks, hash)
+	err := crypto.VerifyPartialSigs(sigs, pks, hash)
 	if err != nil {
 		return fmt.Errorf("failed to verify nonce partial signatures")
 	}
@@ -218,16 +219,16 @@ func VerifyPartialDepositDataSignatures(
 		return err
 	}
 
-	shareRoot, err := ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
+	shareRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey),
-		Amount:                MaxEffectiveBalanceInGwei,
-		WithdrawalCredentials: ETH1WithdrawalCredentials(withdrawalCredentials)})
+		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(withdrawalCredentials)})
 	if err != nil {
 		return fmt.Errorf("failed to compute deposit data root")
 	}
 
 	// Verify partial signatures and recovered threshold signature
-	err = VerifyPartialSigs(sigs, pks, shareRoot[:])
+	err = crypto.VerifyPartialSigs(sigs, pks, shareRoot[:])
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit partial signatures")
 	}
@@ -287,11 +288,11 @@ func GetPartialSigsFromResult(result *wire.Result) (sharePubKey *bls.PublicKey, 
 }
 
 func ReconstructMasterSignatures(ids []uint64, sigsPartialDeposit, sigsPartialSSVContractOwnerNonce []*bls.Sign) (reconstructedDepositMasterSig, reconstructedOwnerNonceMasterSig *bls.Sign, err error) {
-	reconstructedDepositMasterSig, err = RecoverBLSSignature(ids, sigsPartialDeposit)
+	reconstructedDepositMasterSig, err = crypto.RecoverBLSSignature(ids, sigsPartialDeposit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}
-	reconstructedOwnerNonceMasterSig, err = RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
+	reconstructedOwnerNonceMasterSig, err = crypto.RecoverBLSSignature(ids, sigsPartialSSVContractOwnerNonce)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to recover master signature from shares: %v", err)
 	}

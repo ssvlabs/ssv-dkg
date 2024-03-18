@@ -19,6 +19,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -83,7 +84,7 @@ type Switch struct {
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
 func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	operatorID, err := crypto.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
+	operatorID, err := spec.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -99,7 +100,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
-		Signer:             crypto.RSASigner(s.PrivateKey),
+		Signer:             spec.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
@@ -182,7 +183,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
-	if err := crypto.ValidateInitMessage(init); err != nil {
+	if err := spec.ValidateInitMessage(init); err != nil {
 		return nil, err
 	}
 	// Check that incoming message signature is valid
@@ -409,7 +410,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		}
 		ops = resData.Operators
 	}
-	operatorID, err := crypto.OperatorIDByPubKey(ops, s.PubKeyBytes)
+	operatorID, err := spec.OperatorIDByPubKey(ops, s.PubKeyBytes)
 	if err != nil {
 		return 0, err
 	}

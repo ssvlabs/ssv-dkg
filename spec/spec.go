@@ -1,4 +1,4 @@
-package crypto
+package spec
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/eip1271"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/spec/eip1271"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -19,7 +20,7 @@ func RunDKG(init *wire.Init) ([]*wire.Result, error) {
 		return nil, err
 	}
 
-	id := NewID()
+	id := crypto.NewID()
 
 	var results []*wire.Result
 	/*
@@ -53,7 +54,7 @@ func RunReshare(
 		return nil, err
 	}
 
-	id := NewID()
+	id := crypto.NewID()
 
 	var results []*wire.Result
 	/*

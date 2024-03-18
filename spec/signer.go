@@ -1,6 +1,10 @@
-package crypto
+package spec
 
-import "crypto/rsa"
+import (
+	"crypto/rsa"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+)
 
 type Signer interface {
 	Sign(msg []byte) ([]byte, error)
@@ -17,5 +21,5 @@ func RSASigner(sk *rsa.PrivateKey) Signer {
 }
 
 func (s *rsaSigner) Sign(msg []byte) ([]byte, error) {
-	return SignRSA(s.sk, msg)
+	return crypto.SignRSA(s.sk, msg)
 }

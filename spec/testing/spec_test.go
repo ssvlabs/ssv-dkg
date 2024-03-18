@@ -8,11 +8,11 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/eip1271"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/testing/fixtures"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/testing/stubs"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
+	"github.com/bloxapp/ssv-dkg/spec/eip1271"
+	"github.com/bloxapp/ssv-dkg/spec/testing/fixtures"
+	"github.com/bloxapp/ssv-dkg/spec/testing/stubs"
 )
 
 func TestVerifySignedReshare(t *testing.T) {
@@ -41,7 +41,7 @@ func TestVerifySignedReshare(t *testing.T) {
 		sig, err := eth_crypto.Sign(hash[:], sk)
 		require.NoError(t, err)
 
-		require.NoError(t, crypto.VerifySignedReshare(stubClient, &wire.SignedReshare{
+		require.NoError(t, spec.VerifySignedReshare(stubClient, &wire.SignedReshare{
 			Reshare:   reshare,
 			Signature: sig,
 		}))
@@ -71,7 +71,7 @@ func TestVerifySignedReshare(t *testing.T) {
 		sig, err := eth_crypto.Sign(hash[:], sk)
 		require.NoError(t, err)
 
-		require.EqualError(t, crypto.VerifySignedReshare(stubClient, &wire.SignedReshare{
+		require.EqualError(t, spec.VerifySignedReshare(stubClient, &wire.SignedReshare{
 			Reshare:   reshare,
 			Signature: sig,
 		}), "invalid signed reshare signature")
@@ -108,7 +108,7 @@ func TestVerifySignedReshare(t *testing.T) {
 		sig, err := eth_crypto.Sign(hash[:], sk)
 		require.NoError(t, err)
 
-		require.NoError(t, crypto.VerifySignedReshare(stubClient, &wire.SignedReshare{
+		require.NoError(t, spec.VerifySignedReshare(stubClient, &wire.SignedReshare{
 			Reshare:   reshare,
 			Signature: sig,
 		}))
@@ -145,7 +145,7 @@ func TestVerifySignedReshare(t *testing.T) {
 		sig, err := eth_crypto.Sign(hash[:], sk)
 		require.NoError(t, err)
 
-		require.EqualError(t, crypto.VerifySignedReshare(stubClient, &wire.SignedReshare{
+		require.EqualError(t, spec.VerifySignedReshare(stubClient, &wire.SignedReshare{
 			Reshare:   reshare,
 			Signature: sig,
 		}), "signature invalid")

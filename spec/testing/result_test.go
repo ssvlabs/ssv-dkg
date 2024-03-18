@@ -6,13 +6,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/testing/fixtures"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
+	"github.com/bloxapp/ssv-dkg/spec/testing/fixtures"
 )
 
 func TestValidateResults(t *testing.T) {
 	t.Run("valid 4 operators", func(t *testing.T) {
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
@@ -26,7 +27,7 @@ func TestValidateResults(t *testing.T) {
 	})
 
 	t.Run("valid 7 operators", func(t *testing.T) {
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(7),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
@@ -40,7 +41,7 @@ func TestValidateResults(t *testing.T) {
 	})
 
 	t.Run("valid 10 operators", func(t *testing.T) {
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(10),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator10Operators).GetPublicKey().Serialize(),
@@ -54,7 +55,7 @@ func TestValidateResults(t *testing.T) {
 	})
 
 	t.Run("valid 13 operators", func(t *testing.T) {
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(13),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator13Operators).GetPublicKey().Serialize(),
@@ -81,7 +82,7 @@ func TestValidateResults(t *testing.T) {
 				},
 			},
 		})
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
@@ -96,7 +97,7 @@ func TestValidateResults(t *testing.T) {
 
 	t.Run("too many results", func(t *testing.T) {
 		res := fixtures.Results7Operators()
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
@@ -118,7 +119,7 @@ func TestValidateResults(t *testing.T) {
 			OwnerNoncePartialSignature: fixtures.DecodeHexNoError(fixtures.TestOperator1NonceSignature7Operators),
 			SignedProof:                fixtures.TestOperator1Proof4Operators,
 		})
-		_, _, _, err := crypto.ValidateResults(
+		_, _, _, err := spec.ValidateResults(
 			fixtures.GenerateOperators(4),
 			fixtures.TestWithdrawalCred,
 			fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
@@ -134,7 +135,7 @@ func TestValidateResults(t *testing.T) {
 
 func TestValidateResult(t *testing.T) {
 	t.Run("valid 4 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateResult(
+		require.NoError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -153,7 +154,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("valid 7 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateResult(
+		require.NoError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(7),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -172,7 +173,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("valid 10 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateResult(
+		require.NoError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(10),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -191,7 +192,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("valid 13 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateResult(
+		require.NoError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(13),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -210,7 +211,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("unknown operator", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -229,7 +230,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid request ID", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -248,7 +249,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid partial deposit signature", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -267,7 +268,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid partial nonce signature", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -286,7 +287,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid proof owner address", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -311,7 +312,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid proof signature", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,
@@ -337,7 +338,7 @@ func TestValidateResult(t *testing.T) {
 	})
 
 	t.Run("invalid validator pubkey", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateResult(
+		require.EqualError(t, spec.ValidateResult(
 			fixtures.GenerateOperators(4),
 			fixtures.TestOwnerAddress,
 			fixtures.TestRequestID,

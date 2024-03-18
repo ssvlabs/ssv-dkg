@@ -1,9 +1,10 @@
-package crypto
+package spec
 
 import (
 	"bytes"
 	"fmt"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -50,9 +51,9 @@ func VerifyCeremonyProof(pkBytes []byte, proof wire.SignedProof) error {
 	if err != nil {
 		return err
 	}
-	pk, err := ParseRSAPublicKey(pkBytes)
+	pk, err := crypto.ParseRSAPublicKey(pkBytes)
 	if err != nil {
 		return err
 	}
-	return VerifyRSA(pk, hash[:], proof.Signature)
+	return crypto.VerifyRSA(pk, hash[:], proof.Signature)
 }

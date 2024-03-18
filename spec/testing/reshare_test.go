@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto/testing/fixtures"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec"
+	"github.com/bloxapp/ssv-dkg/spec/testing/fixtures"
 )
 
 func TestValidateReshare(t *testing.T) {
 	t.Run("valid 4 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			fixtures.TestReshare4Operators,
 			map[*wire.Operator]wire.SignedProof{
 				fixtures.GenerateOperators(4)[0]: fixtures.TestOperator1Proof4Operators,
@@ -24,7 +24,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("valid 7 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			fixtures.TestReshare7Operators,
 			map[*wire.Operator]wire.SignedProof{
 				fixtures.GenerateOperators(7)[0]: fixtures.TestOperator1Proof7Operators,
@@ -39,7 +39,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("valid 10 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			fixtures.TestReshare10Operators,
 			map[*wire.Operator]wire.SignedProof{
 				fixtures.GenerateOperators(10)[0]: fixtures.TestOperator1Proof10Operators,
@@ -57,7 +57,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("valid 13 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			fixtures.TestReshare13Operators,
 			map[*wire.Operator]wire.SignedProof{
 				fixtures.GenerateOperators(13)[0]:  fixtures.TestOperator1Proof13Operators,
@@ -78,7 +78,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("reshare 4->7 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators:    fixtures.GenerateOperators(4),
@@ -106,7 +106,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("reshare 7->4 operators", func(t *testing.T) {
-		require.NoError(t, crypto.ValidateReshareMessage(
+		require.NoError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator7Operators).GetPublicKey().Serialize(),
 				OldOperators:    fixtures.GenerateOperators(7),
@@ -129,7 +129,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("old operators not unique", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				OldOperators: []*wire.Operator{
 					fixtures.GenerateOperators(4)[0],
@@ -158,7 +158,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("missing proof", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				OldOperators: []*wire.Operator{
 					fixtures.GenerateOperators(4)[0],
@@ -187,7 +187,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("invalid proof", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators: []*wire.Operator{
@@ -217,7 +217,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("new operators not unique", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators: []*wire.Operator{
@@ -247,7 +247,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("new operators same as old", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators: []*wire.Operator{
@@ -277,7 +277,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("invalid old threshold", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators: []*wire.Operator{
@@ -307,7 +307,7 @@ func TestValidateReshare(t *testing.T) {
 	})
 
 	t.Run("invalid new threshold", func(t *testing.T) {
-		require.EqualError(t, crypto.ValidateReshareMessage(
+		require.EqualError(t, spec.ValidateReshareMessage(
 			wire.Reshare{
 				ValidatorPubKey: fixtures.ShareSK(fixtures.TestValidator4Operators).GetPublicKey().Serialize(),
 				OldOperators: []*wire.Operator{
