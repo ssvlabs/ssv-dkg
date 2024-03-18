@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,6 +56,57 @@ func TestKeysharesJSON(t *testing.T) {
 			err = json.Unmarshal(keysharesData, keyshares)
 			require.NoError(t, err)
 			err = ValidateKeyshare(keyshares, test.expectedValidatorPubKey, test.expectedOwnerAddress, test.expectedNonce)
+			if test.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDepositDataJSON(t *testing.T) {
+	tests := []struct {
+		filename                      string
+		expectedWithdrawalCredentials common.Address
+		expectedErr                   string
+	}{
+		{
+			filename:                      "testdata/valid-depositdata.json",
+			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedErr:                   "",
+		},
+		{
+			filename:                      "testdata/valid-depositdata--invalid-pubkey.json",
+			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedErr:                   "err blsPublicKeyDeserialize",
+		},
+		{
+			filename:                      "testdata/valid-depositdata--invalid-signature.json",
+			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedErr:                   "err blsSignatureDeserialize",
+		},
+		{
+			filename:                      "testdata/valid-depositdata--invalid-fork.json",
+			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedErr:                   "failed to get network by fork: unknown network",
+		},
+	}
+
+	for _, test := range tests {
+		name, ok := strings.CutSuffix(filepath.Base(test.filename), ".json")
+		if !ok {
+			t.Fatalf("invalid test filename: %s", test.filename)
+		}
+		t.Run(name, func(t *testing.T) {
+			depositDataArray := make([]*wire.DepositDataCLI, 0)
+			depositDataJson, err := os.ReadFile(test.filename)
+			require.NoError(t, err)
+			err = json.Unmarshal(depositDataJson, &depositDataArray)
+			require.NoError(t, err)
+			require.Equal(t, len(depositDataArray), 1)
+			err = crypto.ValidateDepositDataCLI(depositDataArray[0], test.expectedWithdrawalCredentials)
 			if test.expectedErr != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), test.expectedErr)
