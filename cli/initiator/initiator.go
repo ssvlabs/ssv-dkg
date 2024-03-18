@@ -118,6 +118,7 @@ var StartDKG = &cobra.Command{
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,
+			cli_utils.OutputPath,
 		); err != nil {
 			logger.Fatal("Could not save results", zap.Error(err))
 		}
