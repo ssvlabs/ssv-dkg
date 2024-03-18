@@ -530,7 +530,7 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCL
 		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
 		return err
 	}
-	proofsFinalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	proofsFinalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err = utils.WriteJSON(proofsFinalPath, proofs)
 	if err != nil {
 		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", proofsFinalPath), zap.Any("proofs", proofs))
@@ -560,7 +560,7 @@ func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
 }
 
 func WriteProofs(proofs []*wire.SignedProof, dir string) error {
-	finalPath := fmt.Sprintf("%s/signed_proofs.json", dir)
+	finalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, proofs)

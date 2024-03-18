@@ -65,9 +65,9 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 }
 
 type signedProofJSON struct {
-	Proof *Proof
+	Proof *Proof `json:"proof"`
 	// Signature is an RSA signature over proof
-	Signature string `json:"operator_signature"`
+	Signature string `json:"signature"`
 }
 
 func (sp *SignedProof) MarshalJSON() ([]byte, error) {
