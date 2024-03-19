@@ -364,8 +364,18 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	if withdrawPrefix != crypto.ETH1WithdrawalPrefixByte {
 		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
 	}
-	return cli_utils.WriteResults(s.Logger, depositDataArr, keySharesArr, proofsArr,
-		1, common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress), keySharesArr[0].Shares[0].OwnerNonce, common.BytesToAddress(withdrawAddress), outputPath)
+	return cli_utils.WriteResults(
+		s.Logger,
+		depositDataArr,
+		keySharesArr,
+		proofsArr,
+		true,
+		1,
+		common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress),
+		keySharesArr[0].Shares[0].OwnerNonce,
+		common.BytesToAddress(withdrawAddress),
+		outputPath,
+	)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {

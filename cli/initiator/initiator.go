@@ -114,6 +114,7 @@ var StartDKG = &cobra.Command{
 			depositDataArr,
 			keySharesArr,
 			proofs,
+			false,
 			int(cli_utils.Validators),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
