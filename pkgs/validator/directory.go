@@ -72,8 +72,8 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 		if len(validator.KeyShares.Shares) != 1 {
 			return fmt.Errorf("validator keyshares contains more than one item")
 		}
-		if len(validator.Proofs) == len(validator.KeyShares.Shares[0].Payload.OperatorIDs) {
-			return fmt.Errorf("number of validator proofs does not match operator count")
+		if len(validator.Proofs) != len(validator.KeyShares.Shares[0].Payload.OperatorIDs) {
+			return fmt.Errorf("number of validator proofs does not match operator count %d %d", len(validator.Proofs), len(validator.KeyShares.Shares[0].Payload.OperatorIDs))
 		}
 
 		// Verify that the validator data is equal to the aggregated data.

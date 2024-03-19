@@ -162,7 +162,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 
 		for i := range share.Operators {
 			if share.Operators[i].ID != share.Payload.OperatorIDs[i] {
-				return fmt.Errorf("operator id and operator ids are not equal")
+				return fmt.Errorf("operator id and payload operator ids are not equal")
 			}
 		}
 
