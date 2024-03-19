@@ -35,7 +35,7 @@ func TestValidateInitMessage(t *testing.T) {
 			Fork:                  fixtures.TestFork,
 			Owner:                 fixtures.TestOwnerAddress,
 			Nonce:                 0,
-		}), "operators and not unique and ordered")
+		}), "operators not unique or not ordered")
 	})
 	t.Run("non unique operators", func(t *testing.T) {
 		require.EqualError(t, spec.ValidateInitMessage(&wire.Init{
@@ -50,7 +50,7 @@ func TestValidateInitMessage(t *testing.T) {
 			Fork:                  fixtures.TestFork,
 			Owner:                 fixtures.TestOwnerAddress,
 			Nonce:                 0,
-		}), "operators and not unique and ordered")
+		}), "operators not unique or not ordered")
 	})
 	t.Run("no operators", func(t *testing.T) {
 		require.EqualError(t, spec.ValidateInitMessage(&wire.Init{

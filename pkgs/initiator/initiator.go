@@ -127,6 +127,9 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 	ops := make([]*wire.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
 	for i, id := range ids {
+		if id == 0 {
+			return nil, errors.New("operator ID cannot be 0")
+		}
 		op := operators.ByID(id)
 		if op == nil {
 			return nil, errors.New("operator is not in given operator data list")

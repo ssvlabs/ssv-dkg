@@ -31,8 +31,7 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go install gotest.tools/gotestsum@latest
-	gotestsum --format testname
+	go run gotest.tools/gotestsum@latest --format testname
 
 # Recipe to build the Docker image
 docker-build-image:
