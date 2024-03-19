@@ -11,8 +11,8 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/spec/eip1271"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv-dkg/spec/eip1271"
 )
 
 func RunDKG(init *wire.Init) ([]*wire.Result, error) {

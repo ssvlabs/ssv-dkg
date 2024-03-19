@@ -59,10 +59,10 @@ func TestStartDKG(t *testing.T) {
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
 	ops = append(
 		ops,
-		wire.OperatorCLI{srv1.HttpSrv.URL, 1, &srv1.PrivKey.PublicKey},
-		wire.OperatorCLI{srv2.HttpSrv.URL, 2, &srv2.PrivKey.PublicKey},
-		wire.OperatorCLI{srv3.HttpSrv.URL, 3, &srv3.PrivKey.PublicKey},
-		wire.OperatorCLI{srv4.HttpSrv.URL, 4, &srv4.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
 	)
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")

@@ -23,7 +23,9 @@ func TestSSS(t *testing.T) {
 	msk := make([]bls.SecretKey, 10)
 
 	sk := &bls.SecretKey{}
-	sk.SetHexString(TestValidator10Operators)
+	err := sk.SetHexString(TestValidator10Operators)
+	require.NoError(t, err)
+
 	msk[0] = *sk
 
 	// construct poly

@@ -29,7 +29,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 	// 1. check operators at json
 	for i, op := range ks.Shares[0].Operators {
 		if op.ID != operators[i].ID || !bytes.Equal(op.PubKey, operators[i].PubKey) {
-			return fmt.Errorf("incorrect keyshares creation time is empty")
+			return fmt.Errorf("incorrect keyshares operators")
 		}
 	}
 	// 2. check owner address is correct
@@ -58,7 +58,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 	if "0x"+valPub != ks.Shares[0].Payload.PublicKey {
 		return fmt.Errorf("incorrect keyshares payload validator pub key")
 	}
-	// 7. check encrypded shares data
+	// 7. check encrypted shares data
 	sharesData, err := hex.DecodeString(strings.TrimPrefix(ks.Shares[0].Payload.SharesData, "0x"))
 	if err != nil {
 		return fmt.Errorf("cant decode enc shares %w", err)

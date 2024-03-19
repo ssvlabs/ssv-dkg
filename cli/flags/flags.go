@@ -8,7 +8,6 @@ import (
 
 // Flag names.
 const (
-	threshold         = "threshold"
 	withdrawAddress   = "withdrawAddress"
 	operatorIDs       = "operatorIDs"
 	operatorsInfo     = "operatorsInfo"
@@ -154,20 +153,6 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	}
 
 	c.PersistentFlags().StringSlice(flag, value, fmt.Sprintf("%s%s", description, req))
-
-	if isRequired {
-		_ = c.MarkPersistentFlagRequired(flag)
-	}
-}
-
-// AddPersistentIntFlag adds a int flag to the command
-func AddPersistentBoolFlag(c *cobra.Command, flag string, value bool, description string, isRequired bool) {
-	req := ""
-	if isRequired {
-		req = " (required)"
-	}
-
-	c.PersistentFlags().Bool(flag, value, fmt.Sprintf("%s%s", description, req))
 
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)
