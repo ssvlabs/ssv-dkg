@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -11,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drand/kyber"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
@@ -22,7 +20,15 @@ import (
 var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
 var ErrAlreadyExists = errors.New("got init msg for existing instance")
 var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
-var ErrVersion = errors.New("wrong version")
+
+type SensitiveError struct {
+	Err          error
+	PresentedErr string
+}
+
+func (e *SensitiveError) Error() string {
+	return e.Err.Error()
+}
 
 // WriteJSON writes data to JSON file
 func WriteJSON(filePth string, data any) error {
@@ -76,106 +82,37 @@ func GetThreshold(ids []uint64) (int, error) {
 	return threshold, nil
 }
 
-// JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
-func JoinSets(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range oldOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
-}
-
 // GetNetworkByFork translates the network fork bytes into name
 //
 //	TODO: once eth2_key_manager implements this we can get rid of it and support all networks ekm supports automatically
-func GetNetworkByFork(fork [4]byte) eth2_key_manager_core.Network {
+func GetNetworkByFork(fork [4]byte) (eth2_key_manager_core.Network, error) {
 	switch fork {
 	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork
+		return eth2_key_manager_core.PraterNetwork, nil
 	case [4]byte{0x01, 0x01, 0x70, 0x00}:
-		return eth2_key_manager_core.HoleskyNetwork
+		return eth2_key_manager_core.HoleskyNetwork, nil
 	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork
+		return eth2_key_manager_core.MainNetwork, nil
 	default:
-		return eth2_key_manager_core.MainNetwork
+		return eth2_key_manager_core.MainNetwork, errors.New("unknown network")
 	}
-}
-
-// GetDisjointOldOperators returns an old set of operators disjoint from new set
-// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
-func GetDisjointOldOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			set = append(set, op)
-		}
-	}
-	return set
-}
-
-// GetDisjointNewOperators returns a new set of operators disjoint from old set
-// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
-func GetDisjointNewOperators(oldOperators, newOperators []*wire.Operator) []*wire.Operator {
-	tmp := make(map[uint64]*wire.Operator)
-	var set []*wire.Operator
-	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
-			tmp[op.ID] = op
-		}
-	}
-	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
-			delete(tmp, op.ID)
-		}
-	}
-	for _, op := range tmp {
-		set = append(set, op)
-	}
-	return set
-}
-
-func Contains(s []*rsa.PrivateKey, i int) bool {
-	for k := range s {
-		if k == i {
-			return true
-		}
-	}
-	return false
-}
-
-func CommitsToBytes(cs []kyber.Point) []byte {
-	var commits []byte
-	for _, point := range cs {
-		b, err := point.MarshalBinary()
-		if err != nil {
-			panic(err)
-		}
-		commits = append(commits, b...)
-	}
-	return commits
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
 	logger.Error("request error: " + err.Error())
 	writer.WriteHeader(statusCode)
-	writer.Write(wire.MakeErr(err))
+	presentedErr := err
+
+	// Don't expose internal errors to the client.
+	var sensitiveError *SensitiveError
+	if errors.As(err, &sensitiveError) {
+		presentedErr = errors.New(sensitiveError.PresentedErr)
+	}
+
+	_, writeErr := writer.Write(wire.MakeErr(presentedErr))
+	if writeErr != nil {
+		logger.Error("error writing error response: " + writeErr.Error())
+	}
 }
 
 // GetNonce returns a suitable nonce to feed in the DKG config.

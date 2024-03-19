@@ -5,9 +5,9 @@ name: Go
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "unstable"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "unstable"]
 
 jobs:
   build:
@@ -26,5 +26,8 @@ jobs:
       - name: Test
         run: go install gotest.tools/gotestsum@latest && gotestsum --format testname
 
+      - name: Critic
+        run: go install -v github.com/go-critic/go-critic/cmd/gocritic@latest && gocritic check ./...
+     
       - name: Lint
-        run: go install -v github.com/go-critic/go-critic/cmd/gocritic@latest && gocritic check -enableAll ./...
+        run: make lint-prepare && make lint

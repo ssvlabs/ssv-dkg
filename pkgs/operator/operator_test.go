@@ -44,19 +44,19 @@ func TestRateLimit(t *testing.T) {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
-	initPubBytes, err := crypto.EncodePublicKey(pubKey)
+	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
-		ops := make(map[uint64]initiator.Operator)
-		ops[1] = initiator.Operator{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey}
+		ops := wire.OperatorsCLI{}
+		ops = append(ops, wire.OperatorCLI{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
 
 		parts := make([]*wire.Operator, 0)
 		for _, id := range []uint64{1} {
-			op, ok := ops[id]
-			if !ok {
+			op := ops.ByID(id)
+			if op == nil {
 				t.Fatalf("no op")
 			}
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
@@ -71,7 +71,6 @@ func TestRateLimit(t *testing.T) {
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 			Nonce:                 0,
-			InitiatorPublicKey:    initPubBytes,
 		}
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
@@ -91,7 +90,7 @@ func TestRateLimit(t *testing.T) {
 
 		signedTransportMsg := &wire.SignedTransport{
 			Message:   ts,
-			Signer:    0,
+			Signer:    initPubBytes,
 			Signature: sig,
 		}
 
@@ -164,104 +163,42 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	ops := make(map[uint64]initiator.Operator)
+	ops := wire.OperatorsCLI{}
 	version := "v1.0.2"
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
 	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
-	ops[1] = initiator.Operator{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey}
-	ops[2] = initiator.Operator{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey}
-	ops[3] = initiator.Operator{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey}
-	ops[4] = initiator.Operator{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey}
-	t.Run("test wrong pub key in init message", func(t *testing.T) {
-		_, pv, err := rsaencryption.GenerateKeys()
-		require.NoError(t, err)
-		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-		require.NoError(t, err)
-		withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
-		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
-		ids := []uint64{1, 2, 3, 4}
-
-		c := initiator.New(priv, ops, logger, version)
-		// compute threshold (3f+1)
-		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0)
-		for _, id := range ids {
-			op, ok := c.Operators[id]
-			require.True(t, ok)
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
-			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
-				ID:     op.ID,
-				PubKey: pkBytes,
-			})
-		}
-		// Change pub key
-		_, newPv, err := rsaencryption.GenerateKeys()
-		require.NoError(t, err)
-		newPriv, err := rsaencryption.ConvertPemToPrivateKey(string(newPv))
-		require.NoError(t, err)
-		wrongPub, err := crypto.EncodePublicKey(&newPriv.PublicKey)
-		require.NoError(t, err)
-		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
-		require.NoError(t, err)
-		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
-		// make init message
-		init := &wire.Init{
-			Operators:             parts,
-			T:                     uint64(threshold),
-			WithdrawalCredentials: withdraw.Bytes(),
-			Fork:                  [4]byte{0, 0, 0, 0},
-			Owner:                 owner,
-			Nonce:                 0,
-			InitiatorPublicKey:    wrongPub,
-		}
-		id := crypto.NewID()
-		results, err := c.SendInitMsg(init, id, parts)
-		require.NoError(t, err)
-		var errs []error
-		for i := 0; i < len(results); i++ {
-			msg := results[i]
-			tsp := &wire.SignedTransport{}
-			if err := tsp.UnmarshalSSZ(msg); err != nil {
-				// try parsing an error
-				errmsg, parseErr := initiator.ParseAsError(msg)
-				require.NoError(t, parseErr)
-				errs = append(errs, errmsg)
-			}
-		}
-		require.Equal(t, 4, len(errs))
-		for _, err := range errs {
-			require.ErrorContains(t, err, "init: initiator signature isn't valid: crypto/rsa: verification error")
-		}
-	})
+	ops = append(
+		ops,
+		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
+	)
 	t.Run("test wrong signature of init message", func(t *testing.T) {
-		_, pv, err := rsaencryption.GenerateKeys()
-		require.NoError(t, err)
-		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
-		require.NoError(t, err)
 		withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c := initiator.New(priv, ops, logger, version)
+		c, err := initiator.New(ops, logger, version)
+		require.NoError(t, err)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
 		parts := make([]*wire.Operator, 0)
 		for _, id := range ids {
-			op, ok := c.Operators[id]
-			require.True(t, ok)
-			pkBytes, err := crypto.EncodePublicKey(op.PubKey)
+			op := c.Operators.ByID(id)
+			require.NotNil(t, op)
+			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &wire.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
-		wrongPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		wrongPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		encPub, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
+		encPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
@@ -272,7 +209,6 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 owner,
 			Nonce:                 0,
-			InitiatorPublicKey:    wrongPub,
 		}
 		id := crypto.NewID()
 		sszinit, err := init.MarshalSSZ()
@@ -288,11 +224,11 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		// Create signed init message
 		signedInitMsg := &wire.SignedTransport{
 			Message:   initMessage,
-			Signer:    0,
+			Signer:    wrongPub,
 			Signature: sig}
 		signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
 		require.NoError(t, err)
-		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts)
+		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts, false)
 		require.NoError(t, err)
 		var errs []error
 		for i := 0; i < len(results); i++ {
@@ -300,7 +236,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			tsp := &wire.SignedTransport{}
 			if err := tsp.UnmarshalSSZ(msg); err != nil {
 				// try parsing an error
-				errmsg, parseErr := initiator.ParseAsError(msg)
+				errmsg, parseErr := wire.ParseAsError(msg)
 				require.NoError(t, parseErr)
 				errs = append(errs, errmsg)
 			}
@@ -354,7 +290,7 @@ var testKeyshares = []byte(`{
   }`)
 
 func TestRecoverSharesData(t *testing.T) {
-	var ks *initiator.KeyShares
+	var ks *wire.KeySharesCLI
 	var keys []*rsa.PrivateKey
 	suite := kyber_bls12381.NewBLS12381Suite()
 	err := json.Unmarshal(testKeyshares, &ks)
@@ -398,9 +334,9 @@ func TestRecoverSharesData(t *testing.T) {
 		// Find operator ID by PubKey
 		var operatorID uint64
 		for _, op := range ks.Shares[0].Operators {
-			b, err := crypto.EncodePublicKey(&priv.PublicKey)
+			b, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
-			if bytes.Equal(b, []byte(op.OperatorKey)) {
+			if bytes.Equal(b, []byte(op.PubKey)) {
 				operatorID = op.ID
 			}
 		}

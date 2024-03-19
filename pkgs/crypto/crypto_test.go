@@ -10,7 +10,7 @@ import (
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	drand_bls "github.com/drand/kyber/sign/bls"
+	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -34,7 +34,7 @@ func TestDKGFull(t *testing.T) {
 	_ = bls.Init(bls.BLS12_381)
 	_ = bls.SetETHmode(bls.EthModeDraft07)
 
-	results := RunDKG(t, tns, &conf, nil, nil, nil)
+	results := RunDKGKyberProtocol(t, tns, &conf, nil, nil, nil)
 	testResults(t, suite, thr, n, results)
 }
 
@@ -147,7 +147,6 @@ type TestNode struct {
 	Private kyber.Scalar
 	Public  kyber.Point
 	dkg     *dkg.DistKeyGenerator
-	res     *dkg.Result
 }
 
 func NewTestNode(s dkg.Suite, index int) *TestNode {
@@ -195,45 +194,16 @@ func SetupNodes(nodes []*TestNode, c *dkg.Config) error {
 	return nil
 }
 
-func SetupReshareNodes(nodes []*TestNode, c *dkg.Config, coeffs []kyber.Point) error {
-	nonce := dkg.GetNonce()
-	for _, n := range nodes {
-		c2 := *c
-		c2.Longterm = n.Private
-		c2.Nonce = nonce
-		if n.res != nil {
-			c2.Share = n.res.Key
-		} else {
-			c2.PublicCoeffs = coeffs
-		}
-		dkgProto, err := dkg.NewDistKeyHandler(&c2)
-		if err != nil {
-			return err
-		}
-		n.dkg = dkgProto
-	}
-	return nil
-}
-
-func IsDealerIncluded(bundles []*dkg.ResponseBundle, dealer uint32) bool {
-	for _, bundle := range bundles {
-		for _, resp := range bundle.Responses {
-			if resp.DealerIndex == dealer {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type MapDeal func([]*dkg.DealBundle) []*dkg.DealBundle
 type MapResponse func([]*dkg.ResponseBundle) []*dkg.ResponseBundle
 type MapJustif func([]*dkg.JustificationBundle) []*dkg.JustificationBundle
 
-func RunDKG(t *testing.T, tns []*TestNode, conf *dkg.Config,
+func RunDKGKyberProtocol(t *testing.T, tns []*TestNode, conf *dkg.Config,
 	dm MapDeal, rm MapResponse, jm MapJustif) []*dkg.Result {
 
-	SetupNodes(tns, conf)
+	err := SetupNodes(tns, conf)
+	require.NoError(t, err)
+
 	var deals []*dkg.DealBundle
 	for _, node := range tns {
 		d, err := node.dkg.Deals()
@@ -291,113 +261,4 @@ func RunDKG(t *testing.T, tns []*TestNode, conf *dkg.Config,
 		results = append(results, res)
 	}
 	return results
-}
-
-type TestNetwork struct {
-	boards []*TestBoard
-	noops  []uint32
-}
-
-func NewTestNetwork(n int) *TestNetwork {
-	t := &TestNetwork{}
-	for i := 0; i < n; i++ {
-		t.boards = append(t.boards, NewTestBoard(uint32(i), n, t))
-	}
-	return t
-}
-
-func (n *TestNetwork) SetNoop(index uint32) {
-	n.noops = append(n.noops, index)
-}
-
-func (n *TestNetwork) BoardFor(index uint32) (*TestBoard, error) {
-	for _, b := range n.boards {
-		if b.index == index {
-			return b, nil
-		}
-	}
-	return nil, errors.New("no such indexes")
-}
-
-func (n *TestNetwork) isNoop(i uint32) bool {
-	for _, j := range n.noops {
-		if i == j {
-			return true
-		}
-	}
-	return false
-}
-
-func (n *TestNetwork) BroadcastDeal(a *dkg.DealBundle) {
-	for _, board := range n.boards {
-		if !n.isNoop(board.index) {
-			board.newDeals <- (*a)
-		}
-	}
-}
-
-func (n *TestNetwork) BroadcastResponse(a *dkg.ResponseBundle) {
-	for _, board := range n.boards {
-		if !n.isNoop(board.index) {
-			board.newResps <- *a
-		}
-	}
-}
-
-func (n *TestNetwork) BroadcastJustification(a *dkg.JustificationBundle) {
-	for _, board := range n.boards {
-		if !n.isNoop(board.index) {
-			board.newJusts <- *a
-		}
-	}
-}
-
-type TestBoard struct {
-	index    uint32
-	newDeals chan dkg.DealBundle
-	newResps chan dkg.ResponseBundle
-	newJusts chan dkg.JustificationBundle
-	network  *TestNetwork
-	badDeal  bool
-	badSig   bool
-}
-
-func NewTestBoard(index uint32, n int, network *TestNetwork) *TestBoard {
-	return &TestBoard{
-		network:  network,
-		index:    index,
-		newDeals: make(chan dkg.DealBundle, n),
-		newResps: make(chan dkg.ResponseBundle, n),
-		newJusts: make(chan dkg.JustificationBundle, n),
-	}
-}
-
-func (t *TestBoard) PushDeals(d *dkg.DealBundle) {
-	if t.badDeal {
-		d.Deals[0].EncryptedShare = []byte("bad bad bad")
-	}
-	if t.badSig {
-		d.Signature = []byte("bad signature my friend")
-	}
-	t.network.BroadcastDeal(d)
-}
-
-func (t *TestBoard) PushResponses(r *dkg.ResponseBundle) {
-	t.network.BroadcastResponse(r)
-}
-
-func (t *TestBoard) PushJustifications(j *dkg.JustificationBundle) {
-	t.network.BroadcastJustification(j)
-}
-
-func (t *TestBoard) IncomingDeal() <-chan dkg.DealBundle {
-	return t.newDeals
-}
-
-func (t *TestBoard) IncomingResponse() <-chan dkg.ResponseBundle {
-	return t.newResps
-}
-
-func (t *TestBoard) IncomingJustification() <-chan dkg.JustificationBundle {
-	return t.newJusts
 }

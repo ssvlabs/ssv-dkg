@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,15 +16,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	keystorev4 "github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/validator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // global base flags
@@ -37,22 +39,14 @@ var (
 
 // init flags
 var (
-	OperatorsInfo                     string
-	OperatorsInfoPath                 string
-	OperatorIDs                       []string
-	GenerateInitiatorKeyIfNotExisting bool
-	WithdrawAddress                   common.Address
-	Network                           string
-	OwnerAddress                      common.Address
-	Nonce                             uint64
-	Validators                        uint64
-)
-
-// reshare flags
-var (
-	NewOperatorIDs       []string
-	KeysharesFilePath    string
-	CeremonySigsFilePath string
+	OperatorsInfo     string
+	OperatorsInfoPath string
+	OperatorIDs       []string
+	WithdrawAddress   common.Address
+	Network           string
+	OwnerAddress      common.Address
+	Nonce             uint64
+	Validators        uint
 )
 
 // operator flags
@@ -112,78 +106,37 @@ func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, erro
 	}
 	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator`s key file: %s", err)
+		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
 	}
 	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
 	}
-	privateKey, err := crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
+	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
 	}
 	return privateKey, nil
 }
 
-// GenerateRSAKeyPair generates a RSA key pair. Password either supplied as path or generated at random.
-func GenerateRSAKeyPair(passwordFilePath, privKeyPath string, logger *zap.Logger) (*rsa.PrivateKey, []byte, error) {
-	var privateKey *rsa.PrivateKey
-	var err error
-	var password string
-	_, priv, err := rsaencryption.GenerateKeys()
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-	}
-	if passwordFilePath != "" {
-		logger.Info("🔑 path to password file is provided")
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-			return nil, nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		password = string(keyStorePassword)
-	} else {
-		password, err = crypto.GenerateSecurePassword()
-		if err != nil {
-			return nil, nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-		}
-	}
-	encryptedData, err := keystorev4.New().Encrypt(priv, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to encrypt private key: %s", err)
-	}
-	encryptedRSAJSON, err := json.Marshal(encryptedData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-	}
-	privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-	}
-	return privateKey, encryptedRSAJSON, nil
-}
-
 // ReadOperatorsInfoFile reads operators data from path
-func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (initiator.Operators, error) {
-	var opMap initiator.Operators
+func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.OperatorsCLI, error) {
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
 	logger.Info("📖 reading operators info JSON file")
-	opsfile, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
+	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
 	}
-	opMap, err = initiator.LoadOperatorsJson(opsfile)
+	var operators wire.OperatorsCLI
+	err = json.Unmarshal(operatorsInfoJSON, &operators)
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
 	}
-	return opMap, nil
+	return operators, nil
 }
 
 func SetBaseFlags(cmd *cobra.Command) {
@@ -204,19 +157,8 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
-	flags.GenerateInitiatorKeyIfNotExistingFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
-}
-
-func SetReshareFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.NewOperatorIDsFlag(cmd)
-	flags.KeysharesFilePathFlag(cmd)
-	flags.CeremonySigsFilePathFlag(cmd)
-	flags.NonceFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -321,9 +263,6 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if err := BindInitiatorBaseFlags(cmd); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("generateInitiatorKeyIfNotExisting", cmd.PersistentFlags().Lookup("generateInitiatorKeyIfNotExisting")); err != nil {
-		return err
-	}
 	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
 		return err
 	}
@@ -346,85 +285,14 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Network == "" {
 		return fmt.Errorf("😥 Failed to get fork version flag value")
 	}
-	Validators = viper.GetUint64("validators")
+	Validators = viper.GetUint("validators")
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
-	GenerateInitiatorKeyIfNotExisting = viper.GetBool("generateInitiatorKeyIfNotExisting")
 	return nil
 }
 
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ceremonySigsFilePath", cmd.PersistentFlags().Lookup("ceremonySigsFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
-	if len(NewOperatorIDs) == 0 {
-		return fmt.Errorf("😥 New operator IDs flag cant be empty")
-	}
-	KeysharesFilePath = viper.GetString("keysharesFilePath")
-	if KeysharesFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to keyshares json file")
-	}
-	if strings.Contains(KeysharesFilePath, "../") {
-		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
-	}
-	stat, err := os.Stat(KeysharesFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 keysharesFilePath should not be a folder")
-	}
-	CeremonySigsFilePath = viper.GetString("ceremonySigsFilePath")
-	if CeremonySigsFilePath == "" {
-		return fmt.Errorf("😥 please provide a path to ceremony signatures json file")
-	}
-	if strings.Contains(CeremonySigsFilePath, "../") {
-		return fmt.Errorf("😥 ceremonySigsFilePath flag should not contain traversal")
-	}
-	stat, err = os.Stat(CeremonySigsFilePath)
-	if err != nil {
-		return fmt.Errorf("😥 ceremonySigsFilePath is a folder path or not exist: %s", err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
-	}
-	Nonce = viper.GetUint64("nonce")
-	return nil
-}
-
-// BindOperatorFlags binds flags to yaml config parameters for the resharing ceremony of DKG
+// BindOperatorFlags binds flags to yaml config parameters for the operator
 func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
@@ -484,136 +352,211 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 }
 
 // LoadOperators loads operators data from raw json or file path
-func LoadOperators(logger *zap.Logger) (initiator.Operators, error) {
-	var opmap map[uint64]initiator.Operator
+func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
+	var operators wire.OperatorsCLI
 	var err error
 	if OperatorsInfo != "" {
-		opmap, err = initiator.LoadOperatorsJson([]byte(OperatorsInfo))
+		err = json.Unmarshal([]byte(OperatorsInfo), &operators)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		opmap, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
+		operators, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if opmap == nil {
+	if operators == nil {
 		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
-	return opmap, nil
+	return operators, nil
 }
 
-// LoadInitiatorRSAPrivKey loads RSA private key from path or generates a new key pair
-func LoadInitiatorRSAPrivKey(generate bool) (*rsa.PrivateKey, error) {
-	var privateKey *rsa.PrivateKey
-	privKeyPath := fmt.Sprintf("%s/initiator_encrypted_key.json", OutputPath)
-	privKeyPassPath := fmt.Sprintf("%s/initiator_password", OutputPath)
-	if generate {
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			_, priv, err := rsaencryption.GenerateKeys()
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to generate operator keys: %s", err)
-			}
-			if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-				password, err := crypto.GenerateSecurePassword()
-				if err != nil {
-					return nil, err
-				}
-				err = os.WriteFile(privKeyPassPath, []byte(password), 0o600)
-				if err != nil {
-					return nil, err
-				}
-			}
-			keyStorePassword, err := os.ReadFile(filepath.Clean(privKeyPassPath))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-			}
-			encryptedRSAJSON, err := crypto.EncryptPrivateKey(priv, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Failed to marshal encrypted data to JSON: %s", err)
-			}
-			privateKey, err = crypto.ReadEncryptedPrivateKey(encryptedRSAJSON, string(keyStorePassword))
-			if err != nil {
-				return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-			}
-			err = os.WriteFile(privKeyPath, encryptedRSAJSON, 0o600)
-			if err != nil {
-				return nil, err
-			}
-		} else if err == nil {
-			return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
-		}
-	} else {
-		// check if a password string a valid path, then read password from the file
-		if _, err := os.Stat(privKeyPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 private key file: %s", err)
-		}
-		if _, err := os.Stat(privKeyPassPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("🔑 password file: %s", err)
-		}
-		return crypto.ReadEncryptedRSAKey(privKeyPath, privKeyPassPath)
+func WriteResults(
+	logger *zap.Logger,
+	depositDataArr []*wire.DepositDataCLI,
+	keySharesArr []*wire.KeySharesCLI,
+	proofs [][]*wire.SignedProof,
+	withRandomness bool,
+	expectedValidatorCount int,
+	expectedOwnerAddress common.Address,
+	expectedOwnerNonce uint64,
+	expectedWithdrawAddress common.Address,
+	outputPath string,
+) (err error) {
+	if expectedValidatorCount == 0 {
+		return fmt.Errorf("expectedValidatorCount is 0")
 	}
-	return privateKey, nil
-}
+	if len(depositDataArr) != len(keySharesArr) || len(depositDataArr) != len(proofs) {
+		return fmt.Errorf("Incoming result arrays have inconsistent length")
+	}
+	if len(depositDataArr) == 0 {
+		return fmt.Errorf("no results to write")
+	}
+	if len(depositDataArr) != int(expectedValidatorCount) {
+		return fmt.Errorf("expectedValidatorCount is not equal to the length of given results")
+	}
 
-func WriteInitResults(depositDataArr []*initiator.DepositDataJson, keySharesArr []*initiator.KeyShares, nonces []uint64, ceremonySigsArr []*initiator.CeremonySigs, logger *zap.Logger) {
-	if len(depositDataArr) != int(Validators) || len(keySharesArr) != int(Validators) {
-		logger.Fatal("Incoming result arrays have inconsistent length")
+	// order the keyshares by nonce
+	sort.SliceStable(keySharesArr, func(i, j int) bool {
+		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
+	})
+	sorted := sort.SliceIsSorted(keySharesArr, func(p, q int) bool {
+		return keySharesArr[p].Shares[0].OwnerNonce < keySharesArr[q].Shares[0].OwnerNonce
+	})
+	if !sorted {
+		return fmt.Errorf("slice is not sorted")
 	}
-	timestamp := time.Now().Format(time.RFC3339)
-	dir := fmt.Sprintf("%s/ceremony-%s", OutputPath, timestamp)
-	err := os.Mkdir(dir, os.ModePerm)
+
+	// check if public keys are unique
+	for i := 0; i < len(keySharesArr)-1; i++ {
+		pk1 := keySharesArr[i].Shares[0].Payload.PublicKey
+		pk2 := keySharesArr[i+1].Shares[0].Payload.PublicKey
+		if pk1 == pk2 {
+			return fmt.Errorf("public key %s is not unique", keySharesArr[i].Shares[0].Payload.PublicKey)
+		}
+	}
+
+	// order deposit data and proofs to match keyshares order
+	sortedDepositData := make([]*wire.DepositDataCLI, len(depositDataArr))
+	sortedProofs := make([][]*wire.SignedProof, len(depositDataArr))
+	for i, keyshare := range keySharesArr {
+		pk := strings.TrimPrefix(keyshare.Shares[0].Payload.PublicKey, "0x")
+		for _, deposit := range depositDataArr {
+			if deposit.PubKey == pk {
+				sortedDepositData[i] = deposit
+				break
+			}
+		}
+		if sortedDepositData[i] == nil {
+			return fmt.Errorf("failed to match deposit data with keyshares")
+		}
+		for _, proof := range proofs {
+			if hex.EncodeToString(proof[0].Proof.ValidatorPubKey) == pk {
+				sortedProofs[i] = proof
+				break
+			}
+		}
+		if sortedProofs[i] == nil {
+			return fmt.Errorf("failed to match proofs with keyshares")
+		}
+	}
+	depositDataArr = sortedDepositData
+	proofs = sortedProofs
+
+	// Validate the results.
+	aggregatedKeyshares := &wire.KeySharesCLI{
+		Version:   keySharesArr[0].Version,
+		CreatedAt: keySharesArr[0].CreatedAt,
+	}
+	for i := 0; i < len(keySharesArr); i++ {
+		aggregatedKeyshares.Shares = append(aggregatedKeyshares.Shares, keySharesArr[i].Shares...)
+	}
+	if err := validator.ValidateResults(depositDataArr, aggregatedKeyshares, proofs, expectedValidatorCount, expectedOwnerAddress, expectedOwnerNonce, expectedWithdrawAddress); err != nil {
+		return err
+	}
+
+	// Create the ceremony directory.
+	timestamp := time.Now().UTC().Format("2006-01-02--15-04-05.000")
+	dirName := fmt.Sprintf("ceremony-%s", timestamp)
+	if withRandomness {
+		randomness := make([]byte, 4)
+		if _, err := rand.Read(randomness); err != nil {
+			return fmt.Errorf("failed to generate randomness: %w", err)
+		}
+		dirName = fmt.Sprintf("%s--%x", dirName, randomness)
+	}
+	dir := filepath.Join(outputPath, dirName)
+	err = os.Mkdir(dir, os.ModePerm)
+	if os.IsExist(err) {
+		return fmt.Errorf("ceremony directory already exists: %w", err)
+	}
 	if err != nil {
-		logger.Fatal("Failed to create a ceremony directory: ", zap.Error(err))
+		return fmt.Errorf("failed to create a ceremony directory: %w", err)
 	}
-	for i := 0; i < int(Validators); i++ {
-		nestedDir := fmt.Sprintf("%s/0x%s", dir, depositDataArr[i].PubKey)
+
+	// If saving fails, create a "FAILED" file under the ceremony directory.
+	defer func() {
+		if err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "FAILED"), []byte(err.Error()), 0o600); err != nil {
+				logger.Error("failed to write error file", zap.Error(err))
+			}
+		}
+	}()
+
+	for i := 0; i < len(depositDataArr); i++ {
+		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
-			logger.Fatal("Failed to create a validator key directory: ", zap.Error(err))
+			return fmt.Errorf("failed to create a validator key directory: %w", err)
 		}
 		logger.Info("💾 Writing deposit data json", zap.String("path", nestedDir))
 		err = WriteDepositResult(depositDataArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
+			logger.Error("Failed writing deposit data file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", depositDataArr[i]))
+			return fmt.Errorf("failed writing deposit data file: %w", err)
 		}
 		logger.Info("💾 Writing keyshares payload to file", zap.String("path", nestedDir))
 		err = WriteKeysharesResult(keySharesArr[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
+			logger.Error("Failed writing keyshares file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("deposit", keySharesArr[i]))
+			return fmt.Errorf("failed writing keyshares file: %w", err)
 		}
-		err = WriteCeremonySigs(ceremonySigsArr[i], nestedDir)
+		logger.Info("💾 Writing proofs to file", zap.String("path", nestedDir))
+		err = WriteProofs(proofs[i], nestedDir)
 		if err != nil {
-			logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("sigs", ceremonySigsArr[i]))
+			logger.Error("Failed writing proofs file: ", zap.Error(err), zap.String("path", nestedDir), zap.Any("proof", proofs[i]))
+			return fmt.Errorf("failed writing proofs file: %w", err)
 		}
 	}
+	// if there is only one Validator, do not create summary files
+	if expectedValidatorCount > 1 {
+		err := WriteAggregatedInitResults(dir, depositDataArr, keySharesArr, proofs, logger)
+		if err != nil {
+			return fmt.Errorf("failed writing aggregated results: %w", err)
+		}
+	}
+
+	err = validator.ValidateResultsDir(dir, expectedValidatorCount, expectedOwnerAddress, expectedOwnerNonce, expectedWithdrawAddress)
+	if err != nil {
+		return fmt.Errorf("failed validating results dir: %w", err)
+	}
+
+	return nil
+}
+
+func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
-	err = utils.WriteJSON(depositFinalPath, depositDataArr)
+	err := utils.WriteJSON(depositFinalPath, depositDataArr)
 	if err != nil {
-		logger.Fatal("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+		logger.Error("Failed writing deposit data file: ", zap.Error(err), zap.String("path", depositFinalPath), zap.Any("deposits", depositDataArr))
+		return err
 	}
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
 	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
 	if err != nil {
-		logger.Fatal("error: ", zap.Error(err))
+		return err
 	}
 	err = utils.WriteJSON(keysharesFinalPath, aggrKeySharesArr)
 	if err != nil {
-		logger.Fatal("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+		logger.Error("Failed writing keyshares to file: ", zap.Error(err), zap.String("path", keysharesFinalPath), zap.Any("keyshares", keySharesArr))
+		return err
 	}
-	ceremonySigsFinalPath := fmt.Sprintf("%s/ceremony_sigs.json", dir)
-	err = utils.WriteJSON(ceremonySigsFinalPath, ceremonySigsArr)
+	proofsFinalPath := fmt.Sprintf("%s/proofs.json", dir)
+	err = utils.WriteJSON(proofsFinalPath, proofs)
 	if err != nil {
-		logger.Fatal("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", ceremonySigsFinalPath), zap.Any("sigs", ceremonySigsArr))
+		logger.Error("Failed writing ceremony sig file: ", zap.Error(err), zap.String("path", proofsFinalPath), zap.Any("proofs", proofs))
+		return err
 	}
+
+	return nil
 }
 
-func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
-	keysharesFinalPath := fmt.Sprintf("%s/keyshares-%s-%s-%d.json", dir, keyShares.Shares[0].Payload.PublicKey, keyShares.Shares[0].OwnerAddress, keyShares.Shares[0].OwnerNonce)
+func WriteKeysharesResult(keyShares *wire.KeySharesCLI, dir string) error {
+	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	err := utils.WriteJSON(keysharesFinalPath, keyShares)
 	if err != nil {
 		return fmt.Errorf("failed writing keyshares file: %w, %v", err, keyShares)
@@ -621,20 +564,21 @@ func WriteKeysharesResult(keyShares *initiator.KeyShares, dir string) error {
 	return nil
 }
 
-func WriteDepositResult(depositData *initiator.DepositDataJson, dir string) error {
-	depositFinalPath := fmt.Sprintf("%s/deposit_data-0x%s.json", dir, depositData.PubKey)
-	err := utils.WriteJSON(depositFinalPath, []*initiator.DepositDataJson{depositData})
+func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
+	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
+	err := utils.WriteJSON(depositFinalPath, []*wire.DepositDataCLI{depositData})
+
 	if err != nil {
 		return fmt.Errorf("failed writing deposit data file: %w, %v", err, depositData)
 	}
 	return nil
 }
 
-func WriteCeremonySigs(ceremonySigs *initiator.CeremonySigs, dir string) error {
-	finalPath := fmt.Sprintf("%s/ceremony_sigs-%s.json", dir, ceremonySigs.ValidatorPubKey)
-	err := utils.WriteJSON(finalPath, ceremonySigs)
+func WriteProofs(proofs []*wire.SignedProof, dir string) error {
+	finalPath := fmt.Sprintf("%s/proofs.json", dir)
+	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
-		return fmt.Errorf("failed writing data file: %w, %v", err, ceremonySigs)
+		return fmt.Errorf("failed writing data file: %w, %v", err, proofs)
 	}
 	return nil
 }

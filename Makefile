@@ -2,8 +2,8 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator docker-demo-reshare
-.PHONY: docker-operator docker-initiator docker-reshare mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec
+.PHONY: install clean build test docker-build-image docker-demo-operators docker-demo-initiator
+.PHONY: docker-operator docker-initiator mockgen-install lint-prepare lint critic-prepare critic gosec-prepare gosec deadcode-prepare deadcode
 
 GOBIN = ./build/bin
 GO ?= latest
@@ -47,10 +47,6 @@ docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
 
-docker-demo-reshare:
-	@echo "Running resharing in docker demo"
-	docker-compose up --build resharing
-
 docker-demo-ping:
 	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping
@@ -72,14 +68,19 @@ docker-initiator:
 	  $(DOCKER_IMAGE):latest \
 	  init --configPath /data/initiator/config
 
-docker-reshare:
-	@echo "Running initiator docker for key resharing to new operators, make sure to update ./examples/initiator/config/reshare.yaml"
-	docker run \
-	  --name ssv-dkg-reshare \
-	  -v $(shell pwd)/examples:/data \
-	  $(DOCKER_IMAGE):latest \
-	  reshare --configPath /data/initiator/config
-	  
+docker-build-deposit-verify:
+	DOCKER_BUILDKIT=1 docker build --progress=plain --no-cache -f $(shell pwd)/utils/deposit_verify/Dockerfile -t deposit-verify .
+
+docker-deposit-verify:
+	cp $(DEPOSIT_FILE_PATH) /tmp/deposit_data.json && \
+	docker run --rm \
+	  --name dkg-deposit-verify \
+	  -v /tmp/deposit_data.json:/deposit-verify/utils/deposit_verify/deposit_data.json \
+	  -v $(NETWORK_ENV_PATH):/deposit-verify/utils/deposit_verify/.env \
+	  -e DEPOSIT_FILE_PATH=deposit_data.json \
+	  deposit-verify:latest && \
+	  rm /tmp/deposit_data.json
+
 mockgen-install:
 	go install github.com/golang/mock/mockgen@v1.6.0
 	@which mockgen || echo "Error: ensure `go env GOPATH` is added to PATH"
@@ -101,6 +102,13 @@ critic-prepare:
 
 critic:
 	gocritic check -enableAll ./...
+
+deadcode-prepare:
+	@echo "Preparing Deadcode"
+	go install golang.org/x/tools/cmd/deadcode@latest
+
+deadcode:
+	deadcode -test ./...
 
 gosec-prepare:
 	@echo "Preparing Gosec"

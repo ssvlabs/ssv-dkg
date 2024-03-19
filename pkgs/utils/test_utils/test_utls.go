@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -15,9 +17,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/operator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
@@ -33,17 +35,25 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	priv, err := crypto.EncryptedPrivateKey(examplePath+"operator"+fmt.Sprintf("%v", id)+"/encrypted_private_key.json", "12345678")
+	privKey, err := os.ReadFile(filepath.Clean(examplePath + "operator" + fmt.Sprintf("%v", id) + "/encrypted_private_key.json"))
+	if err != nil {
+		logger.Fatal("failed to read file", zap.Error(err))
+		return nil
+	}
+	priv, err := crypto.DecryptRSAKeystore(privKey, "12345678")
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
 	s := &operator.Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
@@ -66,13 +76,16 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	r := chi.NewRouter()
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodePublicKey(operatorPubKey)
+	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
 	s := &operator.Server{
-		Logger: logger,
-		Router: r,
-		State:  swtch,
+		Logger:     logger,
+		Router:     r,
+		State:      swtch,
+		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
 	sTest := httptest.NewServer(s.Router)
@@ -84,7 +97,7 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 	}
 }
 
-func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeyShares, owner common.Address, nonce uint16) error {
+func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *wire.KeySharesCLI, owner common.Address, nonce uint16) error {
 	sharesData, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	if err != nil {
 		return err
@@ -121,12 +134,24 @@ func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *initiator.KeySha
 		sig := secret.SignByte(msg)
 		sigs2[i] = sig.Serialize()
 	}
-	recon, err := crypto.ReconstructSignatures(ids, sigs2)
+	deserializedSigs2 := make([]*bls.Sign, len(sigs2))
+	for i, sig := range sigs2 {
+		deserializedSigs2[i] = &bls.Sign{}
+		if err := deserializedSigs2[i].Deserialize(sig); err != nil {
+			return err
+		}
+	}
+	recon, err := crypto.RecoverBLSSignature(ids, deserializedSigs2)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyReconstructedSignature(recon, validatorPublicKey, msg); err != nil {
-		return err
+	blsPK := &bls.PublicKey{}
+	if err := blsPK.Deserialize(validatorPublicKey); err != nil {
+		return fmt.Errorf("could not deserialize validator pk %w", err)
+	}
+	// verify reconstructed sig
+	if res := recon.VerifyByte(blsPK, msg); !res {
+		return fmt.Errorf("could not reconstruct a valid signature")
 	}
 	return nil
 }
