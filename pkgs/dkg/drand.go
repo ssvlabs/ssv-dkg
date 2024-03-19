@@ -9,7 +9,7 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
-	drand_bls "github.com/drand/kyber/sign/bls"
+	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/util/random"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -423,7 +423,10 @@ func (o *LocalOwner) broadcastError(err error) {
 		Data:       errMsgEnc,
 		Version:    o.version,
 	}
-	o.Broadcast(errMsg)
+
+	if err := o.Broadcast(errMsg); err != nil {
+		o.Logger.Error("failed to broadcast error message", zap.Error(err))
+	}
 	close(o.done)
 }
 

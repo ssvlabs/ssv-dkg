@@ -35,6 +35,16 @@ func ValidateResults(
 	if err := checkValidatorsCorrectAtDeposits(allDepositData); err != nil {
 		return err
 	}
+
+	// check if all keyshares doesn't have same pub key
+	pubkeys := map[string]struct{}{}
+	for _, share := range allKeyshares.Shares {
+		if _, ok := pubkeys[share.Payload.PublicKey]; ok {
+			return fmt.Errorf("duplicate validator public key in keyshares")
+		}
+		pubkeys[share.Payload.PublicKey] = struct{}{}
+	}
+
 	// validate crypto and make sure validator correct everywhere
 	nonce := expectedOwnerNonce
 	for i := 0; i < expectedValidatorCount; i++ {
@@ -86,7 +96,7 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 			return err
 		}
 		if !bytes.Equal(valShares, proofs[i].Proof.ValidatorPubKey) {
-			return fmt.Errorf("validator doesnt match: %x in proof, %x in keyshares", proofs[i].Proof.ValidatorPubKey, valShares)
+			return fmt.Errorf("validator doesn't match: %x in proof, %x in keyshares", proofs[i].Proof.ValidatorPubKey, valShares)
 		}
 		owner, err := hex.DecodeString(strings.TrimPrefix(keyshare.Shares[0].ShareData.OwnerAddress, "0x"))
 		if err != nil {
@@ -146,6 +156,16 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 			return fmt.Errorf("slice is not sorted")
 		}
 
+		if len(share.Payload.OperatorIDs) != len(share.Operators) {
+			return fmt.Errorf("operators len and operator ids len are not equal")
+		}
+
+		for i := range share.Operators {
+			if share.Operators[i].ID != share.Payload.OperatorIDs[i] {
+				return fmt.Errorf("operator id and operator ids are not equal")
+			}
+		}
+
 		// check validator public key
 		validatorPublicKey, err := hex.DecodeString(strings.TrimPrefix(share.PublicKey, "0x"))
 		if err != nil {
@@ -158,7 +178,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 			return fmt.Errorf("incorrect keyshares payload validator pub key")
 		}
 
-		// 7. check encrypded shares data
+		// 7. check encrypted shares data
 		sharesData, err := hex.DecodeString(strings.TrimPrefix(share.Payload.SharesData, "0x"))
 		if err != nil {
 			return fmt.Errorf("cant decode enc shares %w", err)

@@ -110,7 +110,10 @@ func EncodedOperatorPK(str string) []byte {
 
 func ShareSK(str string) *bls.SecretKey {
 	ret := &bls.SecretKey{}
-	ret.SetHexString(str)
+	err := ret.SetHexString(str)
+	if err != nil {
+		panic(err)
+	}
 	return ret
 }
 

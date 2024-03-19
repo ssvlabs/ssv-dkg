@@ -182,7 +182,10 @@ func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {
 				zap.String("path", r.URL.Path))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(ErrTooManyRouteRequests))
+			_, err := w.Write([]byte(ErrTooManyRouteRequests))
+			if err != nil {
+				logger.Error("error writing rate limit response: " + err.Error())
+			}
 		}),
 	)
 }

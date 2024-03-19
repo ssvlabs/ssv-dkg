@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log"
 
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
@@ -46,7 +47,12 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer logger.Sync()
+		defer func() {
+			err := logger.Sync()
+			if err != nil {
+				log.Printf("Failed to sync logger: %v", err)
+			}
+		}()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		// Load operators TODO: add more sources.
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)

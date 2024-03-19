@@ -10,7 +10,7 @@ import (
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	drand_bls "github.com/drand/kyber/sign/bls"
+	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -201,7 +201,9 @@ type MapJustif func([]*dkg.JustificationBundle) []*dkg.JustificationBundle
 func RunDKGKyberProtocol(t *testing.T, tns []*TestNode, conf *dkg.Config,
 	dm MapDeal, rm MapResponse, jm MapJustif) []*dkg.Result {
 
-	SetupNodes(tns, conf)
+	err := SetupNodes(tns, conf)
+	require.NoError(t, err)
+
 	var deals []*dkg.DealBundle
 	for _, node := range tns {
 		d, err := node.dkg.Deals()

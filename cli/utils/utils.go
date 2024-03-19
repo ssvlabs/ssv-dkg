@@ -408,6 +408,15 @@ func WriteResults(
 		return fmt.Errorf("slice is not sorted")
 	}
 
+	// check if public keys are unique
+	for i := 0; i < len(keySharesArr)-1; i++ {
+		pk1 := keySharesArr[i].Shares[0].Payload.PublicKey
+		pk2 := keySharesArr[i+1].Shares[0].Payload.PublicKey
+		if pk1 == pk2 {
+			return fmt.Errorf("public key %s is not unique", keySharesArr[i].Shares[0].Payload.PublicKey)
+		}
+	}
+
 	// order deposit data and proofs to match keyshares order
 	sortedDepositData := make([]*wire.DepositDataCLI, len(depositDataArr))
 	sortedProofs := make([][]*wire.SignedProof, len(depositDataArr))

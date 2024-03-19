@@ -31,14 +31,6 @@ func (tv *testVerify) Add(id uint64, pk *rsa.PublicKey) {
 	tv.ops[id] = pk
 }
 
-func (tv *testVerify) Verify(pub, msg, sig []byte) error {
-	p, err := crypto.ParseRSAPublicKey(pub)
-	if err != nil {
-		return nil
-	}
-	return crypto.VerifyRSA(p, msg, sig)
-}
-
 type testState struct {
 	T       *testing.T
 	ops     map[uint64]*LocalOwner
