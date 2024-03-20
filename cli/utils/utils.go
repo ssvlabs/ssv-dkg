@@ -57,6 +57,11 @@ var (
 	OperatorID      uint64
 )
 
+// verify flags
+var (
+	CeremonyDir string
+)
+
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -167,6 +172,14 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
 	flags.OperatorIDFlag(cmd)
+}
+
+func SetVerifyFlags(cmd *cobra.Command) {
+	flags.CeremonyDirFlag(cmd)
+	flags.ValidatorsFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -324,6 +337,48 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	OperatorID = viper.GetUint64("operatorID")
 	if OperatorID == 0 {
 		return fmt.Errorf("😥 Wrong operator ID provided")
+	}
+	return nil
+}
+
+// BindVerifyFlags binds flags to yaml config parameters for the verification
+func BindVerifyFlags(cmd *cobra.Command) error {
+	if err := viper.BindPFlag("ceremonyDir", cmd.PersistentFlags().Lookup("ceremonyDir")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("validators", cmd.Flags().Lookup("validators")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
+		return err
+	}
+	CeremonyDir = viper.GetString("ceremonyDir")
+	if CeremonyDir == "" {
+		return fmt.Errorf("😥 Failed to get ceremony directory flag value")
+	}
+	owner := viper.GetString("owner")
+	if owner == "" {
+		return fmt.Errorf("😥 Failed to get owner address flag value")
+	}
+	var err error
+	OwnerAddress, err = utils.HexToAddress(owner)
+	if err != nil {
+		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+	}
+	Nonce = viper.GetUint64("nonce")
+	WithdrawAddress, err = utils.HexToAddress(viper.GetString("withdrawAddress"))
+	if err != nil {
+		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err)
+	}
+	Validators = viper.GetUint("validators")
+	if Validators == 0 {
+		return fmt.Errorf("😥 Failed to get validators flag value")
 	}
 	return nil
 }

@@ -25,9 +25,16 @@ func ValidateResults(
 	expectedOwnerNonce uint64,
 	expectedWithdrawAddress common.Address,
 ) error {
+	if expectedValidatorCount < 1 {
+		return fmt.Errorf("validator count is less than 1")
+	}
+
 	// check len or files
-	if len(allDepositData) != len(allKeyshares.Shares) || len(allDepositData) != len(allProofs) || len(allDepositData) != expectedValidatorCount {
-		return fmt.Errorf("incorrect len of results")
+	if len(allDepositData) != len(allKeyshares.Shares) || len(allDepositData) != len(allProofs) {
+		return fmt.Errorf("inconsistent number of entries in deposit-data, keyshares and proofs")
+	}
+	if len(allDepositData) != expectedValidatorCount {
+		return fmt.Errorf("unexpected number of validators: %d", len(allDepositData))
 	}
 	if expectedWithdrawAddress == (common.Address{}) {
 		return fmt.Errorf("withdraw address is empty")

@@ -158,3 +158,7 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 		_ = c.MarkPersistentFlagRequired(flag)
 	}
 }
+
+func CeremonyDirFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, "ceremonyDir", "", "Path to the ceremony directory", true)
+}
