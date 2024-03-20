@@ -124,7 +124,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 		return nil, fmt.Errorf("wrong operators len: > 13")
 	}
 	if len(ids)%3 != 1 {
-		return nil, fmt.Errorf("amount of operators should be 4,7,10,13")
+		return nil, fmt.Errorf("amount of operators should be 4,7,10,13: got %d", ids)
 	}
 
 	ops := make([]*wire.Operator, len(ids))
