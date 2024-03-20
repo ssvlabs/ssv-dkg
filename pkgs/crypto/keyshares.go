@@ -29,7 +29,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 	// 1. check operators at json
 	for i, op := range ks.Shares[0].Operators {
 		if op.ID != operators[i].ID || !bytes.Equal(op.PubKey, operators[i].PubKey) {
-			return fmt.Errorf("incorrect keyshares creation time is empty")
+			return fmt.Errorf("incorrect keyshares operators")
 		}
 	}
 	// 2. check owner address is correct
@@ -58,7 +58,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 	if "0x"+valPub != ks.Shares[0].Payload.PublicKey {
 		return fmt.Errorf("incorrect keyshares payload validator pub key")
 	}
-	// 7. check encrypded shares data
+	// 7. check encrypted shares data
 	sharesData, err := hex.DecodeString(strings.TrimPrefix(ks.Shares[0].Payload.SharesData, "0x"))
 	if err != nil {
 		return fmt.Errorf("cant decode enc shares %w", err)
@@ -85,11 +85,11 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) error {
 	// Verify that IDs are unique and ordered.
 	if !sort.SliceIsSorted(ids, func(i, j int) bool { return ids[i] < ids[j] }) {
-		return fmt.Errorf("operators not unique or not ordered")
+		return fmt.Errorf("operators not ordered")
 	}
 	for i := 0; i < len(ids)-1; i++ {
 		if ids[i] == ids[i+1] {
-			return fmt.Errorf("operators not unique or not ordered")
+			return fmt.Errorf("operators not unique")
 		}
 	}
 

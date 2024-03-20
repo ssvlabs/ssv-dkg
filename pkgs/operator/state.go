@@ -137,27 +137,6 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
 }
 
-// CreateVerifyFunc verifies signatures for operators participating at DKG ceremony
-func (s *Switch) CreateVerifyFunc(ops []*wire.Operator) (func(pub, msg []byte, sig []byte) error, error) {
-	return func(pub, msg []byte, sig []byte) error {
-		var ok bool
-		for _, op := range ops {
-			if bytes.Equal(op.PubKey, pub) {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return fmt.Errorf("cant find operator participating at DKG %x", pub)
-		}
-		rsaPub, err := crypto.ParseRSAPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		return crypto.VerifyRSA(rsaPub, msg, sig)
-	}, nil
-}
-
 // NewSwitch creates a new Switch
 func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64) *Switch {
 	return &Switch{
@@ -364,8 +343,18 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	if withdrawPrefix != crypto.ETH1WithdrawalPrefixByte {
 		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
 	}
-	return cli_utils.WriteResults(s.Logger, depositDataArr, keySharesArr, proofsArr,
-		1, common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress), keySharesArr[0].Shares[0].OwnerNonce, common.BytesToAddress(withdrawAddress), outputPath)
+	return cli_utils.WriteResults(
+		s.Logger,
+		depositDataArr,
+		keySharesArr,
+		proofsArr,
+		true,
+		1,
+		common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress),
+		keySharesArr[0].Shares[0].OwnerNonce,
+		common.BytesToAddress(withdrawAddress),
+		outputPath,
+	)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {

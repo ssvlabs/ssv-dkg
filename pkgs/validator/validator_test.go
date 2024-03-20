@@ -34,7 +34,7 @@ func TestKeysharesJSON(t *testing.T) {
 			expectedValidatorPubKey: "b1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
 			expectedOwnerAddress:    "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 			expectedNonce:           100,
-			expectedErr:             "operators not unique or not ordered",
+			expectedErr:             "operator id and payload operator ids are not equal",
 		},
 		{
 			filename:                "testdata/keyshares--duplicate-data-operator.json",

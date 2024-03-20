@@ -377,6 +377,7 @@ func WriteResults(
 	depositDataArr []*wire.DepositDataCLI,
 	keySharesArr []*wire.KeySharesCLI,
 	proofs [][]*wire.SignedProof,
+	withRandomness bool,
 	expectedValidatorCount int,
 	expectedOwnerAddress common.Address,
 	expectedOwnerNonce uint64,
@@ -405,6 +406,15 @@ func WriteResults(
 	})
 	if !sorted {
 		return fmt.Errorf("slice is not sorted")
+	}
+
+	// check if public keys are unique
+	for i := 0; i < len(keySharesArr)-1; i++ {
+		pk1 := keySharesArr[i].Shares[0].Payload.PublicKey
+		pk2 := keySharesArr[i+1].Shares[0].Payload.PublicKey
+		if pk1 == pk2 {
+			return fmt.Errorf("public key %s is not unique", keySharesArr[i].Shares[0].Payload.PublicKey)
+		}
 	}
 
 	// order deposit data and proofs to match keyshares order
@@ -448,11 +458,15 @@ func WriteResults(
 
 	// Create the ceremony directory.
 	timestamp := time.Now().UTC().Format("2006-01-02--15-04-05.000")
-	randomness := make([]byte, 4)
-	if _, err := rand.Read(randomness); err != nil {
-		return fmt.Errorf("failed to generate randomness: %w", err)
+	dirName := fmt.Sprintf("ceremony-%s", timestamp)
+	if withRandomness {
+		randomness := make([]byte, 4)
+		if _, err := rand.Read(randomness); err != nil {
+			return fmt.Errorf("failed to generate randomness: %w", err)
+		}
+		dirName = fmt.Sprintf("%s--%x", dirName, randomness)
 	}
-	dir := filepath.Join(outputPath, fmt.Sprintf("ceremony-%s--%x", timestamp, randomness))
+	dir := filepath.Join(outputPath, dirName)
 	err = os.Mkdir(dir, os.ModePerm)
 	if os.IsExist(err) {
 		return fmt.Errorf("ceremony directory already exists: %w", err)

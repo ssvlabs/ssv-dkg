@@ -62,16 +62,19 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgR
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	data := []wire.Data{{wire.ShareData{
-		OwnerNonce:   nonce,
-		OwnerAddress: owner.Hex(),
-		PublicKey:    "0x" + hex.EncodeToString(dkgResults[0].SignedProof.Proof.ValidatorPubKey),
-		Operators:    operators,
-	}, wire.Payload{
-		PublicKey:   "0x" + hex.EncodeToString(dkgResults[0].SignedProof.Proof.ValidatorPubKey),
-		OperatorIDs: operatorIds,
-		SharesData:  "0x" + hex.EncodeToString(sigOwnerNonce),
-	}}}
+	data := []wire.Data{{
+		ShareData: wire.ShareData{
+			OwnerNonce:   nonce,
+			OwnerAddress: owner.Hex(),
+			PublicKey:    "0x" + hex.EncodeToString(dkgResults[0].SignedProof.Proof.ValidatorPubKey),
+			Operators:    operators,
+		},
+		Payload: wire.Payload{
+			PublicKey:   "0x" + hex.EncodeToString(dkgResults[0].SignedProof.Proof.ValidatorPubKey),
+			OperatorIDs: operatorIds,
+			SharesData:  "0x" + hex.EncodeToString(sigOwnerNonce),
+		},
+	}}
 
 	ks := &wire.KeySharesCLI{}
 	ks.Version = "v1.1.0"
@@ -338,7 +341,9 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 		return dkgResults[i].OperatorID < dkgResults[j].OperatorID
 	})
 	for i := 0; i < len(dkgResults); i++ {
-		if len(dkgResults[i].SignedProof.Proof.ValidatorPubKey) == 0 || !bytes.Equal(dkgResults[i].SignedProof.Proof.ValidatorPubKey, dkgResults[0].SignedProof.Proof.ValidatorPubKey) {
+		if len(dkgResults[i].SignedProof.Proof.ValidatorPubKey) == 0 ||
+			!bytes.Equal(dkgResults[i].SignedProof.Proof.ValidatorPubKey,
+				dkgResults[0].SignedProof.Proof.ValidatorPubKey) {
 			return nil, fmt.Errorf("operator %d sent wrong validator public key", dkgResults[i].OperatorID)
 		}
 	}
