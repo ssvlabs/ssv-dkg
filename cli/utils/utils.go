@@ -175,11 +175,11 @@ func SetOperatorFlags(cmd *cobra.Command) {
 }
 
 func SetVerifyFlags(cmd *cobra.Command) {
-	flags.CeremonyDirFlag(cmd)
-	flags.ValidatorsFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
+	flags.AddPersistentStringFlag(cmd, "ceremonyDir", "", "Path to the ceremony directory", true)
+	flags.AddPersistentIntFlag(cmd, "validators", 1, "Number of validators", true)
+	flags.AddPersistentStringFlag(cmd, "withdrawAddress", "", "Withdrawal address", true)
+	flags.AddPersistentIntFlag(cmd, "nonce", 0, "Owner nonce", true)
+	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
