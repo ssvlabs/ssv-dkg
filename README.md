@@ -9,18 +9,11 @@
     - [Obtaining Operators data](#obtaining-operators-data)
     - [Start DKG ceremony](#start-dkg-ceremony)
       - [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file)
-      - [Generate Initiator identity RSA key pair](#generate-initiator-identity-rsa-key-pair)
       - [Build from source](#build-from-source)
         - [Build](#build)
         - [Launch with command line parameters](#launch-with-command-line-parameters)
         - [Launch with YAML config file](#launch-with-yaml-config-file)
     - [Ceremony Output Summary](#ceremony-output-summary)
-    - [Key resharing](#key-resharing)
-      - [Launch with Docker and YAML file](#launch-with-docker-and-yaml-file-1)
-      - [Build from source](#build-from-source-1)
-        - [Build](#build-1)
-        - [Launch with command line parameters](#launch-with-command-line-parameters-1)
-        - [Launch with YAML config file](#launch-with-yaml-config-file-1)
     - [Troubleshooting](#troubleshooting)
       - [dial tcp timeout](#dial-tcp-timeout)
       - [invalid URI for request](#invalid-uri-for-request)
@@ -123,19 +116,6 @@ It is advised launching the tool as a Docker image as it is the most convenient 
 
 All of the necessary configuration information can be provided in a YAML file (referenced as `init.yaml` from now on).
 
-A good way to manage all the necessary files (`operators_info.json`, `initiator_encrypted_key.json`, `initiator_password`) is to store them in a single folder (in this case `config`) together with the `init.yaml` configuration file, like so:
-
-```sh
-ssv@localhost:~/ssv-dkg # tree initiator-config
-config/
-├── initiator_encrypted_key.json
-├── initiator_password
-├── operators_info.json # path to the file containing operators information. ID, base64(RSA pub key), endpoint
-└── init.yaml # configuration file . If not provided - using flags.
-
-1 directory, 4 files
-```
-
 With this configuration, a typical configuration file would look like this:
 
 ```yaml
@@ -145,9 +125,9 @@ withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # address where re
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # owner nonce for the SSV contract
 network: "holesky" # network name (default: mainnet)
+operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
 # Alternatively:
-# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-operatorsInfoPath: /data/initiator/operators_info.json
+# operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
 logLevel: info # logger's log level (default: debug)
 logFormat: json # logger's encoding (default: json)
@@ -161,8 +141,6 @@ A special note goes to the `nonce` field, which represents how many validators t
 You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
 
 > ℹ️ Note: For more details on `operatorsInfo` parameter, head over to the [Operators data section](#obtaining-operators-data) above
-
-Under the assumption that all the necessary files (`operators_info.json`, `initiator_encrypted_key.json`, `initiator_password`) are under the same folder (represented below with `<PATH_TO_FOLDER_WITH_CONFIG_FILES>`) you can run the tool using the command below:
 
 ```sh
 docker run --name ssv_dkg_initiator \
@@ -191,19 +169,6 @@ make install
 ```
 
 ##### Launch with command line parameters
-
-It is advised to store all the necessary files (`operators_info.json`, `initiator_encrypted_key.json`, `initiator_password`) in a single folder (in this case `config`), as shown below:
-
-```sh
-ssv@localhost:~/ssv-dkg/ # tree initiator-config
-config/
-├── initiator_encrypted_key.json
-├── initiator_password
-└── operators_info.json
-
-
-1 directory, 3 files
-```
 
 The Initiator provides the initial details needed to run DKG between all operators via the `init` command. You can launch the following command with the appropriate values to each parameter:
 
@@ -258,12 +223,10 @@ If the `init.yaml` file is created in the same folder as the other files, and th
 ```sh
 ssv@localhost:~/ssv-dkg # tree initiator-config
 config
-├── initiator_encrypted_key.json
-├── initiator_password
 ├── init.yaml
 └── operators_info.json
 
-1 directory, 4 files
+1 directory, 2 files
 ```
 
 Then the content of the YAML file should be changed to this:
@@ -307,27 +270,26 @@ Following the successful completion of the DKG ceremony, several files have been
 
 ```sh
 ceremony-[timestamp]
-├── 0x...[validator public key]
-    ├── deposit_data-0x...[validator public key].json
-    ├── keyshares-0x...[validator public key]-0x...[owner]-[nonce]-[instance_id].json
-    └── instance_id.json
-├── 0x...[validator public key] ...
-    ├── deposit_data-0x...[validator public key].json
-    ├── keyshares-0x...[validator public key]-0x...[owner]-[nonce]-[instance_id].json
-    └── instance_id.json
-  .....
-  ├── deposit_data.json # aggregated
-  ├── keyshares.json # aggregated
-  └── instance_id.json  # aggregated
+├── 0..[nonce]-0x...[validator public key]
+    ├── deposit_data.json
+    ├── keyshares.json
+    └── proof.json
+├── 0..[nonce]-0x...[validator public key] ...
+    ├── deposit_data.json
+    ├── keyshares.json
+    └── proof.json
+.....
+├── deposit_data.json # aggregated
+├── keyshares.json # aggregated
+└── proofs.json  # aggregated
 ```
 
 Files:
 
-- `deposit_data-0x...[validator public key].json` - this file contains the deposit data necessary to perform the transaction on the Deposit contract and activate the validator on the Beacon layer
-- `keyshares-0x...[validator public key]-0x...[owner]-[nonce]-[instance_id].json` - this file contains the keyshares necessary to register the validator on the ssv.network
-- `instance_id.json` - crucial for resharing your validator to a different set of operators in the future.
+- `deposit_data.json` - this file contains the deposit data necessary to perform the transaction on the Deposit contract and activate the validator on the Beacon layer
+- `keyshares.json` - this file contains the keyshares necessary to register the validator on the ssv.network
+- `proof.json` - crucial for resharing your validator to a different set of operators in the future.
 
-### Key resharing
 
 Using `ssv-dkg` tool, it is also possible to change the operators managing a validator generated through a DKG ceremony.
 
@@ -336,174 +298,6 @@ For example, if an initial DKG ceremony created a cluster composed of operator w
 > ⚠️ All operators (**old set and new set**) must be online to complete the resharing ceremony.
 
 Similarly to the initiation of a new DKG ceremony, key resharing can be accomplished by launching a Docker command, or building from source and running the resulting executable.
-
-#### Launch with Docker and YAML file
-
-All of the necessary configuration information can be provided in a YAML file (referenced as `reshare.yaml` in this section).
-
-A good way to manage all the necessary files (`operators_info.json`, `initiator_encrypted_key.json`, `initiator_password`) is to store them in a single folder (in this case `config`) together with the `reshare.yaml` configuration file, like so:
-
-```sh
-ssv@localhost:~/ssv-dkg # tree initiator-config
-config
-├── initiator_encrypted_key.json
-├── initiator_password
-├── reshare.yaml
-└── operators_info.json
-
-1 directory, 4 files
-```
-
-With this configuration, a typical configuration file would look like this:
-
-```yaml
-operatorIDs: [1, 2, 3, 4] # array of Operator IDs that participated in the initial or a previous resharing DKG ceremony
-newOperatorIDs: [5, 6, 7, 8] # array of Operator IDs for which the new KeyShares of the existing validator will be generated
-oldID: "dbd12b3155454666a6710a2262695bb82cda41948d612d98" # HEX of previous DKG ceremony ID. Can be found in the `keyshares-[validator-pub_key]-[ID].json`
-withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # Address where reward payments for the validator are sent
-owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # Address of owner of the Cluster that will manage the validator on ssv.network
-nonce: 0 # Owner nonce for the SSV contract
-network: "holesky" # Network name (default: mainnet)
-operatorsInfoPath: /data/initiator/operators_info.json
-# Alternatively:
-# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-outputPath: /data/output #  Path to store the resulting staking deposit and ssv contract payload files
-logLevel: info # Logger's log level (default: debug)
-logFormat: json # Logger's encoding (default: json)
-logLevelFormat: capitalColor # Logger's level format (default: capitalColor)
-logFilePath: /data/debug.log # Path to file where logs should be written (default: ./data/debug.log)
-```
-
-> ℹ️ In the config file above, `/data/` represents the container's shared volume created by the docker command itself with the `-v` option.
-
-A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
-
-> ℹ️ Note: For more details on `operatorsInfo` parameter, head over to the [Operators data section](#obtaining-operators-data) above
-
-```sh
-docker run --name ssv_dkg_reshare \
--v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
-"bloxstaking/ssv-dkg:latest" reshare --configPath /data/config/reshare.example.yaml && \
-docker rm ssv_dkg_initiator
-```
-
-Just make sure to substitute `<PATH_TO_FOLDER_WITH_CONFIG_FILES>` with the actual folder containing all the files.
-You can, of course, change the configuration above to one that suits you better, just be mindful about changing the path references in the docker command **and** in the `reshare.example.yaml` file as well.
-
-> ⚠️ Note: It is not possible to create a new inititator key pair during resharing. The key created at `init` ceremony must be used.
-
-#### Build from source
-
-To build from source you'll need to have Go version 1.20 installed on your system
-
-##### Build
-
-A prerequisite for this is to have `go` version 1.20 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
-
-```sh
-make install
-```
-
-##### Launch with command line parameters
-
-It is advised to store all the necessary files (`operators_info.json`, `initiator_encrypted_key.json`, `initiator_password`) in a single folder (in this case `config`), as shown below:
-
-```sh
-ssv@localhost:~/ssv-dkg # tree initiator-config
-config
-├── initiator_encrypted_key.json
-├── initiator_password
-└── operators_info.json
-
-1 directory, 3 files
-```
-
-The Initiator provides the necessary details to run DKG ceremony between all operators via the `reshare` command. You can launch the following command with the appropriate values to each parameter:
-
-```sh
-ssv-dkg reshare \
-          --operatorIDs 1,2,3,4 \
-          --newOperatorIDs 5, 6, 7, 8 \
-          --oldID "dbd12b3155454666a6710a2262695bb82cda41948d612d98" \
-          --operatorsInfoPath ./operators_info.json \
-          # Alternatively:
-          # --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
-          --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
-          --nonce 4 \
-          --outputPath /output \
-          --configPath ./config \
-          --logLevel info \
-          --logFormat json \
-          --logLevelFormat capitalColor \
-          --logFilePath ./initiator_logs/debug.log
-```
-
-Here's an explanation of each parameter:
-
-| Argument           | type   | description                                                                                    |
-| ------------------ | :----- | :--------------------------------------------------------------------------------------------- |
-| `--operatorIDs`    | int[]  | array of Operator IDs that participated in the initial or a previous resharing DKG ceremony    |
-| `--newOperatorIDs` | int[]  | array of Operator IDs for which the new KeyShares of the existing validator will be generated  |
-| `--oldID`          | string | HEX of previous DKG ceremony ID. Can be found in the `keyshares-[validator-pub_key]-[ID].json` |
-
-> ⚠️ Note: It is not possible to create a new inititator key pair during resharing. The key created at `init` ceremony must be used.
-
-A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
-
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
-
-> ℹ️ Note: For more details on `operatorsInfo` parameter, head over to the [Operators data](#obtaining-operators-data) section.
-
-##### Launch with YAML config file
-
-It is also possible to use YAML configuration file. Just pay attention to the path of the necessary files, which needs to be changed to reflect the local configuration.
-If the `reshare.yaml` file is created in the same folder as the other files, and the folder structure looks like this:
-
-```sh
-ssv@localhost:~/ssv-dkg # tree initiator-config
-config
-├── initiator_encrypted_key.json
-├── initiator_password
-├── reshare.yaml
-└── operators_info.json
-
-1 directory, 4 files
-```
-
-Then the content of the YAML file should be changed to this:
-
-```yaml
-operatorIDs: [1, 2, 3, 4] # array of Operator IDs that participated in the initial or a previous resharing DKG ceremony
-newOperatorIDs: [5, 6, 7, 8] # array of Operator IDs for which the new KeyShares of the existing validator will be generated
-oldID: "dbd12b3155454666a6710a2262695bb82cda41948d612d98" # HEX of previous DKG ceremony ID. Can be found in the `keyshares-[validator-pub_key]-[ID].json`
-withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # Address where reward payments for the validator are sent
-owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # Address of owner of the Cluster that will manage the validator on ssv.network
-nonce: 0 # Owner nonce for the SSV contract
-network: "prater" # Network name (default: mainnet)
-operatorsInfoPath: /data/initiator/operators_info.json
-# Alternatively:
-# operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'    # Raw content of the JSON file with operators information
-outputPath: /data/output #  Path to store the resulting staking deposit and ssv contract payload files
-logLevel: info # Logger's log level (default: debug)
-logFormat: json # Logger's encoding (default: json)
-logLevelFormat: capitalColor # Logger's level format (default: capitalColor)
-logFilePath: /data/debug.log # Path to file where logs should be written (default: ./data/debug.log)
-```
-
-A special note goes to the `nonce` field, which represents how many validators the address identified in the owner parameter has already registered to the ssv.network.
-
-You can keep track of this counter yourself, or you can use the `ssv-scanner` tool made available by the SSV team to source it. For more information, please refer to the related user guide or to its [SDK documentation page](https://docs.ssv.network/developers/tools/ssv-scanner).
-
-> ℹ️ Note: For more details on `operatorsInfoPath` parameter, head over to the [Operators data](#obtaining-operators-data) section.
-
-Then the tool can be launched from the root folder, by running this command:
-
-```sh
-ssv-dkg reshare --configPath ./config/reshare.yaml
-```
-
-If the `--configPath` parameter is not provided, `ssv-dkg` will be using flags.
 
 ### Troubleshooting
 
