@@ -290,15 +290,6 @@ Files:
 - `keyshares.json` - this file contains the keyshares necessary to register the validator on the ssv.network
 - `proof.json` - crucial for resharing your validator to a different set of operators in the future.
 
-
-Using `ssv-dkg` tool, it is also possible to change the operators managing a validator generated through a DKG ceremony.
-
-For example, if an initial DKG ceremony created a cluster composed of operator with IDs [1,2,3,4], the resharing ceremony can create a new cluster, with a completely different set of operators (e.g. with IDs [5,6,7,8]) or a set with partial overlap (e.g. with IDs [1,2,5,6]). The new threshold will be computed based on a new set of operators, using 3f+1 tolerance.
-
-> ⚠️ All operators (**old set and new set**) must be online to complete the resharing ceremony.
-
-Similarly to the initiation of a new DKG ceremony, key resharing can be accomplished by launching a Docker command, or building from source and running the resulting executable.
-
 ### Troubleshooting
 
 #### dial tcp timeout
