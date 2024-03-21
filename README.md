@@ -105,7 +105,7 @@ Operators info file example:
 
 ### Healthcheck
 
-Before inititate a DKG ceremony its advised to check if all participating operatora are online and healthy.
+Before initiate a DKG ceremony it's advised to check if all participating operators are online and healthy.
 
 ```sh
 docker run --name ssv_dkg_health \
