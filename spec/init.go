@@ -10,7 +10,7 @@ import (
 // ValidateInitMessage returns nil if init message is valid
 func ValidateInitMessage(init *wire.Init) error {
 	if !UniqueAndOrderedOperators(init.Operators) {
-		return fmt.Errorf("operators and not unique and ordered")
+		return fmt.Errorf("operators not unique or not ordered")
 	}
 	if !ValidThresholdSet(init.T, init.Operators) {
 		return fmt.Errorf("threshold set is invalid")

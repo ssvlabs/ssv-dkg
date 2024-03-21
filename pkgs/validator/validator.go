@@ -138,7 +138,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 	}
 	for _, share := range keyshare.Shares {
 		if !spec.UniqueAndOrderedOperators(share.Operators) {
-			return fmt.Errorf("operators and not unique and ordered")
+			return fmt.Errorf("operators not unique or not ordered")
 		}
 
 		if share.OwnerAddress != expectedOwnerAddress {
