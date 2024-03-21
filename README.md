@@ -440,7 +440,7 @@ Here's an explanation of each parameter:
 
 | Argument          | type                                      | description                                                             |
 | ----------------- | :---------------------------------------- | :---------------------------------------------------------------------- |
-| --privKey         | string                                    | Path to ecrypted RSA private key of ssv operator                        |
+| --privKey         | string                                    | Path to encrypted RSA private key of ssv operator                       |
 | --port            | int                                       | Port for listening messages (default: `3030`)                           |
 | --privKeyPassword | string                                    | Path to password file to decrypt the key                                |
 | --outputPath      | string                                    | Path to store each ceremony the output files (deposit, keyshare, proof) |
