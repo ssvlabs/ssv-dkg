@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +17,7 @@ import (
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -117,19 +120,22 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 
 	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -158,18 +164,21 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -198,18 +207,21 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -238,18 +250,21 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -753,4 +768,17 @@ func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, 
 	servers = append(servers, srv13)
 
 	return servers, ops
+}
+
+func resetFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Value.Type() == "stringSlice" {
+			value := reflect.ValueOf(flag.Value).Elem().FieldByName("value")
+			ptr := (*[]string)(unsafe.Pointer(value.Pointer()))
+			*ptr = make([]string, 0)
+		}
+	})
+	for _, cmd := range cmd.Commands() {
+		resetFlags(cmd)
+	}
 }

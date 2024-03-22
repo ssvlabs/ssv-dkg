@@ -179,35 +179,35 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3, 4, 5},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5]",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8]",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9]",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9 10 11]",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13",
+			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 7 8 9 10 11 12]",
 		},
 		{
 			name:    "more than 13 operators",
