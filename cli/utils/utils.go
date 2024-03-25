@@ -362,6 +362,9 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	if CeremonyDir == "" {
 		return fmt.Errorf("😥 Failed to get ceremony directory flag value")
 	}
+	if strings.Contains(CeremonyDir, "../") {
+		return fmt.Errorf("😥 CeremonyDir should not contain traversal")
+	}
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
