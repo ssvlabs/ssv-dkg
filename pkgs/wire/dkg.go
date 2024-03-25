@@ -34,7 +34,7 @@ func NewDKGProtocol(dkgConfig *dkg.Config, b dkg.Board, logger *zap.Logger) (*dk
 	// Phaser must signal on its channel when the protocol should move to a next
 	// phase. Phase must be sequential: DealPhase (start), ResponsePhase,
 	// JustifPhase and then FinishPhase.
-	phaser := dkg.NewTimePhaser(time.Second * 5)
+	phaser := dkg.NewTimePhaser(time.Second * 10)
 	ret, err := dkg.NewProtocol(
 		dkgConfig,
 		b,
