@@ -7,16 +7,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	cli_initiator "github.com/bloxapp/ssv-dkg/cli/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -30,34 +35,9 @@ func TestHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
-	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 22, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 33, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 44, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
-	srv5 := test_utils.CreateTestOperator(t, 55, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
-	srv6 := test_utils.CreateTestOperator(t, 66, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
-	srv7 := test_utils.CreateTestOperator(t, 77, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
-	srv8 := test_utils.CreateTestOperator(t, 88, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
-	srv9 := test_utils.CreateTestOperator(t, 99, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
-	srv10 := test_utils.CreateTestOperator(t, 100, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
-	srv11 := test_utils.CreateTestOperator(t, 111, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
-	srv12 := test_utils.CreateTestOperator(t, 122, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
-	srv13 := test_utils.CreateTestOperator(t, 133, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.2")
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	clnt, err := initiator.New(ops, logger, version)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -69,7 +49,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
 		require.NoError(t, err)
@@ -82,7 +62,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 7, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
 		require.NoError(t, err)
@@ -95,7 +75,7 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		err = testSharesData(ops, 10, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 10, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey, servers[9].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
 		require.NoError(t, err)
@@ -108,58 +88,196 @@ func TestHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 13, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey, servers[9].PrivKey, servers[10].PrivKey, servers[11].PrivKey, servers[12].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
 		require.NoError(t, err)
 	})
-	srv1.HttpSrv.Close()
-	srv2.HttpSrv.Close()
-	srv3.HttpSrv.Close()
-	srv4.HttpSrv.Close()
-	srv5.HttpSrv.Close()
-	srv6.HttpSrv.Close()
-	srv7.HttpSrv.Close()
-	srv8.HttpSrv.Close()
-	srv9.HttpSrv.Close()
-	srv10.HttpSrv.Close()
-	srv11.HttpSrv.Close()
-	srv12.HttpSrv.Close()
-	srv13.HttpSrv.Close()
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestBulkHappyFlows4Ops(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	operators, err := json.Marshal(ops)
+	require.NoError(t, err)
+	RootCmd := &cobra.Command{
+		Use:   "ssv-dkg",
+		Short: "CLI for running Distributed Key Generation protocol",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		},
+	}
+	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.Short = "ssv-dkg-test"
+	RootCmd.Version = version
+	cli_initiator.StartDKG.Version = version
+	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+
+	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestBulkHappyFlows7Ops(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	operators, err := json.Marshal(ops)
+	require.NoError(t, err)
+	RootCmd := &cobra.Command{
+		Use:   "ssv-dkg",
+		Short: "CLI for running Distributed Key Generation protocol",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		},
+	}
+	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.Short = "ssv-dkg-test"
+	RootCmd.Version = version
+	cli_initiator.StartDKG.Version = version
+	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestBulkHappyFlows10Ops(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	operators, err := json.Marshal(ops)
+	require.NoError(t, err)
+	RootCmd := &cobra.Command{
+		Use:   "ssv-dkg",
+		Short: "CLI for running Distributed Key Generation protocol",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		},
+	}
+	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.Short = "ssv-dkg-test"
+	RootCmd.Version = version
+	cli_initiator.StartDKG.Version = version
+	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestBulkHappyFlows13Ops(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	operators, err := json.Marshal(ops)
+	require.NoError(t, err)
+	RootCmd := &cobra.Command{
+		Use:   "ssv-dkg",
+		Short: "CLI for running Distributed Key Generation protocol",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		},
+	}
+	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.Short = "ssv-dkg-test"
+	RootCmd.Version = version
+	cli_initiator.StartDKG.Version = version
+	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
 }
 
 func TestThreshold(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
-	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 22, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 33, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 44, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
-	srv5 := test_utils.CreateTestOperator(t, 55, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
-	srv6 := test_utils.CreateTestOperator(t, 66, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
-	srv7 := test_utils.CreateTestOperator(t, 77, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
-	srv8 := test_utils.CreateTestOperator(t, 88, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
-	srv9 := test_utils.CreateTestOperator(t, 99, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
-	srv10 := test_utils.CreateTestOperator(t, 100, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
-	srv11 := test_utils.CreateTestOperator(t, 111, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
-	srv12 := test_utils.CreateTestOperator(t, 122, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
-	srv13 := test_utils.CreateTestOperator(t, 133, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.2")
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	clnt, err := initiator.New(ops, logger, version)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -173,12 +291,12 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133})
 		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey}
+		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 13, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey}
+		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey}
 		require.Equal(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 13, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
@@ -193,12 +311,12 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100})
 		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey}
+		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey}
+		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey}
 		require.Equal(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
@@ -213,12 +331,12 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77})
 		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}
+		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}
 		require.Less(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 7, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey}
+		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey}
 		require.Equal(t, len(priviteKeys), threshold)
 		err = testSharesData(ops, 7, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
@@ -232,65 +350,31 @@ func TestThreshold(t *testing.T) {
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
 		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid threshold
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
-	srv1.HttpSrv.Close()
-	srv2.HttpSrv.Close()
-	srv3.HttpSrv.Close()
-	srv4.HttpSrv.Close()
-	srv5.HttpSrv.Close()
-	srv6.HttpSrv.Close()
-	srv7.HttpSrv.Close()
-	srv8.HttpSrv.Close()
-	srv9.HttpSrv.Close()
-	srv10.HttpSrv.Close()
-	srv11.HttpSrv.Close()
-	srv12.HttpSrv.Close()
-	srv13.HttpSrv.Close()
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
 }
 
 func TestUnhappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
-	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 11, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 22, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 33, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 44, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
-	srv5 := test_utils.CreateTestOperator(t, 55, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
-	srv6 := test_utils.CreateTestOperator(t, 66, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
-	srv7 := test_utils.CreateTestOperator(t, 77, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
-	srv8 := test_utils.CreateTestOperator(t, 88, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
-	srv9 := test_utils.CreateTestOperator(t, 99, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
-	srv10 := test_utils.CreateTestOperator(t, 100, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
-	srv11 := test_utils.CreateTestOperator(t, 111, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
-	srv12 := test_utils.CreateTestOperator(t, 122, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
-	srv13 := test_utils.CreateTestOperator(t, 133, "v1.0.2")
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 0, PubKey: &srv13.PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 144, PubKey: &srv13.PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 155, PubKey: &srv13.PrivKey.PublicKey})
+	version := "v1.0.2"
+	servers, ops := createOperators(t, version)
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey})
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey})
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey})
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
 	clnt, err := initiator.New(ops, logger, "v1.0.2")
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
@@ -302,7 +386,7 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 	require.NoError(t, err)
-	err = testSharesData(ops, 4, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+	err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
 	require.NoError(t, err)
 	err = crypto.ValidateDepositDataCLI(depositData, withdraw)
 	require.NoError(t, err)
@@ -328,7 +412,7 @@ func TestUnhappyFlows(t *testing.T) {
 		for i := len(encryptedKeys) - 1; i >= 0; i-- {
 			wrongOrderSharesData = append(wrongOrderSharesData, encryptedKeys[i]...)
 		}
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{srv13.PrivKey, srv12.PrivKey, srv11.PrivKey, srv10.PrivKey, srv9.PrivKey, srv8.PrivKey, srv7.PrivKey, srv6.PrivKey, srv5.PrivKey, srv4.PrivKey, srv3.PrivKey, srv2.PrivKey, srv1.PrivKey}, wrongOrderSharesData, pubkeyraw, owner, 0)
+		err = testSharesData(ops, 13, []*rsa.PrivateKey{servers[12].PrivKey, servers[11].PrivKey, servers[10].PrivKey, servers[9].PrivKey, servers[8].PrivKey, servers[7].PrivKey, servers[6].PrivKey, servers[5].PrivKey, servers[4].PrivKey, servers[3].PrivKey, servers[2].PrivKey, servers[1].PrivKey, servers[0].PrivKey}, wrongOrderSharesData, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "shares order is incorrect")
 	})
 	t.Run("test same ID", func(t *testing.T) {
@@ -405,19 +489,9 @@ func TestUnhappyFlows(t *testing.T) {
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77, 66, 55, 111}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
 	})
-	srv1.HttpSrv.Close()
-	srv2.HttpSrv.Close()
-	srv3.HttpSrv.Close()
-	srv4.HttpSrv.Close()
-	srv5.HttpSrv.Close()
-	srv6.HttpSrv.Close()
-	srv7.HttpSrv.Close()
-	srv8.HttpSrv.Close()
-	srv9.HttpSrv.Close()
-	srv10.HttpSrv.Close()
-	srv11.HttpSrv.Close()
-	srv12.HttpSrv.Close()
-	srv13.HttpSrv.Close()
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
 }
 
 func TestLargeOperatorIDs(t *testing.T) {
@@ -648,4 +722,63 @@ func newEthAddress(t *testing.T) common.Address {
 	require.True(t, ok)
 	address := eth_crypto.PubkeyToAddress(*publicKeyECDSA)
 	return address
+}
+
+func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
+	var servers []*test_utils.TestOperator
+	ops := wire.OperatorsCLI{}
+	srv1 := test_utils.CreateTestOperator(t, 11, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
+	servers = append(servers, srv1)
+	srv2 := test_utils.CreateTestOperator(t, 22, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
+	servers = append(servers, srv2)
+	srv3 := test_utils.CreateTestOperator(t, 33, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
+	servers = append(servers, srv3)
+	srv4 := test_utils.CreateTestOperator(t, 44, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
+	servers = append(servers, srv4)
+	srv5 := test_utils.CreateTestOperator(t, 55, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
+	servers = append(servers, srv5)
+	srv6 := test_utils.CreateTestOperator(t, 66, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
+	servers = append(servers, srv6)
+	srv7 := test_utils.CreateTestOperator(t, 77, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
+	servers = append(servers, srv7)
+	srv8 := test_utils.CreateTestOperator(t, 88, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
+	servers = append(servers, srv8)
+	srv9 := test_utils.CreateTestOperator(t, 99, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
+	servers = append(servers, srv9)
+	srv10 := test_utils.CreateTestOperator(t, 100, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
+	servers = append(servers, srv10)
+	srv11 := test_utils.CreateTestOperator(t, 111, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
+	servers = append(servers, srv11)
+	srv12 := test_utils.CreateTestOperator(t, 122, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
+	servers = append(servers, srv12)
+	srv13 := test_utils.CreateTestOperator(t, 133, version)
+	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
+	servers = append(servers, srv13)
+
+	return servers, ops
+}
+
+func resetFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Value.Type() == "stringSlice" {
+			value := reflect.ValueOf(flag.Value).Elem().FieldByName("value")
+			ptr := (*[]string)(unsafe.Pointer(value.Pointer()))
+			*ptr = make([]string, 0)
+		}
+	})
+	for _, cmd := range cmd.Commands() {
+		resetFlags(cmd)
+	}
 }
