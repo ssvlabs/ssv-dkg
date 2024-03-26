@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # prepare
-mkdir $(pwd)/output/initiator_logs/
+if [ ! -d $(pwd)/output ]; then
+  mkdir -p $(pwd)/output;
+fi
 
 # install fresh binary
 env GO111MODULE=on go install -v -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" cmd/ssv-dkg/ssv-dkg.go
@@ -31,7 +33,7 @@ ssv-dkg init \
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
-          --logFilePath $(pwd)/output/initiator_logs/debug.log
+          --logFilePath $(pwd)/output/debug.log
 
 # verify all ceremony results
 find $(pwd)/output -mindepth 1 -maxdepth 1 -type d -name "ceremony*" | while read fname; do
