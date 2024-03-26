@@ -44,9 +44,9 @@ find $(pwd)/output -mindepth 1 -maxdepth 1 -type d -name "ceremony*" | while rea
   if ssv-dkg verify \
         --ceremonyDir $fname \
         --nonce 1 \
-        --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
+        --owner 0x91592c3de184a3e2c0dcb5a261bc107bfa91f494 \
         --validators 10 \
-        --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4; then
+        --withdrawAddress 0xb1a66cc5d309f19fb2fda2b7601b223053d0f7f4; then
     echo results verify success
   else
     exit 1
