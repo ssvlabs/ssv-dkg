@@ -48,8 +48,7 @@ var StartDKG = &cobra.Command{
 			return err
 		}
 		defer func() {
-			err := logger.Sync()
-			if err != nil {
+			if err := cli_utils.Sync(logger); err != nil {
 				log.Printf("Failed to sync logger: %v", err)
 			}
 		}()
