@@ -5,8 +5,11 @@ if [ ! -d $(pwd)/output ]; then
   mkdir -p $(pwd)/output;
 fi
 
+# get latest version
+VESRION=$(git -c 'versionsort.suffix=-' ls-remote --exit-code --refs --sort='version:refname' --tags https://github.com/bloxapp/ssv-dkg.git '*.*.*' | tail --lines=1 | cut --delimiter='/' --fields=3)
+
 # install fresh binary
-env GO111MODULE=on go install -v -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" cmd/ssv-dkg/ssv-dkg.go
+env GO111MODULE=on go install -v -ldflags "-X main.Version=$VESRION" cmd/ssv-dkg/ssv-dkg.go
 
 # run init ceremony
 ssv-dkg init \
