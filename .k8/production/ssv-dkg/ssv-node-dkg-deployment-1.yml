@@ -47,7 +47,11 @@ spec:
                   - key: beta.kubernetes.io/instance-type
                     operator: In
                     values:
-                      - m5a.4xlarge
+                      - m5a.4xlarge                      
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - ip-10-236-0-161.k8.prod.bloxinternal.com
       containers:
       - name: ssv-dkg-1
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
