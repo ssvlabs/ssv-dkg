@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
 
-	"github.com/aquasecurity/table"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 )
@@ -29,7 +29,7 @@ var Verify = &cobra.Command{
 			int(cli_utils.Validators),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
-			cli_utils.OwnerAddress,
+			cli_utils.WithdrawAddress,
 		)
 		if err != nil {
 			log.Printf("Failed to validate ceremony directory: %v", err)

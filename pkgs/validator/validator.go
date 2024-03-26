@@ -64,7 +64,7 @@ func ValidateResults(
 		}
 		err := crypto.ValidateDepositDataCLI(depositData, expectedWithdrawAddress)
 		if err != nil {
-			return fmt.Errorf("err validating deposit data %w", err)
+			return fmt.Errorf("err validating deposit data: %w", err)
 		}
 		soloKeyshares := &wire.KeySharesCLI{
 			CreatedAt: allKeyshares.CreatedAt,
