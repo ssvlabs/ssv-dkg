@@ -140,11 +140,7 @@ var StartDKG = &cobra.Command{
 		 ░ ░  ░  ▒ ░░  ░  ░  ░          ░ ░    ░   ▒    ▒ ░░      ░      ░     ░░   ░ 
 		   ░     ░        ░  ░ ░          ░  ░     ░  ░ ░         ░      ░  ░   ░     
 		 ░                   ░                                                        
-		 
-		 This tool was not audited.
-		 When using distributed key generation you understand all the risks involved with
-		 experimental cryptography.  
-		 `)
+		`)
 		return nil
 	},
 }
