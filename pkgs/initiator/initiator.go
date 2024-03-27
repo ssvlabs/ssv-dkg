@@ -494,6 +494,6 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if err := crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
 		return err
 	}
-	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(signedPongMsg.Signer)), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(pong.OperatorID)), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	return nil
 }
