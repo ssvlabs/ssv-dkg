@@ -26,6 +26,9 @@ const (
 	logFilePath       = "logFilePath"
 	validators        = "validators"
 	operatorID        = "operatorID"
+	clientCACertPath  = "clientCACertPath"
+	serverTLSCertPath = "serverTLSCertPath"
+	serverTLSKeyPath  = "serverTLSKeyPath"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -103,8 +106,24 @@ func LogFilePathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, logFilePath, "debug.log", "Defines a file path to write logs into", false)
 }
 
+// ResultPathFlag sets the path to store resulting files
 func ResultPathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
+}
+
+// ClientCACertPathFlag sets path to client CA certificates
+func ClientCACertPathFlag(c *cobra.Command) {
+	AddPersistentStringSliceFlag(c, clientCACertPath, []string{}, "Path to client CA certificates", false)
+}
+
+// ServerTLSCertPath sets path to server TLS certificate
+func ServerTLSCertPath(c *cobra.Command) {
+	AddPersistentStringFlag(c, serverTLSCertPath, "", "Path to server TLS certificate", false)
+}
+
+// ServerTLSKeyPath sets path to server server TLS private key
+func ServerTLSKeyPath(c *cobra.Command) {
+	AddPersistentStringFlag(c, serverTLSKeyPath, "", "Path to server TLS private key", false)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command

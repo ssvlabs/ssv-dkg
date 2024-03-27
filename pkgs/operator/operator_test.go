@@ -181,7 +181,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c, err := initiator.New(ops, logger, version)
+		c, err := initiator.New(ops, logger, version, []string{})
 		require.NoError(t, err)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)

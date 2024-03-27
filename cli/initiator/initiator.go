@@ -75,7 +75,7 @@ var StartDKG = &cobra.Command{
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
-				dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version)
+				dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, cli_utils.ClientCACertPath)
 				if err != nil {
 					return nil, err
 				}
