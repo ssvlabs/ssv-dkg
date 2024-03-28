@@ -3,6 +3,7 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -96,8 +97,11 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 }
 
 // New creates a main initiator structure
-func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string) (*Initiator, error) {
+func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string) (*Initiator, error) {
 	client := req.C()
+	// set CA certificates if any
+	client.SetRootCertsFromFile(certs...)
+	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := crypto.GenerateRSAKeys()

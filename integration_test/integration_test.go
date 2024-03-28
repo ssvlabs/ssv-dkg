@@ -31,13 +31,19 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
+var (
+	rootCert     = []string{"./certs/rootCA.crt"}
+	operatorCert = "./certs/localhost.crt"
+	operatorKey  = "./certs/localhost.key"
+)
+
 func TestHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "v1.0.2"
 	servers, ops := createOperators(t, version)
-	clnt, err := initiator.New(ops, logger, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -116,7 +122,7 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -124,14 +130,14 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	})
 
 	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -160,21 +166,21 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -203,21 +209,21 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -246,21 +252,21 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1"}
+		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -277,7 +283,7 @@ func TestThreshold(t *testing.T) {
 	logger := zap.L().Named("integration-tests")
 	version := "v1.0.2"
 	servers, ops := createOperators(t, version)
-	clnt, err := initiator.New(ops, logger, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -375,7 +381,7 @@ func TestUnhappyFlows(t *testing.T) {
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey})
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey})
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.2")
+	clnt, err := initiator.New(ops, logger, "v1.0.2", rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -499,33 +505,33 @@ func TestLargeOperatorIDs(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1100, "v1.0.2")
+	srv1 := test_utils.CreateTestOperator(t, 1100, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1100, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2222, "v1.0.2")
+	srv2 := test_utils.CreateTestOperator(t, 2222, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2222, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3300, "v1.0.2")
+	srv3 := test_utils.CreateTestOperator(t, 3300, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3300, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4444, "v1.0.2")
+	srv4 := test_utils.CreateTestOperator(t, 4444, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4444, PubKey: &srv4.PrivKey.PublicKey})
-	srv5 := test_utils.CreateTestOperator(t, 5555, "v1.0.2")
+	srv5 := test_utils.CreateTestOperator(t, 5555, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 5555, PubKey: &srv5.PrivKey.PublicKey})
-	srv6 := test_utils.CreateTestOperator(t, 6666, "v1.0.2")
+	srv6 := test_utils.CreateTestOperator(t, 6666, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 6666, PubKey: &srv6.PrivKey.PublicKey})
-	srv7 := test_utils.CreateTestOperator(t, 7777, "v1.0.2")
+	srv7 := test_utils.CreateTestOperator(t, 7777, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 7777, PubKey: &srv7.PrivKey.PublicKey})
-	srv8 := test_utils.CreateTestOperator(t, 8888, "v1.0.2")
+	srv8 := test_utils.CreateTestOperator(t, 8888, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 8888, PubKey: &srv8.PrivKey.PublicKey})
-	srv9 := test_utils.CreateTestOperator(t, 9999, "v1.0.2")
+	srv9 := test_utils.CreateTestOperator(t, 9999, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 9999, PubKey: &srv9.PrivKey.PublicKey})
-	srv10 := test_utils.CreateTestOperator(t, 10000, "v1.0.2")
+	srv10 := test_utils.CreateTestOperator(t, 10000, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 10000, PubKey: &srv10.PrivKey.PublicKey})
-	srv11 := test_utils.CreateTestOperator(t, 11111, "v1.0.2")
+	srv11 := test_utils.CreateTestOperator(t, 11111, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 11111, PubKey: &srv11.PrivKey.PublicKey})
-	srv12 := test_utils.CreateTestOperator(t, 12222, "v1.0.2")
+	srv12 := test_utils.CreateTestOperator(t, 12222, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 12222, PubKey: &srv12.PrivKey.PublicKey})
-	srv13 := test_utils.CreateTestOperator(t, 13333, "v1.0.2")
+	srv13 := test_utils.CreateTestOperator(t, 13333, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 13333, PubKey: &srv13.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.2")
+	clnt, err := initiator.New(ops, logger, "v1.0.2", rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -560,15 +566,15 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2")
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.0")
+	clnt, err := initiator.New(ops, logger, "v1.0.0", rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -586,15 +592,15 @@ func TestWrongOperatorVersion(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0")
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2")
+	srv2 := test_utils.CreateTestOperator(t, 2, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2")
+	srv3 := test_utils.CreateTestOperator(t, 3, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2")
+	srv4 := test_utils.CreateTestOperator(t, 4, "v1.0.2", operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.2")
+	clnt, err := initiator.New(ops, logger, "v1.0.2", rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -727,43 +733,43 @@ func newEthAddress(t *testing.T) common.Address {
 func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
 	var servers []*test_utils.TestOperator
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 11, version)
+	srv1 := test_utils.CreateTestOperator(t, 11, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
 	servers = append(servers, srv1)
-	srv2 := test_utils.CreateTestOperator(t, 22, version)
+	srv2 := test_utils.CreateTestOperator(t, 22, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
 	servers = append(servers, srv2)
-	srv3 := test_utils.CreateTestOperator(t, 33, version)
+	srv3 := test_utils.CreateTestOperator(t, 33, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
 	servers = append(servers, srv3)
-	srv4 := test_utils.CreateTestOperator(t, 44, version)
+	srv4 := test_utils.CreateTestOperator(t, 44, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
 	servers = append(servers, srv4)
-	srv5 := test_utils.CreateTestOperator(t, 55, version)
+	srv5 := test_utils.CreateTestOperator(t, 55, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
 	servers = append(servers, srv5)
-	srv6 := test_utils.CreateTestOperator(t, 66, version)
+	srv6 := test_utils.CreateTestOperator(t, 66, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
 	servers = append(servers, srv6)
-	srv7 := test_utils.CreateTestOperator(t, 77, version)
+	srv7 := test_utils.CreateTestOperator(t, 77, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
 	servers = append(servers, srv7)
-	srv8 := test_utils.CreateTestOperator(t, 88, version)
+	srv8 := test_utils.CreateTestOperator(t, 88, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
 	servers = append(servers, srv8)
-	srv9 := test_utils.CreateTestOperator(t, 99, version)
+	srv9 := test_utils.CreateTestOperator(t, 99, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
 	servers = append(servers, srv9)
-	srv10 := test_utils.CreateTestOperator(t, 100, version)
+	srv10 := test_utils.CreateTestOperator(t, 100, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
 	servers = append(servers, srv10)
-	srv11 := test_utils.CreateTestOperator(t, 111, version)
+	srv11 := test_utils.CreateTestOperator(t, 111, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
 	servers = append(servers, srv11)
-	srv12 := test_utils.CreateTestOperator(t, 122, version)
+	srv12 := test_utils.CreateTestOperator(t, 122, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
 	servers = append(servers, srv12)
-	srv13 := test_utils.CreateTestOperator(t, 133, version)
+	srv13 := test_utils.CreateTestOperator(t, 133, version, operatorCert, operatorKey)
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
 	servers = append(servers, srv13)
 
