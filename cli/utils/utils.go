@@ -5,12 +5,14 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -653,6 +655,17 @@ func createDirIfNotExist(path string) error {
 			// Some other error occurred
 			return fmt.Errorf("😥 %s", err)
 		}
+	}
+	return nil
+}
+
+// Wrapper around zap.Sync() that ignores EINVAL errors.
+//
+// See: https://github.com/uber-go/zap/issues/1093#issuecomment-1120667285
+func Sync(logger *zap.Logger) error {
+	err := logger.Sync()
+	if !errors.Is(err, syscall.EINVAL) {
+		return err
 	}
 	return nil
 }
