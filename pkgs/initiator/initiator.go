@@ -399,9 +399,6 @@ func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Opera
 }
 
 func (c *Initiator) Ping(ips []string) error {
-	client := req.C()
-	// Set timeout for operator responses
-	client.SetTimeout(30 * time.Second)
 	resc := make(chan wire.PongResult, len(ips))
 	for _, ip := range ips {
 		go func(ip string) {

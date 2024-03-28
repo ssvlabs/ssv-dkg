@@ -153,7 +153,7 @@ type operatorCLIJSON struct {
 	PubKey string `json:"public_key"`
 }
 
-func (o OperatorCLI) MarshalJSON() ([]byte, error) {
+func (o *OperatorCLI) MarshalJSON() ([]byte, error) {
 	pk, err := EncodeRSAPublicKey(o.PubKey)
 	if err != nil {
 		return nil, err
