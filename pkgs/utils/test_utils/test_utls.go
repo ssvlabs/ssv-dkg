@@ -2,8 +2,10 @@ package test_utils
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -31,7 +33,7 @@ type TestOperator struct {
 	Srv     *operator.Server
 }
 
-func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version, operatorCert, operatorKey string) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
@@ -56,7 +58,8 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
-	sTest := httptest.NewServer(s.Router)
+	sTest, err := NewLocalHTTPSTestServer(s.Router, operatorCert, operatorKey)
+	require.NoError(t, err)
 	return &TestOperator{
 		ID:      id,
 		PrivKey: priv,
@@ -65,7 +68,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version st
 	}
 }
 
-func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
+func CreateTestOperator(t *testing.T, id uint64, version, operatorCert, operatorKey string) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
@@ -88,7 +91,8 @@ func CreateTestOperator(t *testing.T, id uint64, version string) *TestOperator {
 		OutputPath: tempDir,
 	}
 	operator.RegisterRoutes(s)
-	sTest := httptest.NewServer(s.Router)
+	sTest, err := NewLocalHTTPSTestServer(s.Router, operatorCert, operatorKey)
+	require.NoError(t, err)
 	return &TestOperator{
 		ID:      id,
 		PrivKey: priv,
@@ -154,4 +158,15 @@ func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *wire.KeySharesCL
 		return fmt.Errorf("could not reconstruct a valid signature")
 	}
 	return nil
+}
+
+func NewLocalHTTPSTestServer(handler http.Handler, operatorCert, operatorKey string) (*httptest.Server, error) {
+	ts := httptest.NewUnstartedServer(handler)
+	cert, err := tls.LoadX509KeyPair(operatorCert, operatorKey)
+	if err != nil {
+		return nil, err
+	}
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	ts.StartTLS()
+	return ts, nil
 }
