@@ -2,7 +2,6 @@ package operator
 
 import (
 	"crypto/rsa"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -163,7 +162,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 
 // Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16, cert, key string) error {
-	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 10_000 * time.Millisecond, TLSConfig: &tls.Config{InsecureSkipVerify: true}}
+	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 10_000 * time.Millisecond}
 	s.HttpServer = srv
 	err := s.HttpServer.ListenAndServeTLS(cert, key)
 	if err != nil {
