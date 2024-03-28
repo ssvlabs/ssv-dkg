@@ -7,5 +7,5 @@ logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/operator4/output/operator4_logs_debug.log
 outputPath: /data/operator4/output
-serverTLSCertPath: /data/operator4/localhost.crt
-serverTLSKeyPath: /data/operator4/localhost.key
+serverTLSCertPath: /data/operator4/operator4.crt
+serverTLSKeyPath: /data/operator4/operator4.key
