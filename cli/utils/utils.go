@@ -283,9 +283,6 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
 		}
 	}
-	if len(ClientCACertPath) == 0 {
-		return fmt.Errorf("😥 clientCACertPath flag value is not set")
-	}
 	return nil
 }
 
