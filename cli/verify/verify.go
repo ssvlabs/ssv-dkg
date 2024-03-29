@@ -29,7 +29,7 @@ var Verify = &cobra.Command{
 			int(cli_utils.Validators),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
-			cli_utils.OwnerAddress,
+			cli_utils.WithdrawAddress,
 		)
 		if err != nil {
 			log.Printf("Failed to validate ceremony directory: %v", err)
