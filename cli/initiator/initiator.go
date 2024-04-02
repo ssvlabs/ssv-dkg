@@ -128,6 +128,7 @@ var StartDKG = &cobra.Command{
 		); err != nil {
 			logger.Fatal("Could not save results", zap.Error(err))
 		}
+		logger.Info("🚀 DKG ceremony completed")
 		return nil
 	},
 }
