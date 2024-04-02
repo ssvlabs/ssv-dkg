@@ -1,10 +1,12 @@
+# Use golang base image
 FROM golang:1.20-alpine3.18 as build
+
 WORKDIR /ssv-dkg
 
 # Install build dependencies required for CGO
 RUN apk add --no-cache musl-dev gcc g++ libstdc++ git openssl
 
-# Copy the go.mod and go.sum first and download the dependencies. 
+# Copy the go.mod and go.sum first and download the dependencies.
 # This layer will be cached unless these files change.
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
