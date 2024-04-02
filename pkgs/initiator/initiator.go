@@ -100,7 +100,9 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string) (*Initiator, error) {
 	client := req.C()
 	// set CA certificates if any
-	client.SetRootCertsFromFile(certs...)
+	if len(certs) > 0 {
+		client.SetRootCertsFromFile(certs...)
+	}
 	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
