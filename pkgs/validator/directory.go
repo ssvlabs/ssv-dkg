@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
@@ -115,6 +116,9 @@ func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Addr
 	dirs := 0
 	for _, entry := range entries {
 		if !entry.IsDir() {
+			if isSystemFile(entry.Name()) {
+				continue
+			}
 			if entry.Name() == "deposit_data.json" || entry.Name() == "keyshares.json" || entry.Name() == "proofs.json" {
 				continue
 			}
@@ -155,6 +159,9 @@ func OpenResultsDir(dir string) (*ResultsDir, error) {
 	foundAggregations := false
 	for _, file := range files {
 		if !file.IsDir() {
+			if isSystemFile(file.Name()) {
+				continue
+			}
 			if file.Name() == "deposit_data.json" || file.Name() == "keyshares.json" || file.Name() == "proofs.json" {
 				foundAggregations = true
 				continue
@@ -228,4 +235,18 @@ func jsonEqual(a, b any) error {
 		return fmt.Errorf("json does not match: %s != %s", ja, jb)
 	}
 	return nil
+}
+
+// isSystemFile determines if the filename corresponds to a system file
+// that should be ignored.
+func isSystemFile(filename string) bool {
+	// List of system files to ignore
+	ignoreFiles := []string{".DS_Store", "Thumbs.db"}
+
+	for _, ignore := range ignoreFiles {
+		if strings.HasSuffix(filename, ignore) {
+			return true
+		}
+	}
+	return false
 }
