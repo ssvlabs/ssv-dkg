@@ -118,12 +118,12 @@ func ClientCACertPathFlag(c *cobra.Command) {
 
 // ServerTLSCertPath sets path to server TLS certificate
 func ServerTLSCertPath(c *cobra.Command) {
-	AddPersistentStringFlag(c, serverTLSCertPath, "/ssl/tls.crt", "Path to server TLS certificate", false)
+	AddPersistentStringFlag(c, serverTLSCertPath, "/ssl/ssl.crt", "Path to server TLS certificate", false)
 }
 
 // ServerTLSKeyPath sets path to server server TLS private key
 func ServerTLSKeyPath(c *cobra.Command) {
-	AddPersistentStringFlag(c, serverTLSKeyPath, "/ssl/tls.key", "Path to server TLS private key", false)
+	AddPersistentStringFlag(c, serverTLSKeyPath, "/ssl/ssl.key", "Path to server TLS private key", false)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command

@@ -18,14 +18,6 @@ COPY . .
 ENV CGO_ENABLED=1
 ENV GOOS=linux
 
-# Setup a directory for your certificates
-RUN mkdir /ssl
-
-# Generate a self-signed SSL certificate
-RUN openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
-  -keyout /ssl/tls.key -out /ssl/tls.crt \
-  -subj "/C=CN/ST=GD/L=SZ/O=ssv, Inc./CN=*.ssv.com"
-
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,mode=0755,target=/go/pkg \
     VERSION=$(git describe --tags $(git rev-list --tags --max-count=1)) && \
@@ -38,9 +30,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM alpine:3.18  
 WORKDIR /ssv-dkg
 
+RUN apk add --no-cache openssl
+
+# Setup a directory for your certificates
+RUN mkdir /ssl
+
 # Copy the built binary from the previous stage
 COPY --from=build /bin/ssv-dkg /bin/ssv-dkg
-COPY --from=build /ssl /ssl
+COPY --from=build /ssv-dkg/ssl.sh /bin/ssl.sh
 
 ENTRYPOINT ["/bin/ssv-dkg"]
 

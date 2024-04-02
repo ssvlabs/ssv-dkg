@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -362,18 +363,25 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	ServerTLSCertPath = viper.GetString("serverTLSCertPath")
-	if strings.Contains(ServerTLSCertPath, "../") {
-		return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
-	}
-	if ServerTLSCertPath == "" {
-		return fmt.Errorf("😥 Failed to get serverTLSCertPath flag value")
-	}
 	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
-	if strings.Contains(ServerTLSKeyPath, "../") {
-		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
-	}
-	if ServerTLSKeyPath == "" {
-		return fmt.Errorf("😥 Failed to get serverTLSKeyPath flag value")
+	if ServerTLSCertPath == "/ssl/ssl.crt" && ServerTLSKeyPath == "/ssl/ssl.key" {
+		err := generateSSLCertificatesIfNotExist()
+		if err != nil {
+			return fmt.Errorf("😥 Error generating ssl certificates: %w", err)
+		}
+	} else {
+		if strings.Contains(ServerTLSCertPath, "../") {
+			return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
+		}
+		if ServerTLSCertPath == "" {
+			return fmt.Errorf("😥 Failed to get serverTLSCertPath flag value")
+		}
+		if strings.Contains(ServerTLSKeyPath, "../") {
+			return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
+		}
+		if ServerTLSKeyPath == "" {
+			return fmt.Errorf("😥 Failed to get serverTLSKeyPath flag value")
+		}
 	}
 	return nil
 }
@@ -700,6 +708,22 @@ func createDirIfNotExist(path string) error {
 func Sync(logger *zap.Logger) error {
 	err := logger.Sync()
 	if !errors.Is(err, syscall.EINVAL) {
+		return err
+	}
+	return nil
+}
+
+func generateSSLCertificatesIfNotExist() error {
+	if _, err := os.Stat("/ssl/ssl.crt"); err == nil {
+		return nil
+	} else if errors.Is(err, os.ErrNotExist) {
+		out, err := exec.Command("/bin/sh", "/bin/ssl.sh").Output()
+		if err != nil {
+			fmt.Printf("error %s", err)
+			return err
+		}
+		fmt.Printf("Exec %s", string(out))
+	} else {
 		return err
 	}
 	return nil
