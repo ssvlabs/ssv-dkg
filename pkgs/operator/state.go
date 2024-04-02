@@ -298,6 +298,7 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 
 func (s *Switch) Pong() ([]byte, error) {
 	pong := &wire.Pong{
+		ID:     s.OperatorID,
 		PubKey: s.PubKeyBytes,
 	}
 	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
