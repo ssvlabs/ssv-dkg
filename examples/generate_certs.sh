@@ -1,7 +1,7 @@
 #!/bin/bash
 
 openssl genrsa -out ./initiator/rootCA.key 4096
-openssl req -x509 -new -key ./initiator/rootCA.key -subj "/C=IL/ST=Tel Aviv/L=Tel Aviv/O=Coin-Dash Ltd/CN=*.ssvlabs.io" -days 3650 -out ./initiator/rootCA.crt
+openssl req -x509 -new -key ./initiator/rootCA.key -subj "/CN=localhost" -days 3650 -out ./initiator/rootCA.crt
 
 
 for i in $(seq 1 8);
