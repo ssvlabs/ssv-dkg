@@ -42,7 +42,7 @@ var (
 )
 
 func TestRateLimit(t *testing.T) {
-	version := "v1.0.2"
+	version := "test.version"
 	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -172,7 +172,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := wire.OperatorsCLI{}
-	version := "v1.0.2"
+	version := "test.version"
 	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
 	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version, operatorCert, operatorKey)
 	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version, operatorCert, operatorKey)
