@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -464,6 +465,10 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 	if operators == nil {
 		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
 	}
+	// check that we use https
+	if err := checkIfOperatorHTTPS(operators); err != nil {
+		return nil, err
+	}
 	return operators, nil
 }
 
@@ -701,6 +706,19 @@ func Sync(logger *zap.Logger) error {
 	err := logger.Sync()
 	if !errors.Is(err, syscall.EINVAL) {
 		return err
+	}
+	return nil
+}
+
+func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
+	for _, op := range ops {
+		url, err := url.Parse(op.Addr)
+		if err != nil {
+			return fmt.Errorf("parsing IP address: %s, err: %w", op.Addr, err)
+		}
+		if url.Scheme != "https" {
+			return fmt.Errorf("only HTTPS scheme is allowed at operator address %s, got: %s", op.Addr, url.Scheme)
+		}
 	}
 	return nil
 }
