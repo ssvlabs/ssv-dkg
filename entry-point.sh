@@ -15,7 +15,7 @@ if [ "$1" = "start-operator" ]; then
       echo "Certificate or key file not found. Generating new SSL certificate and key."
       openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
         -keyout "$KEY_FILE" -out "$CERT_FILE" \
-        -subj "/CN=localhost"
+        -subj "/C=CN/ST=GD/L=SZ/O=localhost, Inc./CN=localhost"
     else
       echo "Existing SSL certificate and key found. Using them."
     fi

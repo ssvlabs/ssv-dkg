@@ -102,8 +102,9 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 	// set CA certificates if any
 	if len(certs) > 0 {
 		client.SetRootCertsFromFile(certs...)
+	} else {
+		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	}
-	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := crypto.GenerateRSAKeys()
