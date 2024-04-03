@@ -114,7 +114,7 @@ services:
       [
         "ping",
         "--ip",
-        "http://operator1:3030,http://operator2:3030,http://operator3:3030,http://operator4:3030",
+        "https://operator1:3030,https://operator2:3030,https://operator3:3030,https://operator4:3030",
       ]
     volumes:
       - ./examples:/data

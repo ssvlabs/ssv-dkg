@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 func TestKeysharesJSON(t *testing.T) {
@@ -40,7 +41,7 @@ func TestKeysharesJSON(t *testing.T) {
 			expectedValidatorPubKey: "b1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
 			expectedOwnerAddress:    "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 			expectedNonce:           100,
-			expectedErr:             "operators and not unique and ordered",
+			expectedErr:             "operators not unique or not ordered",
 		},
 	}
 

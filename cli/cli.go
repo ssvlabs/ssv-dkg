@@ -8,12 +8,14 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/cli/initiator"
 	"github.com/bloxapp/ssv-dkg/cli/operator"
+	"github.com/bloxapp/ssv-dkg/cli/verify"
 )
 
 func init() {
 	RootCmd.AddCommand(initiator.StartDKG)
 	RootCmd.AddCommand(operator.StartDKGOperator)
 	RootCmd.AddCommand(initiator.HealthCheck)
+	RootCmd.AddCommand(verify.Verify)
 }
 
 // RootCmd represents the root command of DKG-tool CLI

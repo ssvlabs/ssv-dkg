@@ -37,8 +37,7 @@ var StartDKGOperator = &cobra.Command{
 			return err
 		}
 		defer func() {
-			err := logger.Sync()
-			if err != nil {
+			if err := cli_utils.Sync(logger); err != nil {
 				log.Printf("Failed to sync logger: %v", err)
 			}
 		}()
@@ -53,7 +52,7 @@ var StartDKGOperator = &cobra.Command{
 			logger.Fatal("😥 Failed to create new operator instance: ", zap.Error(err))
 		}
 		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", cli_utils.Port))
-		if err := srv.Start(uint16(cli_utils.Port)); err != nil {
+		if err := srv.Start(uint16(cli_utils.Port), cli_utils.ServerTLSCertPath, cli_utils.ServerTLSKeyPath); err != nil {
 			log.Fatalf("Error in operator %v", err)
 		}
 		return nil
