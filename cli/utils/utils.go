@@ -362,18 +362,18 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	ServerTLSCertPath = viper.GetString("serverTLSCertPath")
-	if strings.Contains(ServerTLSCertPath, "../") {
-		return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
-	}
 	if ServerTLSCertPath == "" {
 		return fmt.Errorf("😥 Failed to get serverTLSCertPath flag value")
 	}
-	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
-	if strings.Contains(ServerTLSKeyPath, "../") {
-		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
+	if strings.Contains(ServerTLSCertPath, "../") {
+		return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
 	}
+	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
 	if ServerTLSKeyPath == "" {
 		return fmt.Errorf("😥 Failed to get serverTLSKeyPath flag value")
+	}
+	if strings.Contains(ServerTLSKeyPath, "../") {
+		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
 	}
 	return nil
 }
