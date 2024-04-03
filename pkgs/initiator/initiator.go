@@ -99,11 +99,13 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 // New creates a main initiator structure
 func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string) (*Initiator, error) {
 	client := req.C()
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	// set CA certificates if any
 	if len(certs) > 0 {
 		client.SetRootCertsFromFile(certs...)
+		tlsConfig.InsecureSkipVerify = false
 	}
-	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	client.SetTLSClientConfig(tlsConfig)
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := crypto.GenerateRSAKeys()
