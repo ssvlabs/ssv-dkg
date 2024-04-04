@@ -14,7 +14,7 @@ env GO111MODULE=on go install -v -ldflags "-X main.Version=$VESRION" cmd/ssv-dkg
 # run init ceremony
 
 for val in 1 10 100; do 
-  ssv-dkg init \
+  if ssv-dkg init \
           --validators $val \
           --operatorIDs 1,2,3,4 \
           --operatorsInfo '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBMVg2MUFXY001QUNLaGN5MTlUaEIKby9HMWlhN1ByOVUralJ5aWY5ZjAyRG9sd091V2ZLLzdSVUlhOEhEbHBvQlVERDkwRTVQUGdJSy9sTXB4RytXbwpwQ2N5bTBpWk9UT0JzNDE5bEh3TzA4bXFja1JsZEg5WExmbmY2UThqWFR5Ym1yYzdWNmwyNVprcTl4U0owbHR1CndmTnVTSzNCZnFtNkQxOUY0aTVCbmVaSWhjRVJTYlFLWDFxbWNqYnZFL2cyQko4TzhaZUgrd0RzTHJiNnZXQVIKY3BYWG1uelE3Vlp6ZklHTGVLVU1CTTh6SW0rcXI4RGZ4SEhSeVU1QTE3cFU4cy9MNUp5RXE1RGJjc2Q2dHlnbQp5UE9BYUNzWldVREI3UGhLOHpUWU9WYi9MM1lnSTU4bjFXek5IM0s5cmFreUppTmUxTE9GVVZzQTFDUnhtQ2YzCmlRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K","ip": "http://35.161.207.60:3030"},
@@ -30,6 +30,10 @@ for val in 1 10 100; do
           --logFormat json \
           --logLevelFormat capitalColor \
           --logFilePath $(pwd)/output/debug.log
+    echo init successfull
+  else
+    exit 1
+  fi
 
   # verify all ceremony results
   find $(pwd)/output -mindepth 1 -maxdepth 1 -type d -name "ceremony*" | while read fname; do
