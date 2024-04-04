@@ -30,16 +30,13 @@ func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 // SignRSA create a RSA signature for incoming bytes
 func SignRSA(sk *rsa.PrivateKey, byts []byte) ([]byte, error) {
 	r := sha256.Sum256(byts)
-	return sk.Sign(rand.Reader, r[:], &rsa.PSSOptions{
-		SaltLength: rsa.PSSSaltLengthAuto,
-		Hash:       crypto.SHA256,
-	})
+	return rsa.SignPKCS1v15(rand.Reader, sk, crypto.SHA256, r[:])
 }
 
 // VerifyRSA verifies RSA signature for incoming message
 func VerifyRSA(pk *rsa.PublicKey, msg, signature []byte) error {
 	r := sha256.Sum256(msg)
-	return rsa.VerifyPSS(pk, crypto.SHA256, r[:], signature, nil)
+	return rsa.VerifyPKCS1v15(pk, crypto.SHA256, r[:], signature)
 }
 
 // ParseRSAPublicKey parses encoded to base64 x509 RSA public key
