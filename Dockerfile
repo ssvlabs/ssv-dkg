@@ -1,10 +1,12 @@
+# Use golang base image
 FROM golang:1.20-alpine3.18 as build
+
 WORKDIR /ssv-dkg
 
 # Install build dependencies required for CGO
-RUN apk add --no-cache musl-dev gcc g++ libstdc++ git
+RUN apk add --no-cache musl-dev gcc g++ libstdc++ git openssl
 
-# Copy the go.mod and go.sum first and download the dependencies. 
+# Copy the go.mod and go.sum first and download the dependencies.
 # This layer will be cached unless these files change.
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -24,15 +26,20 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -o /bin/ssv-dkg -ldflags "-X main.Version=$VERSION -linkmode external -extldflags \"-static -lm\"" \
     ./cmd/ssv-dkg
 
-#
-# Run stage.
-#
+# Final stage
 FROM alpine:3.18  
 WORKDIR /ssv-dkg
 
-# Copy the built binary from the previous stage
-COPY --from=build /bin/ssv-dkg /bin/ssv-dkg
+# Install openssl
+RUN apk add --no-cache openssl
 
-ENTRYPOINT ["/bin/ssv-dkg"]
+# Copy the built binary and entry-point script from the previous stage/build context
+COPY --from=build /bin/ssv-dkg /bin/ssv-dkg
+COPY entry-point.sh /entry-point.sh
+
+# Ensure the entry-point script is executable
+RUN chmod +x /entry-point.sh
+
+ENTRYPOINT ["/entry-point.sh"]
 
 EXPOSE 3030

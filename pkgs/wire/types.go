@@ -176,8 +176,8 @@ type Ping struct {
 }
 
 type Pong struct {
-	OperatorID uint64
-	PubKey     []byte `ssz-max:"2048"`
+	ID     uint64
+	PubKey []byte `ssz-max:"2048"`
 }
 
 type ResultData struct {

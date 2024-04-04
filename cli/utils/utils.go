@@ -5,12 +5,15 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -47,14 +50,17 @@ var (
 	OwnerAddress      common.Address
 	Nonce             uint64
 	Validators        uint
+	ClientCACertPath  []string
 )
 
 // operator flags
 var (
-	PrivKey         string
-	PrivKeyPassword string
-	Port            uint64
-	OperatorID      uint64
+	PrivKey           string
+	PrivKeyPassword   string
+	Port              uint64
+	OperatorID        uint64
+	ServerTLSCertPath string
+	ServerTLSKeyPath  string
 )
 
 // verify flags
@@ -164,6 +170,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
+	flags.ClientCACertPathFlag(cmd)
 }
 
 func SetOperatorFlags(cmd *cobra.Command) {
@@ -172,6 +179,8 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
 	flags.OperatorIDFlag(cmd)
+	flags.ServerTLSCertPath(cmd)
+	flags.ServerTLSKeyPath(cmd)
 }
 
 func SetVerifyFlags(cmd *cobra.Command) {
@@ -244,13 +253,16 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
+		return err
+	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
+		return fmt.Errorf("😥 operatorsInfoPath flag should not contain traversal")
 	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
@@ -268,6 +280,12 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
+	for _, certPath := range ClientCACertPath {
+		if strings.Contains(certPath, "../") {
+			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		}
+	}
 	return nil
 }
 
@@ -322,6 +340,12 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorID", cmd.PersistentFlags().Lookup("operatorID")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("serverTLSCertPath", cmd.PersistentFlags().Lookup("serverTLSCertPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("serverTLSKeyPath", cmd.PersistentFlags().Lookup("serverTLSKeyPath")); err != nil {
+		return err
+	}
 	PrivKey = viper.GetString("privKey")
 	PrivKeyPassword = viper.GetString("privKeyPassword")
 	if PrivKey == "" {
@@ -337,6 +361,20 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	OperatorID = viper.GetUint64("operatorID")
 	if OperatorID == 0 {
 		return fmt.Errorf("😥 Wrong operator ID provided")
+	}
+	ServerTLSCertPath = viper.GetString("serverTLSCertPath")
+	if ServerTLSCertPath == "" {
+		return fmt.Errorf("😥 Failed to get serverTLSCertPath flag value")
+	}
+	if strings.Contains(ServerTLSCertPath, "../") {
+		return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
+	}
+	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
+	if ServerTLSKeyPath == "" {
+		return fmt.Errorf("😥 Failed to get serverTLSKeyPath flag value")
+	}
+	if strings.Contains(ServerTLSKeyPath, "../") {
+		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
 	}
 	return nil
 }
@@ -426,6 +464,10 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 	}
 	if operators == nil {
 		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
+	}
+	// check that we use https
+	if err := checkIfOperatorHTTPS(operators); err != nil {
+		return nil, err
 	}
 	return operators, nil
 }
@@ -652,6 +694,30 @@ func createDirIfNotExist(path string) error {
 		} else {
 			// Some other error occurred
 			return fmt.Errorf("😥 %s", err)
+		}
+	}
+	return nil
+}
+
+// Wrapper around zap.Sync() that ignores EINVAL errors.
+//
+// See: https://github.com/uber-go/zap/issues/1093#issuecomment-1120667285
+func Sync(logger *zap.Logger) error {
+	err := logger.Sync()
+	if !errors.Is(err, syscall.EINVAL) {
+		return err
+	}
+	return nil
+}
+
+func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
+	for _, op := range ops {
+		url, err := url.Parse(op.Addr)
+		if err != nil {
+			return fmt.Errorf("parsing IP address: %s, err: %w", op.Addr, err)
+		}
+		if url.Scheme != "https" {
+			return fmt.Errorf("only HTTPS scheme is allowed at operator address %s, got: %s", op.Addr, url.Scheme)
 		}
 	}
 	return nil

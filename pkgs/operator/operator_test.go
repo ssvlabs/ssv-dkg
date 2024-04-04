@@ -35,9 +35,15 @@ import (
 
 const examplePath = "../../examples/"
 
+var (
+	rootCert     = []string{"../../integration_test/certs/rootCA.crt"}
+	operatorCert = "../../integration_test/certs/localhost.crt"
+	operatorKey  = "../../integration_test/certs/localhost.key"
+)
+
 func TestRateLimit(t *testing.T) {
-	version := "v1.0.2"
-	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
+	version := "test.version"
+	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
@@ -98,6 +104,7 @@ func TestRateLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		client := req.C()
+		client.SetRootCertsFromFile(rootCert...)
 		r := client.R()
 
 		r.SetBodyBytes(msg)
@@ -128,6 +135,7 @@ func TestRateLimit(t *testing.T) {
 	})
 	t.Run("test /dkg rate limit", func(t *testing.T) {
 		client := req.C()
+		client.SetRootCertsFromFile(rootCert...)
 		r := client.R()
 
 		r.SetBodyBytes([]byte{})
@@ -164,11 +172,11 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := wire.OperatorsCLI{}
-	version := "v1.0.2"
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
+	version := "test.version"
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version, operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version, operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version, operatorCert, operatorKey)
 	ops = append(
 		ops,
 		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
@@ -181,7 +189,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 		ids := []uint64{1, 2, 3, 4}
 
-		c, err := initiator.New(ops, logger, version)
+		c, err := initiator.New(ops, logger, version, rootCert)
 		require.NoError(t, err)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)

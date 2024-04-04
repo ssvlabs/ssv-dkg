@@ -1,8 +1,7 @@
 # `ssv-dkg`
 
 - [`ssv-dkg`](#ssv-dkg)
-  - [Goal and Introduction](#goal-and-introduction)
-    - [DKG](#dkg)
+  - [DKG](#dkg)
     - [DKG tool by SSV](#dkg-tool-by-ssv)
   - [Overview](#overview)
   - [Initiator Quick start](#initiator-quick-start)
@@ -34,13 +33,7 @@
     - [Note on DKG instance management](#note-on-dkg-instance-management)
   - [Security notes](#security-notes)
 
-## Goal and Introduction
-
-> 🚫 This tool was not audited.
->
-> When using distributed key generation you understand all the risks involved with experimental cryptography.
-
-### DKG
+## DKG
 
 Distributed Key Generation is a cryptographic process that aims to solve the problem of coordinating N parties to cryptographically sign and verify signatures without relying on Trusted Third Parties. The process is demonstrated to be successful in computing a key pair in the presence of a number T attackers in a decentralized network. To do so, this algorithm generates a public key, and a secret key of which no single party knows, but has some share of. The involvement of many parties requires Distributed key generation to ensure secrecy in the presence of malicious contributions to the key calculation.
 For more information about DKG in general, [please visit this page](https://en.wikipedia.org/wiki/Distributed_key_generation).
@@ -388,7 +381,7 @@ Under the assumption that all the necessary files (`encrypted_private_key.json`,
 
 ```sh
 docker run --restart unless-stopped --name ssv_dkg -p 3030:3030  \
--v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -it \
+-v "<PATH_TO_FOLDER_WITH_CONFIG_FILES>":/data -u `id -u $USER` -it \
 "bloxstaking/ssv-dkg:latest" start-operator --configPath /data/operator.config.yaml
 ```
 

@@ -298,8 +298,8 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 
 func (s *Switch) Pong() ([]byte, error) {
 	pong := &wire.Pong{
-		OperatorID: s.OperatorID,
-		PubKey:     s.PubKeyBytes,
+		ID:     s.OperatorID,
+		PubKey: s.PubKeyBytes,
 	}
 	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }
@@ -359,48 +359,31 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 }
 
 func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, error) {
-	var initiatorPubKey *rsa.PublicKey
-	var ops []*wire.Operator
-	var err error
-	switch incMsg.Message.Type {
-	case wire.PingMessageType:
-		ping := &wire.Ping{}
-		if err := ping.UnmarshalSSZ(incMsg.Message.Data); err != nil {
-			return 0, err
-		}
-		// Check that incoming message signature is valid
-		initiatorPubKey, err = crypto.ParseRSAPublicKey(ping.InitiatorPublicKey)
-		if err != nil {
-			return 0, err
-		}
-		ops = ping.Operators
-		err = s.VerifySig(incMsg, initiatorPubKey)
-		if err != nil {
-			return 0, err
-		}
-	case wire.ResultMessageType:
-		resData := &wire.ResultData{}
-		if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
-			return 0, err
-		}
-		s.Mtx.RLock()
-		inst, ok := s.Instances[resData.Identifier]
-		s.Mtx.RUnlock()
-		if !ok {
-			return 0, utils.ErrMissingInstance
-		}
-		msgBytes, err := incMsg.Message.MarshalSSZ()
-		if err != nil {
-			return 0, err
-		}
-		// Check that incoming message signature is valid
-		err = inst.VerifyInitiatorMessage(msgBytes, incMsg.Signature)
-		if err != nil {
-			return 0, err
-		}
-		ops = resData.Operators
+	if incMsg.Message.Type != wire.ResultMessageType {
+		return 0, fmt.Errorf("wrong message type %s expected %s", incMsg.Message.Type, wire.ResultMessageType)
 	}
-	operatorID, err := spec.OperatorIDByPubKey(ops, s.PubKeyBytes)
+
+	resData := &wire.ResultData{}
+	if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
+		return 0, err
+	}
+	s.Mtx.RLock()
+	inst, ok := s.Instances[resData.Identifier]
+	s.Mtx.RUnlock()
+	if !ok {
+		return 0, utils.ErrMissingInstance
+	}
+	msgBytes, err := incMsg.Message.MarshalSSZ()
+	if err != nil {
+		return 0, err
+	}
+	// Check that incoming message signature is valid
+	err = inst.VerifyInitiatorMessage(msgBytes, incMsg.Signature)
+	if err != nil {
+		return 0, err
+	}
+
+	operatorID, err := spec.OperatorIDByPubKey(resData.Operators, s.PubKeyBytes)
 	if err != nil {
 		return 0, err
 	}

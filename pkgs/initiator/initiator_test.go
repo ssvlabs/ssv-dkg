@@ -22,6 +22,12 @@ import (
 	"github.com/bloxapp/ssv/logging"
 )
 
+var (
+	rootCert     = []string{"../../integration_test/certs/rootCA.crt"}
+	operatorCert = "../../integration_test/certs/localhost.crt"
+	operatorKey  = "../../integration_test/certs/localhost.key"
+)
+
 var jsonStr = []byte(`[
   {
     "id": 1,
@@ -52,11 +58,11 @@ func TestStartDKG(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := wire.OperatorsCLI{}
-	version := "v1.0.2"
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version)
+	version := "test.version"
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version, operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version, operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version, operatorCert, operatorKey)
 	ops = append(
 		ops,
 		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
@@ -67,7 +73,7 @@ func TestStartDKG(t *testing.T) {
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := crypto.NewID()
 		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
@@ -78,21 +84,21 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: < 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: > 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "v1.0.2")
+		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := crypto.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)

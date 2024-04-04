@@ -3,6 +3,7 @@ package initiator
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -96,8 +97,14 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 }
 
 // New creates a main initiator structure
-func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string) (*Initiator, error) {
+func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string) (*Initiator, error) {
 	client := req.C()
+	// set CA certificates if any
+	if len(certs) > 0 {
+		client.SetRootCertsFromFile(certs...)
+	} else {
+		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	}
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := crypto.GenerateRSAKeys()
@@ -399,9 +406,6 @@ func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Opera
 }
 
 func (c *Initiator) Ping(ips []string) error {
-	client := req.C()
-	// Set timeout for operator responses
-	client.SetTimeout(30 * time.Second)
 	resc := make(chan wire.PongResult, len(ips))
 	for _, ip := range ips {
 		go func(ip string) {
@@ -494,6 +498,6 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if err := crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
 		return err
 	}
-	c.Logger.Info("🍎 operator online and healthy", zap.String("ID", fmt.Sprint(pong.OperatorID)), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	return nil
 }
