@@ -29,8 +29,8 @@ for val in 1 10 100; do
           --logLevel info \
           --logFormat json \
           --logLevelFormat capitalColor \
-          --logFilePath $(pwd)/output/debug.log
-    echo init successfull
+          --logFilePath $(pwd)/output/debug.log; then
+    echo init started sucessfuly
   else
     exit 1
   fi
