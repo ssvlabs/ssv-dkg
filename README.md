@@ -314,7 +314,7 @@ This could be temporary, as they will likely start the node again, but if it per
 2024-04-03T12:54:57.939402Z	FATAL	dkg-initiator	😥 Failed to load operators: 	{"error": "only HTTPS scheme is allowed at operator address http://116.202.218.95:3061, got: http"}
 ```
 
-When this error appears, it means that the `ssv-dkg` tool cannot connect to one of the selected operators because operator url is not `https`
+When this error appears at initiator, it means that the `ssv-dkg` tool cannot load operator URLs because it is not `https`. Only `https` is allowed.
 
 
 #### `Please provide either operator info string or path`
