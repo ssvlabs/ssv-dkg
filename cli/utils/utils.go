@@ -68,6 +68,11 @@ var (
 	CeremonyDir string
 )
 
+// resigning flags
+var (
+	ProofsFilePath string
+)
+
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -189,6 +194,17 @@ func SetVerifyFlags(cmd *cobra.Command) {
 	flags.AddPersistentStringFlag(cmd, "withdrawAddress", "", "Withdrawal address", true)
 	flags.AddPersistentIntFlag(cmd, "nonce", 0, "Owner nonce", true)
 	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
+}
+
+func SetResigningFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.ProofsFilePath(cmd)
+	flags.ClientCACertPathFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -319,6 +335,68 @@ func BindInitFlags(cmd *cobra.Command) error {
 	Validators = viper.GetUint("validators")
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
+	}
+	return nil
+}
+
+// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
+func BindResigningFlags(cmd *cobra.Command) error {
+	if err := BindBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
+		return err
+	}
+	OperatorIDs = viper.GetStringSlice("operatorIDs")
+	if len(OperatorIDs) == 0 {
+		return fmt.Errorf("😥 Operator IDs flag cant be empty")
+	}
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 operatorsInfoPath flag should not contain traversal")
+	}
+	OperatorsInfo = viper.GetString("operatorsInfo")
+	if OperatorsInfoPath != "" && OperatorsInfo != "" {
+		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+	}
+	if OperatorsInfoPath == "" && OperatorsInfo == "" {
+		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	owner := viper.GetString("owner")
+	if owner == "" {
+		return fmt.Errorf("😥 Failed to get owner address flag value")
+	}
+	Nonce = viper.GetUint64("nonce")
+	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
+	for _, certPath := range ClientCACertPath {
+		if strings.Contains(certPath, "../") {
+			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		}
+	}
+	ProofsFilePath = viper.GetString("proofsFilePath")
+	if ProofsFilePath == "" {
+		return fmt.Errorf("😥 Failed to get path to proofs flag value")
+	}
+	if strings.Contains(ProofsFilePath, "../") {
+		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
 	}
 	return nil
 }
@@ -721,4 +799,18 @@ func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 		}
 	}
 	return nil
+}
+
+func LoadProofs(path string) ([][]*wire.SignedProof, error) {
+	var proofs [][]*wire.SignedProof
+	if err := utils.LoadJSONFile(path, &proofs); err != nil {
+		// try if only one proof in the file
+		var proof []*wire.SignedProof
+		if err := utils.LoadJSONFile(path, &proof); err != nil {
+			return nil, err
+		}
+		proofs = append(proofs, proof)
+		return proofs, nil
+	}
+	return proofs, nil
 }

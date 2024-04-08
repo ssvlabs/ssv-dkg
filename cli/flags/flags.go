@@ -29,6 +29,7 @@ const (
 	clientCACertPath  = "clientCACertPath"
 	serverTLSCertPath = "serverTLSCertPath"
 	serverTLSKeyPath  = "serverTLSKeyPath"
+	proofsFilePath    = "proofsFilePath"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -134,6 +135,11 @@ func ValidatorsFlag(c *cobra.Command) {
 // OperatorIDFlag add operator ID flag to the command
 func OperatorIDFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, operatorID, 0, "Operator ID", false)
+}
+
+// ProofsFilePath add file path to proofs flag to the command
+func ProofsFilePath(c *cobra.Command){
+	AddPersistentStringFlag(c, proofsFilePath, "proofs.json", "Path to proofs file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

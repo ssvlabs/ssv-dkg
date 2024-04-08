@@ -46,6 +46,10 @@ docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
 
+docker-demo-resign:
+	@echo "Running resigning in docker demo"
+	docker-compose up --build resign
+
 docker-demo-ping:
 	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping

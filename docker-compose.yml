@@ -101,6 +101,19 @@ services:
     volumes:
       - ./examples:/data
 
+  resign:
+    image: ssv-dkg:latest
+    depends_on:
+      - operator1
+      - operator2
+      - operator3
+      - operator4
+    networks:
+      - shared_network
+    command: ["resign", "--configPath", "/data/config/resign.example.yaml"]
+    volumes:
+      - ./examples:/data
+
   ping:
     image: ssv-dkg:latest
     depends_on:
