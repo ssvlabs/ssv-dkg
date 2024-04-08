@@ -18,6 +18,7 @@
       - [dial tcp timeout](#dial-tcp-timeout)
       - [invalid URI for request](#invalid-uri-for-request)
       - [connection refused](#connection-refused)
+      - [https issues](#https-issues)
       - [`Please provide either operator info string or path`](#please-provide-either-operator-info-string-or-path)
   - [Operator Quick start](#operator-quick-start)
     - [Pre requisites](#pre-requisites)
@@ -306,6 +307,15 @@ You could manually verify the `operators_info.json` or the initiator command-gen
 
 When this error appears, it means that the `ssv-dkg` tool cannot connect to one of the selected operators, and the reason could be because their `ssv-dkg` operator node has shut down.
 This could be temporary, as they will likely start the node again, but if it persists, we recommend changing one of the operators.
+
+#### https issues
+
+```sh
+2024-04-03T12:54:57.939402Z	FATAL	dkg-initiator	😥 Failed to load operators: 	{"error": "only HTTPS scheme is allowed at operator address http://116.202.218.95:3061, got: http"}
+```
+
+When this error appears, it means that the `ssv-dkg` tool cannot connect to one of the selected operators because operator url is not `https`
+
 
 #### `Please provide either operator info string or path`
 
