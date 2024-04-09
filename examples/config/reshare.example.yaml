@@ -1,6 +1,6 @@
 newOperatorIDs: [55, 66, 77, 88]
 nonce: 11
-keysharesFilePath: /data/initiator/output/ceremony-2024-03-06T14:39:52Z/0x8b577071e6b08d94920addc8d7d129c344685a0321d2c3550b2b45a2f6c3474e6a694817aef140ad164320a3aa964cdc/keyshares-0x8b577071e6b08d94920addc8d7d129c344685a0321d2c3550b2b45a2f6c3474e6a694817aef140ad164320a3aa964cdc-0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494-10.json
+keysharesFilePath: /data/initiator/output/ceremony-2024-04-09T09:23:55Z/0xa65356557f37f9b5300f07a7f27f2eb71a1f17122f6eea7bb09875a97b465f4bb42114c59c12b2d7591471c90dcf8d8c/keyshares-0xa65356557f37f9b5300f07a7f27f2eb71a1f17122f6eea7bb09875a97b465f4bb42114c59c12b2d7591471c90dcf8d8c-0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494-1.json
 operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/initiator/output
 logLevel: info

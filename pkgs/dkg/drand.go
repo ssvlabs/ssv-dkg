@@ -526,7 +526,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, err
 		},
 	)
 	// Generate random k scalar (secret) and corresponding public key k*G where G is a G1 generator
-	eciesSK, pk := initsecret(o.Suite)
+	eciesSK, pk := Initsecret(o.Suite)
 	o.data.secret = eciesSK
 	bts, _, err := CreateExchange(pk, nil)
 	if err != nil {
@@ -582,7 +582,7 @@ func (o *LocalOwner) InitReshare(reqID [24]byte, reshare *wire.Reshare, commitsP
 		},
 	)
 
-	eciesSK, pk := initsecret(o.Suite)
+	eciesSK, pk := Initsecret(o.Suite)
 	o.data.secret = eciesSK
 	bts, _, err := CreateExchange(pk, commits)
 	if err != nil {
@@ -726,7 +726,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 		}
 		oldNodes := utils.GetDisjointOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 		newNodes := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
-		if len(o.deals) == len(o.data.reshare.OldOperators) {
+		if len(o.deals) == int(o.data.reshare.OldT) {
 			for _, op := range oldNodes {
 				if o.ID == op.ID {
 					if err := o.PushDealsOldNodes(); err != nil {
@@ -753,7 +753,7 @@ func (o *LocalOwner) Process(from uint64, st *wire.SignedTransport) error {
 }
 
 // initsecret generates a random scalar and computes public point k*G where G is a generator of the field
-func initsecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
+func Initsecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
 	eciesSK := suite.G1().Scalar().Pick(random.New())
 	pk := suite.G1().Point().Mul(eciesSK, nil)
 	return eciesSK, pk
