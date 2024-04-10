@@ -597,15 +597,15 @@ func EncryptPrivateKey(priv []byte, keyStorePassword string) ([]byte, error) {
 	return json.Marshal(encryptedData)
 }
 
-func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
+func GetPubCommitsFromSharesData(oldOps []*wire.Operator, keyShares []byte, t int) ([]kyber.Point, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(reshare.OldOperators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(reshare.OldOperators) + pubKeysOffset
-	if len(reshare.Keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(reshare.Keyshares))
+	pubKeysOffset := phase0.PublicKeyLength*len(oldOps) + signatureOffset
+	sharesExpectedLength := EncryptedKeyLength*len(oldOps) + pubKeysOffset
+	if len(keyShares) != sharesExpectedLength {
+		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyShares))
 	}
-	pubKeys := utils.SplitBytes(reshare.Keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
+	pubKeys := utils.SplitBytes(keyShares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
 	for i, pubk := range pubKeys {
@@ -620,12 +620,12 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 			return nil, err
 		}
 		kyberPubhare := &share.PubShare{
-			I: int(reshare.OldOperators[i].ID - 1),
+			I: int(oldOps[i].ID - 1),
 			V: v,
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
 	}
-	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, int(reshare.OldT), len(reshare.OldOperators))
+	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, t, len(oldOps))
 	if err != nil {
 		return nil, err
 	}
@@ -633,7 +633,7 @@ func GetPubCommitsFromSharesData(reshare *wire.Reshare) ([]kyber.Point, error) {
 	return commits, nil
 }
 
-func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
+func GetSecretShareFromSharesData(keyshares []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
 	secret, _, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
 	if err != nil {

@@ -51,6 +51,10 @@ docker-demo-reshare:
 	@echo "Running resharing in docker demo"
 	docker-compose up --build resharing
 
+docker-demo-resign:
+	@echo "Running resharing in docker demo"
+	docker-compose up --build resigning
+
 docker-demo-ping:
 	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping
