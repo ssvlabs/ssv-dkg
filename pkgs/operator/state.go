@@ -419,10 +419,10 @@ func (s *Switch) ReSign(reqID [24]byte, reSignMsg *wire.Transport, initiatorSign
 	if err != nil {
 		return nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
 	}
-	sigExitMessage := secretKeyBLS.SignByte(r.ExitMessage)
+	sigRootMessage := secretKeyBLS.SignByte(r.Root)
 	resignResult := &wire.ReSignResult{
-		OperatorID:            s.OperatorID,
-		ExitMessagePartialSig: sigExitMessage.Serialize(),
+		OperatorID:     s.OperatorID,
+		RootPartialSig: sigRootMessage.Serialize(),
 	}
 	resJSON, err := resignResult.MarshalJSON()
 	if err != nil {

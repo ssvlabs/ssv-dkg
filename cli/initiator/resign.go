@@ -69,7 +69,7 @@ var StartReSign = &cobra.Command{
 				// Create a new ID.
 				id := crypto.NewID()
 				// Perform the ceremony.
-				exitSig, err := dkgInitiator.StartResigning(id, &keyshares.Shares[i])
+				exitSig, validator, err := dkgInitiator.StartResigning(id, &keyshares.Shares[i], [32]byte{})
 				if err != nil {
 					return nil, err
 				}
@@ -78,13 +78,17 @@ var StartReSign = &cobra.Command{
 				)
 				return &ResignResult{
 					id:      id,
+					valPub:  validator,
 					exitSig: exitSig,
 				}, nil
 			})
 		}
-		_, err = pool.Wait()
+		results, err := pool.Wait()
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
+		}
+		for _, res := range results {
+			logger.Info("Exit message sig", zap.String("validator", hex.EncodeToString(res.valPub)), zap.String("full sig", hex.EncodeToString(res.exitSig)))
 		}
 		return nil
 	},
@@ -92,5 +96,6 @@ var StartReSign = &cobra.Command{
 
 type ResignResult struct {
 	id      [24]byte
+	valPub  []byte
 	exitSig []byte
 }

@@ -182,10 +182,10 @@ type ReSign struct {
 	OldOperators []*Operator `ssz-max:"13"`
 	// Encrypted BLS shares
 	Keyshares   []byte `ssz-max:"32768"`
-	ExitMessage []byte `ssz-max:"32768"`
+	Root []byte `ssz-max:"32"`
 }
 
 type ReSignResult struct {
 	OperatorID uint64 
-	ExitMessagePartialSig []byte `ssz-max:"96"`
+	RootPartialSig []byte `ssz-max:"96"`
 }

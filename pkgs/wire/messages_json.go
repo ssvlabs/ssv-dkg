@@ -6,14 +6,14 @@ import (
 )
 
 type reSignResultJSON struct {
-	OperatorID            uint64 `json:"id"`
-	ExitMessagePartialSig string `json:"exit_partial_sig"`
+	OperatorID     uint64 `json:"id"`
+	RootPartialSig string `json:"root_partial_sig"`
 }
 
 func (p *ReSignResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(reSignResultJSON{
-		OperatorID:            p.OperatorID,
-		ExitMessagePartialSig: hex.EncodeToString(p.ExitMessagePartialSig),
+		OperatorID:     p.OperatorID,
+		RootPartialSig: hex.EncodeToString(p.RootPartialSig),
 	})
 }
 func (p *ReSignResult) UnmarshalJSON(data []byte) error {
@@ -22,7 +22,7 @@ func (p *ReSignResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	var err error
-	p.ExitMessagePartialSig, err = hex.DecodeString(r.ExitMessagePartialSig)
+	p.RootPartialSig, err = hex.DecodeString(r.RootPartialSig)
 	if err != nil {
 		return err
 	}
