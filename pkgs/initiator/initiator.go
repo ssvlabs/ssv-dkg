@@ -816,9 +816,19 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get validator by public key: %w", err)
 	}
+	var index phase0.ValidatorIndex
+	for _, val := range validatorMap {
+		if val.Validator.PublicKey.String() == pk.String() {
+			index = val.Index
+			break
+		}
+	}
+	if index == 0 {
+		return nil, "", fmt.Errorf("failed to get validator index from beacon node")
+	}
 	exitMsg := phase0.VoluntaryExit{
 		Epoch:          epoch,
-		ValidatorIndex: validatorMap[0].Index,
+		ValidatorIndex: index,
 	}
 
 	root, err := exitMsg.HashTreeRoot()
