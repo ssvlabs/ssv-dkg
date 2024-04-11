@@ -237,6 +237,7 @@ func SetResignFlags(cmd *cobra.Command) {
 	flags.OperatorsInfoPathFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
 	flags.BeaconNoodeAddressFlag(cmd)
+	flags.NetworkFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -452,6 +453,13 @@ func BindResignFlags(cmd *cobra.Command) error {
 	}
 	if err := viper.BindPFlag("beaconNodeAddress", cmd.PersistentFlags().Lookup("beaconNodeAddress")); err != nil {
 		return err
+	}
+	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
+		return err
+	}
+	Network = viper.GetString("network")
+	if Network == "" {
+		return fmt.Errorf("😥 Failed to get fork version flag value")
 	}
 	BeaconNodeAddress = viper.GetString("beaconNodeAddress")
 	if BeaconNodeAddress == "" {

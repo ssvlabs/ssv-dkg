@@ -802,7 +802,7 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp
 		return nil, "", err
 	}
 
-	epoch, err := client.EpochFromStateID(ctx, "head")
+	epoch, err := client.EpochFromStateID(ctx, "finalized")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get slot from state ID: %w", err)
 	}
@@ -812,7 +812,7 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp
 		return nil, "", fmt.Errorf("failed to deserialize validator public key: %w", err)
 	}
 	pk := phase0.BLSPubKey(validatorPubKey.Serialize())
-	validatorMap, err := client.ValidatorsByPubKey(ctx, "head", []phase0.BLSPubKey{pk})
+	validatorMap, err := client.ValidatorsByPubKey(ctx, "finalized", []phase0.BLSPubKey{pk})
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get validator by public key: %w", err)
 	}
