@@ -2,7 +2,6 @@ package initiator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path"
 	"strconv"
@@ -116,11 +115,11 @@ var StartReSign = &cobra.Command{
 				Signature: hexutil.Encode(res.exitMsg.Signature[:]),
 			}
 			filepath := path.Join(cli_utils.OutputPath, fmt.Sprintf("validator-exit-%s.json", jsonSignedVoluntaryExit.Exit.ValidatorIndex))
-			b, err := json.Marshal(jsonSignedVoluntaryExit)
-			if err != nil {
-				logger.Fatal("failed to marshal JSON signed voluntary exit", zap.Error(err))
-			}
-			if err := utils.WriteJSON(filepath, b); err != nil {
+			// b, err := json.Marshal(jsonSignedVoluntaryExit)
+			// if err != nil {
+			// 	logger.Fatal("failed to marshal JSON signed voluntary exit", zap.Error(err))
+			// }
+			if err := utils.WriteJSON(filepath, []*wire.SignedVoluntaryExitJson{jsonSignedVoluntaryExit}); err != nil {
 				logger.Fatal("failed to write validator exist json", zap.Error(err))
 			}
 			logger.Info("Wrote signed validator exit JSON to", zap.String("path", filepath))
