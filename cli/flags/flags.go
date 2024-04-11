@@ -31,6 +31,7 @@ const (
 	operatorID                        = "operatorID"
 	keysharesFilePath                 = "keysharesFilePath"
 	ceremonySigsFilePath              = "ceremonySigsFilePath"
+	beaconNodeAddress                 = "beaconNodeAddress"
 )
 
 // ThresholdFlag adds threshold flag to the command
@@ -95,7 +96,7 @@ func PrivateKeyPassFlag(c *cobra.Command) {
 
 // OperatorPortFlag  adds operator listening port flag to the command
 func OperatorPortFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
+	AddPersistentIntFlag(c, operatorPort, 3030, "Operator listening port", false)
 }
 
 // ConfigPathFlag config path flag to the command
@@ -143,6 +144,10 @@ func KeysharesFilePathFlag(c *cobra.Command) {
 
 func CeremonySigsFilePathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, ceremonySigsFilePath, "", "Path to ceremony signatures json file", false)
+}
+
+func BeaconNoodeAddressFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, beaconNodeAddress, "", "Active beacon node address", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

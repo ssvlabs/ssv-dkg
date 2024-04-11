@@ -29,3 +29,12 @@ func (p *ReSignResult) UnmarshalJSON(data []byte) error {
 	p.OperatorID = r.OperatorID
 	return nil
 }
+
+type SignedVoluntaryExitJson struct {
+	Exit      *VoluntaryExitJson `json:"message"`
+	Signature string             `json:"signature" hex:"true"`
+}
+type VoluntaryExitJson struct {
+	Epoch          string `json:"epoch"`
+	ValidatorIndex string `json:"validator_index"`
+}

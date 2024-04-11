@@ -63,6 +63,10 @@ var (
 	OperatorID      uint64
 )
 
+var (
+	BeaconNodeAddress string
+)
+
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -232,6 +236,7 @@ func SetResignFlags(cmd *cobra.Command) {
 	flags.OperatorsInfoFlag(cmd)
 	flags.OperatorsInfoPathFlag(cmd)
 	flags.KeysharesFilePathFlag(cmd)
+	flags.BeaconNoodeAddressFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -444,6 +449,13 @@ func BindResignFlags(cmd *cobra.Command) error {
 	}
 	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
 		return err
+	}
+	if err := viper.BindPFlag("beaconNodeAddress", cmd.PersistentFlags().Lookup("beaconNodeAddress")); err != nil {
+		return err
+	}
+	BeaconNodeAddress = viper.GetString("beaconNodeAddress")
+	if BeaconNodeAddress == "" {
+		return fmt.Errorf("😥 please provide beacon node address")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if strings.Contains(OperatorsInfoPath, "../") {

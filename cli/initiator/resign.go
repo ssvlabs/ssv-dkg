@@ -2,16 +2,15 @@ package initiator
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"log"
+	"path"
+	"strconv"
 	"time"
 
 	eth2clienthttp "github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	ssz "github.com/ferranbt/fastssz"
-	"github.com/herumi/bls-eth-go-binary/bls"
-
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/rs/zerolog"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
@@ -21,6 +20,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 func init() {
@@ -69,7 +69,6 @@ var StartReSign = &cobra.Command{
 		}
 		// Start resigning
 		ctx := context.Background()
-
 		httpClient, err := eth2clienthttp.New(ctx,
 			// WithAddress supplies the address of the beacon node, in host:port format.
 			eth2clienthttp.WithAddress(cli_utils.BeaconNodeAddress),
@@ -77,27 +76,10 @@ var StartReSign = &cobra.Command{
 			eth2clienthttp.WithLogLevel(zerolog.DebugLevel),
 			eth2clienthttp.WithTimeout(time.Second*10),
 		)
+		if err != nil {
+			return err
+		}
 		client := httpClient.(*eth2clienthttp.Service)
-		epoch, err := client.EpochFromStateID(ctx, "head")
-		if err != nil {
-			logger.Fatal("😥 Failed to get slot from state ID: ", zap.Error(err))
-		}
-		// TODO do this in loop
-		validatorPubKey := &bls.PublicKey{}
-		if err := validatorPubKey.DeserializeHexStr(keyshares.Shares[0].Payload.PublicKey); err != nil {
-			logger.Fatal("😥 Failed to deserialize validator public key: ", zap.Error(err))
-		}
-		pk := phase0.BLSPubKey(validatorPubKey.Serialize())
-		validatorMap, err := client.ValidatorsByPubKey(ctx, "head", []phase0.BLSPubKey{pk})
-		if err != nil {
-			logger.Fatal("😥 Failed to get validator by public key: ", zap.Error(err))
-		}
-		exitMsg := phase0.VoluntaryExit{
-			Epoch:          epoch + 1,
-			ValidatorIndex: validatorMap[0].Index,
-		}
-
-		root := []ssz.HashRoot{&exitMsg}
 		// in loop and save exitMsg somewhere so we can combine them
 		pool := pool.NewWithResults[*ResignResult]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
 		for i := 0; i < len(keyshares.Shares); i++ {
@@ -108,17 +90,16 @@ var StartReSign = &cobra.Command{
 				// Create a new ID.
 				id := crypto.NewID()
 				// Perform the ceremony.
-				exitSig, validator, err := dkgInitiator.StartResigning(id, &keyshares.Shares[i], root)
+				exitMsg, validator, err := dkgInitiator.StartResigning(id, &keyshares.Shares[i], client, ctx)
 				if err != nil {
 					return nil, err
 				}
-				logger.Debug("DKG ceremony completed",
-					zap.String("id", hex.EncodeToString(id[:])),
+				logger.Debug("Resigning completed for validator",
+					zap.String("pub", keyshares.Shares[i].PublicKey),
 				)
 				return &ResignResult{
-					id:      id,
-					valPub:  validator,
-					exitSig: exitSig,
+					validator,
+					exitMsg,
 				}, nil
 			})
 		}
@@ -127,25 +108,28 @@ var StartReSign = &cobra.Command{
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
 		for _, res := range results {
-			// TODO reconstructs JSON
-			signedVoluntaryExit := &phase0.SignedVoluntaryExit{
-				Message:   &exitMsg,
-				Signature: phase0.BLSSignature(res.exitSig),
+			jsonSignedVoluntaryExit := &wire.SignedVoluntaryExitJson{
+				Exit: &wire.VoluntaryExitJson{
+					Epoch:          strconv.FormatUint(uint64(res.exitMsg.Message.Epoch), 10),
+					ValidatorIndex: strconv.FormatUint(uint64(res.exitMsg.Message.ValidatorIndex), 10),
+				},
+				Signature: hexutil.Encode(res.exitMsg.Signature[:]),
 			}
-
-			finalPath := fmt.Sprintf("%s/exit-%s.json", cli_utils.OutputPath, res.valPub)
-			err := utils.WriteJSON(finalPath, signedVoluntaryExit)
+			filepath := path.Join(cli_utils.OutputPath, fmt.Sprintf("validator-exit-%s.json", jsonSignedVoluntaryExit.Exit.ValidatorIndex))
+			b, err := json.Marshal(jsonSignedVoluntaryExit)
 			if err != nil {
-				log.Fatal("😥 Failed to write JSON file: ", zap.Error(err)
+				logger.Fatal("failed to marshal JSON signed voluntary exit", zap.Error(err))
 			}
-			logger.Info("Exit message sig", zap.String("validator", hex.EncodeToString(res.valPub)), zap.String("full sig", hex.EncodeToString(res.exitSig)))
+			if err := utils.WriteJSON(filepath, b); err != nil {
+				logger.Fatal("failed to write validator exist json", zap.Error(err))
+			}
+			logger.Info("Wrote signed validator exit JSON to", zap.String("path", filepath))
 		}
 		return nil
 	},
 }
 
 type ResignResult struct {
-	id      [24]byte
-	valPub  []byte
-	exitSig []byte
+	validator string
+	exitMsg   *phase0.SignedVoluntaryExit
 }

@@ -2,6 +2,7 @@ package initiator
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	eth2clienthttp "github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -783,21 +785,45 @@ func (c *Initiator) StartReshare(id [24]byte, newOpIDs []uint64, keysharesFile, 
 	return keyshares, ceremonySigsNew, nil
 }
 
-func (c *Initiator) StartResigning(id [24]byte, ks *Data, root [32]byte) ([]byte, []byte, error) {
+func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp.Service, ctx context.Context) (*phase0.SignedVoluntaryExit, string, error) {
 	oldOpIDs := ks.Payload.OperatorIDs
 	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	pkBytes, err := crypto.EncodePublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
 	c.Logger.Info("🚀 Starting ReSigning ceremony", zap.String("initiator_id", string(pkBytes)), zap.Uint64s("old_operator_ids", oldOpIDs), instanceIDField)
 	sharesData, err := hex.DecodeString(ks.Payload.SharesData[2:])
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
+	}
+
+	epoch, err := client.EpochFromStateID(ctx, "head")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get slot from state ID: %w", err)
+	}
+
+	validatorPubKey := &bls.PublicKey{}
+	if err := validatorPubKey.DeserializeHexStr(ks.Payload.PublicKey[2:]); err != nil {
+		return nil, "", fmt.Errorf("failed to deserialize validator public key: %w", err)
+	}
+	pk := phase0.BLSPubKey(validatorPubKey.Serialize())
+	validatorMap, err := client.ValidatorsByPubKey(ctx, "head", []phase0.BLSPubKey{pk})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get validator by public key: %w", err)
+	}
+	exitMsg := phase0.VoluntaryExit{
+		Epoch:          epoch,
+		ValidatorIndex: validatorMap[0].Index,
+	}
+
+	root, err := exitMsg.HashTreeRoot()
+	if err != nil {
+		return nil, "", err
 	}
 	resignMsg := &wire.ReSign{
 		OldOperators: oldOps,
@@ -808,11 +834,11 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, root [32]byte) ([]byte
 	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
 	resignResultsBytes, err := c.messageFlowHandlingResign(resignMsg, id, oldOps, oldThreshold)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	resignResults, err := parseResignResultsFromBytes(resignResultsBytes, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	// verify partial sigs and recover master sig
 	var ids []uint64
@@ -822,40 +848,27 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, root [32]byte) ([]byte
 		ids = append(ids, r.OperatorID)
 		err := partSig.Deserialize(r.RootPartialSig)
 		if err != nil {
-			return nil, nil, err
+			return nil, "", err
 		}
 		partSigs = append(partSigs, partSig)
 	}
 	masterSig, err := crypto.RecoverMasterSig(ids, partSigs)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
-	valPubBytes, err := hex.DecodeString(ks.PublicKey[2:])
-	if err != nil {
-		return nil, nil, err
-	}
-	valPub := &bls.PublicKey{}
-	if err := valPub.Deserialize(valPubBytes); err != nil {
-		return nil, nil, err
-	}
-	if !masterSig.VerifyByte(valPub, root[:]) {
-		return nil, nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
+	if !masterSig.VerifyByte(validatorPubKey, root[:]) {
+		return nil, "", fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 
-	// specSig := phase0.BLSSignature{}
-	// copy(specSig[:], masterSig.Serialize())
+	specSig := phase0.BLSSignature{}
+	copy(specSig[:], masterSig.Serialize())
 
-	// create SignedVoluntaryExit using VoluntaryExit created on r.executeDuty() and reconstructed signature
+	signedVoluntaryExit := &phase0.SignedVoluntaryExit{
+		Message:   &exitMsg,
+		Signature: specSig,
+	}
 
-	// signedVoluntaryExit := &phase0.SignedVoluntaryExit{
-	// 	Message: &phase0.VoluntaryExit{
-	// 		Epoch:          phase0.Epoch(epoch),
-	// 		ValidatorIndex: phase0.ValidatorIndex(validatorIndex),
-	// 	},
-	// 	Signature: specSig,
-	// }
-
-	return masterSig.Serialize(), valPubBytes, nil
+	return signedVoluntaryExit, ks.Payload.PublicKey, nil
 }
 
 type KeySign struct {
