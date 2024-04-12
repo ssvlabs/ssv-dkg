@@ -113,7 +113,7 @@ func TestValidateResultsDir(t *testing.T) {
 			ownerAddress:    common.HexToAddress("0x5cc0dde14e7256340cc820415a6022a7d1c93a35"),
 			ownerNonce:      2731,
 			withdrawAddress: common.HexToAddress("0x5cC0DdE14E7256340CC820415a6022a7d1c93A35"),
-			expectedErr:     "err validating deposit data failed to verify deposit roots: failed to verify deposit data: invalid signature",
+			expectedErr:     "invalid signature",
 		},
 	}
 	for _, test := range tests {

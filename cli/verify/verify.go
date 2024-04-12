@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
 
-	"github.com/aquasecurity/table"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 )
