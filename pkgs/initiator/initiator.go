@@ -830,11 +830,27 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp
 		Epoch:          epoch,
 		ValidatorIndex: index,
 	}
-	domain, err := client.Domain(ctx, ssvspec_types.DomainVoluntaryExit, epoch)
+
+	genesis, err := client.Genesis(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	root, err := ssvspec_types.ComputeETHSigningRoot(&exitMsg, domain)
+
+	forkData := &phase0.ForkData{
+		CurrentVersion:        phase0.Version([]byte{0x4, 0x1, 0x70, 0x0}),
+		GenesisValidatorsRoot: genesis.GenesisValidatorsRoot,
+	}
+
+	root, err := forkData.HashTreeRoot()
+	if err != nil {
+		return nil, "", err
+	}
+
+	var domain phase0.Domain
+	copy(domain[:], ssvspec_types.DomainVoluntaryExit[:])
+	copy(domain[4:], root[:])
+
+	root, err = ssvspec_types.ComputeETHSigningRoot(&exitMsg, domain)
 	if err != nil {
 		return nil, "", err
 	}
