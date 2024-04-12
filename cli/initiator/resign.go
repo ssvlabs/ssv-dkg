@@ -119,7 +119,7 @@ var StartReSign = &cobra.Command{
 			// if err != nil {
 			// 	logger.Fatal("failed to marshal JSON signed voluntary exit", zap.Error(err))
 			// }
-			if err := utils.WriteJSON(filepath, []*wire.SignedVoluntaryExitJson{jsonSignedVoluntaryExit}); err != nil {
+			if err := utils.WriteJSON(filepath, jsonSignedVoluntaryExit); err != nil {
 				logger.Fatal("failed to write validator exist json", zap.Error(err))
 			}
 			logger.Info("Wrote signed validator exit JSON to", zap.String("path", filepath))
