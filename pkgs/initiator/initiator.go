@@ -24,6 +24,7 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	"go.uber.org/zap"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
@@ -832,6 +833,19 @@ func (c *Initiator) StartResigning(id [24]byte, ks *Data, client *eth2clienthttp
 	}
 
 	root, err := exitMsg.HashTreeRoot()
+	if err != nil {
+		return nil, "", err
+	}
+	domain, err := client.Domain(ctx, ssvspec_types.DomainVoluntaryExit, epoch)
+	if err != nil {
+		return nil, "", err
+	}
+	container := &ethpb.SigningData{
+		ObjectRoot: root[:],
+		Domain:     domain[:],
+	}
+
+	root, err = container.HashTreeRoot()
 	if err != nil {
 		return nil, "", err
 	}
