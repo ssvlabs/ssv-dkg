@@ -14,12 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
@@ -83,7 +83,7 @@ type Switch struct {
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
-func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+func (s *Switch) CreateInstance(reqID [24]byte, init *spec.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
 	operatorID, err := spec.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
@@ -100,7 +100,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
-		Signer:             spec.RSASigner(s.PrivateKey),
+		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
@@ -158,7 +158,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
-	init := &wire.Init{}
+	init := &spec.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
@@ -327,7 +327,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	if err != nil {
 		return err
 	}
-	var proof []*wire.SignedProof
+	var proof []*spec.SignedProof
 	err = json.Unmarshal(resData.Proofs, &proof)
 	if err != nil {
 		return err
@@ -335,7 +335,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	// Save results.
 	depositDataArr := []*wire.DepositDataCLI{depJson}
 	keySharesArr := []*wire.KeySharesCLI{ksJson}
-	proofsArr := [][]*wire.SignedProof{proof}
+	proofsArr := [][]*spec.SignedProof{proof}
 	withdrawCreds, err := hex.DecodeString(depJson.WithdrawalCredentials)
 	if err != nil {
 		return fmt.Errorf("failed to decode withdrawal credentials: %s", err.Error())
@@ -383,7 +383,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		return 0, err
 	}
 
-	operatorID, err := spec.OperatorIDByPubKey(resData.Operators, s.PubKeyBytes)
+	operatorID, err := spec.OperatorIDByPubKey(utils.ConvertOperators2(resData.Operators), s.PubKeyBytes)
 	if err != nil {
 		return 0, err
 	}

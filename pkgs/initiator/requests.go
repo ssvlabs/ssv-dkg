@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -58,7 +59,7 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 }
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operators []*wire.Operator, checkError bool) ([][]byte, error) {
+func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator, checkError bool) ([][]byte, error) {
 	resc := make(chan opReqResult, len(operators))
 	for _, wireOp := range operators {
 		operator := c.Operators.ByID(wireOp.ID)

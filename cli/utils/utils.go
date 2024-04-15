@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -476,7 +477,7 @@ func WriteResults(
 	logger *zap.Logger,
 	depositDataArr []*wire.DepositDataCLI,
 	keySharesArr []*wire.KeySharesCLI,
-	proofs [][]*wire.SignedProof,
+	proofs [][]*spec.SignedProof,
 	withRandomness bool,
 	expectedValidatorCount int,
 	expectedOwnerAddress common.Address,
@@ -519,7 +520,7 @@ func WriteResults(
 
 	// order deposit data and proofs to match keyshares order
 	sortedDepositData := make([]*wire.DepositDataCLI, len(depositDataArr))
-	sortedProofs := make([][]*wire.SignedProof, len(depositDataArr))
+	sortedProofs := make([][]*spec.SignedProof, len(depositDataArr))
 	for i, keyshare := range keySharesArr {
 		pk := strings.TrimPrefix(keyshare.Shares[0].Payload.PublicKey, "0x")
 		for _, deposit := range depositDataArr {
@@ -625,7 +626,7 @@ func WriteResults(
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*spec.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -674,7 +675,7 @@ func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
 	return nil
 }
 
-func WriteProofs(proofs []*wire.SignedProof, dir string) error {
+func WriteProofs(proofs []*spec.SignedProof, dir string) error {
 	finalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {

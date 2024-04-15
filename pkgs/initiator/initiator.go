@@ -17,12 +17,12 @@ import (
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -38,7 +38,7 @@ type Initiator struct {
 }
 
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
-func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgResults []*wire.Result, reconstructedOwnerNonceMasterSig *bls.Sign, owner common.Address, nonce uint64) (*wire.KeySharesCLI, error) {
+func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgResults []*spec.Result, reconstructedOwnerNonceMasterSig *bls.Sign, owner common.Address, nonce uint64) (*wire.KeySharesCLI, error) {
 	sigOwnerNonce := reconstructedOwnerNonceMasterSig.Serialize()
 	operatorIds := make([]uint64, 0)
 	var pubkeys []byte
@@ -123,7 +123,7 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 }
 
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
-func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.Operator, error) {
+func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.Operator, error) {
 	if len(ids) < 4 {
 		return nil, fmt.Errorf("wrong operators len: < 4")
 	}
@@ -134,7 +134,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 		return nil, fmt.Errorf("amount of operators should be 4,7,10,13: got %d", ids)
 	}
 
-	ops := make([]*wire.Operator, len(ids))
+	ops := make([]*spec.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
 	for i, id := range ids {
 		if id == 0 {
@@ -154,7 +154,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
-		ops[i] = &wire.Operator{
+		ops[i] = &spec.Operator{
 			ID:     op.ID,
 			PubKey: pkBytes,
 		}
@@ -163,7 +163,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 }
 
 // messageFlowHandling main steps of DKG at initiator
-func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) messageFlowHandling(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
@@ -199,7 +199,7 @@ func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators 
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*spec.SignedProof, error) {
 	if len(withdraw) != len(common.Address{}) {
 		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
 	}
@@ -219,7 +219,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	// compute threshold (3f+1)
 	threshold := len(ids) - ((len(ids) - 1) / 3)
 	// make init message
-	init := &wire.Init{
+	init := &spec.Init{
 		Operators:             ops,
 		T:                     uint64(threshold),
 		WithdrawalCredentials: withdraw,
@@ -258,7 +258,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var proofsArray []*wire.SignedProof
+	var proofsArray []*spec.SignedProof
 	for _, res := range dkgResults {
 		proofsArray = append(proofsArray, &res.SignedProof)
 	}
@@ -267,7 +267,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
-		Operators:     ops,
+		Operators:     utils.ConvertOperators(ops),
 		Identifier:    id,
 		DepositData:   depositData,
 		KeysharesData: keysharesData,
@@ -281,7 +281,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 }
 
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
-func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, init *wire.Init, requestID [24]byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
+func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, init *spec.Init, requestID [24]byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
 	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
@@ -313,7 +313,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 	return depositDataJson, keyshares, nil
 }
 
-func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*wire.Result, finalErr error) {
+func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*spec.Result, finalErr error) {
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -329,7 +329,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			finalErr = errors.Join(finalErr, fmt.Errorf("wrong DKG result message type: exp %s, got %s ", wire.OutputMessageType.String(), tsp.Message.Type.String()))
 			continue
 		}
-		result := &wire.Result{}
+		result := &spec.Result{}
 		if err := result.UnmarshalSSZ(tsp.Message.Data); err != nil {
 			finalErr = errors.Join(finalErr, err)
 			continue
@@ -358,7 +358,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 }
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
-func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	signedInitMsgBts, err := c.prepareAndSignMessage(init, wire.InitMessageType, id, c.Version)
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
-func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	mltpl, err := makeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
 	if err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 }
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
-func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	mltpl2, err := makeMultipleSignedTransports(c.PrivateKey, id, kyberDeals)
 	if err != nil {
 		return nil, err
@@ -393,7 +393,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators, false)
 }
 
-func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {
+func (c *Initiator) sendResult(resData *wire.ResultData, operators []*spec.Operator, method string, id [24]byte) error {
 	signedMsgBts, err := c.prepareAndSignMessage(resData, wire.ResultMessageType, id, c.Version)
 	if err != nil {
 		return err

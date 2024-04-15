@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -18,7 +19,7 @@ import (
 type ResultsDir struct {
 	AggregatedDepositData []*wire.DepositDataCLI
 	AggregatedKeyShares   *wire.KeySharesCLI
-	AggregatedProofs      [][]*wire.SignedProof
+	AggregatedProofs      [][]*spec.SignedProof
 	Validators            []ResultsValidatorDir
 }
 
@@ -27,7 +28,7 @@ type ResultsValidatorDir struct {
 	PublicKey   string
 	DepositData []*wire.DepositDataCLI
 	KeyShares   *wire.KeySharesCLI
-	Proofs      []*wire.SignedProof
+	Proofs      []*spec.SignedProof
 }
 
 func ValidateResultsDir(dir string, validatorCount int, ownerAddress common.Address, ownerNonce uint64, withdrawAddress common.Address) error {

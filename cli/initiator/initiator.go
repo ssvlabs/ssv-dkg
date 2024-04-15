@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -106,7 +107,7 @@ var StartDKG = &cobra.Command{
 		}
 		var depositDataArr []*wire.DepositDataCLI
 		var keySharesArr []*wire.KeySharesCLI
-		var proofs [][]*wire.SignedProof
+		var proofs [][]*spec.SignedProof
 		for _, res := range results {
 			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
@@ -138,5 +139,5 @@ type Result struct {
 	nonce       uint64
 	depositData *wire.DepositDataCLI
 	keyShares   *wire.KeySharesCLI
-	proof       []*wire.SignedProof
+	proof       []*spec.SignedProof
 }

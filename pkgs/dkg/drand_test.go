@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 

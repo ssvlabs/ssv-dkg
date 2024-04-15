@@ -11,11 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
-func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, owner [20]byte, nonce uint64, valPub string) error {
+func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*spec.Operator, owner [20]byte, nonce uint64, valPub string) error {
 	if ks.CreatedAt.String() == "" {
 		return fmt.Errorf("keyshares creation time is empty")
 	}

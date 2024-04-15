@@ -10,16 +10,16 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 
+	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 func ValidateResults(
 	allDepositData []*wire.DepositDataCLI,
 	allKeyshares *wire.KeySharesCLI,
-	allProofs [][]*wire.SignedProof,
+	allProofs [][]*spec.SignedProof,
 	expectedValidatorCount int,
 	expectedOwnerAddress common.Address,
 	expectedOwnerNonce uint64,
@@ -95,7 +95,7 @@ func checkValidatorsCorrectAtDeposits(depositDataArr []*wire.DepositDataCLI) err
 	return nil
 }
 
-func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProof) error {
+func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*spec.SignedProof) error {
 	for i := 0; i < len(keyshare.Shares[0].Operators); i++ {
 		// compare fields
 		valShares, err := hex.DecodeString(strings.TrimPrefix(keyshare.Shares[0].PublicKey, "0x"))
@@ -211,7 +211,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 	return nil
 }
 
-func getEncryptedShareFromSharesdata(keyShares []byte, operators []*wire.Operator, operatorID uint64) ([]byte, error) {
+func getEncryptedShareFromSharesdata(keyShares []byte, operators []*spec.Operator, operatorID uint64) ([]byte, error) {
 	pubKeyOffset := phase0.PublicKeyLength * len(operators)
 	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
 	sharesExpectedLength := crypto.EncryptedKeyLength*len(operators) + pubKeysSigOffset
@@ -233,7 +233,7 @@ func getEncryptedShareFromSharesdata(keyShares []byte, operators []*wire.Operato
 	return encryptedKeys[position], nil
 }
 
-func getSharePubKeyFromSharesdata(keyShares []byte, operators []*wire.Operator, operatorID uint64) ([]byte, error) {
+func getSharePubKeyFromSharesdata(keyShares []byte, operators []*spec.Operator, operatorID uint64) ([]byte, error) {
 	pubKeyOffset := phase0.PublicKeyLength * len(operators)
 	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
 	sharesExpectedLength := crypto.EncryptedKeyLength*len(operators) + pubKeysSigOffset

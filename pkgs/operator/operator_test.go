@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	spec "github.com/bloxapp/dkg-spec"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -56,7 +57,7 @@ func TestRateLimit(t *testing.T) {
 		ops := wire.OperatorsCLI{}
 		ops = append(ops, wire.OperatorCLI{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
 
-		parts := make([]*wire.Operator, 0)
+		parts := make([]*spec.Operator, 0)
 		for _, id := range []uint64{1} {
 			op := ops.ByID(id)
 			if op == nil {
@@ -64,13 +65,13 @@ func TestRateLimit(t *testing.T) {
 			}
 			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
+			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
 
-		init := &wire.Init{
+		init := &spec.Init{
 			Operators:             parts,
 			T:                     3,
 			WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
@@ -193,13 +194,13 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0)
+		parts := make([]*spec.Operator, 0)
 		for _, id := range ids {
 			op := c.Operators.ByID(id)
 			require.NotNil(t, op)
 			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
+			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
@@ -210,7 +211,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
-		init := &wire.Init{
+		init := &spec.Init{
 			Operators:             parts,
 			T:                     uint64(threshold),
 			WithdrawalCredentials: withdraw.Bytes(),
