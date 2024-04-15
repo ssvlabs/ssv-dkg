@@ -383,21 +383,9 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		return 0, err
 	}
 
-	operatorID, err := spec.OperatorIDByPubKey(utils.ConvertOperators2(resData.Operators), s.PubKeyBytes)
+	operatorID, err := spec.OperatorIDByPubKey(resData.Operators, s.PubKeyBytes)
 	if err != nil {
 		return 0, err
 	}
 	return operatorID, nil
-}
-
-func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {
-	marshalledWireMsg, err := incMsg.Message.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
-	if err != nil {
-		return fmt.Errorf("signature isn't valid: %s", err.Error())
-	}
-	return nil
 }

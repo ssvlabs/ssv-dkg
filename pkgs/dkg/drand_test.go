@@ -83,7 +83,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signer:             spec.RSASigner(pv),
+		signer:             crypto.RSASigner(pv),
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,
@@ -109,11 +109,11 @@ func TestDKGInit(t *testing.T) {
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
 	}
-	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
+	opsarr := make([]*spec.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
 		pktobytes, err := crypto.EncodeRSAPublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
-		opsarr = append(opsarr, &wire2.Operator{
+		opsarr = append(opsarr, &spec.Operator{
 			ID:     id,
 			PubKey: pktobytes,
 		})
@@ -121,7 +121,7 @@ func TestDKGInit(t *testing.T) {
 	sort.SliceStable(opsarr, func(i, j int) bool {
 		return opsarr[i].ID < opsarr[j].ID
 	})
-	init := &wire2.Init{
+	init := &spec.Init{
 		Operators:             opsarr,
 		T:                     3,
 		WithdrawalCredentials: []byte("0x0000"),

@@ -94,14 +94,9 @@ type Exchange struct {
 	Commits []byte `ssz-max:"2048"`
 }
 
-type Operator struct {
-	ID     uint64
-	PubKey []byte `ssz-max:"2048"`
-}
-
 type Ping struct {
 	// Operators involved in the DKG
-	Operators []*Operator `ssz-max:"13"`
+	Operators []*spec.Operator `ssz-max:"13"`
 	// Initiator public key
 	InitiatorPublicKey []byte `ssz-max:"2048"`
 }
@@ -113,7 +108,7 @@ type Pong struct {
 
 type ResultData struct {
 	// Operators involved in the DKG
-	Operators []*Operator `ssz-max:"13"`
+	Operators []*spec.Operator `ssz-max:"13"`
 	// Initiator public key
 	Identifier    [24]byte `ssz-size:"24"`
 	DepositData   []byte   `ssz-max:"8192"`

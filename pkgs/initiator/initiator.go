@@ -267,7 +267,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
-		Operators:     utils.ConvertOperators(ops),
+		Operators:     ops,
 		Identifier:    id,
 		DepositData:   depositData,
 		KeysharesData: keysharesData,

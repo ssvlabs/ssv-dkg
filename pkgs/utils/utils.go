@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
-	spec "github.com/bloxapp/dkg-spec"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -120,34 +119,4 @@ func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err erro
 func GetNonce(input []byte) []byte {
 	ret := sha256.Sum256(input)
 	return ret[:]
-}
-
-func ConvertOperators(ops []*spec.Operator) []*wire.Operator {
-	wireOps := make([]*wire.Operator, len(ops))
-	for i, op := range ops {
-		// Create a new wire.Operator and copy fields from spec.Operator.
-		// Adjust field copying according to the actual struct definitions.
-		wireOps[i] = &wire.Operator{
-			ID:     op.ID,     // Assuming both have ID field
-			PubKey: op.PubKey, // Assuming both have Name field
-			// Add more fields as necessary
-		}
-	}
-
-	return wireOps
-}
-
-func ConvertOperators2(ops []*wire.Operator) []*spec.Operator {
-	wireOps := make([]*spec.Operator, len(ops))
-	for i, op := range ops {
-		// Create a new wire.Operator and copy fields from spec.Operator.
-		// Adjust field copying according to the actual struct definitions.
-		wireOps[i] = &spec.Operator{
-			ID:     op.ID,     // Assuming both have ID field
-			PubKey: op.PubKey, // Assuming both have Name field
-			// Add more fields as necessary
-		}
-	}
-
-	return wireOps
 }

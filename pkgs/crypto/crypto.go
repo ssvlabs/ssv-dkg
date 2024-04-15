@@ -1,8 +1,6 @@
 package crypto
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
 	"fmt"
 
@@ -135,18 +133,4 @@ func RecoverBLSSignature(ids []uint64, partialSigs []*bls.Sign) (*bls.Sign, erro
 		return nil, fmt.Errorf("deposit root signature recovered from shares is invalid")
 	}
 	return &reconstructed, nil
-}
-
-func VerifyPartialSigs(sigs []*bls.Sign, pubs []*bls.PublicKey, data []byte) error {
-	for i, sig := range sigs {
-		if !sig.VerifyByte(pubs[i], data) {
-			return fmt.Errorf("partial signature is invalid  #%d: sig %x root %x", i, sig.Serialize(), data)
-		}
-	}
-	return nil
-}
-
-// Encrypt with RSA public key private DKG share key
-func Encrypt(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
-	return rsa.EncryptPKCS1v15(rand.Reader, pub, msg)
 }
