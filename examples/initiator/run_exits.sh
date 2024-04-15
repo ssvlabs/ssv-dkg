@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # run all exits in the folder 
 find $(pwd)/output -mindepth 1 -maxdepth 1 -type f -name "validator-exit-*.json" | while read fname; do
     echo "Executing $fname"
@@ -18,7 +19,7 @@ find $(pwd)/output -mindepth 1 -maxdepth 1 -type f -name "validator-exit-*.json"
         },
         "signature": '$signature'
         }'
-    else
+    then
         exit 1
     fi
 done
