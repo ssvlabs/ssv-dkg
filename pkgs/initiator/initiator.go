@@ -293,7 +293,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, i
 	if err != nil {
 		return nil, nil, err
 	}
-	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, dkgResults)
+	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, len(init.Operators), dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
