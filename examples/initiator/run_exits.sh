@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directory containing the exit files
-exit_dir="$(pwd)/output"
+exit_dir="."
 
 # Find and process each exit file in the specified directory
 find "${exit_dir}" -mindepth 1 -maxdepth 1 -type f -name "validator-exit-*.json" | while read -r fname; do
