@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -145,7 +145,7 @@ func RegisterRoutes(s *Server) {
 func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	if err != nil {
 		return nil, err
 	}

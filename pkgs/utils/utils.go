@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -80,22 +79,6 @@ func SplitBytes(buf []byte, lim int) [][]byte {
 func GetThreshold(ids []uint64) (int, error) {
 	threshold := len(ids) - ((len(ids) - 1) / 3)
 	return threshold, nil
-}
-
-// GetNetworkByFork translates the network fork bytes into name
-//
-//	TODO: once eth2_key_manager implements this we can get rid of it and support all networks ekm supports automatically
-func GetNetworkByFork(fork [4]byte) (eth2_key_manager_core.Network, error) {
-	switch fork {
-	case [4]byte{0x00, 0x00, 0x10, 0x20}:
-		return eth2_key_manager_core.PraterNetwork, nil
-	case [4]byte{0x01, 0x01, 0x70, 0x00}:
-		return eth2_key_manager_core.HoleskyNetwork, nil
-	case [4]byte{0, 0, 0, 0}:
-		return eth2_key_manager_core.MainNetwork, nil
-	default:
-		return eth2_key_manager_core.MainNetwork, errors.New("unknown network")
-	}
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {

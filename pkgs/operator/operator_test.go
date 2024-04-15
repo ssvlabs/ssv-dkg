@@ -22,6 +22,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/bloxapp/dkg-spec"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -51,7 +52,7 @@ func TestRateLimit(t *testing.T) {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
-	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
+	initPubBytes, err := spec_crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
 		ops := wire.OperatorsCLI{}
@@ -63,7 +64,7 @@ func TestRateLimit(t *testing.T) {
 			if op == nil {
 				t.Fatalf("no op")
 			}
-			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
@@ -92,7 +93,7 @@ func TestRateLimit(t *testing.T) {
 		tsssz, err := ts.MarshalSSZ()
 		require.NoError(t, err)
 
-		sig, err := crypto.SignRSA(priv, tsssz)
+		sig, err := spec_crypto.SignRSA(priv, tsssz)
 		require.NoError(t, err)
 
 		signedTransportMsg := &wire.SignedTransport{
@@ -198,16 +199,16 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		for _, id := range ids {
 			op := c.Operators.ByID(id)
 			require.NotNil(t, op)
-			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
-		wrongPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+		wrongPub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		encPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+		encPub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
@@ -343,7 +344,7 @@ func TestRecoverSharesData(t *testing.T) {
 		// Find operator ID by PubKey
 		var operatorID uint64
 		for _, op := range ks.Shares[0].Operators {
-			b, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
+			b, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
 			if bytes.Equal(b, []byte(op.PubKey)) {
 				operatorID = op.ID

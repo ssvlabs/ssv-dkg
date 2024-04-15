@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -118,7 +119,7 @@ func TestLoadOperators(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, ops, 4)
 		require.Equal(t, ops[3].Addr, "http://localhost:3033", "addr not equal")
-		key3, err := crypto.ParseRSAPublicKey([]byte("LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdlFhZlo0ODJQYXRsYnRrOVdIb2MKZDBWdWNWWDk4QUlzenAvazlFTlYyQU82SVhQUXVqU1BtdUZrQTlibThsSllnWTJPb0lQU0RmK1JHWGNMc2R0VApzdEJhQ2JPL0pMOFlSejk4NURKejhBRlhDU0J3bW5mbzROSFptUjJGMVdMTE5CS2wzdVQ5Q1VLbC9RUnpKRFF1CjNNYVJ6eE5FVmdONWtvU1Nid0NxVDNDSCtjam5QU0pIeGhiaTNTaldOSnJFb3ZRUmN3ZUlpYXRrZEdVNWJOUkoKUW1LVldhYzhzVklYN2NDNE54V2RDNG1VM1RPK2Vlei90N2xVcnhSNjdnb21TbGdwaU5weFJ1M2dFajRkSWpINwpsZDlTYW1ObEJPeHV5N0lFMEJpdm5nSUdIKzVwcXZVTXhoM0N5WkVtMjFHd3JTRFhqcVpwWG92OEUwQkQ5eGY4ClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K"))
+		key3, err := spec_crypto.ParseRSAPublicKey([]byte("LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdlFhZlo0ODJQYXRsYnRrOVdIb2MKZDBWdWNWWDk4QUlzenAvazlFTlYyQU82SVhQUXVqU1BtdUZrQTlibThsSllnWTJPb0lQU0RmK1JHWGNMc2R0VApzdEJhQ2JPL0pMOFlSejk4NURKejhBRlhDU0J3bW5mbzROSFptUjJGMVdMTE5CS2wzdVQ5Q1VLbC9RUnpKRFF1CjNNYVJ6eE5FVmdONWtvU1Nid0NxVDNDSCtjam5QU0pIeGhiaTNTaldOSnJFb3ZRUmN3ZUlpYXRrZEdVNWJOUkoKUW1LVldhYzhzVklYN2NDNE54V2RDNG1VM1RPK2Vlei90N2xVcnhSNjdnb21TbGdwaU5weFJ1M2dFajRkSWpINwpsZDlTYW1ObEJPeHV5N0lFMEJpdm5nSUdIKzVwcXZVTXhoM0N5WkVtMjFHd3JTRFhqcVpwWG92OEUwQkQ5eGY4ClN3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K"))
 		require.NoError(t, err)
 		require.True(t, ops[2].PubKey.Equal(key3), "pubkey not equal")
 	})
@@ -382,7 +383,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 				&phase0.DepositMessage{
 					PublicKey:             phase0.BLSPubKey(test.validatorPubKey),
 					WithdrawalCredentials: crypto.BLSWithdrawalCredentials(test.withdrawalPubKey),
-					Amount:                crypto.MaxEffectiveBalanceInGwei,
+					Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 				},
 			)
 			require.NoError(t, err)
@@ -399,7 +400,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 
 			require.Equal(t, sk.GetPublicKey().SerializeToHexStr(), depositDataCLI.PubKey, "0x")
 			require.Equal(t, test.expectedWithdrawalCredentials, depositData.WithdrawalCredentials)
-			require.Equal(t, crypto.MaxEffectiveBalanceInGwei, depositData.Amount)
+			require.Equal(t, spec_crypto.MaxEffectiveBalanceInGwei, depositData.Amount)
 			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot)
 			require.Equal(t, hex.EncodeToString(test.expectedSig), depositDataCLI.Signature, "0x")
 		})

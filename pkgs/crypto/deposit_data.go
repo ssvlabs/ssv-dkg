@@ -10,15 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
 
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/eth2-key-manager/core"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                MaxEffectiveBalanceInGwei,
+		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, err := depositMsg.HashTreeRoot()
@@ -32,14 +32,14 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	}
 
 	// Final checks of prepared deposit data
-	if !(MaxEffectiveBalanceInGwei == depositData.Amount) {
+	if !(spec_crypto.MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
 	forkbytes := network.GenesisForkVersion()
 	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                MaxEffectiveBalanceInGwei,
+		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
@@ -51,7 +51,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 }
 
 func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress common.Address) error {
-	return validateDepositDataCLI(d, ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes()))
+	return validateDepositDataCLI(d, spec_crypto.ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes()))
 }
 
 func ValidateDepositDataCLIBLS(d *wire.DepositDataCLI, expectedWithdrawalPubKey []byte) error {
@@ -159,7 +159,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	if len(fork) != 4 {
 		return fmt.Errorf("fork version has wrong length")
 	}
-	network, err := utils.GetNetworkByFork([4]byte(fork))
+	network, err := spec_crypto.GetNetworkByFork([4]byte(fork))
 	if err != nil {
 		return fmt.Errorf("failed to get network by fork: %v", err)
 	}
@@ -169,7 +169,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 		Amount:                d.Amount,
 		Signature:             phase0.BLSSignature(sig),
 	}
-	err = VerifyDepositData(network, depositData)
+	err = spec_crypto.VerifyDepositData(network, depositData)
 	if err != nil {
 		return fmt.Errorf("failed to verify deposit data: %v", err)
 	}

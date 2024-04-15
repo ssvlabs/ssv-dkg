@@ -18,10 +18,10 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/bloxapp/dkg-spec"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -107,7 +107,7 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 	}
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	privKey, _, err := crypto.GenerateRSAKeys()
+	privKey, _, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
@@ -150,7 +150,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 		}
 		opMap[id] = struct{}{}
 
-		pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+		pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
@@ -208,7 +208,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 
-	pkBytes, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -297,7 +297,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, i
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := utils.GetNetworkByFork(init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(init.Fork)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -434,7 +434,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 	if err != nil {
 		return nil, err
 	}
-	pub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +453,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 	}
 
 	// Sign the message
-	sig, err := crypto.SignRSA(c.PrivateKey, tssz)
+	sig, err := spec_crypto.SignRSA(c.PrivateKey, tssz)
 	if err != nil {
 		return nil, err
 	}
@@ -491,11 +491,11 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.ParseRSAPublicKey(pong.PubKey)
+	pub, err := spec_crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
+	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
 		return err
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))

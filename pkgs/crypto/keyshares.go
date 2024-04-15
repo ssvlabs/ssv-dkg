@@ -12,6 +12,7 @@ import (
 	"github.com/herumi/bls-eth-go-binary/bls"
 
 	spec "github.com/bloxapp/dkg-spec"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -115,7 +116,7 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) e
 		}
 		sharePublicKeys = append(sharePublicKeys, publicKey)
 	}
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, sharePublicKeys)
+	validatorRecoveredPK, err := spec_crypto.RecoverValidatorPublicKey(ids, sharePublicKeys)
 	if err != nil {
 		return fmt.Errorf("failed to recover validator public key from shares data: %w", err)
 	}

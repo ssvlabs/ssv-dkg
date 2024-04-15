@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
 
@@ -65,9 +65,9 @@ func TestOperatorsEncoding(t *testing.T) {
 	for i := range ops {
 		require.Equal(t, input[i], ops[i])
 
-		b1, err := crypto.EncodeRSAPublicKey(ops[i].PubKey)
+		b1, err := spec_crypto.EncodeRSAPublicKey(ops[i].PubKey)
 		require.NoError(t, err)
-		b2, err := crypto.EncodeRSAPublicKey(input[i].PubKey)
+		b2, err := spec_crypto.EncodeRSAPublicKey(input[i].PubKey)
 		require.NoError(t, err)
 		require.Equal(t, b1, b2)
 	}
@@ -85,7 +85,7 @@ func TestOperatorsEncoding(t *testing.T) {
 
 func mustParseRSAPublicKey(t *testing.T, key string) *rsa.PublicKey {
 	t.Helper()
-	pk, err := crypto.ParseRSAPublicKey([]byte(key))
+	pk, err := spec_crypto.ParseRSAPublicKey([]byte(key))
 	if err != nil {
 		t.Fatal(err)
 	}

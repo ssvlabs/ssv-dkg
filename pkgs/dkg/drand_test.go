@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/bloxapp/dkg-spec"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
@@ -62,7 +63,7 @@ func (ts *testState) ForAll(f func(o *LocalOwner) error) error {
 }
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
-	pv, pk, err := crypto.GenerateRSAKeys()
+	pv, pk, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
 		ts.T.Error(err)
 	}
@@ -95,7 +96,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
-	_, initatorPk, err := crypto.GenerateRSAKeys()
+	_, initatorPk, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	ts := &testState{
 		T:       t,
@@ -111,7 +112,7 @@ func TestDKGInit(t *testing.T) {
 	}
 	opsarr := make([]*spec.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
-		pktobytes, err := crypto.EncodeRSAPublicKey(ts.tv.ops[id])
+		pktobytes, err := spec_crypto.EncodeRSAPublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
 		opsarr = append(opsarr, &spec.Operator{
 			ID:     id,

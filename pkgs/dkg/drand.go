@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/bloxapp/dkg-spec"
+	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/board"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -147,7 +148,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.EncodeRSAPublicKey(o.OperatorPublicKey)
+	pub, err := spec_crypto.EncodeRSAPublicKey(o.OperatorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -188,14 +189,14 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	// Sign root
-	network, err := utils.GetNetworkByFork(o.data.init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(o.data.init.Fork)
 	if err != nil {
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
-	signingRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
+	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
-		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
+		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to generate deposit data with root %w", err)
@@ -352,11 +353,11 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 		return err
 	}
 	// Verify operator signatures
-	pk, err := crypto.ParseRSAPublicKey(st.Signer)
+	pk, err := spec_crypto.ParseRSAPublicKey(st.Signer)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyRSA(pk, msgbts, st.Signature); err != nil {
+	if err := spec_crypto.VerifyRSA(pk, msgbts, st.Signature); err != nil {
 		return err
 	}
 	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", st.Message.Type.String()), zap.Uint64("from", from))
@@ -466,7 +467,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*spec.Operator) ([]kyber_dkg.Node, error)
 }
 
 func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error) {
-	encInitPub, err := crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
+	encInitPub, err := spec_crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
 	if err != nil {
 		return nil, err
 	}
