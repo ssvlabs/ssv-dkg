@@ -260,7 +260,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	var proofsArray []*wire.SignedProof
 	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof})
+		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof}) //nolint:all
 	}
 	proofsData, err := json.Marshal(proofsArray)
 	if err != nil {

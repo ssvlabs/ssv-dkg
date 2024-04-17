@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -31,8 +33,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 const examplePath = "../../examples/"
@@ -61,9 +61,6 @@ func TestRateLimit(t *testing.T) {
 		parts := make([]*spec.Operator, 0)
 		for _, id := range []uint64{1} {
 			op := ops.ByID(id)
-			if op == nil {
-				t.Fatalf("no op")
-			}
 			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
 			parts = append(parts, &spec.Operator{
