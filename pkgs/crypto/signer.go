@@ -3,8 +3,8 @@ package crypto
 import (
 	"crypto/rsa"
 
-	spec "github.com/bloxapp/dkg-spec"
-	"github.com/bloxapp/dkg-spec/crypto"
+	spec "github.com/ssvlabs/dkg-spec"
+	"github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type Signer interface {

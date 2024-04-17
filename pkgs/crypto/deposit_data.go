@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
 
-	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {

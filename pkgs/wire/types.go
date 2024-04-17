@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-
-	spec "github.com/bloxapp/dkg-spec"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 type SSZMarshaller interface {

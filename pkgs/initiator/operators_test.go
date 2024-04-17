@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 func TestOperatorsEncoding(t *testing.T) {

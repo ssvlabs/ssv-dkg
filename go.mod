@@ -5,7 +5,6 @@ go 1.20
 require (
 	github.com/aquasecurity/table v1.8.0
 	github.com/attestantio/go-eth2-client v0.21.1
-	github.com/bloxapp/dkg-spec v0.0.0-00010101000000-000000000000
 	github.com/drand/kyber v1.1.18
 	github.com/drand/kyber-bls12381 v0.2.5
 	github.com/ethereum/go-ethereum v1.13.14
@@ -18,6 +17,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
+	github.com/ssvlabs/dkg-spec v0.0.0-20240417085845-2f5e6b68f3ae
 	github.com/stretchr/testify v1.9.0
 	github.com/wealdtech/go-eth2-util v1.8.1
 	go.uber.org/zap v1.24.0
@@ -113,5 +113,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/bloxapp/dkg-spec => github.com/MatusKysel/dkg-spec v0.0.0-20240417065944-f3565c5acbb2

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/herumi/bls-eth-go-binary/bls"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	util "github.com/wealdtech/go-eth2-util"
 )
 

@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	spec "github.com/bloxapp/dkg-spec"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 // Proof for a DKG ceremony

@@ -4,7 +4,7 @@
 package wire
 
 import (
-	spec "github.com/bloxapp/dkg-spec"
+	spec "github.com/ssvlabs/dkg-spec"
 	ssz "github.com/ferranbt/fastssz"
 )
 
