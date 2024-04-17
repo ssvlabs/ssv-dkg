@@ -343,7 +343,7 @@ func TestRecoverSharesData(t *testing.T) {
 		require.NoError(t, err)
 		// Find operator ID by PubKey
 		var operatorID uint64
-		for _, op := range ks.Shares[0].Operators {
+		for _, op := range ks.Shares[0].ShareData.Operators {
 			b, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
 			if bytes.Equal(b, []byte(op.PubKey)) {
@@ -412,7 +412,7 @@ func TestRecoverSharesData(t *testing.T) {
 	public := suite.G1().Point().Mul(secret, nil)
 
 	pk := &bls.PublicKey{}
-	err = pk.DeserializeHexStr(strings.Trim(ks.Shares[0].PublicKey, "0x"))
+	err = pk.DeserializeHexStr(strings.Trim(ks.Shares[0].ShareData.PublicKey, "0x"))
 	require.NoError(t, err)
 	bytsPK, err := public.MarshalBinary()
 	require.NoError(t, err)

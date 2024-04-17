@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+
 	spec "github.com/bloxapp/dkg-spec"
 )
 
@@ -136,13 +137,13 @@ const DepositCliVersion = "2.7.0"
 type KeySharesCLI struct {
 	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"createdAt"`
-	Shares    []Data    `json:"shares"`
+	Shares    []*Data   `json:"shares"`
 }
 
 // Data structure as a part of KeyShares representing BLS validator public key and information about validators
 type Data struct {
-	ShareData `json:"data"`
-	Payload   Payload `json:"payload"`
+	ShareData ShareData `json:"data"`
+	Payload   Payload   `json:"payload"`
 }
 
 type ShareData struct {
