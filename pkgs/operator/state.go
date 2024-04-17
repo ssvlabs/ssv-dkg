@@ -328,7 +328,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	if err != nil {
 		return err
 	}
-	var proof []*spec.SignedProof
+	var proof []*wire.SignedProof
 	err = json.Unmarshal(resData.Proofs, &proof)
 	if err != nil {
 		return err
@@ -336,7 +336,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	// Save results.
 	depositDataArr := []*wire.DepositDataCLI{depJson}
 	keySharesArr := []*wire.KeySharesCLI{ksJson}
-	proofsArr := [][]*spec.SignedProof{proof}
+	proofsArr := [][]*wire.SignedProof{proof}
 	withdrawCreds, err := hex.DecodeString(depJson.WithdrawalCredentials)
 	if err != nil {
 		return fmt.Errorf("failed to decode withdrawal credentials: %s", err.Error())
@@ -352,8 +352,8 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 		proofsArr,
 		true,
 		1,
-		common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress),
-		keySharesArr[0].Shares[0].OwnerNonce,
+		common.HexToAddress(keySharesArr[0].Shares[0].ShareData.OwnerAddress),
+		keySharesArr[0].Shares[0].ShareData.OwnerNonce,
 		common.BytesToAddress(withdrawAddress),
 		outputPath,
 	)

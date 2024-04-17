@@ -46,6 +46,9 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &proof); err != nil {
 		return err
 	}
+	if len(proof.Owner) != 40 {
+		return fmt.Errorf("invalid owner length")
+	}
 	var err error
 	p.ValidatorPubKey, err = hex.DecodeString(proof.ValidatorPubKey)
 	if err != nil {
@@ -63,15 +66,13 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if len(owner) != 20 {
-		return fmt.Errorf("invalid owner length")
-	}
+
 	copy(p.Owner[:], owner)
 	return nil
 }
 
 type signedProofJSON struct {
-	Proof *spec.Proof `json:"proof"`
+	Proof *Proof `json:"proof"`
 	// Signature is an RSA signature over proof
 	Signature string `json:"signature"`
 }
@@ -82,7 +83,12 @@ type SignedProof struct {
 
 func (sp *SignedProof) MarshalJSON() ([]byte, error) {
 	return json.Marshal(signedProofJSON{
-		Proof:     sp.Proof,
+		Proof: &Proof{spec.Proof{
+			ValidatorPubKey: sp.Proof.ValidatorPubKey,
+			EncryptedShare:  sp.Proof.EncryptedShare,
+			SharePubKey:     sp.Proof.SharePubKey,
+			Owner:           sp.Proof.Owner,
+		}},
 		Signature: hex.EncodeToString(sp.Signature),
 	})
 }
@@ -92,9 +98,18 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &signedProof); err != nil {
 		return err
 	}
-	var err error
-	sp.Proof = signedProof.Proof
-	sp.Signature, err = hex.DecodeString(signedProof.Signature)
+	p := &spec.Proof{
+		ValidatorPubKey: signedProof.Proof.ValidatorPubKey,
+		EncryptedShare:  signedProof.Proof.EncryptedShare,
+		SharePubKey:     signedProof.Proof.SharePubKey,
+		Owner:           signedProof.Proof.Owner,
+	}
+	sp.Proof = p
+	sig, err := hex.DecodeString(signedProof.Signature)
+	if err != nil {
+		return fmt.Errorf("cant decode hex at proof signature %s", err.Error())
+	}
+	sp.Signature = sig
 	return err
 }
 
@@ -104,7 +119,7 @@ type operatorJSON struct {
 }
 
 type Operator struct {
-	*spec.Operator // Embedding types.Operator for direct field access
+	spec.Operator // Embedding types.Operator for direct field access
 }
 
 func (op *Operator) MarshalJSON() ([]byte, error) {
@@ -115,7 +130,7 @@ func (op *Operator) MarshalJSON() ([]byte, error) {
 }
 
 func (op *Operator) UnmarshalJSON(data []byte) error {
-	var operator operatorJSON
+	operator := &operatorJSON{}
 	if err := json.Unmarshal(data, &operator); err != nil {
 		return err
 	}
@@ -124,12 +139,12 @@ func (op *Operator) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewOperatorFromSpec(op *spec.Operator) *Operator {
+func NewOperatorFromSpec(op spec.Operator) *Operator {
 	return &Operator{op}
 }
 
 func (op *Operator) ToSpecOperator() *spec.Operator {
-	return op.Operator
+	return &op.Operator
 }
 
 // Operators mapping storage for operator structs [ID]operator
@@ -219,9 +234,8 @@ func (sd *ShareData) MarshalJSON() ([]byte, error) {
 	// Convert []*spec.Operator to []*Operator for marshaling
 	specOperators := make([]*Operator, len(sd.Operators))
 	for i, op := range sd.Operators {
-		specOperators[i] = NewOperatorFromSpec(op)
+		specOperators[i] = NewOperatorFromSpec(*op)
 	}
-
 	// Create a struct to encode into JSON that uses the spec.Operator type
 	return json.Marshal(&ShareDataJson{
 		OwnerNonce:   sd.OwnerNonce,
@@ -238,6 +252,9 @@ func (sd *ShareData) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &dataJson); err != nil {
 		return err
 	}
+	sd.OwnerAddress = dataJson.OwnerAddress
+	sd.OwnerNonce = dataJson.OwnerNonce
+	sd.PublicKey = dataJson.PublicKey
 	// Convert []*spec.Operator back to []*Operator
 	sd.Operators = make([]*spec.Operator, len(dataJson.Operators))
 	for i, op := range dataJson.Operators {

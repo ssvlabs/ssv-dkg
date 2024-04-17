@@ -28,7 +28,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
-	spec "github.com/ssvlabs/dkg-spec"
 )
 
 // global base flags
@@ -477,7 +476,7 @@ func WriteResults(
 	logger *zap.Logger,
 	depositDataArr []*wire.DepositDataCLI,
 	keySharesArr []*wire.KeySharesCLI,
-	proofs [][]*spec.SignedProof,
+	proofs [][]*wire.SignedProof,
 	withRandomness bool,
 	expectedValidatorCount int,
 	expectedOwnerAddress common.Address,
@@ -500,10 +499,10 @@ func WriteResults(
 
 	// order the keyshares by nonce
 	sort.SliceStable(keySharesArr, func(i, j int) bool {
-		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
+		return keySharesArr[i].Shares[0].ShareData.OwnerNonce < keySharesArr[j].Shares[0].ShareData.OwnerNonce
 	})
 	sorted := sort.SliceIsSorted(keySharesArr, func(p, q int) bool {
-		return keySharesArr[p].Shares[0].OwnerNonce < keySharesArr[q].Shares[0].OwnerNonce
+		return keySharesArr[p].Shares[0].ShareData.OwnerNonce < keySharesArr[q].Shares[0].ShareData.OwnerNonce
 	})
 	if !sorted {
 		return fmt.Errorf("slice is not sorted")
@@ -520,7 +519,7 @@ func WriteResults(
 
 	// order deposit data and proofs to match keyshares order
 	sortedDepositData := make([]*wire.DepositDataCLI, len(depositDataArr))
-	sortedProofs := make([][]*spec.SignedProof, len(depositDataArr))
+	sortedProofs := make([][]*wire.SignedProof, len(depositDataArr))
 	for i, keyshare := range keySharesArr {
 		pk := strings.TrimPrefix(keyshare.Shares[0].Payload.PublicKey, "0x")
 		for _, deposit := range depositDataArr {
@@ -586,7 +585,7 @@ func WriteResults(
 	}()
 
 	for i := 0; i < len(depositDataArr); i++ {
-		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
+		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].ShareData.OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create a validator key directory: %w", err)
@@ -626,7 +625,7 @@ func WriteResults(
 	return nil
 }
 
-func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*spec.SignedProof, logger *zap.Logger) error {
+func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCLI, keySharesArr []*wire.KeySharesCLI, proofs [][]*wire.SignedProof, logger *zap.Logger) error {
 	// Write all to one JSON file
 	depositFinalPath := fmt.Sprintf("%s/deposit_data.json", dir)
 	logger.Info("💾 Writing deposit data json to file", zap.String("path", depositFinalPath))
@@ -675,7 +674,7 @@ func WriteDepositResult(depositData *wire.DepositDataCLI, dir string) error {
 	return nil
 }
 
-func WriteProofs(proofs []*spec.SignedProof, dir string) error {
+func WriteProofs(proofs []*wire.SignedProof, dir string) error {
 	finalPath := fmt.Sprintf("%s/proofs.json", dir)
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {

@@ -15,14 +15,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -63,7 +63,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgR
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	data := []wire.Data{{
+	data := []*wire.Data{{
 		ShareData: wire.ShareData{
 			OwnerNonce:   nonce,
 			OwnerAddress: owner.Hex(),
@@ -85,7 +85,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgR
 }
 
 func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySharesCLI, error) {
-	var data []wire.Data
+	var data []*wire.Data
 	for _, keyShares := range keySharesArr {
 		data = append(data, keyShares.Shares...)
 	}
@@ -199,7 +199,7 @@ func (c *Initiator) messageFlowHandling(init *spec.Init, id [24]byte, operators 
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*spec.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(withdraw) != len(common.Address{}) {
 		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
 	}
@@ -258,9 +258,9 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var proofsArray []*spec.SignedProof
+	var proofsArray []*wire.SignedProof
 	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &res.SignedProof)
+		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof})
 	}
 	proofsData, err := json.Marshal(proofsArray)
 	if err != nil {
@@ -293,7 +293,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, i
 	if err != nil {
 		return nil, nil, err
 	}
-	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, len(init.Operators), dkgResults)
+	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
