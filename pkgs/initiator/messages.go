@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages
@@ -16,11 +16,11 @@ func standardMessageVerification(ops wire.OperatorsCLI) func(pk *rsa.PublicKey, 
 		op := ops.ByPubKey(pk)
 
 		if op == nil {
-			encodedPk, _ := crypto.EncodeRSAPublicKey(pk)
+			encodedPk, _ := spec_crypto.EncodeRSAPublicKey(pk)
 			return fmt.Errorf("cant find operator participating at DKG %s", string(encodedPk))
 		}
 
-		return crypto.VerifyRSA(pk, msg, sig)
+		return spec_crypto.VerifyRSA(pk, msg, sig)
 	}
 }
 
@@ -48,7 +48,7 @@ func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 			return fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
 		}
 		// Verification operator signatures
-		pk, err := crypto.ParseRSAPublicKey(tsp.Signer)
+		pk, err := spec_crypto.ParseRSAPublicKey(tsp.Signer)
 		if err != nil {
 			return fmt.Errorf("failed to parse RSA key: %w", err)
 		}
@@ -85,7 +85,7 @@ func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messa
 		allMsgsBytes = append(allMsgsBytes, msg...)
 	}
 	// sign message by initiator
-	sig, err := crypto.SignRSA(privateKey, allMsgsBytes)
+	sig, err := spec_crypto.SignRSA(privateKey, allMsgsBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -12,11 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -25,23 +26,23 @@ func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
 	return privateKey
 }
 
-func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*wire.Operator) {
+func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*spec.Operator) {
 	privateKey := singleOperatorKeys(t)
-	pkbytes, err := crypto.EncodeRSAPublicKey(&privateKey.PublicKey)
+	pkbytes, err := spec_crypto.EncodeRSAPublicKey(&privateKey.PublicKey)
 	require.NoError(t, err)
 
-	ops := make([]*wire.Operator, numOps)
+	ops := make([]*spec.Operator, numOps)
 
-	ops[0] = &wire.Operator{
+	ops[0] = &spec.Operator{
 		ID:     1,
 		PubKey: pkbytes,
 	}
 
 	for i := 1; i <= numOps-1; i++ {
 		priv := singleOperatorKeys(t)
-		oppkbytes, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
+		oppkbytes, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 		require.NoError(t, err)
-		ops[i] = &wire.Operator{
+		ops[i] = &spec.Operator{
 			ID:     uint64(i + 1),
 			PubKey: oppkbytes,
 		}
@@ -65,7 +66,7 @@ func TestCreateInstance(t *testing.T) {
 		require.NoError(t, err)
 		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 		require.NoError(t, err)
-		init := &wire.Init{
+		init := &spec.Init{
 			Operators: ops,
 			Owner:     common.HexToAddress("0x0000000"),
 			Nonce:     1,
@@ -114,10 +115,10 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
+	encPubKey, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
 
-	init := &wire.Init{
+	init := &spec.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
 		Operators:             ops,
@@ -138,7 +139,7 @@ func TestInitInstance(t *testing.T) {
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	require.NoError(t, err)
-	sig, err := crypto.SignRSA(priv, tsssz)
+	sig, err := spec_crypto.SignRSA(priv, tsssz)
 	require.NoError(t, err)
 
 	resp, err := swtch.State.InitInstance(reqID, initMessage, encPubKey, sig)
@@ -183,7 +184,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := NewSwitch(privateKey, logger, []byte("test.version"), pkBytes, 1)
 	var reqID [24]byte
@@ -192,10 +193,10 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
-	encPubKey, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
+	encPubKey, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
 
-	init := &wire.Init{
+	init := &spec.Init{
 		// Populate the Init message fields as needed for testing
 		// For example:
 		Operators:             ops,
@@ -216,7 +217,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	}
 	tsssz, err := initMessage.MarshalSSZ()
 	require.NoError(t, err)
-	sig, err := crypto.SignRSA(priv, tsssz)
+	sig, err := spec_crypto.SignRSA(priv, tsssz)
 	require.NoError(t, err)
 	resp, err := swtch.InitInstance(reqID, initMessage, encPubKey, sig)
 	require.NoError(t, err)

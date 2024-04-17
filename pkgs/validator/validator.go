@@ -13,7 +13,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 func ValidateResults(
@@ -69,13 +69,13 @@ func ValidateResults(
 		soloKeyshares := &wire.KeySharesCLI{
 			CreatedAt: allKeyshares.CreatedAt,
 			Version:   allKeyshares.Version,
-			Shares:    []wire.Data{keyshares},
+			Shares:    []*wire.Data{keyshares},
 		}
 		err = ValidateKeyshare(soloKeyshares, depositData.PubKey, expectedOwnerAddress.Hex(), nonce)
 		if err != nil {
 			return fmt.Errorf("err validating keyshares data %w", err)
 		}
-		err = validateSignedProofs(soloKeyshares, proofs)
+		err = ValidateSignedProofs(soloKeyshares, proofs)
 		if err != nil {
 			return fmt.Errorf("err validating proofs %w", err)
 		}
@@ -95,10 +95,10 @@ func checkValidatorsCorrectAtDeposits(depositDataArr []*wire.DepositDataCLI) err
 	return nil
 }
 
-func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProof) error {
-	for i := 0; i < len(keyshare.Shares[0].Operators); i++ {
+func ValidateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProof) error {
+	for i := 0; i < len(keyshare.Shares[0].ShareData.Operators); i++ {
 		// compare fields
-		valShares, err := hex.DecodeString(strings.TrimPrefix(keyshare.Shares[0].PublicKey, "0x"))
+		valShares, err := hex.DecodeString(strings.TrimPrefix(keyshare.Shares[0].ShareData.PublicKey, "0x"))
 		if err != nil {
 			return err
 		}
@@ -117,14 +117,14 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 		if err != nil {
 			return fmt.Errorf("cant decode enc shares %w", err)
 		}
-		encShare, err := getEncryptedShareFromSharesdata(sharesData, keyshare.Shares[0].Operators, keyshare.Shares[0].Operators[i].ID)
+		encShare, err := getEncryptedShareFromSharesdata(sharesData, keyshare.Shares[0].ShareData.Operators, keyshare.Shares[0].ShareData.Operators[i].ID)
 		if err != nil {
 			return fmt.Errorf("cant get enc shares from shares data %w", err)
 		}
 		if !bytes.Equal(encShare, proofs[i].Proof.EncryptedShare) {
 			return fmt.Errorf("encrypted share doesnt match it at proof")
 		}
-		sharePub, err := getSharePubKeyFromSharesdata(sharesData, keyshare.Shares[0].Operators, keyshare.Shares[0].Operators[i].ID)
+		sharePub, err := getSharePubKeyFromSharesdata(sharesData, keyshare.Shares[0].ShareData.Operators, keyshare.Shares[0].ShareData.Operators[i].ID)
 		if err != nil {
 			return fmt.Errorf("cant get share pub key from shares data %w", err)
 		}
@@ -132,7 +132,7 @@ func validateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 			return fmt.Errorf("encrypted share doesnt match it at proof")
 		}
 		// validate proof
-		if err := spec.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].OwnerAddress), valShares, keyshare.Shares[0].Operators[i], *proofs[i]); err != nil {
+		if err := spec.ValidateCeremonyProof(common.HexToAddress(keyshare.Shares[0].ShareData.OwnerAddress), valShares, keyshare.Shares[0].ShareData.Operators[i], proofs[i].SignedProof); err != nil {
 			return err
 		}
 	}
@@ -144,14 +144,14 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 		return fmt.Errorf("keyshares creation time is empty")
 	}
 	for _, share := range keyshare.Shares {
-		if !spec.UniqueAndOrderedOperators(share.Operators) {
+		if !spec.UniqueAndOrderedOperators(share.ShareData.Operators) {
 			return fmt.Errorf("operators not unique or not ordered")
 		}
 
-		if share.OwnerAddress != expectedOwnerAddress {
+		if share.ShareData.OwnerAddress != expectedOwnerAddress {
 			return fmt.Errorf("incorrect keyshares owner address")
 		}
-		if share.OwnerNonce != expectedOwnerNonce {
+		if share.ShareData.OwnerNonce != expectedOwnerNonce {
 			return fmt.Errorf("incorrect keyshares owner nonce")
 		}
 
@@ -163,22 +163,22 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 			return fmt.Errorf("slice is not sorted")
 		}
 
-		if len(share.Payload.OperatorIDs) != len(share.Operators) {
+		if len(share.Payload.OperatorIDs) != len(share.ShareData.Operators) {
 			return fmt.Errorf("operators len and operator ids len are not equal")
 		}
 
-		for i := range share.Operators {
-			if share.Operators[i].ID != share.Payload.OperatorIDs[i] {
+		for i := range share.ShareData.Operators {
+			if share.ShareData.Operators[i].ID != share.Payload.OperatorIDs[i] {
 				return fmt.Errorf("operator id and payload operator ids are not equal")
 			}
 		}
 
 		// check validator public key
-		validatorPublicKey, err := hex.DecodeString(strings.TrimPrefix(share.PublicKey, "0x"))
+		validatorPublicKey, err := hex.DecodeString(strings.TrimPrefix(share.ShareData.PublicKey, "0x"))
 		if err != nil {
 			return fmt.Errorf("cant decode validator pub key %w", err)
 		}
-		if "0x"+expectedValidatorPubkey != share.PublicKey {
+		if "0x"+expectedValidatorPubkey != share.ShareData.PublicKey {
 			return fmt.Errorf("incorrect keyshares validator pub key")
 		}
 		if "0x"+expectedValidatorPubkey != share.Payload.PublicKey {
@@ -190,7 +190,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 		if err != nil {
 			return fmt.Errorf("cant decode enc shares %w", err)
 		}
-		operatorCount := len(share.Operators)
+		operatorCount := len(share.ShareData.Operators)
 		signatureOffset := phase0.SignatureLength
 		pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 		sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
@@ -198,7 +198,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 			return fmt.Errorf("shares data len is not correct")
 		}
 		signature := sharesData[:signatureOffset]
-		err = crypto.VerifyOwnerNonceSignature(signature, common.HexToAddress(share.OwnerAddress), validatorPublicKey, uint16(share.OwnerNonce))
+		err = crypto.VerifyOwnerNonceSignature(signature, common.HexToAddress(share.ShareData.OwnerAddress), validatorPublicKey, uint16(share.ShareData.OwnerNonce))
 		if err != nil {
 			return fmt.Errorf("owner+nonce signature is invalid at keyshares json %w", err)
 		}
@@ -211,7 +211,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 	return nil
 }
 
-func getEncryptedShareFromSharesdata(keyShares []byte, operators []*wire.Operator, operatorID uint64) ([]byte, error) {
+func getEncryptedShareFromSharesdata(keyShares []byte, operators []*spec.Operator, operatorID uint64) ([]byte, error) {
 	pubKeyOffset := phase0.PublicKeyLength * len(operators)
 	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
 	sharesExpectedLength := crypto.EncryptedKeyLength*len(operators) + pubKeysSigOffset
@@ -233,7 +233,7 @@ func getEncryptedShareFromSharesdata(keyShares []byte, operators []*wire.Operato
 	return encryptedKeys[position], nil
 }
 
-func getSharePubKeyFromSharesdata(keyShares []byte, operators []*wire.Operator, operatorID uint64) ([]byte, error) {
+func getSharePubKeyFromSharesdata(keyShares []byte, operators []*spec.Operator, operatorID uint64) ([]byte, error) {
 	pubKeyOffset := phase0.PublicKeyLength * len(operators)
 	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
 	sharesExpectedLength := crypto.EncryptedKeyLength*len(operators) + pubKeysSigOffset

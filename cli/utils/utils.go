@@ -499,10 +499,10 @@ func WriteResults(
 
 	// order the keyshares by nonce
 	sort.SliceStable(keySharesArr, func(i, j int) bool {
-		return keySharesArr[i].Shares[0].OwnerNonce < keySharesArr[j].Shares[0].OwnerNonce
+		return keySharesArr[i].Shares[0].ShareData.OwnerNonce < keySharesArr[j].Shares[0].ShareData.OwnerNonce
 	})
 	sorted := sort.SliceIsSorted(keySharesArr, func(p, q int) bool {
-		return keySharesArr[p].Shares[0].OwnerNonce < keySharesArr[q].Shares[0].OwnerNonce
+		return keySharesArr[p].Shares[0].ShareData.OwnerNonce < keySharesArr[q].Shares[0].ShareData.OwnerNonce
 	})
 	if !sorted {
 		return fmt.Errorf("slice is not sorted")
@@ -585,7 +585,7 @@ func WriteResults(
 	}()
 
 	for i := 0; i < len(depositDataArr); i++ {
-		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].OwnerNonce, depositDataArr[i].PubKey)
+		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].ShareData.OwnerNonce, depositDataArr[i].PubKey)
 		err := os.Mkdir(nestedDir, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create a validator key directory: %w", err)

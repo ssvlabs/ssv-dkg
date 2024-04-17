@@ -21,7 +21,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -29,7 +30,7 @@ type DKGdata struct {
 	// Request ID formed by initiator to identify DKG ceremony
 	reqID [24]byte
 	// initial message from initiator
-	init *wire.Init
+	init *spec.Init
 	// Randomly generated scalar to be used for DKG ceremony
 	secret kyber.Scalar
 }
@@ -40,7 +41,7 @@ type OwnerOpts struct {
 	ID                 uint64
 	BroadcastF         func([]byte) error
 	Suite              pairing.Suite
-	Signer             spec.Signer
+	Signer             crypto.Signer
 	EncryptFunc        func([]byte) ([]byte, error)
 	DecryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -63,7 +64,7 @@ type LocalOwner struct {
 	Suite              pairing.Suite
 	broadcastF         func([]byte) error
 	exchanges          map[uint64]*wire.Exchange
-	signer             spec.Signer
+	signer             crypto.Signer
 	encryptFunc        func([]byte) ([]byte, error)
 	decryptFunc        func([]byte) ([]byte, error)
 	InitiatorPublicKey *rsa.PublicKey
@@ -147,7 +148,7 @@ func (o *LocalOwner) Broadcast(ts *wire.Transport) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.EncodeRSAPublicKey(o.OperatorPublicKey)
+	pub, err := spec_crypto.EncodeRSAPublicKey(o.OperatorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -188,14 +189,14 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	// Sign root
-	network, err := utils.GetNetworkByFork(o.data.init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(o.data.init.Fork)
 	if err != nil {
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
-	signingRoot, err := crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
+	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-		WithdrawalCredentials: crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
-		Amount:                crypto.MaxEffectiveBalanceInGwei,
+		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
+		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to generate deposit data with root %w", err)
@@ -220,17 +221,17 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
 	}
 	// Generate and sign proof
-	proof := &wire.Proof{
+	proof := &spec.Proof{
 		ValidatorPubKey: validatorPubKey.Serialize(),
 		EncryptedShare:  encryptedShare,
 		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
 		Owner:           o.data.init.Owner,
 	}
-	signedProof, err := spec.SignCeremonyProof(o.signer, proof)
+	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)
 	if err != nil {
 		return fmt.Errorf("failed to sign proof: %w", err)
 	}
-	out := &wire.Result{
+	out := &spec.Result{
 		RequestID:                  o.data.reqID,
 		DepositPartialSignature:    depositPartialSignature.Serialize(),
 		OperatorID:                 o.ID,
@@ -256,7 +257,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 
 // Init function creates an interface for DKG (board) which process protocol messages
 // Here we randomly create a point at G1 as a DKG public key for the node
-func (o *LocalOwner) Init(reqID [24]byte, init *wire.Init) (*wire.Transport, error) {
+func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, error) {
 	if o.data == nil {
 		o.data = &DKGdata{}
 	}
@@ -352,11 +353,11 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 		return err
 	}
 	// Verify operator signatures
-	pk, err := crypto.ParseRSAPublicKey(st.Signer)
+	pk, err := spec_crypto.ParseRSAPublicKey(st.Signer)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyRSA(pk, msgbts, st.Signature); err != nil {
+	if err := spec_crypto.VerifyRSA(pk, msgbts, st.Signature); err != nil {
 		return err
 	}
 	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", st.Message.Type.String()), zap.Uint64("from", from))
@@ -445,7 +446,7 @@ func (o *LocalOwner) GetLocalOwner() *LocalOwner {
 }
 
 // GetDKGNodes returns a slice of DKG node instances used for the protocol
-func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error) {
+func (o *LocalOwner) GetDKGNodes(ops []*spec.Operator) ([]kyber_dkg.Node, error) {
 	nodes := make([]kyber_dkg.Node, 0)
 	for _, op := range ops {
 		if o.exchanges[op.ID] == nil {
@@ -466,7 +467,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*wire.Operator) ([]kyber_dkg.Node, error)
 }
 
 func (o *LocalOwner) GetCeremonySig(secretKeyBLS *bls.SecretKey) ([]byte, error) {
-	encInitPub, err := crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
+	encInitPub, err := spec_crypto.EncodeRSAPublicKey(o.InitiatorPublicKey)
 	if err != nil {
 		return nil, err
 	}

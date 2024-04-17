@@ -13,8 +13,9 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type testVerify struct {
@@ -62,7 +63,7 @@ func (ts *testState) ForAll(f func(o *LocalOwner) error) error {
 }
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
-	pv, pk, err := crypto.GenerateRSAKeys()
+	pv, pk, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
 		ts.T.Error(err)
 	}
@@ -83,7 +84,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
 		},
-		signer:             spec.RSASigner(pv),
+		signer:             crypto.RSASigner(pv),
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,
@@ -95,7 +96,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 
 func TestDKGInit(t *testing.T) {
 	// Send operators we want to deal with them
-	_, initatorPk, err := crypto.GenerateRSAKeys()
+	_, initatorPk, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	ts := &testState{
 		T:       t,
@@ -109,11 +110,11 @@ func TestDKGInit(t *testing.T) {
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
 	}
-	opsarr := make([]*wire2.Operator, 0, len(ts.ops))
+	opsarr := make([]*spec.Operator, 0, len(ts.ops))
 	for id := range ts.ops {
-		pktobytes, err := crypto.EncodeRSAPublicKey(ts.tv.ops[id])
+		pktobytes, err := spec_crypto.EncodeRSAPublicKey(ts.tv.ops[id])
 		require.NoError(t, err)
-		opsarr = append(opsarr, &wire2.Operator{
+		opsarr = append(opsarr, &spec.Operator{
 			ID:     id,
 			PubKey: pktobytes,
 		})
@@ -121,7 +122,7 @@ func TestDKGInit(t *testing.T) {
 	sort.SliceStable(opsarr, func(i, j int) bool {
 		return opsarr[i].ID < opsarr[j].ID
 	})
-	init := &wire2.Init{
+	init := &spec.Init{
 		Operators:             opsarr,
 		T:                     3,
 		WithdrawalCredentials: []byte("0x0000"),

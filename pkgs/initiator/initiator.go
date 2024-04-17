@@ -15,14 +15,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -38,7 +38,7 @@ type Initiator struct {
 }
 
 // GeneratePayload generates at initiator ssv smart contract payload using DKG result  received from operators participating in DKG ceremony
-func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgResults []*wire.Result, reconstructedOwnerNonceMasterSig *bls.Sign, owner common.Address, nonce uint64) (*wire.KeySharesCLI, error) {
+func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgResults []*spec.Result, reconstructedOwnerNonceMasterSig *bls.Sign, owner common.Address, nonce uint64) (*wire.KeySharesCLI, error) {
 	sigOwnerNonce := reconstructedOwnerNonceMasterSig.Serialize()
 	operatorIds := make([]uint64, 0)
 	var pubkeys []byte
@@ -63,7 +63,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgR
 		return nil, fmt.Errorf("malformed ssv share data")
 	}
 
-	data := []wire.Data{{
+	data := []*wire.Data{{
 		ShareData: wire.ShareData{
 			OwnerNonce:   nonce,
 			OwnerAddress: owner.Hex(),
@@ -85,7 +85,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*wire.Operator, dkgR
 }
 
 func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySharesCLI, error) {
-	var data []wire.Data
+	var data []*wire.Data
 	for _, keyShares := range keySharesArr {
 		data = append(data, keyShares.Shares...)
 	}
@@ -107,7 +107,7 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 	}
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
-	privKey, _, err := crypto.GenerateRSAKeys()
+	privKey, _, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
 	}
@@ -123,7 +123,7 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 }
 
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
-func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.Operator, error) {
+func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.Operator, error) {
 	if len(ids) < 4 {
 		return nil, fmt.Errorf("wrong operators len: < 4")
 	}
@@ -134,7 +134,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 		return nil, fmt.Errorf("amount of operators should be 4,7,10,13: got %d", ids)
 	}
 
-	ops := make([]*wire.Operator, len(ids))
+	ops := make([]*spec.Operator, len(ids))
 	opMap := make(map[uint64]struct{})
 	for i, id := range ids {
 		if id == 0 {
@@ -150,11 +150,11 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 		}
 		opMap[id] = struct{}{}
 
-		pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+		pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode public key err: %v", err)
 		}
-		ops[i] = &wire.Operator{
+		ops[i] = &spec.Operator{
 			ID:     op.ID,
 			PubKey: pkBytes,
 		}
@@ -163,7 +163,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*wire.O
 }
 
 // messageFlowHandling main steps of DKG at initiator
-func (c *Initiator) messageFlowHandling(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) messageFlowHandling(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
@@ -208,7 +208,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 
-	pkBytes, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -219,7 +219,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	// compute threshold (3f+1)
 	threshold := len(ids) - ((len(ids) - 1) / 3)
 	// make init message
-	init := &wire.Init{
+	init := &spec.Init{
 		Operators:             ops,
 		T:                     uint64(threshold),
 		WithdrawalCredentials: withdraw,
@@ -260,7 +260,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	var proofsArray []*wire.SignedProof
 	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &res.SignedProof)
+		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof}) //nolint:all
 	}
 	proofsData, err := json.Marshal(proofsArray)
 	if err != nil {
@@ -281,7 +281,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 }
 
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
-func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, init *wire.Init, requestID [24]byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
+func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, init *spec.Init, requestID [24]byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
 	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
@@ -297,7 +297,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := utils.GetNetworkByFork(init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(init.Fork)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -313,7 +313,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*wire.Result, i
 	return depositDataJson, keyshares, nil
 }
 
-func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*wire.Result, finalErr error) {
+func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*spec.Result, finalErr error) {
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -329,7 +329,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			finalErr = errors.Join(finalErr, fmt.Errorf("wrong DKG result message type: exp %s, got %s ", wire.OutputMessageType.String(), tsp.Message.Type.String()))
 			continue
 		}
-		result := &wire.Result{}
+		result := &spec.Result{}
 		if err := result.UnmarshalSSZ(tsp.Message.Data); err != nil {
 			finalErr = errors.Join(finalErr, err)
 			continue
@@ -358,7 +358,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 }
 
 // SendInitMsg sends initial DKG ceremony message to participating operators from initiator
-func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendInitMsg(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	signedInitMsgBts, err := c.prepareAndSignMessage(init, wire.InitMessageType, id, c.Version)
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func (c *Initiator) SendInitMsg(init *wire.Init, id [24]byte, operators []*wire.
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
-func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	mltpl, err := makeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
 	if err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (c *Initiator) SendExchangeMsgs(exchangeMsgs [][]byte, id [24]byte, operato
 }
 
 // SendKyberMsgs sends combined kyber messages to each operator participating in DKG ceremony
-func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*wire.Operator) ([][]byte, error) {
+func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	mltpl2, err := makeMultipleSignedTransports(c.PrivateKey, id, kyberDeals)
 	if err != nil {
 		return nil, err
@@ -393,7 +393,7 @@ func (c *Initiator) SendKyberMsgs(kyberDeals [][]byte, id [24]byte, operators []
 	return c.SendToAll(consts.API_DKG_URL, mltpl2byts, operators, false)
 }
 
-func (c *Initiator) sendResult(resData *wire.ResultData, operators []*wire.Operator, method string, id [24]byte) error {
+func (c *Initiator) sendResult(resData *wire.ResultData, operators []*spec.Operator, method string, id [24]byte) error {
 	signedMsgBts, err := c.prepareAndSignMessage(resData, wire.ResultMessageType, id, c.Version)
 	if err != nil {
 		return err
@@ -434,7 +434,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 	if err != nil {
 		return nil, err
 	}
-	pub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +453,7 @@ func (c *Initiator) prepareAndSignMessage(msg wire.SSZMarshaller, msgType wire.T
 	}
 
 	// Sign the message
-	sig, err := crypto.SignRSA(c.PrivateKey, tssz)
+	sig, err := spec_crypto.SignRSA(c.PrivateKey, tssz)
 	if err != nil {
 		return nil, err
 	}
@@ -491,11 +491,11 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if err != nil {
 		return err
 	}
-	pub, err := crypto.ParseRSAPublicKey(pong.PubKey)
+	pub, err := spec_crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
+	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
 		return err
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))

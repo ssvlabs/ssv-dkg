@@ -24,6 +24,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type TestOperator struct {
@@ -46,7 +47,7 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version, o
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	tempDir, err := os.MkdirTemp("", "dkg")
@@ -79,7 +80,7 @@ func CreateTestOperator(t *testing.T, id uint64, version, operatorCert, operator
 	r := chi.NewRouter()
 	require.NoError(t, err)
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
-	pkBytes, err := crypto.EncodeRSAPublicKey(operatorPubKey)
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
 	tempDir, err := os.MkdirTemp("", "dkg")
@@ -145,7 +146,7 @@ func VerifySharesData(ids []uint64, keys []*rsa.PrivateKey, ks *wire.KeySharesCL
 			return err
 		}
 	}
-	recon, err := crypto.RecoverBLSSignature(ids, deserializedSigs2)
+	recon, err := spec_crypto.RecoverBLSSignature(ids, deserializedSigs2)
 	if err != nil {
 		return err
 	}

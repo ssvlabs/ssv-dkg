@@ -19,8 +19,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv-dkg/spec"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 const MaxInstances = 1024
@@ -45,11 +46,11 @@ type instWrapper struct {
 
 // VerifyInitiatorMessage verifies initiator message signature
 func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
-	pubKey, err := crypto.EncodeRSAPublicKey(iw.InitiatorPublicKey)
+	pubKey, err := spec_crypto.EncodeRSAPublicKey(iw.InitiatorPublicKey)
 	if err != nil {
 		return err
 	}
-	if err := crypto.VerifyRSA(iw.InitiatorPublicKey, msg, sig); err != nil {
+	if err := spec_crypto.VerifyRSA(iw.InitiatorPublicKey, msg, sig); err != nil {
 		return fmt.Errorf("failed to verify a message from initiator: %x", pubKey)
 	}
 	iw.Logger.Info("Successfully verified initiator message signature", zap.Uint64("from", iw.ID))
@@ -83,7 +84,7 @@ type Switch struct {
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
-func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+func (s *Switch) CreateInstance(reqID [24]byte, init *spec.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
 	operatorID, err := spec.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
@@ -100,7 +101,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
 		BroadcastF:         broadcast,
-		Signer:             spec.RSASigner(s.PrivateKey),
+		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
@@ -124,7 +125,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, init *wire.Init, initiatorPublic
 
 // Sign creates a RSA signature for the message at operator before sending it to initiator
 func (s *Switch) Sign(msg []byte) ([]byte, error) {
-	return crypto.SignRSA(s.PrivateKey, msg)
+	return spec_crypto.SignRSA(s.PrivateKey, msg)
 }
 
 // Encrypt with RSA public key private DKG share key
@@ -158,7 +159,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
 	logger.Info("🚀 Initializing DKG instance")
-	init := &wire.Init{}
+	init := &spec.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
@@ -166,7 +167,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, err
 	}
 	// Check that incoming message signature is valid
-	initiatorPubKey, err := crypto.ParseRSAPublicKey(initiatorPub)
+	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
 	}
@@ -174,7 +175,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err != nil {
 		return nil, fmt.Errorf("init: failed to marshal transport message: %s", err.Error())
 	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
 		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
 	}
@@ -341,7 +342,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 		return fmt.Errorf("failed to decode withdrawal credentials: %s", err.Error())
 	}
 	withdrawPrefix, withdrawAddress := crypto.ParseWithdrawalCredentials(withdrawCreds)
-	if withdrawPrefix != crypto.ETH1WithdrawalPrefixByte {
+	if withdrawPrefix != spec_crypto.ETH1WithdrawalPrefixByte {
 		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
 	}
 	return cli_utils.WriteResults(
@@ -351,8 +352,8 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 		proofsArr,
 		true,
 		1,
-		common.HexToAddress(keySharesArr[0].Shares[0].OwnerAddress),
-		keySharesArr[0].Shares[0].OwnerNonce,
+		common.HexToAddress(keySharesArr[0].Shares[0].ShareData.OwnerAddress),
+		keySharesArr[0].Shares[0].ShareData.OwnerNonce,
 		common.BytesToAddress(withdrawAddress),
 		outputPath,
 	)
@@ -388,16 +389,4 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 		return 0, err
 	}
 	return operatorID, nil
-}
-
-func (s *Switch) VerifySig(incMsg *wire.SignedTransport, initiatorPubKey *rsa.PublicKey) error {
-	marshalledWireMsg, err := incMsg.Message.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	err = crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, incMsg.Signature)
-	if err != nil {
-		return fmt.Errorf("signature isn't valid: %s", err.Error())
-	}
-	return nil
 }

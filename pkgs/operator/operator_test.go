@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -50,27 +52,24 @@ func TestRateLimit(t *testing.T) {
 	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
-	initPubBytes, err := crypto.EncodeRSAPublicKey(pubKey)
+	initPubBytes, err := spec_crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
 		ops := wire.OperatorsCLI{}
 		ops = append(ops, wire.OperatorCLI{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
 
-		parts := make([]*wire.Operator, 0)
+		parts := make([]*spec.Operator, 0)
 		for _, id := range []uint64{1} {
 			op := ops.ByID(id)
-			if op == nil {
-				t.Fatalf("no op")
-			}
-			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
+			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
 
-		init := &wire.Init{
+		init := &spec.Init{
 			Operators:             parts,
 			T:                     3,
 			WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
@@ -91,7 +90,7 @@ func TestRateLimit(t *testing.T) {
 		tsssz, err := ts.MarshalSSZ()
 		require.NoError(t, err)
 
-		sig, err := crypto.SignRSA(priv, tsssz)
+		sig, err := spec_crypto.SignRSA(priv, tsssz)
 		require.NoError(t, err)
 
 		signedTransportMsg := &wire.SignedTransport{
@@ -193,24 +192,24 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		require.NoError(t, err)
 		// compute threshold (3f+1)
 		threshold := len(ids) - ((len(ids) - 1) / 3)
-		parts := make([]*wire.Operator, 0)
+		parts := make([]*spec.Operator, 0)
 		for _, id := range ids {
 			op := c.Operators.ByID(id)
 			require.NotNil(t, op)
-			pkBytes, err := crypto.EncodeRSAPublicKey(op.PubKey)
+			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
-			parts = append(parts, &wire.Operator{
+			parts = append(parts, &spec.Operator{
 				ID:     op.ID,
 				PubKey: pkBytes,
 			})
 		}
-		wrongPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+		wrongPub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
-		encPub, err := crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+		encPub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 		require.NoError(t, err)
 		c.Logger.Info("Initiator", zap.String("Pubkey:", fmt.Sprintf("%x", encPub)))
 		// make init message
-		init := &wire.Init{
+		init := &spec.Init{
 			Operators:             parts,
 			T:                     uint64(threshold),
 			WithdrawalCredentials: withdraw.Bytes(),
@@ -341,8 +340,8 @@ func TestRecoverSharesData(t *testing.T) {
 		require.NoError(t, err)
 		// Find operator ID by PubKey
 		var operatorID uint64
-		for _, op := range ks.Shares[0].Operators {
-			b, err := crypto.EncodeRSAPublicKey(&priv.PublicKey)
+		for _, op := range ks.Shares[0].ShareData.Operators {
+			b, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
 			if bytes.Equal(b, []byte(op.PubKey)) {
 				operatorID = op.ID
@@ -410,7 +409,7 @@ func TestRecoverSharesData(t *testing.T) {
 	public := suite.G1().Point().Mul(secret, nil)
 
 	pk := &bls.PublicKey{}
-	err = pk.DeserializeHexStr(strings.Trim(ks.Shares[0].PublicKey, "0x"))
+	err = pk.DeserializeHexStr(strings.Trim(ks.Shares[0].ShareData.PublicKey, "0x"))
 	require.NoError(t, err)
 	bytsPK, err := public.MarshalBinary()
 	require.NoError(t, err)

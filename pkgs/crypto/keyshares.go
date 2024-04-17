@@ -13,9 +13,11 @@ import (
 
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
-func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, owner [20]byte, nonce uint64, valPub string) error {
+func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*spec.Operator, owner [20]byte, nonce uint64, valPub string) error {
 	if ks.CreatedAt.String() == "" {
 		return fmt.Errorf("keyshares creation time is empty")
 	}
@@ -27,25 +29,25 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 		return fmt.Errorf("slice is not sorted")
 	}
 	// 1. check operators at json
-	for i, op := range ks.Shares[0].Operators {
+	for i, op := range ks.Shares[0].ShareData.Operators {
 		if op.ID != operators[i].ID || !bytes.Equal(op.PubKey, operators[i].PubKey) {
 			return fmt.Errorf("incorrect keyshares operators")
 		}
 	}
 	// 2. check owner address is correct
-	if common.HexToAddress(ks.Shares[0].OwnerAddress) != owner {
+	if common.HexToAddress(ks.Shares[0].ShareData.OwnerAddress) != owner {
 		return fmt.Errorf("incorrect keyshares owner")
 	}
 	// 3. check nonce is correct
-	if ks.Shares[0].OwnerNonce != nonce {
+	if ks.Shares[0].ShareData.OwnerNonce != nonce {
 		return fmt.Errorf("incorrect keyshares nonce")
 	}
 	// 4. check validator public key
-	validatorPublicKey, err := hex.DecodeString(strings.TrimPrefix(ks.Shares[0].PublicKey, "0x"))
+	validatorPublicKey, err := hex.DecodeString(strings.TrimPrefix(ks.Shares[0].ShareData.PublicKey, "0x"))
 	if err != nil {
 		return fmt.Errorf("cant decode validator pub key %w", err)
 	}
-	if "0x"+valPub != ks.Shares[0].PublicKey {
+	if "0x"+valPub != ks.Shares[0].ShareData.PublicKey {
 		return fmt.Errorf("incorrect keyshares validator pub key")
 	}
 	// 5. check operator IDs
@@ -71,7 +73,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*wire.Operator, own
 		return fmt.Errorf("shares data len is not correct")
 	}
 	signature := sharesData[:signatureOffset]
-	err = VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, uint16(ks.Shares[0].OwnerNonce))
+	err = VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, uint16(ks.Shares[0].ShareData.OwnerNonce))
 	if err != nil {
 		return fmt.Errorf("owner+nonce signature is invalid at keyshares json %w", err)
 	}
@@ -114,7 +116,7 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) e
 		}
 		sharePublicKeys = append(sharePublicKeys, publicKey)
 	}
-	validatorRecoveredPK, err := RecoverValidatorPublicKey(ids, sharePublicKeys)
+	validatorRecoveredPK, err := spec_crypto.RecoverValidatorPublicKey(ids, sharePublicKeys)
 	if err != nil {
 		return fmt.Errorf("failed to recover validator public key from shares data: %w", err)
 	}
