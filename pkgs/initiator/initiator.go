@@ -17,12 +17,12 @@ import (
 	"github.com/imroc/req/v3"
 	"go.uber.org/zap"
 
-	spec "github.com/bloxapp/dkg-spec"
-	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error

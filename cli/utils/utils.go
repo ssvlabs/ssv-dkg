@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -29,6 +28,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 // global base flags

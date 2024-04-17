@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	spec_crypto "github.com/bloxapp/dkg-spec/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // request limits

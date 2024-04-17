@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	spec "github.com/bloxapp/dkg-spec"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 type ResultsDir struct {

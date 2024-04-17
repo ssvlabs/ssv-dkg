@@ -10,12 +10,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	spec "github.com/bloxapp/dkg-spec"
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 const (
