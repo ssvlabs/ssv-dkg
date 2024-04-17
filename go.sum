@@ -39,8 +39,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/zstd v1.5.2 h1:vUG4lAyuPCXO0TLbXvPv7EB7cNK1QV/luu55UHLrrn8=
-github.com/MatusKysel/dkg-spec v0.0.0-20240415113827-6e0209e05e27 h1:orbo4GIbV/Ae//4K0VRN67iiuMNNOBoZ2zvneFGQDyk=
-github.com/MatusKysel/dkg-spec v0.0.0-20240415113827-6e0209e05e27/go.mod h1:8IvAQRNLq7tUF5VzKY+SV9hRblhDXqucAgiiB/zUe2I=
+github.com/MatusKysel/dkg-spec v0.0.0-20240417065944-f3565c5acbb2 h1:wCZkyTKwMU1aNVp9Dp52j6rydI/ROJHZcA05FhcGMjY=
+github.com/MatusKysel/dkg-spec v0.0.0-20240417065944-f3565c5acbb2/go.mod h1:8IvAQRNLq7tUF5VzKY+SV9hRblhDXqucAgiiB/zUe2I=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=

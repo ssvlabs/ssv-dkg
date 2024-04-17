@@ -5,13 +5,132 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/url"
 	"strings"
+
+	spec "github.com/bloxapp/dkg-spec"
 )
+
+// Proof for a DKG ceremony
+type proofJSON struct {
+	// ValidatorPubKey the resulting public key corresponding to the shared private key
+	ValidatorPubKey string `json:"validator"`
+	// EncryptedShare standard SSV encrypted shares
+	EncryptedShare string `json:"encrypted_share"`
+	// SharePubKey is the share's BLS pubkey
+	SharePubKey string `json:"share_pub"`
+	// Owner address
+	Owner string `json:"owner"`
+}
+
+type Proof struct {
+	spec.Proof // Embedding types.Proof for direct field access
+}
+
+func (p *Proof) MarshalJSON() ([]byte, error) {
+	return json.Marshal(proofJSON{
+		ValidatorPubKey: hex.EncodeToString(p.ValidatorPubKey),
+		EncryptedShare:  hex.EncodeToString(p.EncryptedShare),
+		SharePubKey:     hex.EncodeToString(p.SharePubKey),
+		Owner:           hex.EncodeToString(p.Owner[:]),
+	})
+}
+
+func (p *Proof) UnmarshalJSON(data []byte) error {
+	var proof proofJSON
+	if err := json.Unmarshal(data, &proof); err != nil {
+		return err
+	}
+	var err error
+	p.ValidatorPubKey, err = hex.DecodeString(proof.ValidatorPubKey)
+	if err != nil {
+		return err
+	}
+	p.EncryptedShare, err = hex.DecodeString(proof.EncryptedShare)
+	if err != nil {
+		return err
+	}
+	p.SharePubKey, err = hex.DecodeString(proof.SharePubKey)
+	if err != nil {
+		return err
+	}
+	owner, err := hex.DecodeString(proof.Owner)
+	if err != nil {
+		return err
+	}
+	if len(owner) != 20 {
+		return fmt.Errorf("invalid owner length")
+	}
+	copy(p.Owner[:], owner)
+	return nil
+}
+
+type signedProofJSON struct {
+	Proof *spec.Proof `json:"proof"`
+	// Signature is an RSA signature over proof
+	Signature string `json:"signature"`
+}
+
+type SignedProof struct {
+	spec.SignedProof // Embedding types.SignedProof for direct field access
+}
+
+func (sp *SignedProof) MarshalJSON() ([]byte, error) {
+	return json.Marshal(signedProofJSON{
+		Proof:     sp.Proof,
+		Signature: hex.EncodeToString(sp.Signature),
+	})
+}
+
+func (sp *SignedProof) UnmarshalJSON(data []byte) error {
+	var signedProof signedProofJSON
+	if err := json.Unmarshal(data, &signedProof); err != nil {
+		return err
+	}
+	var err error
+	sp.Proof = signedProof.Proof
+	sp.Signature, err = hex.DecodeString(signedProof.Signature)
+	return err
+}
+
+type operatorJSON struct {
+	ID     uint64 `json:"id"`
+	PubKey string `json:"operatorKey"`
+}
+
+type Operator struct {
+	*spec.Operator // Embedding types.Operator for direct field access
+}
+
+func (op *Operator) MarshalJSON() ([]byte, error) {
+	return json.Marshal(operatorJSON{
+		ID:     op.ID,
+		PubKey: string(op.PubKey),
+	})
+}
+
+func (op *Operator) UnmarshalJSON(data []byte) error {
+	var operator operatorJSON
+	if err := json.Unmarshal(data, &operator); err != nil {
+		return err
+	}
+	op.ID = operator.ID
+	op.PubKey = []byte(operator.PubKey)
+	return nil
+}
+
+func NewOperatorFromSpec(op *spec.Operator) *Operator {
+	return &Operator{op}
+}
+
+func (op *Operator) ToSpecOperator() *spec.Operator {
+	return op.Operator
+}
 
 // Operators mapping storage for operator structs [ID]operator
 type OperatorsCLI []OperatorCLI
@@ -84,6 +203,45 @@ func (o *OperatorCLI) UnmarshalJSON(data []byte) error {
 		Addr:   strings.TrimRight(op.Addr, "/"),
 		ID:     op.ID,
 		PubKey: pk,
+	}
+	return nil
+}
+
+type ShareDataJson struct {
+	OwnerNonce   uint64      `json:"ownerNonce"`
+	OwnerAddress string      `json:"ownerAddress"`
+	PublicKey    string      `json:"publicKey"`
+	Operators    []*Operator `json:"operators"`
+}
+
+// Custom MarshalJSON method
+func (sd *ShareData) MarshalJSON() ([]byte, error) {
+	// Convert []*spec.Operator to []*Operator for marshaling
+	specOperators := make([]*Operator, len(sd.Operators))
+	for i, op := range sd.Operators {
+		specOperators[i] = NewOperatorFromSpec(op)
+	}
+
+	// Create a struct to encode into JSON that uses the spec.Operator type
+	return json.Marshal(&ShareDataJson{
+		OwnerNonce:   sd.OwnerNonce,
+		OwnerAddress: sd.OwnerAddress,
+		PublicKey:    sd.PublicKey,
+		Operators:    specOperators,
+	})
+}
+
+// Custom UnmarshalJSON method
+func (sd *ShareData) UnmarshalJSON(data []byte) error {
+	// Struct to decode from JSON that uses the spec.Operator type
+	var dataJson ShareDataJson
+	if err := json.Unmarshal(data, &dataJson); err != nil {
+		return err
+	}
+	// Convert []*spec.Operator back to []*Operator
+	sd.Operators = make([]*spec.Operator, len(dataJson.Operators))
+	for i, op := range dataJson.Operators {
+		sd.Operators[i] = op.ToSpecOperator()
 	}
 	return nil
 }

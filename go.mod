@@ -114,4 +114,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/bloxapp/dkg-spec => github.com/MatusKysel/dkg-spec v0.0.0-20240415113827-6e0209e05e27
+replace github.com/bloxapp/dkg-spec => github.com/MatusKysel/dkg-spec v0.0.0-20240417065944-f3565c5acbb2
