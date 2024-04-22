@@ -37,6 +37,7 @@ const (
 	PingMessageType
 	PongMessageType
 	ResultMessageType
+	ResignMessageType
 )
 
 func (t TransportType) String() string {
@@ -65,6 +66,8 @@ func (t TransportType) String() string {
 		return "PongMessageType"
 	case ResultMessageType:
 		return "ResultMessageType"
+	case ResignMessageType:
+		return "ResignMessageType"
 	default:
 		return "no type impl"
 	}
@@ -169,4 +172,10 @@ type OperatorCLI struct {
 	Addr   string         // ip:port
 	ID     uint64         // operators ID
 	PubKey *rsa.PublicKey // operators RSA public key
+}
+
+type ResignMessage struct {
+	Operators []*spec.Operator `ssz-max:"13"`
+	Resign    *spec.Resign
+	Proofs    []*spec.SignedProof `ssz-max:"13"`
 }

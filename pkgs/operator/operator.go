@@ -11,11 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // request limits
@@ -45,27 +45,18 @@ func RegisterRoutes(s *Server) {
 	s.Router.With(rateLimit(s.Logger, routeLimit)).
 		Post("/init", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("incoming INIT msg")
-			rawdata, err := io.ReadAll(request.Body)
+			signedInitMsg, err := processIncomingRequest(s.Logger, writer, request, wire.InitMessageType, s.State.OperatorID)
 			if err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to read request body, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-				return
-			}
-			signedInitMsg := &wire.SignedTransport{}
-			if err := signedInitMsg.UnmarshalSSZ(rawdata); err != nil {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to unmarshal SSZ, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-				return
-			}
-
-			// Validate that incoming message is an init message
-			if signedInitMsg.Message.Type != wire.InitMessageType {
-				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, received non-init message to init route, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
+				s.Logger.Error("Error processing incoming init message", zap.Error(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 				return
 			}
 			reqid := signedInitMsg.Message.Identifier
 			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
-			logger.Debug("initiating instance with init data")
+			logger.Debug("creating instance with init message data")
 			b, err := s.State.InitInstance(reqid, signedInitMsg.Message, signedInitMsg.Signer, signedInitMsg.Signature)
 			if err != nil {
+				s.Logger.Error("Error creating instance", zap.Error(err))
 				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to initialize instance, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 				return
 			}
@@ -77,7 +68,30 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 		})
-
+	s.Router.With(rateLimit(s.Logger, routeLimit)).
+		Post("/resign", func(writer http.ResponseWriter, request *http.Request) {
+			s.Logger.Debug("incoming RESIGN msg")
+			signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.ResignMessageType, s.State.OperatorID)
+			if err != nil {
+				s.Logger.Error("Error processing incoming init message", zap.Error(err))
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+			reqid := signedResignMsg.Message.Identifier
+			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
+			b, err := s.State.ResignInstance(reqid, signedResignMsg.Message, signedResignMsg.Signer, signedResignMsg.Signature)
+			if err != nil {
+				s.Logger.Error("Error resigning instance", zap.Error(err))
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to resign, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				return
+			}
+			logger.Info("✅ resigned data successfully")
+			writer.WriteHeader(http.StatusOK)
+			if _, err := writer.Write(b); err != nil {
+				logger.Error("error writing resign response: " + err.Error())
+				return
+			}
+		})
 	s.Router.With(rateLimit(s.Logger, routeLimit)).
 		Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")
@@ -188,4 +202,20 @@ func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {
 			}
 		}),
 	)
+}
+
+func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, request *http.Request, reqMessageType wire.TransportType, operatorID uint64) (*wire.SignedTransport, error) {
+	rawdata, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, fmt.Errorf("operator %d, failed to read request body, err: %v", operatorID, err)
+	}
+	signedMsg := &wire.SignedTransport{}
+	if err := signedMsg.UnmarshalSSZ(rawdata); err != nil {
+		return nil, fmt.Errorf("operator %d, failed to unmarshal SSZ, err: %v", operatorID, err)
+	}
+	// Validate that incoming message has requested type
+	if signedMsg.Message.Type != reqMessageType {
+		return nil, fmt.Errorf("operator %d, received non-init message to init route, err: %v", operatorID, errors.New("not init message to init route"))
+	}
+	return signedMsg, nil
 }

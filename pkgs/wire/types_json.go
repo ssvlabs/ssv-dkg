@@ -263,6 +263,62 @@ func (sd *ShareData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type ResingMessageJSON struct {
+	Operators []*Operator `json:"operators"`
+	Resign    *Resign     `json:"resign"`
+	Proofs    []*Proof    `json:"proofs"`
+}
+
+type Resign struct {
+	spec.Resign
+}
+type ResignJSON struct {
+	ValidatorPubKey       string `json:"validatorPubKey"`
+	Fork                  string `json:"fork"`
+	WithdrawalCredentials string `json:"withdrawalCredentials"`
+	Owner                 string `json:"owner"`
+	Nonce                 uint64 `json:"nonce"`
+}
+
+func (r *Resign) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ResignJSON{
+		ValidatorPubKey:       hex.EncodeToString(r.ValidatorPubKey),
+		Fork:                  hex.EncodeToString(r.Fork[:]),
+		WithdrawalCredentials: hex.EncodeToString(r.WithdrawalCredentials),
+		Owner:                 hex.EncodeToString(r.Owner[:]),
+		Nonce:                 r.Nonce,
+	})
+}
+
+func (r *Resign) UnmarshalJSON(data []byte) error {
+	var resJSON ResignJSON
+	if err := json.Unmarshal(data, &resJSON); err != nil {
+		return err
+	}
+	val, err := hex.DecodeString(resJSON.ValidatorPubKey)
+	if err != nil {
+		return fmt.Errorf("invalid validator public key %s", err.Error())
+	}
+	r.ValidatorPubKey = val
+	fork, err := hex.DecodeString(resJSON.Fork)
+	if err != nil {
+		return fmt.Errorf("invalid fork %s", err.Error())
+	}
+	copy(r.Fork[:], fork)
+	withdrawalCredentials, err := hex.DecodeString(resJSON.WithdrawalCredentials)
+	if err != nil {
+		return fmt.Errorf("invalid withdrawal credentials %s", err.Error())
+	}
+	r.WithdrawalCredentials = withdrawalCredentials
+	owner, err := hex.DecodeString(resJSON.Owner)
+	if err != nil {
+		return fmt.Errorf("invalid owner %s", err.Error())
+	}
+	copy(r.Owner[:], owner)
+	r.Nonce = resJSON.Nonce
+	return nil
+}
+
 // TODO: duplicate from crypto. Resolve
 func ParseRSAPublicKey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))

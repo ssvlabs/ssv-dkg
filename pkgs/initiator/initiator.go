@@ -163,7 +163,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 }
 
 // messageFlowHandling main steps of DKG at initiator
-func (c *Initiator) messageFlowHandling(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
+func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	results, err := c.SendInitMsg(init, id, operators)
 	if err != nil {
@@ -198,6 +198,19 @@ func (c *Initiator) messageFlowHandling(init *spec.Init, id [24]byte, operators 
 	return dkgResult, nil
 }
 
+func (c *Initiator) resignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
+	results, err := c.SendResignMsg(rMsg, id, operators)
+	if err != nil {
+		return nil, err
+	}
+	err = verifyMessageSignatures(id, results, c.VerifyMessageSignature)
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Info("✅ verified operator response responses signatures")
+	return results, nil
+}
+
 // StartDKG starts DKG ceremony at initiator with requested parameters
 func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(withdraw) != len(common.Address{}) {
@@ -213,7 +226,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 
-	instanceIDField := zap.String("init ID", hex.EncodeToString(id[:]))
+	instanceIDField := zap.String("Ceremony ID", hex.EncodeToString(id[:]))
 	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
 
 	// compute threshold (3f+1)
@@ -229,7 +242,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	}
 	c.Logger = c.Logger.With(instanceIDField)
 
-	dkgResultsBytes, err := c.messageFlowHandling(init, id, ops)
+	dkgResultsBytes, err := c.initMessageFlowHandling(init, id, ops)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -238,7 +251,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
-	depositDataJson, keyshares, err := c.processDKGResultResponseInitial(dkgResults, init, id)
+	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, init.Operators, init.WithdrawalCredentials, init.Fork, init.Owner, init.Nonce)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -280,8 +293,86 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, proofsArray, nil
 }
 
+func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner common.Address, nonce uint64) (*wire.KeySharesCLI, []*wire.SignedProof, error) {
+	ops, err := ValidatedOperatorData(ids, c.Operators)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	instanceIDField := zap.String("Ceremony ID", hex.EncodeToString(id[:]))
+	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
+	// make resign message
+	rMsg := &wire.ResignMessage{
+		Operators: ops,
+		Resign: &spec.Resign{ValidatorPubKey: proofs[0].Proof.ValidatorPubKey,
+			Fork:                  network.GenesisForkVersion(),
+			WithdrawalCredentials: withdraw,
+			Owner:                 owner,
+			Nonce:                 nonce},
+		Proofs: proofs,
+	}
+	c.Logger = c.Logger.With(instanceIDField)
+	resultsBytes, err := c.resignMessageFlowHandling(rMsg, id, ops)
+	if err != nil {
+		return nil, nil, err
+	}
+	dkgResults, err := parseDKGResultsFromBytes(resultsBytes, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, rMsg.Operators, rMsg.Resign.WithdrawalCredentials, rMsg.Resign.Fork, rMsg.Resign.Owner, rMsg.Resign.Nonce)
+	if err != nil {
+		return nil, nil, err
+	}
+	c.Logger.Info("✅ verified master signature for ssv contract data")
+	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdraw)); err != nil {
+		return nil, nil, err
+	}
+	if err := crypto.ValidateKeysharesCLI(keyshares, rMsg.Operators, rMsg.Resign.Owner, rMsg.Resign.Nonce, depositDataJson.PubKey); err != nil {
+		return nil, nil, err
+	}
+	// sending back to operators results
+	depositData, err := json.Marshal(depositDataJson)
+	if err != nil {
+		return nil, nil, err
+	}
+	keysharesData, err := json.Marshal(keyshares)
+	if err != nil {
+		return nil, nil, err
+	}
+	var proofsArray []*wire.SignedProof
+	for _, res := range dkgResults {
+		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof}) //nolint:all
+	}
+	proofsData, err := json.Marshal(proofsArray)
+	if err != nil {
+		return nil, nil, err
+	}
+	resultMsg := &wire.ResultData{
+		Operators:     ops,
+		Identifier:    id,
+		DepositData:   depositData,
+		KeysharesData: keysharesData,
+		Proofs:        proofsData,
+	}
+	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
+	}
+	return keyshares, proofsArray, nil
+}
+
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
-func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, init *spec.Init, requestID [24]byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
+func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
+	requestID [24]byte,
+	ops []*spec.Operator,
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	ownerAddress [20]byte,
+	nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
 	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
@@ -293,11 +384,11 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, i
 	if err != nil {
 		return nil, nil, err
 	}
-	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(init.Operators, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, requestID, dkgResults)
+	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(ops, withdrawalCredentials, validatorPK, fork, ownerAddress, nonce, requestID, dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := spec_crypto.GetNetworkByFork(init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(fork)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -306,7 +397,7 @@ func (c *Initiator) processDKGResultResponseInitial(dkgResults []*spec.Result, i
 		return nil, nil, fmt.Errorf("failed to create deposit data json: %v", err)
 	}
 	c.Logger.Info("✅ deposit data was successfully reconstructed")
-	keyshares, err := c.generateSSVKeysharesPayload(init.Operators, dkgResults, masterSigOwnerNonce, init.Owner, init.Nonce)
+	keyshares, err := c.generateSSVKeysharesPayload(ops, dkgResults, masterSigOwnerNonce, ownerAddress, nonce)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -364,6 +455,14 @@ func (c *Initiator) SendInitMsg(init *spec.Init, id [24]byte, operators []*spec.
 		return nil, err
 	}
 	return c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, operators, false)
+}
+
+func (c *Initiator) SendResignMsg(resign *wire.ResignMessage, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
+	signedResignMsgBts, err := c.prepareAndSignMessage(resign, wire.ResignMessageType, id, c.Version)
+	if err != nil {
+		return nil, err
+	}
+	return c.SendToAll(consts.API_RESIGN_URL, signedResignMsgBts, operators, true)
 }
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony

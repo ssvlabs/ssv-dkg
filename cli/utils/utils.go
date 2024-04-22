@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
@@ -203,6 +204,8 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.NetworkFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
 }
@@ -365,6 +368,12 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
+		return err
+	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
@@ -397,6 +406,19 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	}
 	if strings.Contains(ProofsFilePath, "../") {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
+	}
+	withdrawAddr := viper.GetString("withdrawAddress")
+	if withdrawAddr == "" {
+		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
+	}
+	var err error
+	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
+	if err != nil {
+		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+	}
+	Network = viper.GetString("network")
+	if Network == "" {
+		return fmt.Errorf("😥 Failed to get fork version flag value")
 	}
 	return nil
 }
@@ -801,11 +823,11 @@ func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 	return nil
 }
 
-func LoadProofs(path string) ([][]*wire.SignedProof, error) {
-	var proofs [][]*wire.SignedProof
+func LoadProofs(path string) ([][]*spec.SignedProof, error) {
+	var proofs [][]*spec.SignedProof
 	if err := utils.LoadJSONFile(path, &proofs); err != nil {
 		// try if only one proof in the file
-		var proof []*wire.SignedProof
+		var proof []*spec.SignedProof
 		if err := utils.LoadJSONFile(path, &proof); err != nil {
 			return nil, err
 		}
