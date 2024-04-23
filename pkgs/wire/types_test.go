@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -316,7 +315,7 @@ func TestSignedProofJSON(t *testing.T) {
 }
 
 func TestArrayOfSignedProofsJSON(t *testing.T) {
-	var arrayOfsignedProofData [][]*spec.SignedProof
+	var arrayOfsignedProofData [][]*SignedProof
 	err := json.Unmarshal([]byte(arrayOfSignedProofs), &arrayOfsignedProofData)
 	require.NoError(t, err)
 	b, err := json.Marshal(arrayOfsignedProofData)
