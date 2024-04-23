@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
+	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
@@ -218,4 +219,12 @@ func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, requ
 		return nil, fmt.Errorf("operator %d, received non-init message to init route, err: %v", operatorID, errors.New("not init message to init route"))
 	}
 	return signedMsg, nil
+}
+
+func getIDsFromOperatorsArray(ops []*spec.Operator) []uint64 {
+	ids := make([]uint64, 0)
+	for _, op := range ops {
+		ids = append(ids, op.ID)
+	}
+	return ids
 }

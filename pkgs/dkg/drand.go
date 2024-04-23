@@ -502,23 +502,28 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, err
 	}
 	validatorPubKey := &bls.PublicKey{}
-	err = validatorPubKey.Deserialize(r.Proofs[position].Proof.SharePubKey)
+	err = validatorPubKey.Deserialize(r.Proofs[position].Proof.ValidatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
 	}
-	if !bytes.Equal(validatorPubKey.Serialize(), secretKeyBLS.GetPublicKey().Serialize()) {
+	sharePubKey := &bls.PublicKey{}
+	err = sharePubKey.Deserialize(r.Proofs[position].Proof.SharePubKey)
+	if err != nil {
+		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
+	}
+	if !bytes.Equal(sharePubKey.Serialize(), secretKeyBLS.GetPublicKey().Serialize()) {
 		return nil, fmt.Errorf("proof public key not equal to operator`s share public key")
 	}
 
 	// Resigning
 	// Sign root
-	network, err := spec_crypto.GetNetworkByFork(o.data.init.Fork)
+	network, err := spec_crypto.GetNetworkByFork(r.Resign.Fork)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get network by fork: %w", err)
 	}
 	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
 		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
+		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(r.Resign.WithdrawalCredentials),
 		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 	})
 	if err != nil {

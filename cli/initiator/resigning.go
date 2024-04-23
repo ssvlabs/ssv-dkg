@@ -63,14 +63,15 @@ var StartResigning = &cobra.Command{
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
-		allProofs, err := cli_utils.LoadProofs(cli_utils.ProofsFilePath)
+		var arrayOfsignedProofs [][]*wire.SignedProof
+		err = wire.LoadJSONFile(cli_utils.ProofsFilePath, &arrayOfsignedProofs)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
-		for i := 0; i < len(allProofs); i++ {
+		for i := 0; i < len(arrayOfsignedProofs); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
@@ -78,12 +79,12 @@ var StartResigning = &cobra.Command{
 				if err != nil {
 					return nil, err
 				}
-				logger.Info("Loaded proofs", zap.Any("proof", &allProofs[i]), zap.Any("operators", operatorIDs))
+				proofsData := wire.ConvertSignedProofsToSpec(arrayOfsignedProofs[i])
 				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the resigning ceremony.
-				keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, allProofs[i], ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}
@@ -94,7 +95,7 @@ var StartResigning = &cobra.Command{
 				)
 				return &Result{
 					id:          id,
-					depositData: nil,
+					depositData: depositData,
 					keyShares:   keyShares,
 					nonce:       nonce,
 					proof:       proofs,
@@ -105,9 +106,11 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate Resigning ceremony: ", zap.Error(err))
 		}
+		var depositDataArr []*wire.DepositDataCLI
 		var keySharesArr []*wire.KeySharesCLI
 		var proofs [][]*wire.SignedProof
 		for _, res := range results {
+			depositDataArr = append(depositDataArr, res.depositData)
 			keySharesArr = append(keySharesArr, res.keyShares)
 			proofs = append(proofs, res.proof)
 		}
@@ -115,11 +118,11 @@ var StartResigning = &cobra.Command{
 		logger.Info("🎯 All data is validated.")
 		if err := cli_utils.WriteResults(
 			logger,
-			nil,
+			depositDataArr,
 			keySharesArr,
 			proofs,
 			false,
-			int(cli_utils.Validators),
+			len(arrayOfsignedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

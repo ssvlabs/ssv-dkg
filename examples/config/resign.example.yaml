@@ -1,6 +1,7 @@
+operatorIDs: [1, 22, 44, 55]
 withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-nonce: 1
+nonce: 10
 network: "holesky"
 # operatorsInfo: '[{
 #   "id": 1,

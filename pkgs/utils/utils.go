@@ -103,11 +103,3 @@ func GetNonce(input []byte) []byte {
 	ret := sha256.Sum256(input)
 	return ret[:]
 }
-
-func LoadJSONFile(file string, v interface{}) error {
-	data, err := os.ReadFile(filepath.Clean(file))
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, v)
-}

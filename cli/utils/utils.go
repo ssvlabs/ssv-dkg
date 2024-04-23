@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/cli/flags"
@@ -419,6 +418,10 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	Network = viper.GetString("network")
 	if Network == "" {
 		return fmt.Errorf("😥 Failed to get fork version flag value")
+	}
+	OwnerAddress, err = utils.HexToAddress(owner)
+	if err != nil {
+		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	return nil
 }
@@ -821,18 +824,4 @@ func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 		}
 	}
 	return nil
-}
-
-func LoadProofs(path string) ([][]*spec.SignedProof, error) {
-	var proofs [][]*spec.SignedProof
-	if err := utils.LoadJSONFile(path, &proofs); err != nil {
-		// try if only one proof in the file
-		var proof []*spec.SignedProof
-		if err := utils.LoadJSONFile(path, &proof); err != nil {
-			return nil, err
-		}
-		proofs = append(proofs, proof)
-		return proofs, nil
-	}
-	return proofs, nil
 }

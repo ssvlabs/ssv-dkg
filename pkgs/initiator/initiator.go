@@ -293,14 +293,14 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return depositDataJson, keyshares, proofsArray, nil
 }
 
-func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner common.Address, nonce uint64) (*wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	instanceIDField := zap.String("Ceremony ID", hex.EncodeToString(id[:]))
 	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
@@ -314,34 +314,48 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 			Nonce:                 nonce},
 		Proofs: proofs,
 	}
+	c.Logger.Info("Outgoing resign request fields",
+		zap.String("network", hex.EncodeToString(rMsg.Resign.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(rMsg.Resign.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(rMsg.Resign.Owner[:])),
+		zap.Uint64("nonce", rMsg.Resign.Nonce),
+		zap.Any("operator IDs", ids))
+	for _, proof := range rMsg.Proofs {
+		c.Logger.Info("Loaded proof",
+			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
+			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
+			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
+			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
+			zap.String("Signature", hex.EncodeToString(proof.Signature)))
+	}
 	c.Logger = c.Logger.With(instanceIDField)
 	resultsBytes, err := c.resignMessageFlowHandling(rMsg, id, ops)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	dkgResults, err := parseDKGResultsFromBytes(resultsBytes, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, rMsg.Operators, rMsg.Resign.WithdrawalCredentials, rMsg.Resign.Fork, rMsg.Resign.Owner, rMsg.Resign.Nonce)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
 	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdraw)); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := crypto.ValidateKeysharesCLI(keyshares, rMsg.Operators, rMsg.Resign.Owner, rMsg.Resign.Nonce, depositDataJson.PubKey); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// sending back to operators results
 	depositData, err := json.Marshal(depositDataJson)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	keysharesData, err := json.Marshal(keyshares)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var proofsArray []*wire.SignedProof
 	for _, res := range dkgResults {
@@ -349,7 +363,7 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	}
 	proofsData, err := json.Marshal(proofsArray)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	resultMsg := &wire.ResultData{
 		Operators:     ops,
@@ -360,9 +374,9 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	}
 	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
+		return nil, nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
 	}
-	return keyshares, proofsArray, nil
+	return depositDataJson, keyshares, proofsArray, nil
 }
 
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
@@ -442,7 +456,7 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 		if len(dkgResults[i].SignedProof.Proof.ValidatorPubKey) == 0 ||
 			!bytes.Equal(dkgResults[i].SignedProof.Proof.ValidatorPubKey,
 				dkgResults[0].SignedProof.Proof.ValidatorPubKey) {
-			return nil, fmt.Errorf("operator %d sent wrong validator public key", dkgResults[i].OperatorID)
+			return nil, fmt.Errorf("operator %d sent wrong validator public key: %x", dkgResults[i].OperatorID, dkgResults[i].SignedProof.Proof.ValidatorPubKey)
 		}
 	}
 	return dkgResults, nil

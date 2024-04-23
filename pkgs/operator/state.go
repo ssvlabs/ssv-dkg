@@ -440,9 +440,23 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 	if err := s.validateInstances(reqID); err != nil {
 		return nil, err
 	}
+	s.Logger.Info("Incoming resign request fields",
+		zap.String("network", hex.EncodeToString(r.Resign.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(r.Resign.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(r.Resign.Owner[:])),
+		zap.Uint64("nonce", r.Resign.Nonce),
+		zap.Any("operator IDs", getIDsFromOperatorsArray(r.Operators)))
+	for _, proof := range r.Proofs {
+		s.Logger.Info("Received proof",
+			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
+			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
+			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
+			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
+			zap.String("Signature", hex.EncodeToString(proof.Signature)))
+	}
 	inst, resp, err := s.CreateResignInstance(reqID, r, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("resign: failed to create instance: %s", err.Error())
+		return nil, fmt.Errorf("resign: failed to create resign instance: %s", err.Error())
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst

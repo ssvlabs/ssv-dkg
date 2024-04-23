@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	spec "github.com/ssvlabs/dkg-spec"
@@ -44,7 +46,7 @@ func (p *Proof) MarshalJSON() ([]byte, error) {
 func (p *Proof) UnmarshalJSON(data []byte) error {
 	var proof proofJSON
 	if err := json.Unmarshal(data, &proof); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal to proofJSON %s", err.Error())
 	}
 	if len(proof.Owner) != 40 {
 		return fmt.Errorf("invalid owner length")
@@ -353,4 +355,23 @@ func EncodeRSAPublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	}
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
+}
+
+func LoadJSONFile(file string, v interface{}) error {
+	data, err := os.ReadFile(filepath.Clean(file))
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &v)
+}
+
+func ConvertSignedProofsToSpec(wireProofs []*SignedProof) []*spec.SignedProof {
+	specProofs := []*spec.SignedProof{}
+	for _, proof := range wireProofs {
+		specProofs = append(specProofs, &spec.SignedProof{
+			Proof:     proof.Proof,
+			Signature: proof.Signature,
+		})
+	}
+	return specProofs
 }
