@@ -375,3 +375,21 @@ func ConvertSignedProofsToSpec(wireProofs []*SignedProof) []*spec.SignedProof {
 	}
 	return specProofs
 }
+
+func LoadProofs(path string) ([][]*SignedProof, error) {
+	var arrayOfSignedProofs [][]*SignedProof
+	if err := LoadJSONFile(path, &arrayOfSignedProofs); err != nil {
+		if strings.Contains(err.Error(), "cannot unmarshal object") {
+			// probably get only one proof, try to unmarshal it
+			var signedProof []*SignedProof
+			if err := LoadJSONFile(path, &signedProof); err != nil {
+				return nil, err
+			}
+			arrayOfSignedProofs = make([][]*SignedProof, 0)
+			arrayOfSignedProofs = append(arrayOfSignedProofs, signedProof)
+		} else {
+			return nil, err
+		}
+	}
+	return arrayOfSignedProofs, nil
+}

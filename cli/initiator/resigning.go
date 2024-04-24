@@ -63,15 +63,14 @@ var StartResigning = &cobra.Command{
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
-		var arrayOfsignedProofs [][]*wire.SignedProof
-		err = wire.LoadJSONFile(cli_utils.ProofsFilePath, &arrayOfsignedProofs)
+		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
-		for i := 0; i < len(arrayOfsignedProofs); i++ {
+		for i := 0; i < len(arrayOfSignedProofs); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
@@ -79,7 +78,7 @@ var StartResigning = &cobra.Command{
 				if err != nil {
 					return nil, err
 				}
-				proofsData := wire.ConvertSignedProofsToSpec(arrayOfsignedProofs[i])
+				proofsData := wire.ConvertSignedProofsToSpec(arrayOfSignedProofs[i])
 				// Create a new ID.
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
@@ -122,7 +121,7 @@ var StartResigning = &cobra.Command{
 			keySharesArr,
 			proofs,
 			false,
-			len(arrayOfsignedProofs),
+			len(arrayOfSignedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

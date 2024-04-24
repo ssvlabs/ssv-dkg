@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -26,6 +27,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
@@ -37,7 +39,7 @@ var (
 	operatorKey  = "./certs/localhost.key"
 )
 
-func TestHappyFlows(t *testing.T) {
+func TestInitHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
@@ -47,56 +49,99 @@ func TestHappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	t.Run("test 4 operators happy flow", func(t *testing.T) {
+	t.Run("test 4 operators init happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
 		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 4, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
-	t.Run("test 7 operators happy flow", func(t *testing.T) {
+	t.Run("test 7 operators init happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 7, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
-	t.Run("test 10 operators happy flow", func(t *testing.T) {
+	t.Run("test 10 operators init happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-		require.NoError(t, err)
-		err = testSharesData(ops, 10, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey, servers[9].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-		require.NoError(t, err)
-		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
-	t.Run("test 13 operators happy flow", func(t *testing.T) {
+	t.Run("test 13 operators init happy flow", func(t *testing.T) {
 		id := crypto.NewID()
-		depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
-		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestResignHappyFlows(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("integration-tests")
+	version := "test.version"
+	servers, ops := createOperators(t, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
+	require.NoError(t, err)
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	t.Run("test 4 operators resign happy flow", func(t *testing.T) {
+		id := crypto.NewID()
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
 		require.NoError(t, err)
-		err = testSharesData(ops, 13, []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey, servers[9].PrivKey, servers[10].PrivKey, servers[11].PrivKey, servers[12].PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
-		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+		// re-sign
+		id = crypto.NewID()
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test 7 operators resign happy flow", func(t *testing.T) {
+		id := crypto.NewID()
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		// re-sign
+		id = crypto.NewID()
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test 10 operators resign happy flow", func(t *testing.T) {
+		id := crypto.NewID()
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		// re-sign
+		id = crypto.NewID()
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test 13 operators resign happy flow", func(t *testing.T) {
+		id := crypto.NewID()
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		// re-sign
+		id = crypto.NewID()
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	for _, srv := range servers {
@@ -118,9 +163,11 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
+	cli_initiator.StartResigning.Version = version
 	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -143,6 +190,44 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
+	// validate results
+	initCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	validators := []int{1, 10, 100}
+	for i, c := range initCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	// re-sign
+	t.Run("test 4 operators bulk resign", func(t *testing.T) {
+		for i, c := range initCeremonies {
+			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			if validators[i] == 1 {
+				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				require.NoError(t, err)
+				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+			}
+			args := []string{"resign", "--proofsFilePath", proofsFilePath, "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "10", "--clientCACertPath", "./certs/rootCA.crt"}
+			RootCmd.SetArgs(args)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+		}
+	})
+	// remove init ceremonies
+	for _, c := range initCeremonies {
+		err = os.RemoveAll("./output/" + c.Name())
+		require.NoError(t, err)
+	}
+	// validate resign results
+	resignCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	for i, c := range resignCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -162,9 +247,11 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
+	cli_initiator.StartResigning.Version = version
 	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -186,6 +273,44 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
+	// validate results
+	initCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	validators := []int{1, 10, 100}
+	for i, c := range initCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	// re-sign
+	t.Run("test 7 operators bulk resign", func(t *testing.T) {
+		for i, c := range initCeremonies {
+			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			if validators[i] == 1 {
+				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				require.NoError(t, err)
+				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+			}
+			args := []string{"resign", "--proofsFilePath", proofsFilePath, "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "10", "--clientCACertPath", "./certs/rootCA.crt"}
+			RootCmd.SetArgs(args)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+		}
+	})
+	// remove init ceremonies
+	for _, c := range initCeremonies {
+		err = os.RemoveAll("./output/" + c.Name())
+		require.NoError(t, err)
+	}
+	// validate resign results
+	resignCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	for i, c := range resignCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -205,9 +330,11 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
+	cli_initiator.StartResigning.Version = version
 	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -229,6 +356,44 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
+	// validate results
+	initCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	validators := []int{1, 10, 100}
+	for i, c := range initCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	// re-sign
+	t.Run("test 10 operators bulk resign", func(t *testing.T) {
+		for i, c := range initCeremonies {
+			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			if validators[i] == 1 {
+				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				require.NoError(t, err)
+				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+			}
+			args := []string{"resign", "--proofsFilePath", proofsFilePath, "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "10", "--clientCACertPath", "./certs/rootCA.crt"}
+			RootCmd.SetArgs(args)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+		}
+	})
+	// remove init ceremonies
+	for _, c := range initCeremonies {
+		err = os.RemoveAll("./output/" + c.Name())
+		require.NoError(t, err)
+	}
+	// validate resign results
+	resignCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	for i, c := range resignCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -248,9 +413,11 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
+	cli_initiator.StartResigning.Version = version
 	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -272,6 +439,44 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
+	// validate results
+	initCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	validators := []int{1, 10, 100}
+	for i, c := range initCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	// re-sign
+	t.Run("test 13 operators bulk resign", func(t *testing.T) {
+		for i, c := range initCeremonies {
+			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			if validators[i] == 1 {
+				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				require.NoError(t, err)
+				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+			}
+			args := []string{"resign", "--proofsFilePath", proofsFilePath, "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "10", "--clientCACertPath", "./certs/rootCA.crt"}
+			RootCmd.SetArgs(args)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+		}
+	})
+	// remove init ceremonies
+	for _, c := range initCeremonies {
+		err = os.RemoveAll("./output/" + c.Name())
+		require.NoError(t, err)
+	}
+	// validate resign results
+	resignCeremonies, err := os.ReadDir("./output")
+	require.NoError(t, err)
+	for i, c := range resignCeremonies {
+		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		require.NoError(t, err)
+	}
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -536,15 +741,9 @@ func TestLargeOperatorIDs(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := crypto.NewID()
-	depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1100, 2222, 3300, 4444, 5555, 6666, 7777, 8888, 9999, 10000, 11111, 12222, 13333}, "mainnet", owner, 0)
+	depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1100, 2222, 3300, 4444, 5555, 6666, 7777, 8888, 9999, 10000, 11111, 12222, 13333}, "mainnet", owner, 0)
 	require.NoError(t, err)
-	sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
-	require.NoError(t, err)
-	pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
-	require.NoError(t, err)
-	err = testSharesData(ops, 13, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey, srv5.PrivKey, srv6.PrivKey, srv7.PrivKey, srv8.PrivKey, srv9.PrivKey, srv10.PrivKey, srv11.PrivKey, srv12.PrivKey, srv13.PrivKey}, sharesDataSigned, pubkeyraw, owner, 0)
-	require.NoError(t, err)
-	err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+	err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 	require.NoError(t, err)
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()

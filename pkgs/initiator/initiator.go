@@ -207,7 +207,7 @@ func (c *Initiator) resignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]b
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("✅ verified operator response responses signatures")
+	c.Logger.Info("✅ verified operator response signatures")
 	return results, nil
 }
 
@@ -294,6 +294,9 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 }
 
 func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+	if len(proofs) == 0 {
+		return nil, nil, nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
+	}
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
