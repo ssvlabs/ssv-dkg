@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	spec "github.com/ssvlabs/dkg-spec"
 )
 
 // opReqResult structure to represent http communication messages incoming to initiator from operators
@@ -82,7 +83,7 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Opera
 	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {
-			errarr = append(errarr, fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err))
+			errarr = append(errarr, fmt.Errorf("operator ID: %d; message: %w ", res.operatorID, ProcessError(res.err)))
 			continue
 		}
 		final = append(final, res.result)
@@ -95,4 +96,14 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Opera
 	}
 
 	return final, finalerr
+}
+
+func ProcessError(err error) error {
+	if strings.Contains(err.Error(), "context deadline exceeded") {
+		return fmt.Errorf("the requested server is not responding, not a DKG endpoint: %w", err)
+	}
+	if strings.Contains(err.Error(), "no such host") {
+		return fmt.Errorf("the requested server IP is not reachable: %w", err)
+	}
+	return err
 }
