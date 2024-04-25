@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"unsafe"
 
@@ -23,6 +24,7 @@ import (
 	"go.uber.org/zap"
 
 	cli_initiator "github.com/bloxapp/ssv-dkg/cli/initiator"
+	cli_verify "github.com/bloxapp/ssv-dkg/cli/verify"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -164,10 +166,12 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
+	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
+	cli_verify.Verify.Version = version
 	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -195,8 +199,11 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	// re-sign
 	t.Run("test 4 operators bulk resign", func(t *testing.T) {
@@ -223,8 +230,11 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(10)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
@@ -248,10 +258,12 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
+	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
+	cli_verify.Verify.Version = version
 	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -278,8 +290,11 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	// re-sign
 	t.Run("test 7 operators bulk resign", func(t *testing.T) {
@@ -306,8 +321,11 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(10)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
@@ -331,10 +349,12 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
+	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
+	cli_verify.Verify.Version = version
 	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -361,8 +381,11 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	// re-sign
 	t.Run("test 10 operators bulk resign", func(t *testing.T) {
@@ -389,8 +412,11 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(10)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
@@ -414,10 +440,12 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
+	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
+	cli_verify.Verify.Version = version
 	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
@@ -444,8 +472,11 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 1, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	// re-sign
 	t.Run("test 13 operators bulk resign", func(t *testing.T) {
@@ -472,8 +503,11 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
-		err = validator.ValidateResultsDir("./output/"+c.Name(), validators[i], common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"), 10, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"))
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(10)}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
 		require.NoError(t, err)
+		resetFlags(RootCmd)
 	}
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
