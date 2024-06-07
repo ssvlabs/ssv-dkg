@@ -217,7 +217,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Owner:                 owner,
 			Nonce:                 0,
 		}
-		id := crypto.NewID()
+		id := spec.NewID()
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
 		initMessage := &wire.Transport{

@@ -8,11 +8,11 @@ import (
 
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
+	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -63,13 +63,14 @@ var StartResigning = &cobra.Command{
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
-		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
+		arrayOfSignedProofs, err := wire.LoadProofsArray(cli_utils.ProofsFilePath)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
+		// TODO: Sign EIP1271
 		for i := 0; i < len(arrayOfSignedProofs); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
@@ -80,10 +81,10 @@ var StartResigning = &cobra.Command{
 				}
 				proofsData := wire.ConvertSignedProofsToSpec(arrayOfSignedProofs[i])
 				// Create a new ID.
-				id := crypto.NewID()
+				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the resigning ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce, []byte{})
 				if err != nil {
 					return nil, err
 				}

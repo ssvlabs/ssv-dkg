@@ -20,6 +20,7 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
+	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -76,7 +77,7 @@ func TestStartDKG(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
@@ -87,21 +88,21 @@ func TestStartDKG(t *testing.T) {
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: < 4")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: > 13")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})

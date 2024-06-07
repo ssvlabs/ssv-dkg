@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -52,28 +53,28 @@ func TestInitHappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 4 operators init happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators init happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators init happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators init happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
@@ -95,52 +96,52 @@ func TestResignHappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 4 operators resign happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 		// re-sign
-		id = crypto.NewID()
+		id = spec.NewID()
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators resign happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 		// re-sign
-		id = crypto.NewID()
+		id = spec.NewID()
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators resign happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 		// re-sign
-		id = crypto.NewID()
+		id = spec.NewID()
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators resign happy flow", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 		// re-sign
-		id = crypto.NewID()
+		id = spec.NewID()
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
@@ -527,7 +528,7 @@ func TestThreshold(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -547,7 +548,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators threshold", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -567,7 +568,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators threshold", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -587,7 +588,7 @@ func TestThreshold(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -624,7 +625,7 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	id := crypto.NewID()
+	id := spec.NewID()
 	depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -641,7 +642,7 @@ func TestUnhappyFlows(t *testing.T) {
 	t.Run("test wrong operators shares order at SSV payload", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
@@ -667,14 +668,14 @@ func TestUnhappyFlows(t *testing.T) {
 	t.Run("test wrong operator IDs", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 66, 77, 88}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 	t.Run("test non 3f+1 operator set", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := crypto.NewID()
+		id := spec.NewID()
 		// 0 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "wrong operators len: < 4")
@@ -718,7 +719,7 @@ func TestUnhappyFlows(t *testing.T) {
 	t.Run("test out of order operators (i.e 3,2,4,1) ", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operators not unique or not ordered")
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122}, "mainnet", owner, 0)
@@ -774,7 +775,7 @@ func TestLargeOperatorIDs(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	id := crypto.NewID()
+	id := spec.NewID()
 	depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1100, 2222, 3300, 4444, 5555, 6666, 7777, 8888, 9999, 10000, 11111, 12222, 13333}, "mainnet", owner, 0)
 	require.NoError(t, err)
 	err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
@@ -811,7 +812,7 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	id := crypto.NewID()
+	id := spec.NewID()
 	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()
@@ -837,7 +838,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
-	id := crypto.NewID()
+	id := spec.NewID()
 	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()

@@ -93,6 +93,36 @@ func RegisterRoutes(s *Server) {
 				return
 			}
 		})
+		s.Router.With(rateLimit(s.Logger, routeLimit)).
+			Post("/reshare", func(writer http.ResponseWriter, request *http.Request) {
+				s.Logger.Debug("incoming RESHARE msg")
+				rawdata, err := io.ReadAll(request.Body)
+				if err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+					return
+				}
+				signedReshareMsg := &wire.SignedTransport{}
+				if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+					return
+				}
+				// Validate that incoming message is an init message
+				if signedReshareMsg.Message.Type != wire.ReshareMessageType {
+					utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not reshare message to reshare route")), http.StatusBadRequest)
+					return
+				}
+				reqid := signedReshareMsg.Message.Identifier
+				logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
+				b, err := s.State.ReshareInstance(reqid, signedReshareMsg.Message, signedReshareMsg.Signer, signedReshareMsg.Signature)
+				if err != nil {
+					utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+					return
+				}
+				logger.Info("✅ Reshare instance created successfully")
+	
+				writer.WriteHeader(http.StatusOK)
+				writer.Write(b)
+			})
 	s.Router.With(rateLimit(s.Logger, routeLimit)).
 		Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
 			s.Logger.Debug("received a dkg protocol message")

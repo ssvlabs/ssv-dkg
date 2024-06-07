@@ -8,7 +8,6 @@ import (
 	drand_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
 	"github.com/herumi/bls-eth-go-binary/bls"
 )
 
@@ -26,16 +25,6 @@ const (
 func init() {
 	_ = bls.Init(bls.BLS12_381)
 	_ = bls.SetETHmode(bls.EthModeDraft07)
-}
-
-// NewID generates a random ID from 2 random concat UUIDs
-func NewID() [24]byte {
-	var id [24]byte
-	b := uuid.New()
-	copy(id[:12], b[:])
-	b = uuid.New()
-	copy(id[12:], b[:])
-	return id
 }
 
 // ResultToShareSecretKey converts a private share at kyber DKG result to github.com/herumi/bls-eth-go-binary/bls private key

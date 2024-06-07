@@ -132,20 +132,13 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) e
 	return nil
 }
 
-func GetPubCommitsFromSharesData(operators []*spec.Operator, keyshares []byte, threshold int) ([]kyber.Point, error) {
+func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedProof, threshold int) ([]kyber.Point, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
-	signatureOffset := phase0.SignatureLength
-	pubKeysOffset := phase0.PublicKeyLength*len(operators) + signatureOffset
-	sharesExpectedLength := EncryptedKeyLength*len(operators) + pubKeysOffset
-	if len(keyshares) != sharesExpectedLength {
-		return nil, fmt.Errorf("GetPubCommitsFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyshares))
-	}
-	pubKeys := utils.SplitBytes(keyshares[signatureOffset:pubKeysOffset], phase0.PublicKeyLength)
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
-	for i, pubk := range pubKeys {
+	for i, proof := range proofs {
 		blsPub := &bls.PublicKey{}
-		err := blsPub.Deserialize(pubk)
+		err := blsPub.Deserialize(proof.Proof.SharePubKey)
 		if err != nil {
 			return nil, err
 		}
@@ -168,31 +161,14 @@ func GetPubCommitsFromSharesData(operators []*spec.Operator, keyshares []byte, t
 	return commits, nil
 }
 
-func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []byte, oldOperators []*wire.Operator, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
+func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
 	suite := kyber_bls12381.NewBLS12381Suite()
-	secret, position, err := checkKeySharesSlice(keyshares, oldOperators, operatorID, opPrivateKey)
+	secret, err := decryptBLSKeyFromProof(proof, opPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 	var kyberPrivShare *share.PriShare
-	// Check operator signature
-	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	encInitPub, err := spec_crypto.EncodeRSAPublicKey(initiatorPubKey)
-	if err != nil {
-		return nil, err
-	}
-	sigs := utils.SplitBytes(ceremonySigs, SignatureLength)
 	serialized := secret.Serialize()
-	dataToVerify := make([]byte, len(serialized)+len(encInitPub))
-	copy(dataToVerify[:len(serialized)], serialized)
-	copy(dataToVerify[len(serialized):], encInitPub)
-	err = spec_crypto.VerifyRSA(&opPrivateKey.PublicKey, dataToVerify, sigs[position])
-	if err != nil {
-		return nil, fmt.Errorf("cant verify initiator public key")
-	}
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
 		I: int(operatorID),
@@ -201,47 +177,25 @@ func GetSecretShareFromSharesData(keyshares, initiatorPublicKey, ceremonySigs []
 	return kyberPrivShare, nil
 }
 
-func checkKeySharesSlice(keyShares []byte, oldOperators []*wire.Operator, operatorID uint64, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, int, error) {
-	pubKeyOffset := phase0.PublicKeyLength * len(oldOperators)
-	pubKeysSigOffset := pubKeyOffset + phase0.SignatureLength
-	sharesExpectedLength := EncryptedKeyLength*len(oldOperators) + pubKeysSigOffset
-	if len(keyShares) != sharesExpectedLength {
-		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: shares data len is not correct, expected %d, actual %d", sharesExpectedLength, len(keyShares))
-	}
-	position := -1
-	for i, op := range oldOperators {
-		if operatorID == op.ID {
-			position = i
-			break
-		}
-	}
-	// check
-	if position == -1 {
-		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: operator not found among old operators: %d", operatorID)
-	}
-	encryptedKeys := utils.SplitBytes(keyShares[pubKeysSigOffset:], len(keyShares[pubKeysSigOffset:])/len(oldOperators))
+func decryptBLSKeyFromProof(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, error) {
 	// try to decrypt private share
-	prShare, err := rsaencryption.DecodeKey(opPrivateKey, encryptedKeys[position])
+	prShare, err := rsaencryption.DecodeKey(opPrivateKey, proof.Proof.EncryptedShare)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	secret := &bls.SecretKey{}
 	err = secret.SetHexString(string(prShare))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	// find share pub key
-	pubKeys := utils.SplitBytes(keyShares[phase0.SignatureLength:pubKeysSigOffset], phase0.PublicKeyLength)
-	if len(pubKeys) != len(oldOperators) {
-		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: amount of public keys at keyshares slice is wrong: %d", len(pubKeys))
-	}
+	// get share pub key
 	publicKey := &bls.PublicKey{}
-	err = publicKey.Deserialize(pubKeys[position])
+	err = publicKey.Deserialize(proof.Proof.SharePubKey)
 	if err != nil {
-		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: cant deserialize public key at keyshares slice: %d", len(pubKeys))
+		return nil, fmt.Errorf("cant deserialize public key at proof")
 	}
 	if !bytes.Equal(publicKey.Serialize(), secret.GetPublicKey().Serialize()) {
-		return nil, 0, fmt.Errorf("GetSecretShareFromSharesData: public key at position %d not equal to operator`s share public key", position)
+		return nil, fmt.Errorf("public key from proof is not equal to operator`s decrypted bls public key")
 	}
-	return secret, position, nil
+	return secret, nil
 }

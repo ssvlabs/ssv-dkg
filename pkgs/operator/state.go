@@ -11,9 +11,11 @@ import (
 	"time"
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_dkg "github.com/drand/kyber/share/dkg"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/eip1271"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -107,7 +109,7 @@ func (s *Switch) CreateInitInstance(reqID [24]byte, init *spec.Init, initiatorPu
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
-		OperatorPublicKey:  &s.PrivateKey.PublicKey,
+		OperatorSecretKey:  s.PrivateKey,
 		Version:            s.Version,
 	}
 	owner := dkg.New(&opts)
@@ -148,11 +150,81 @@ func (s *Switch) CreateResignInstance(reqID [24]byte, resign *wire.ResignMessage
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
-		OperatorPublicKey:  &s.PrivateKey.PublicKey,
+		OperatorSecretKey:  s.PrivateKey,
 		Version:            s.Version,
 	}
 	owner := dkg.New(&opts)
 	resp, err := owner.Resign(reqID, resign)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := owner.Broadcast(resp); err != nil {
+		return nil, nil, err
+	}
+	res := <-bchan
+	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
+}
+
+func (s *Switch) CreateReshareInstance(reqID [24]byte, reshareMsg *wire.ReshareMessage, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+	var allOps []*spec.Operator
+	allOps = append(allOps, reshareMsg.SignedReshare.Reshare.OldOperators...)
+	allOps = append(allOps, reshareMsg.SignedReshare.Reshare.NewOperators...)
+	operatorID, err := spec.OperatorIDByPubKey(allOps, s.PubKeyBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	// sanity check of operator ID
+	if s.OperatorID != operatorID {
+		return nil, nil, fmt.Errorf("operator ID not found in the participating reshare operators")
+	}
+	bchan := make(chan []byte, 1)
+	broadcast := func(msg []byte) error {
+		bchan <- msg
+		return nil
+	}
+	opts := dkg.OwnerOpts{
+		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
+		BroadcastF:         broadcast,
+		Signer:             crypto.RSASigner(s.PrivateKey),
+		EncryptFunc:        s.Encrypt,
+		DecryptFunc:        s.Decrypt,
+		Suite:              kyber_bls12381.NewBLS12381Suite(),
+		ID:                 operatorID,
+		InitiatorPublicKey: initiatorPublicKey,
+		OperatorSecretKey:  s.PrivateKey,
+		Owner:              reshareMsg.SignedReshare.Reshare.Owner,
+		Nonce:              reshareMsg.SignedReshare.Reshare.Nonce,
+		Version:            s.Version,
+	}
+	owner := dkg.New(&opts)
+	// wait for exchange msg
+	commits, err := crypto.GetPubCommitsFromProofs(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.Proofs, int(reshareMsg.SignedReshare.Reshare.OldT))
+	if err != nil {
+		return nil, nil, err
+	}
+	for i, op := range reshareMsg.SignedReshare.Reshare.OldOperators {
+		if op.ID == s.OperatorID {
+			op := &spec.Operator{
+				ID:     s.OperatorID,
+				PubKey: s.PubKeyBytes,
+			}
+			if err := spec.ValidateReshareMessage(&reshareMsg.SignedReshare.Reshare, op, reshareMsg.Proofs[i]); err != nil {
+				return nil, nil, err
+			}
+			secretShare, err := crypto.GetSecretShareFromProofs(reshareMsg.Proofs[i], s.PrivateKey, s.OperatorID)
+			if err != nil {
+				return nil, nil, err
+			}
+			if secretShare == nil {
+				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
+			}
+			owner.SecretShare = &kyber_dkg.DistKeyShare{
+				Commits: commits,
+				Share:   secretShare,
+			}
+		}
+	}
+	resp, err := owner.Reshare(reqID, &reshareMsg.SignedReshare.Reshare, commits)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -441,13 +513,12 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 		return nil, err
 	}
 	s.Logger.Info("Incoming resign request fields",
-		zap.String("network", hex.EncodeToString(r.Resign.Fork[:])),
-		zap.String("withdrawal", hex.EncodeToString(r.Resign.WithdrawalCredentials)),
-		zap.String("owner", hex.EncodeToString(r.Resign.Owner[:])),
-		zap.Uint64("nonce", r.Resign.Nonce),
-		zap.Any("operator IDs", getIDsFromOperatorsArray(r.Operators)))
+		zap.String("network", hex.EncodeToString(r.SignedResign.Resign.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(r.SignedResign.Resign.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(r.SignedResign.Resign.Owner[:])),
+		zap.Uint64("nonce", r.SignedResign.Resign.Nonce))
 	for _, proof := range r.Proofs {
-		s.Logger.Info("Received proof",
+		s.Logger.Info("Loaded proof",
 			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
 			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
 			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
@@ -457,6 +528,70 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 	inst, resp, err := s.CreateResignInstance(reqID, r, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("resign: failed to create resign instance: %s", err.Error())
+	}
+	s.Mtx.Lock()
+	s.Instances[reqID] = inst
+	s.InstanceInitTime[reqID] = time.Now()
+	s.Mtx.Unlock()
+	return resp, nil
+}
+
+// InitInstance creates a LocalOwner instance and DKG public key message (Exchange)
+func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
+	if !bytes.Equal(reshareMsg.Version, s.Version) {
+		return nil, fmt.Errorf("wrong version: remote %s local %s", reshareMsg.Version, s.Version)
+	}
+	// Check that incoming message signature is valid
+	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
+	if err != nil {
+		return nil, fmt.Errorf("resign: failed parse initiator public key: %s", err.Error())
+	}
+	marshalledWireMsg, err := reshareMsg.MarshalSSZ()
+	if err != nil {
+		return nil, fmt.Errorf("resign: failed to marshal transport message: %s", err.Error())
+	}
+	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	if err != nil {
+		return nil, fmt.Errorf("resign: initiator signature isn't valid: %s", err.Error())
+	}
+	s.Logger.Info("🚀 Creating reshare instance")
+	reshare := &wire.ReshareMessage{}
+	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
+		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
+	}
+	var client eip1271.ETHClient
+	if err := spec_crypto.VerifySignedMessageByOwner(
+		client,
+		reshare.SignedReshare.Reshare.Owner,
+		reshare.SignedReshare,
+		reshare.SignedReshare.Signature,
+	); err != nil {
+		return nil, err
+	}
+	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+	if err := s.validateInstances(reqID); err != nil {
+		return nil, err
+	}
+	s.Logger.Info("Outgoing reshare request fields",
+		zap.Any("Old operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.OldOperators)),
+		zap.Any("New operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.NewOperators)),
+		zap.String("ValidatorPubKey", hex.EncodeToString(reshare.Proofs[0].Proof.ValidatorPubKey)),
+		zap.String("network", hex.EncodeToString(reshare.SignedReshare.Reshare.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(reshare.SignedReshare.Reshare.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(reshare.SignedReshare.Reshare.Owner[:])),
+		zap.Uint64("nonce", reshare.SignedReshare.Reshare.Nonce),
+		zap.String("EIP1271 owner signature", hex.EncodeToString(reshare.SignedReshare.Signature)))
+	for _, proof := range reshare.Proofs {
+		s.Logger.Info("Loaded proof",
+			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
+			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
+			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
+			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
+			zap.String("Signature", hex.EncodeToString(proof.Signature)))
+	}
+	inst, resp, err := s.CreateReshareInstance(reqID, reshare, initiatorPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst

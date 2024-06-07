@@ -130,7 +130,7 @@ func TestDKGInit(t *testing.T) {
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),
 	}
-	uid := crypto.NewID()
+	uid := spec.NewID()
 	exch := map[uint64]*wire2.Transport{}
 
 	err = ts.ForAll(func(o *LocalOwner) error {

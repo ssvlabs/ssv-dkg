@@ -8,11 +8,11 @@ import (
 
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
+	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 )
@@ -78,7 +78,7 @@ var StartDKG = &cobra.Command{
 					return nil, err
 				}
 				// Create a new ID.
-				id := crypto.NewID()
+				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the ceremony.
 				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)

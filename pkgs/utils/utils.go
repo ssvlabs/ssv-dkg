@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
+	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
@@ -102,4 +103,71 @@ func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err erro
 func GetNonce(input []byte) []byte {
 	ret := sha256.Sum256(input)
 	return ret[:]
+}
+
+// JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
+func JoinSets(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+	tmp := make(map[uint64]*spec.Operator)
+	var set []*spec.Operator
+	for _, op := range oldOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range tmp {
+		set = append(set, op)
+	}
+	return set
+}
+
+// GetDisjointOldOperators returns an old set of operators disjoint from new set
+// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
+func GetDisjointOldOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+	tmp := make(map[uint64]*spec.Operator)
+	var set []*spec.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			set = append(set, op)
+		}
+	}
+	return set
+}
+
+// GetDisjointNewOperators returns a new set of operators disjoint from old set
+// For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
+func GetDisjointNewOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+	tmp := make(map[uint64]*spec.Operator)
+	var set []*spec.Operator
+	for _, op := range newOperators {
+		if tmp[op.ID] == nil {
+			tmp[op.ID] = op
+		}
+	}
+	for _, op := range oldOperators {
+		if tmp[op.ID] != nil {
+			delete(tmp, op.ID)
+		}
+	}
+	for _, op := range tmp {
+		set = append(set, op)
+	}
+	return set
+}
+
+func GetOpIDs(ops []*spec.Operator) []uint64 {
+	ids := make([]uint64, 0)
+	for _, op := range ops {
+		ids = append(ids, op.ID)
+	}
+	return ids
 }
