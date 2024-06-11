@@ -100,6 +100,11 @@ type KyberMessage struct {
 	Data []byte `ssz-max:"4096"`
 }
 
+type ReshareKyberMessage struct {
+	Type TransportType
+	Data []byte `ssz-max:"4096"`
+}
+
 // Exchange contains the session auth/ encryption key for each node
 type Exchange struct {
 	PK      []byte `ssz-max:"2048"`

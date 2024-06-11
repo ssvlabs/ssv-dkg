@@ -74,19 +74,21 @@ var StartReshare = &cobra.Command{
 		}
 		// Start the ceremony
 		// TODO: Sign EIP1271
-		keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, cli_utils.Nonce, []byte{})
+		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, cli_utils.Nonce, []byte{})
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
+		var depositDataArr []*wire.DepositDataCLI
 		var keySharesArr []*wire.KeySharesCLI
 		var proofs [][]*wire.SignedProof
+		depositDataArr = append(depositDataArr, depositData)
 		keySharesArr = append(keySharesArr, keyShares)
 		proofs = append(proofs, proof)
 		// Save results
 		logger.Info("🎯 All data is validated.")
 		if err := cli_utils.WriteResults(
 			logger,
-			nil,
+			depositDataArr,
 			keySharesArr,
 			proofs,
 			false,

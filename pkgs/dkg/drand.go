@@ -8,7 +8,10 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
+	kyber_share "github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/util/random"
@@ -87,6 +90,7 @@ func New(opts *OwnerOpts) *LocalOwner {
 		ID:                 opts.ID,
 		broadcastF:         opts.BroadcastF,
 		exchanges:          make(map[uint64]*wire.Exchange),
+		deals:              make(map[uint64]*kyber_dkg.DealBundle),
 		signer:             opts.Signer,
 		encryptFunc:        opts.EncryptFunc,
 		decryptFunc:        opts.DecryptFunc,
@@ -299,7 +303,9 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 		Version:    o.version,
 	}
 	o.Broadcast(tsMsg)
-	close(o.done)
+	if _, ok := <-o.done; ok {
+		close(o.done)
+	}
 	return nil
 }
 
@@ -392,9 +398,24 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 
 // Process processes incoming messages from initiator at /dkg route
 func (o *LocalOwner) Process(st *wire.SignedTransport) error {
-	from, err := spec.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
-	if err != nil {
-		return err
+	var from uint64
+	if o.data.init != nil {
+		id, err := spec.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
+		if err != nil {
+			return err
+		}
+		from = id
+	}
+	if o.data.reshare != nil {
+		allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		id, err := spec.OperatorIDByPubKey(allOps, st.Signer)
+		if err != nil {
+			return err
+		}
+		from = id
+	}
+	if from == 0 {
+		return fmt.Errorf("cant find operator ID message from")
 	}
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
@@ -427,9 +448,6 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 			}
 		}
 
-	case wire.KyberMessageType:
-		<-o.startedDKG
-		return o.processDKG(from, st.Message)
 	case wire.ReshareExchangeMessageType:
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
@@ -457,7 +475,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 				if err != nil {
 					return err
 				}
-				msg := &wire.KyberMessage{
+				msg := &wire.ReshareKyberMessage{
 					Type: wire.KyberDealBundleMessageType,
 					Data: b,
 				}
@@ -476,7 +494,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 			}
 		}
 	case wire.ReshareKyberMessageType:
-		kyberMsg := &wire.KyberMessage{}
+		kyberMsg := &wire.ReshareKyberMessage{}
 		if err := kyberMsg.UnmarshalSSZ(st.Message.Data); err != nil {
 			return err
 		}
@@ -508,6 +526,9 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 				}
 			}
 		}
+	case wire.KyberMessageType:
+		<-o.startedDKG
+		return o.processDKG(from, st.Message)
 	default:
 		return fmt.Errorf("unknown message type")
 	}
@@ -825,7 +846,15 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		}
 		coefs = append(coefs, p)
 	}
-
+	suite := kyber_bls12381.NewBLS12381Suite()
+	exp := kyber_share.NewPubPoly(suite.G1().(dkg.Suite), suite.G1().(dkg.Suite).Point().Base(), coefs)
+	bytsPK, err := exp.Commit().MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("could not marshal share %w", err)
+	}
+	if !bytes.Equal(bytsPK, o.data.reshare.ValidatorPubKey) {
+		return fmt.Errorf("validator pub key recovered from proofs not equal validator pub key at reshare msg")
+	}
 	// New protocol
 	logger := o.Logger.With(zap.Uint64("ID", o.ID))
 	dkgConfig := &kyber_dkg.Config{
@@ -843,10 +872,8 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	for _, b := range o.deals {
+		o.Logger.Info("Pushing deal", zap.Any("Deal", *b))
 		o.board.DealC <- *b
 	}
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {

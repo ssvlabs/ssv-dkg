@@ -58,19 +58,23 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
 func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error) {
+	errors := make(map[uint64]error, 0)
 	resc := make(chan opReqResult, len(operators))
 	for _, op := range operators {
-		go func(operator wire.OperatorCLI) {
-			res, err := c.SendAndCollect(operator, method, msg)
+		operator := c.Operators.ByID(op.ID)
+		if operator == nil {
+			errors[op.ID] = fmt.Errorf("operator ID: %d not found in operators list", op.ID)
+		}
+		go func() {
+			res, err := c.SendAndCollect(*operator, method, msg)
 			resc <- opReqResult{
 				operatorID: operator.ID,
 				err:        err,
 				result:     res,
 			}
-		}(c.Operators[op.ID])
+		}()
 	}
 	responses := make(map[uint64][]byte)
-	errors := make(map[uint64]error, 0)
 	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {

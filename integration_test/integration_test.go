@@ -85,6 +85,63 @@ func TestInitHappyFlows(t *testing.T) {
 	}
 }
 
+func TestReshareHappyFlow(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("integration-tests")
+	version := "test.version"
+	servers, ops := createOperators(t, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
+	require.NoError(t, err)
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	t.Run("test reshare 4 new disjoint operators", func(t *testing.T) {
+		id := spec.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		newIds := []uint64{55, 66, 77, 88}
+		newId := spec.NewID()
+		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test reshare 4 joint operators: 1 old + 3 new", func(t *testing.T) {
+		id := spec.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		newIds := []uint64{11, 66, 77, 88}
+		newId := spec.NewID()
+		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test reshare 7 joint operators: 4 old + 3 new", func(t *testing.T) {
+		id := spec.NewID()
+		ids := []uint64{11, 22, 33, 44}
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		newIds := []uint64{11, 22, 33, 44, 55, 66, 77}
+		newId := spec.NewID()
+		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
 func TestResignHappyFlows(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -103,7 +160,7 @@ func TestResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0, []byte{})
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -116,7 +173,7 @@ func TestResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0, []byte{})
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -129,7 +186,7 @@ func TestResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0, []byte{})
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -142,7 +199,7 @@ func TestResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0)
+		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, wire.ConvertSignedProofsToSpec(proofs), "holesky", withdraw.Bytes(), owner, 0, []byte{})
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)

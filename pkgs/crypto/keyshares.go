@@ -148,7 +148,7 @@ func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedPr
 			return nil, err
 		}
 		kyberPubhare := &share.PubShare{
-			I: int(i),
+			I: int(operators[i].ID - 1),
 			V: v,
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubhare)
@@ -171,7 +171,7 @@ func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.Private
 	serialized := secret.Serialize()
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
-		I: int(operatorID),
+		I: int(operatorID - 1),
 		V: v,
 	}
 	return kyberPrivShare, nil

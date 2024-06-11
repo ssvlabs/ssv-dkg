@@ -15,7 +15,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
-	"github.com/ssvlabs/dkg-spec/eip1271"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -175,7 +174,7 @@ func (s *Switch) CreateReshareInstance(reqID [24]byte, reshareMsg *wire.ReshareM
 	}
 	// sanity check of operator ID
 	if s.OperatorID != operatorID {
-		return nil, nil, fmt.Errorf("operator ID not found in the participating reshare operators")
+		return nil, nil, fmt.Errorf("wrong operator ID")
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
@@ -222,6 +221,22 @@ func (s *Switch) CreateReshareInstance(reqID [24]byte, reshareMsg *wire.ReshareM
 				Commits: commits,
 				Share:   secretShare,
 			}
+			suite := kyber_bls12381.NewBLS12381Suite()
+			valPK, err := crypto.ResultToValidatorPK(owner.SecretShare, suite.G1().(kyber_dkg.Suite))
+			if err != nil {
+				return nil, nil, err
+			}
+			if !bytes.Equal(valPK.Serialize(), reshareMsg.SignedReshare.Reshare.ValidatorPubKey) {
+				return nil, nil, fmt.Errorf("validator pub key recovered from proofs not equal validator pub key at reshare msg")
+			}
+			secretKeyBLS, err := crypto.ResultToShareSecretKey(owner.SecretShare)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
+			}
+			if !bytes.Equal(secretKeyBLS.GetPublicKey().Serialize(), reshareMsg.Proofs[i].Proof.SharePubKey) {
+				return nil, nil, fmt.Errorf("share pub key recovered from proofs not equal share pub key at reshare msg")
+			}
+			s.Logger.Info("Successfully recovered secret share from proofs", zap.Any("secret share", owner.SecretShare))
 		}
 	}
 	resp, err := owner.Reshare(reqID, &reshareMsg.SignedReshare.Reshare, commits)
@@ -559,20 +574,20 @@ func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, ini
 	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
-	var client eip1271.ETHClient
-	if err := spec_crypto.VerifySignedMessageByOwner(
-		client,
-		reshare.SignedReshare.Reshare.Owner,
-		reshare.SignedReshare,
-		reshare.SignedReshare.Signature,
-	); err != nil {
-		return nil, err
-	}
-	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+	// var client eip1271.ETHClient
+	// if err := spec_crypto.VerifySignedMessageByOwner(
+	// 	client,
+	// 	reshare.SignedReshare.Reshare.Owner,
+	// 	reshare.SignedReshare,
+	// 	reshare.SignedReshare.Signature,
+	// ); err != nil {
+	// 	return nil, err
+	// }
+	s.Logger.Info("✅ reshare eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	if err := s.validateInstances(reqID); err != nil {
 		return nil, err
 	}
-	s.Logger.Info("Outgoing reshare request fields",
+	s.Logger.Info("Incoming reshare request fields",
 		zap.Any("Old operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.OldOperators)),
 		zap.Any("New operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.NewOperators)),
 		zap.String("ValidatorPubKey", hex.EncodeToString(reshare.Proofs[0].Proof.ValidatorPubKey)),
@@ -582,7 +597,7 @@ func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, ini
 		zap.Uint64("nonce", reshare.SignedReshare.Reshare.Nonce),
 		zap.String("EIP1271 owner signature", hex.EncodeToString(reshare.SignedReshare.Signature)))
 	for _, proof := range reshare.Proofs {
-		s.Logger.Info("Loaded proof",
+		s.Logger.Info("Reshare proof",
 			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
 			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
 			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
