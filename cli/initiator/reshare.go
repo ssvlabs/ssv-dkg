@@ -1,16 +1,23 @@
 package initiator
 
 import (
+	"encoding/hex"
 	"fmt"
-
-	"github.com/spf13/cobra"
-	spec "github.com/ssvlabs/dkg-spec"
-	"go.uber.org/zap"
+	"os"
+	"syscall"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/spf13/cobra"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"go.uber.org/zap"
+	"golang.org/x/term"
 )
 
 func init() {
@@ -73,8 +80,74 @@ var StartReshare = &cobra.Command{
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
 		// Start the ceremony
-		// TODO: Sign EIP1271
-		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, cli_utils.Nonce, []byte{})
+		reshare, err := dkgInitiator.ConstructReshareMessage(
+			oldOperatorIDs,
+			newOperatorIDs,
+			proofsData[0].Proof.ValidatorPubKey,
+			ethnetwork,
+			cli_utils.WithdrawAddress.Bytes(),
+			cli_utils.OwnerAddress, cli_utils.Nonce)
+		if err != nil {
+			return err
+		}
+		hash, err := reshare.HashTreeRoot()
+		if err != nil {
+			return err
+		}
+		// Sign EIP1271 reshare message root
+		// Open ethereum keystore
+		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
+		if err != nil {
+			return err
+		}
+		logger.Info("🔑 Please enter owner key password")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return err
+		}
+		sk, err := keystore.DecryptKey(jsonBytes, string(bytePassword))
+		if err != nil {
+			return err
+		}
+		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+		if err != nil {
+			return err
+		}
+		ethBackend, err := ethclient.Dial("http://127.0.0.1:8545")
+		if err != nil {
+			return err
+		}
+		err = spec_crypto.VerifySignedMessageByOwner(ethBackend, cli_utils.OwnerAddress, reshare, ownerSig)
+		if err != nil {
+			return err
+		}
+		logger.Info("🚀 Starting Re-SHARING ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs), zap.String("instance_id", hex.EncodeToString(id[:])))
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		logger.Info("Outgoing reshare request fields",
+			zap.Any("Old operator IDs", oldOperatorIDs),
+			zap.Any("New operator IDs", newOperatorIDs),
+			zap.String("ValidatorPubKey", hex.EncodeToString(reshareMsg.Proofs[0].Proof.ValidatorPubKey)),
+			zap.String("network", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.Fork[:])),
+			zap.String("withdrawal", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.WithdrawalCredentials)),
+			zap.String("owner", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.Owner[:])),
+			zap.Uint64("nonce", reshareMsg.SignedReshare.Reshare.Nonce),
+			zap.String("EIP1271 owner signature", hex.EncodeToString(reshareMsg.SignedReshare.Signature)))
+		for _, proof := range reshareMsg.Proofs {
+			logger.Info("Loaded proof",
+				zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
+				zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
+				zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
+				zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
+				zap.String("Signature", hex.EncodeToString(proof.Signature)))
+		}
+		// Start the ceremeny
+		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, reshareMsg)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}

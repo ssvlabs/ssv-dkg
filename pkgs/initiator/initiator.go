@@ -19,6 +19,7 @@ import (
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
@@ -462,54 +463,7 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	return depositDataJson, keyshares, proofsArray, nil
 }
 
-func (c *Initiator) StartResharing(id [24]byte, oldOpIDs []uint64, newOpIDs []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdrawalCredentials []byte, owner [20]byte, nonce uint64, ownerSignature []byte) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
-	oldOps, err := ValidatedOperatorData(oldOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	newOps, err := ValidatedOperatorData(newOpIDs, c.Operators)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	instanceIDField := zap.String("instance_id", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting ReSHARING ceremony", zap.Uint64s("old operator IDs", oldOpIDs), zap.Uint64s("new operator IDs", newOpIDs), instanceIDField)
-	// compute threshold (3f+1)
-	oldThreshold := len(oldOpIDs) - ((len(oldOpIDs) - 1) / 3)
-	newThreshold := len(newOpIDs) - ((len(newOpIDs) - 1) / 3)
-	reshareMsg := &wire.ReshareMessage{
-		SignedReshare: &spec.SignedReshare{
-			Reshare: spec.Reshare{
-				ValidatorPubKey:       proofs[0].Proof.ValidatorPubKey,
-				OldOperators:          oldOps,
-				NewOperators:          newOps,
-				OldT:                  uint64(oldThreshold),
-				NewT:                  uint64(newThreshold),
-				Fork:                  network.GenesisForkVersion(),
-				WithdrawalCredentials: withdrawalCredentials,
-				Owner:                 owner,
-				Nonce:                 nonce,
-			},
-			Signature: ownerSignature,
-		},
-		Proofs: proofs,
-	}
-	c.Logger.Info("Outgoing reshare request fields",
-		zap.Any("Old operator IDs", oldOpIDs),
-		zap.Any("New operator IDs", newOpIDs),
-		zap.String("ValidatorPubKey", hex.EncodeToString(reshareMsg.Proofs[0].Proof.ValidatorPubKey)),
-		zap.String("network", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.Fork[:])),
-		zap.String("withdrawal", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.WithdrawalCredentials)),
-		zap.String("owner", hex.EncodeToString(reshareMsg.SignedReshare.Reshare.Owner[:])),
-		zap.Uint64("nonce", reshareMsg.SignedReshare.Reshare.Nonce),
-		zap.String("EIP1271 owner signature", hex.EncodeToString(reshareMsg.SignedReshare.Signature)))
-	for _, proof := range reshareMsg.Proofs {
-		c.Logger.Info("Loaded proof",
-			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
-			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
-			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
-			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
-			zap.String("Signature", hex.EncodeToString(proof.Signature)))
-	}
+func (c *Initiator) StartResharing(id [24]byte, reshareMsg *wire.ReshareMessage) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	dkgResultsBytes, err := c.messageFlowHandlingReshare(id, reshareMsg)
 	if err != nil {
 		return nil, nil, nil, err
@@ -542,7 +496,7 @@ func (c *Initiator) StartResharing(id [24]byte, oldOpIDs []uint64, newOpIDs []ui
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdrawalCredentials)); err != nil {
+	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(reshareMsg.SignedReshare.Reshare.WithdrawalCredentials)); err != nil {
 		return nil, nil, nil, err
 	}
 	if err := crypto.ValidateKeysharesCLI(keyshares,
@@ -929,4 +883,27 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	}
 	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	return nil
+}
+
+func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce uint64) (*spec.Reshare, error) {
+	// Construct reshare message
+	oldOps, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, err
+	}
+	newOps, err := ValidatedOperatorData(newOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, err
+	}
+	return &spec.Reshare{
+		ValidatorPubKey:       validatorPub,
+		OldOperators:          oldOps,
+		NewOperators:          newOps,
+		OldT:                  uint64(len(oldOperatorIDs) - ((len(oldOperatorIDs) - 1) / 3)),
+		NewT:                  uint64(len(newOperatorIDs) - ((len(newOperatorIDs) - 1) / 3)),
+		Fork:                  ethnetwork.GenesisForkVersion(),
+		WithdrawalCredentials: withdrawCreds,
+		Owner:                 owner,
+		Nonce:                 nonce,
+	}, nil
 }

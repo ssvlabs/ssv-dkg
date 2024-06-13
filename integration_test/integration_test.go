@@ -14,6 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -34,6 +35,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 var (
@@ -94,7 +97,14 @@ func TestReshareHappyFlow(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	sk, err := eth_crypto.GenerateKey()
+	require.NoError(t, err)
+	owner := eth_crypto.PubkeyToAddress(sk.PublicKey)
 	t.Run("test reshare 4 new disjoint operators", func(t *testing.T) {
 		id := spec.NewID()
 		ids := []uint64{11, 22, 33, 44}
@@ -104,7 +114,35 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		// construct reshare message and sign eip1271
+		reshare, err := clnt.ConstructReshareMessage(
+			ids,
+			newIds,
+			proofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			0)
+		require.NoError(t, err)
+		hash, err := reshare.HashTreeRoot()
+		require.NoError(t, err)
+		ownerSig, err := eth_crypto.Sign(hash[:], sk)
+		require.NoError(t, err)
+		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
+			owner,
+			reshare,
+			ownerSig,
+		)
+		require.NoError(t, err)
+		proofsData := wire.ConvertSignedProofsToSpec(proofs)
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		depositData, ks, proofs, err = clnt.StartResharing(newId, reshareMsg)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -118,7 +156,35 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{11, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		// construct reshare message and sign eip1271
+		reshare, err := clnt.ConstructReshareMessage(
+			ids,
+			newIds,
+			proofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			0)
+		require.NoError(t, err)
+		hash, err := reshare.HashTreeRoot()
+		require.NoError(t, err)
+		ownerSig, err := eth_crypto.Sign(hash[:], sk)
+		require.NoError(t, err)
+		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
+			owner,
+			reshare,
+			ownerSig,
+		)
+		require.NoError(t, err)
+		proofsData := wire.ConvertSignedProofsToSpec(proofs)
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		depositData, ks, proofs, err = clnt.StartResharing(newId, reshareMsg)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -132,7 +198,35 @@ func TestReshareHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 		newIds := []uint64{11, 22, 33, 44, 55, 66, 77}
 		newId := spec.NewID()
-		depositData, ks, proofs, err = clnt.StartResharing(newId, ids, newIds, wire.ConvertSignedProofsToSpec(proofs), "mainnet", withdraw.Bytes(), owner, 0, []byte{})
+		// construct reshare message and sign eip1271
+		reshare, err := clnt.ConstructReshareMessage(
+			ids,
+			newIds,
+			proofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			0)
+		require.NoError(t, err)
+		hash, err := reshare.HashTreeRoot()
+		require.NoError(t, err)
+		ownerSig, err := eth_crypto.Sign(hash[:], sk)
+		require.NoError(t, err)
+		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
+			owner,
+			reshare,
+			ownerSig,
+		)
+		require.NoError(t, err)
+		proofsData := wire.ConvertSignedProofsToSpec(proofs)
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		depositData, ks, proofs, err = clnt.StartResharing(newId, reshareMsg)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)

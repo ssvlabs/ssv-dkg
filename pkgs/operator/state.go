@@ -15,6 +15,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/eip1271"
 	"go.uber.org/zap"
 
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -81,6 +82,7 @@ type Switch struct {
 	Version          []byte
 	PubKeyBytes      []byte
 	OperatorID       uint64
+	EthClient        eip1271.ETHClient
 }
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -266,7 +268,7 @@ func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
 }
 
 // NewSwitch creates a new Switch
-func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64) *Switch {
+func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id uint64, ethClient eip1271.ETHClient) *Switch {
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
@@ -276,6 +278,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 		Version:          ver,
 		PubKeyBytes:      pkBytes,
 		OperatorID:       id,
+		EthClient:        ethClient,
 	}
 }
 
@@ -574,19 +577,6 @@ func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, ini
 	if err := reshare.UnmarshalSSZ(reshareMsg.Data); err != nil {
 		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
 	}
-	// var client eip1271.ETHClient
-	// if err := spec_crypto.VerifySignedMessageByOwner(
-	// 	client,
-	// 	reshare.SignedReshare.Reshare.Owner,
-	// 	reshare.SignedReshare,
-	// 	reshare.SignedReshare.Signature,
-	// ); err != nil {
-	// 	return nil, err
-	// }
-	s.Logger.Info("✅ reshare eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
-	if err := s.validateInstances(reqID); err != nil {
-		return nil, err
-	}
 	s.Logger.Info("Incoming reshare request fields",
 		zap.Any("Old operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.OldOperators)),
 		zap.Any("New operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.NewOperators)),
@@ -603,6 +593,19 @@ func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, ini
 			zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
 			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
+	}
+	// verify EIP1271 signature
+	if err := spec_crypto.VerifySignedMessageByOwner(
+		s.EthClient,
+		reshare.SignedReshare.Reshare.Owner,
+		&reshare.SignedReshare.Reshare,
+		reshare.SignedReshare.Signature,
+	); err != nil {
+		return nil, err
+	}
+	s.Logger.Info("✅ reshare eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+	if err := s.validateInstances(reqID); err != nil {
+		return nil, err
 	}
 	inst, resp, err := s.CreateReshareInstance(reqID, reshare, initiatorPubKey)
 	if err != nil {

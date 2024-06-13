@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
@@ -193,7 +194,11 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 	if err != nil {
 		return nil, err
 	}
-	swtch := NewSwitch(key, logger, ver, pkBytes, id)
+	ethBackend, err := ethclient.Dial("http://127.0.0.1:8545")
+	if err != nil {
+		return nil, err
+	}
+	swtch := NewSwitch(key, logger, ver, pkBytes, id, ethBackend)
 	s := &Server{
 		Logger:     logger,
 		Router:     r,

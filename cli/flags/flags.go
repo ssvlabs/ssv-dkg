@@ -31,6 +31,7 @@ const (
 	serverTLSCertPath = "serverTLSCertPath"
 	serverTLSKeyPath  = "serverTLSKeyPath"
 	proofsFilePath    = "proofsFilePath"
+	ethKeystorePath   = "ethKeystorePath"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -146,6 +147,11 @@ func OperatorIDFlag(c *cobra.Command) {
 // ProofsFilePath add file path to proofs flag to the command
 func ProofsFilePath(c *cobra.Command) {
 	AddPersistentStringFlag(c, proofsFilePath, "proofs.json", "Path to proofs file", false)
+}
+
+// KeystoreFilePath
+func KeystoreFilePath(c *cobra.Command) {
+	AddPersistentStringFlag(c, ethKeystorePath, "keystore.json", "Path to ethereum keystore json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

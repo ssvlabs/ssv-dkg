@@ -68,14 +68,12 @@ var (
 	CeremonyDir string
 )
 
-// resigning flags
+// resigning/reshare flags
 var (
-	ProofsFilePath string
-)
-
-// reshare flags
-var (
-	NewOperatorIDs []string
+	ProofsFilePath         string
+	NewOperatorIDs         []string
+	KeystorePath           string
+	EIP1271ContractAddress common.Address
 )
 
 // SetViperConfig reads a yaml config file if provided
@@ -212,6 +210,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
+	flags.KeystoreFilePath(cmd)
 }
 
 func SetReshareFlags(cmd *cobra.Command) {
@@ -225,6 +224,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.KeystoreFilePath(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -479,6 +479,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
+		return err
+	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if strings.Contains(OperatorsInfoPath, "../") {
 		return fmt.Errorf("😥 logFilePath should not contain traversal")
@@ -527,6 +530,10 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	KeystorePath = viper.GetString("ethKeystorePath")
+	if strings.Contains(KeystorePath, "../") {
+		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
+	}
 	return nil
 }
 

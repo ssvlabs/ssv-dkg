@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi/v5"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -25,6 +26,7 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 type TestOperator struct {
@@ -49,7 +51,12 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version, o
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id, stubClient)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
 	s := &operator.Server{
@@ -82,7 +89,12 @@ func CreateTestOperator(t *testing.T, id uint64, version, operatorCert, operator
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id, stubClient)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
 	s := &operator.Server{
