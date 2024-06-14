@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"syscall"
+	"path/filepath"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
@@ -17,7 +17,6 @@ import (
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
-	"golang.org/x/term"
 )
 
 func init() {
@@ -100,12 +99,11 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logger.Info("🔑 Please enter owner key password")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		keyStorePassword, err := os.ReadFile(filepath.Clean(cli_utils.KeystorePass))
 		if err != nil {
-			return err
+			return fmt.Errorf("😥 Error reading password file: %s", err)
 		}
-		sk, err := keystore.DecryptKey(jsonBytes, string(bytePassword))
+		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 		if err != nil {
 			return err
 		}
@@ -113,13 +111,13 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ethBackend, err := ethclient.Dial("http://127.0.0.1:8545")
+		ethBackend, err := ethclient.Dial(cli_utils.EthEndpointURL)
 		if err != nil {
-			return err
+			return fmt.Errorf("😥 Error dialing to eth backend: %s", err)
 		}
 		err = spec_crypto.VerifySignedMessageByOwner(ethBackend, cli_utils.OwnerAddress, reshare, ownerSig)
 		if err != nil {
-			return err
+			return fmt.Errorf("😥 Error verifying owner signature: %s", err)
 		}
 		logger.Info("🚀 Starting Re-SHARING ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs), zap.String("instance_id", hex.EncodeToString(id[:])))
 		reshareMsg := &wire.ReshareMessage{
@@ -165,7 +163,7 @@ var StartReshare = &cobra.Command{
 			keySharesArr,
 			proofs,
 			false,
-			len(proofsData),
+			1,
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

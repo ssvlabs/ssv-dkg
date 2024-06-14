@@ -187,14 +187,14 @@ func RegisterRoutes(s *Server) {
 }
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string) (*Server, error) {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string, ethEndpointURL string) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	if err != nil {
 		return nil, err
 	}
-	ethBackend, err := ethclient.Dial("http://127.0.0.1:8545")
+	ethBackend, err := ethclient.Dial(ethEndpointURL)
 	if err != nil {
 		return nil, err
 	}

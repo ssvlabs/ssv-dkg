@@ -73,7 +73,9 @@ var (
 	ProofsFilePath         string
 	NewOperatorIDs         []string
 	KeystorePath           string
+	KeystorePass           string
 	EIP1271ContractAddress common.Address
+	EthEndpointURL         string
 )
 
 // SetViperConfig reads a yaml config file if provided
@@ -189,6 +191,7 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.OperatorIDFlag(cmd)
 	flags.ServerTLSCertPath(cmd)
 	flags.ServerTLSKeyPath(cmd)
+	flags.EthEndpointURL(cmd)
 }
 
 func SetVerifyFlags(cmd *cobra.Command) {
@@ -211,6 +214,8 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.KeystoreFilePath(cmd)
+	flags.KeystoreFilePass(cmd)
+	flags.EthEndpointURL(cmd)
 }
 
 func SetReshareFlags(cmd *cobra.Command) {
@@ -224,7 +229,10 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ClientCACertPathFlag(cmd)
 	flags.KeystoreFilePath(cmd)
+	flags.KeystoreFilePass(cmd)
+	flags.EthEndpointURL(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -482,6 +490,12 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("ethEndpointURL", cmd.PersistentFlags().Lookup("ethEndpointURL")); err != nil {
+		return err
+	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if strings.Contains(OperatorsInfoPath, "../") {
 		return fmt.Errorf("😥 logFilePath should not contain traversal")
@@ -530,9 +544,23 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
+	for _, certPath := range ClientCACertPath {
+		if strings.Contains(certPath, "../") {
+			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		}
+	}
 	KeystorePath = viper.GetString("ethKeystorePath")
 	if strings.Contains(KeystorePath, "../") {
 		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
+	}
+	KeystorePass = viper.GetString("ethKeystorePass")
+	if strings.Contains(KeystorePath, "../") {
+		return fmt.Errorf("😥 ethKeystorePass should not contain traversal")
+	}
+	EthEndpointURL = viper.GetString("ethEndpointURL")
+	if !IsUrl(EthEndpointURL) {
+		return fmt.Errorf("ethereum endpoint URL: %s - Invalid", EthEndpointURL)
 	}
 	return nil
 }
@@ -558,6 +586,9 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("serverTLSKeyPath", cmd.PersistentFlags().Lookup("serverTLSKeyPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("ethEndpointURL", cmd.PersistentFlags().Lookup("ethEndpointURL")); err != nil {
 		return err
 	}
 	PrivKey = viper.GetString("privKey")
@@ -589,6 +620,10 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	}
 	if strings.Contains(ServerTLSKeyPath, "../") {
 		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
+	}
+	EthEndpointURL = viper.GetString("ethEndpointURL")
+	if !IsUrl(EthEndpointURL) {
+		return fmt.Errorf("ethereum endpoint URL: %s - Invalid", EthEndpointURL)
 	}
 	return nil
 }
@@ -935,4 +970,9 @@ func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 		}
 	}
 	return nil
+}
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }

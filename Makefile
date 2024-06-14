@@ -47,8 +47,12 @@ docker-demo-initiator:
 	docker-compose up --build initiator
 
 docker-demo-resign:
-	@echo "Running resigning in docker demo"
+	@echo "Running re-sign ceremony in docker demo"
 	docker-compose up --build resign
+
+docker-demo-reshare:
+	@echo "Running re-share ceremony in docker demo"
+	docker-compose up --build reshare
 
 docker-demo-ping:
 	@echo "Running ping operators in docker demo"

@@ -1,10 +1,17 @@
+operatorIDs: [11, 22, 44, 55]
 newOperatorIDs: [55, 66, 77, 88]
+withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
+owner: "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"
 nonce: 2
-keysharesFilePath: /data/initiator/output/ceremony-2024-01-16T07:33:21Z/0xb4a852f4b0b9bd49e5f5230491fbfd1c2d420f4285d3d046714815bb485bfccbf604da8945c30857da183f1844f21912/keyshares-0xb4a852f4b0b9bd49e5f5230491fbfd1c2d420f4285d3d046714815bb485bfccbf604da8945c30857da183f1844f21912-0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494-4.json
-ceremonySigsFilePath: /data/initiator/output/ceremony-2024-01-16T07:33:21Z/0xb4a852f4b0b9bd49e5f5230491fbfd1c2d420f4285d3d046714815bb485bfccbf604da8945c30857da183f1844f21912/ceremony_sigs-0xb4a852f4b0b9bd49e5f5230491fbfd1c2d420f4285d3d046714815bb485bfccbf604da8945c30857da183f1844f21912.json
+network: "holesky"
+keysharesFilePath: /data/initiator/output/ceremony-2024-06-14--14-22-38.684/000001-0xa6dfe220e8a849ccdeb173f9db66f5f3ab8cda314cf0b9aa70785efe541672d8a4612a5a87efc23a4491b11dc569c9a6/keyshares.json
+proofsFilePath: /data/initiator/output/ceremony-2024-06-14--14-22-38.684/000001-0xa6dfe220e8a849ccdeb173f9db66f5f3ab8cda314cf0b9aa70785efe541672d8a4612a5a87efc23a4491b11dc569c9a6/proofs.json
+ethKeystorePath: /data/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9
+ethKeystorePass: /data/initiator/password
 operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/initiator/output
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
+ethEndpointURL: http://ethnode:8545

@@ -32,6 +32,8 @@ const (
 	serverTLSKeyPath  = "serverTLSKeyPath"
 	proofsFilePath    = "proofsFilePath"
 	ethKeystorePath   = "ethKeystorePath"
+	ethKeystorePass   = "ethKeystorePass"
+	ethEndpointURL    = "ethEndpointURL"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -152,6 +154,17 @@ func ProofsFilePath(c *cobra.Command) {
 // KeystoreFilePath
 func KeystoreFilePath(c *cobra.Command) {
 	AddPersistentStringFlag(c, ethKeystorePath, "keystore.json", "Path to ethereum keystore json file", false)
+}
+
+// KeystoreFilePass
+func KeystoreFilePass(c *cobra.Command) {
+	AddPersistentStringFlag(c, ethKeystorePass, "", "Password to decrypt ethereum keystore json file", false)
+}
+
+
+// EthEndpointURL
+func EthEndpointURL(c *cobra.Command) {
+	AddPersistentStringFlag(c, ethEndpointURL, "http://127.0.0.1:8545", "Ethereum node endpoint URL", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command

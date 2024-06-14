@@ -17,6 +17,7 @@ func init() {
 	RootCmd.AddCommand(initiator.HealthCheck)
 	RootCmd.AddCommand(verify.Verify)
 	RootCmd.AddCommand(initiator.StartResigning)
+	RootCmd.AddCommand(initiator.StartReshare)
 }
 
 // RootCmd represents the root command of DKG-tool CLI
@@ -34,6 +35,7 @@ func Execute(appName, version string) {
 	initiator.HealthCheck.Version = version
 	initiator.StartDKG.Version = version
 	initiator.StartResigning.Version = version
+	initiator.StartReshare.Version = version
 	operator.StartDKGOperator.Version = version
 	if err := RootCmd.Execute(); err != nil {
 		log.Fatal("failed to execute root command", zap.Error(err))
