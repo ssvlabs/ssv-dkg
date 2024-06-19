@@ -26,10 +26,9 @@ func standardMessageVerification(ops wire.OperatorsCLI) func(pk *rsa.PublicKey, 
 
 // verifyMessageSignatures verifies incoming to initiator messages from operators.
 // Incoming message from operator should have same DKG ceremony ID and a valid signature
-func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessageSignatureFunc) error {
+func verifyMessageSignatures(id [24]byte, messages map[uint64][]byte, verify VerifyMessageSignatureFunc) error {
 	var errs error
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			errmsg, parseErr := wire.ParseAsError(msg)
@@ -60,20 +59,20 @@ func verifyMessageSignatures(id [24]byte, messages [][]byte, verify VerifyMessag
 }
 
 // makeMultipleSignedTransports creates a one combined message from operators with initiator signature
-func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messages [][]byte) (*wire.MultipleSignedTransports, error) {
+func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messages map[uint64][]byte) (*wire.MultipleSignedTransports, error) {
 	// We are collecting responses at SendToAll which gives us int(msg)==int(oprators)
 	final := &wire.MultipleSignedTransports{
 		Identifier: id,
 		Messages:   make([]*wire.SignedTransport, len(messages)),
 	}
 	var allMsgsBytes []byte
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	count := 0
+	for i, msg := range messages {
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
 			errmsg, parseErr := wire.ParseAsError(msg)
 			if parseErr == nil {
-				return nil, fmt.Errorf("msg %d returned: %v", i, errmsg)
+				return nil, fmt.Errorf("operator %d returned: %v", i, errmsg)
 			}
 			return nil, err
 		}
@@ -81,8 +80,9 @@ func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messa
 		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {
 			return nil, fmt.Errorf("incoming message has wrong ID, aborting... operator %d, msg ID %x", tsp.Signer, tsp.Message.Identifier[:])
 		}
-		final.Messages[i] = tsp
+		final.Messages[count] = tsp
 		allMsgsBytes = append(allMsgsBytes, msg...)
+		count++
 	}
 	// sign message by initiator
 	sig, err := spec_crypto.SignRSA(privateKey, allMsgsBytes)

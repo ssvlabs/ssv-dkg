@@ -135,6 +135,7 @@ services:
   reshare:
     image: ssv-dkg:latest
     depends_on:
+      - ethnode
       - operator1
       - operator2
       - operator3

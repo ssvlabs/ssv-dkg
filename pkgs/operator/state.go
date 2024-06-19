@@ -31,11 +31,12 @@ const MaxInstanceTime = 5 * time.Minute
 
 // Instance interface to process messages at DKG instances incoming from initiator
 type Instance interface {
-	Process(*wire.SignedTransport) error
+	Process(*wire.SignedTransport, []*spec.Operator) error
 	ReadResponse() []byte
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
 	GetLocalOwner() *dkg.LocalOwner
+	CheckIncomingOperators([]*wire.SignedTransport) ([]*spec.Operator, error)
 }
 
 // instWrapper wraps LocalOwner instance with RSA public key
@@ -238,7 +239,7 @@ func (s *Switch) CreateReshareInstance(reqID [24]byte, reshareMsg *wire.ReshareM
 			if !bytes.Equal(secretKeyBLS.GetPublicKey().Serialize(), reshareMsg.Proofs[i].Proof.SharePubKey) {
 				return nil, nil, fmt.Errorf("share pub key recovered from proofs not equal share pub key at reshare msg")
 			}
-			s.Logger.Info("Successfully recovered secret share from proofs", zap.Any("secret share", owner.SecretShare))
+			s.Logger.Info("Successfully recovered secret share from proofs")
 		}
 	}
 	resp, err := owner.Reshare(reqID, &reshareMsg.SignedReshare.Reshare, commits)
@@ -367,8 +368,13 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
 	}
+	// check that we received enough messages from other operator participants
+	incOperators, err := inst.CheckIncomingOperators(st.Messages)
+	if err != nil {
+		return nil, err
+	}
 	for _, ts := range st.Messages {
-		err = inst.Process(ts)
+		err = inst.Process(ts, incOperators)
 		if err != nil {
 			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
 		}

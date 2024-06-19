@@ -312,9 +312,7 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 // Init function creates an interface for DKG (board) which process protocol messages
 // Here we randomly create a point at G1 as a DKG public key for the node
 func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, error) {
-	if o.data == nil {
-		o.data = &DKGdata{}
-	}
+	o.data = &DKGdata{}
 	o.data.init = init
 	o.data.reqID = reqID
 	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.reqID[:])))
@@ -397,25 +395,10 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 }
 
 // Process processes incoming messages from initiator at /dkg route
-func (o *LocalOwner) Process(st *wire.SignedTransport) error {
-	var from uint64
-	if o.data.init != nil {
-		id, err := spec.OperatorIDByPubKey(o.data.init.Operators, st.Signer)
-		if err != nil {
-			return err
-		}
-		from = id
-	}
-	if o.data.reshare != nil {
-		allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
-		id, err := spec.OperatorIDByPubKey(allOps, st.Signer)
-		if err != nil {
-			return err
-		}
-		from = id
-	}
-	if from == 0 {
-		return fmt.Errorf("cant find operator ID message from")
+func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Operator) error {
+	from, err := spec.OperatorIDByPubKey(incOperators, st.Signer)
+	if err != nil {
+		return fmt.Errorf("cant find operator ID message from: %w", err)
 	}
 	msgbts, err := st.Message.MarshalSSZ()
 	if err != nil {
@@ -457,8 +440,9 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 			return ErrAlreadyExists
 		}
 		o.exchanges[from] = exchMsg
-		allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
-		if len(o.exchanges) == len(allOps) {
+		// if (oldOpsCount >= int(o.data.reshare.OldT)) && (newOpsCount == len(o.data.reshare.NewOperators)){
+		// allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		if len(o.exchanges) == len(incOperators) {
 			for _, op := range o.data.reshare.OldOperators {
 				if o.ID == op.ID {
 					if err := o.StartReshareDKGOldNodes(); err != nil {
@@ -505,12 +489,10 @@ func (o *LocalOwner) Process(st *wire.SignedTransport) error {
 		if _, ok := o.deals[from]; ok {
 			return ErrAlreadyExists
 		}
-		if len(b.Deals) != 0 {
-			o.deals[from] = b
-		}
+		o.deals[from] = b
 		oldNodes := utils.GetDisjointOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 		newNodes := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
-		if len(o.deals) == len(o.data.reshare.OldOperators) {
+		if len(o.deals) == len(incOperators) {
 			for _, op := range oldNodes {
 				if o.ID == op.ID {
 					if err := o.PushDealsOldNodes(); err != nil {
@@ -597,7 +579,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*spec.Operator) ([]kyber_dkg.Node, error)
 	nodes := make([]kyber_dkg.Node, 0)
 	for _, op := range ops {
 		if o.exchanges[op.ID] == nil {
-			return nil, fmt.Errorf("no operator at exchanges")
+			continue
 		}
 		e := o.exchanges[op.ID]
 		p := o.Suite.G1().Point()
@@ -720,13 +702,15 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 
 // InitReshare initiates a resharing owner of dkg protocol
 func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoints []kyber.Point) (*wire.Transport, error) {
+	// sanity check
+	if o.data != nil {
+		return nil, fmt.Errorf("data already exist at local instance", zap.Any("data:", o.data))
+	}
+	o.data = &DKGdata{}
 	var commits []byte
 	for _, point := range commitsPoints {
 		b, _ := point.MarshalBinary()
 		commits = append(commits, b...)
-	}
-	if o.data == nil {
-		o.data = &DKGdata{}
 	}
 	o.data.reshare = reshare
 	o.data.reqID = reqID
@@ -819,7 +803,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	var commits []byte
 	for _, op := range o.data.reshare.OldOperators {
 		if o.exchanges[op.ID] == nil {
-			return fmt.Errorf("no operator at exchanges")
+			continue
 		}
 		e := o.exchanges[op.ID]
 		if e.Commits == nil {
@@ -890,4 +874,75 @@ func (o *LocalOwner) PushDealsOldNodes() error {
 		o.board.DealC <- *b
 	}
 	return nil
+}
+
+func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) ([]*spec.Operator, error) {
+	opsAtMsgs := make([]*spec.Operator, 0)
+	// sanity check
+	if o.data == nil {
+		return nil, fmt.Errorf("no data object at instance")
+	}
+	if o.data.init != nil {
+		for _, msg := range msgs {
+			id, err := spec.OperatorIDByPubKey(o.data.init.Operators, msg.Signer)
+			if err != nil {
+				return nil, err
+			}
+			opsAtMsgs = append(opsAtMsgs, &spec.Operator{ID: id, PubKey: msg.Signer})
+		}
+		foundOps, err := FindOperatorsAtList(opsAtMsgs, o.data.init.Operators)
+		if err != nil {
+			return nil, err
+		}
+		if len(foundOps) != len(o.data.init.Operators) {
+			return nil, fmt.Errorf("at init all operators should send messages")
+		}
+	}
+	if o.data.reshare != nil {
+		for _, msg := range msgs {
+			var allOps []*spec.Operator
+			allOps = append(allOps, o.data.reshare.OldOperators...)
+			allOps = append(allOps, o.data.reshare.NewOperators...)
+			id, err := spec.OperatorIDByPubKey(allOps, msg.Signer)
+			if err != nil {
+				return nil, err
+			}
+			opsAtMsgs = append(opsAtMsgs, &spec.Operator{ID: id, PubKey: msg.Signer})
+		}
+		foundOldOps, err := FindOperatorsAtList(opsAtMsgs, o.data.reshare.OldOperators)
+		if err != nil {
+			return nil, err
+		}
+		// check threshold
+		if len(foundOldOps) < int(o.data.reshare.OldT) {
+			return nil, fmt.Errorf("less than threshold of old operators at incoming messages: threshold %d, incoming old operator messages %d", o.data.reshare.OldT, len(foundOldOps))
+		}
+		foundNewOps, err := FindOperatorsAtList(opsAtMsgs, o.data.reshare.NewOperators)
+		if err != nil {
+			return nil, err
+		}
+		// check that all new operators sent messages
+		if len(foundNewOps) != len(o.data.reshare.NewOperators) {
+			return nil, fmt.Errorf("not all new operators at incoming messages: new ops at reshare %d, incoming new operator messages %d", len(o.data.reshare.NewOperators), len(foundNewOps))
+		}
+	}
+	if len(opsAtMsgs) == 0 {
+		return nil, fmt.Errorf("no init or reshare operators found at incoming messages")
+	}
+	return opsAtMsgs, nil
+}
+
+func FindOperatorsAtList(list []*spec.Operator, ops []*spec.Operator) ([]*spec.Operator, error) {
+	var found []*spec.Operator
+	for _, op1 := range list {
+		for _, op2 := range ops {
+			if bytes.Equal(op1.PubKey, op2.PubKey) {
+				found = append(found, op1)
+			}
+		}
+	}
+	if len(found) == 0 {
+		return nil, fmt.Errorf("no operators found at incoming list")
+	}
+	return found, nil
 }

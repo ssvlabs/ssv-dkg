@@ -36,11 +36,11 @@ type TestOperator struct {
 	Srv     *operator.Server
 }
 
-func CreateTestOperatorFromFile(t *testing.T, id uint64, examplePath, version, operatorCert, operatorKey string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, opPath, version, operatorCert, operatorKey string) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
-	privKey, err := os.ReadFile(filepath.Clean(examplePath + "operator" + fmt.Sprintf("%v", id) + "/encrypted_private_key.json"))
+	privKey, err := os.ReadFile(filepath.Clean(opPath + "/encrypted_private_key.json"))
 	if err != nil {
 		logger.Fatal("failed to read file", zap.Error(err))
 		return nil

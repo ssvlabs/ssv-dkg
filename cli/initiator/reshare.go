@@ -144,7 +144,7 @@ var StartReshare = &cobra.Command{
 				zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 				zap.String("Signature", hex.EncodeToString(proof.Signature)))
 		}
-		// Start the ceremeny
+		// Start the ceremony
 		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, reshareMsg)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))

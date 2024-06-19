@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -82,6 +84,27 @@ func TestInitHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
+	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestInitOperatorsThreshold(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("integration-tests")
+	version := "test.version"
+	servers, ops := createOperators(t, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
+	require.NoError(t, err)
+	withdraw := newEthAddress(t)
+	owner := newEthAddress(t)
+	servers[0].HttpSrv.Close()
+	t.Run("test 4 operators init unhappy flow, 1 not reachable", func(t *testing.T) {
+		id := spec.NewID()
+		_, _, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
+		require.ErrorContains(t, err, "some new operators not replied, cant continue")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -231,6 +254,110 @@ func TestReshareHappyFlow(t *testing.T) {
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
+	for _, srv := range servers {
+		srv.HttpSrv.Close()
+	}
+}
+
+func TestReshareOldOperatorsThreshold(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("integration-tests")
+	version := "test.version"
+	servers, ops := createOperatorsFromExamplesFolder(t, version)
+	clnt, err := initiator.New(ops, logger, version, rootCert)
+	require.NoError(t, err)
+	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	// Open ethereum keystore
+	jsonBytes, err := os.ReadFile("../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+	require.NoError(t, err)
+	keyStorePassword, err := os.ReadFile(filepath.Clean("../examples/initiator/password"))
+	require.NoError(t, err)
+	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+	require.NoError(t, err)
+	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
+	signedProofs, err := wire.LoadProofs("./stubs/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+	require.NoError(t, err)
+	proofsData := wire.ConvertSignedProofsToSpec(signedProofs)
+	servers[0].HttpSrv.Close()
+	t.Run("test reshare 4 new disjoint operators", func(t *testing.T) {
+		oldIds := []uint64{11, 22, 33, 44}
+		newIds := []uint64{55, 66, 77, 88}
+		newId := spec.NewID()
+		// construct reshare message and sign eip1271
+		reshare, err := clnt.ConstructReshareMessage(
+			oldIds,
+			newIds,
+			proofsData[0].Proof.ValidatorPubKey,
+			"holesky",
+			withdraw.Bytes(),
+			owner,
+			2)
+		require.NoError(t, err)
+		hash, err := reshare.HashTreeRoot()
+		require.NoError(t, err)
+		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+		require.NoError(t, err)
+		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
+			owner,
+			reshare,
+			ownerSig,
+		)
+		require.NoError(t, err)
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		depositData, ks, proofs, err := clnt.StartResharing(newId, reshareMsg)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 2, withdraw)
+		require.NoError(t, err)
+	})
+	t.Run("test reshare 7 new joint operators", func(t *testing.T) {
+		oldIds := []uint64{11, 22, 33, 44}
+		newIds := []uint64{22, 33, 44, 55, 66, 77, 88}
+		newId := spec.NewID()
+		// construct reshare message and sign eip1271
+		reshare, err := clnt.ConstructReshareMessage(
+			oldIds,
+			newIds,
+			proofsData[0].Proof.ValidatorPubKey,
+			"holesky",
+			withdraw.Bytes(),
+			owner,
+			2)
+		require.NoError(t, err)
+		hash, err := reshare.HashTreeRoot()
+		require.NoError(t, err)
+		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+		require.NoError(t, err)
+		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
+			owner,
+			reshare,
+			ownerSig,
+		)
+		require.NoError(t, err)
+		reshareMsg := &wire.ReshareMessage{
+			SignedReshare: &spec.SignedReshare{
+				Reshare:   *reshare,
+				Signature: ownerSig,
+			},
+			Proofs: proofsData,
+		}
+		depositData, ks, proofs, err := clnt.StartResharing(newId, reshareMsg)
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 2, withdraw)
+		require.NoError(t, err)
+	})
+
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -1158,6 +1285,36 @@ func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, 
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
 	servers = append(servers, srv13)
 
+	return servers, ops
+}
+
+func createOperatorsFromExamplesFolder(t *testing.T, version string) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
+	var servers []*test_utils.TestOperator
+	ops := wire.OperatorsCLI{}
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 11, "../examples/operator1", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
+	servers = append(servers, srv1)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 22, "../examples/operator2", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
+	servers = append(servers, srv2)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 33, "../examples/operator3", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
+	servers = append(servers, srv3)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 44, "../examples/operator4", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
+	servers = append(servers, srv4)
+	srv5 := test_utils.CreateTestOperatorFromFile(t, 55, "../examples/operator5", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
+	servers = append(servers, srv5)
+	srv6 := test_utils.CreateTestOperatorFromFile(t, 66, "../examples/operator6", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
+	servers = append(servers, srv6)
+	srv7 := test_utils.CreateTestOperatorFromFile(t, 77, "../examples/operator7", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
+	servers = append(servers, srv7)
+	srv8 := test_utils.CreateTestOperatorFromFile(t, 88, "../examples/operator8", version, operatorCert, operatorKey)
+	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
+	servers = append(servers, srv8)
 	return servers, ops
 }
 
