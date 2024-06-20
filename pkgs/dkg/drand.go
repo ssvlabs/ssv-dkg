@@ -440,8 +440,6 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return ErrAlreadyExists
 		}
 		o.exchanges[from] = exchMsg
-		// if (oldOpsCount >= int(o.data.reshare.OldT)) && (newOpsCount == len(o.data.reshare.NewOperators)){
-		// allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 		if len(o.exchanges) == len(incOperators) {
 			for _, op := range o.data.reshare.OldOperators {
 				if o.ID == op.ID {
@@ -900,9 +898,7 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) ([]*sp
 	}
 	if o.data.reshare != nil {
 		for _, msg := range msgs {
-			var allOps []*spec.Operator
-			allOps = append(allOps, o.data.reshare.OldOperators...)
-			allOps = append(allOps, o.data.reshare.NewOperators...)
+			allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 			id, err := spec.OperatorIDByPubKey(allOps, msg.Signer)
 			if err != nil {
 				return nil, err

@@ -1,0 +1,10 @@
+privKey: /data/operator11/encrypted_private_key.json
+privKeyPassword: /data/operator11/password
+port: 3030
+operatorID: 111
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/operator11/output/operator11_logs_debug.log
+outputPath: /data/operator11/output
+ethEndpointURL: http://ethnode:8545

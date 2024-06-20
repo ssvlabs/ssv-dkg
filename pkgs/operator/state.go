@@ -199,6 +199,10 @@ func (s *Switch) CreateReshareInstance(reqID [24]byte, reshareMsg *wire.ReshareM
 		Version:            s.Version,
 	}
 	owner := dkg.New(&opts)
+	// sanity check for incoming proofs len
+	if len(reshareMsg.Proofs) != len(reshareMsg.SignedReshare.Reshare.OldOperators) {
+		return nil, nil, fmt.Errorf("wrong proofs len at reshare message: expected %d, got %d", len(reshareMsg.SignedReshare.Reshare.OldOperators), len(reshareMsg.Proofs))
+	}
 	// wait for exchange msg
 	commits, err := crypto.GetPubCommitsFromProofs(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.Proofs, int(reshareMsg.SignedReshare.Reshare.OldT))
 	if err != nil {
@@ -615,7 +619,7 @@ func (s *Switch) ReshareInstance(reqID [24]byte, reshareMsg *wire.Transport, ini
 	}
 	inst, resp, err := s.CreateReshareInstance(reqID, reshare, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
+		return nil, fmt.Errorf("reshare: failed to create instance: %s", err.Error())
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst

@@ -40,7 +40,7 @@ docker-build-image:
 
 docker-demo-operators:
 	@echo "Running operators in docker demo"
-	docker-compose up --build operator1 operator2 operator3 operator4 operator5 operator6 operator7 operator8
+	docker-compose up --build operator1 operator2 operator3 operator4 operator5 operator6 operator7 operator8 operator9 operator10 operator11 operator12 operator13
 
 docker-demo-initiator:
 	@echo "Running initiator in docker demo"

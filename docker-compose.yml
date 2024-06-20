@@ -106,6 +106,61 @@ services:
     volumes:
       - ./examples:/data
 
+  operator9:
+    image: ssv-dkg:latest
+    networks:
+      - shared_network
+    ports:
+      - "3038:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator9.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator10:
+    image: ssv-dkg:latest
+    networks:
+      - shared_network
+    ports:
+      - "3039:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator10.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator11:
+    image: ssv-dkg:latest
+    networks:
+      - shared_network
+    ports:
+      - "3041:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator11.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator12:
+    image: ssv-dkg:latest
+    networks:
+      - shared_network
+    ports:
+      - "3042:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator12.example.yaml"]
+    volumes:
+      - ./examples:/data
+
+  operator13:
+    image: ssv-dkg:latest
+    networks:
+      - shared_network
+    ports:
+      - "3043:3030"
+    command:
+      ["start-operator", "--configPath", "/data/config/operator13.example.yaml"]
+    volumes:
+      - ./examples:/data
+
   initiator:
     image: ssv-dkg:latest
     depends_on:
@@ -152,18 +207,13 @@ services:
 
   ping:
     image: ssv-dkg:latest
-    depends_on:
-      - operator1
-      - operator2
-      - operator3
-      - operator4
     networks:
       - shared_network
     command:
       [
         "ping",
         "--ip",
-        "https://operator1:3030,https://operator2:3030,https://operator3:3030,https://operator4:3030",
+        "https://operator9:3030,https://operator10:3030,https://operator11:3030,https://operator12:3030,https://operator13:3030",
       ]
     volumes:
       - ./examples:/data

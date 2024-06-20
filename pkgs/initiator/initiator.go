@@ -830,7 +830,7 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 		}
 	}
 	if finalErr != nil {
-		return fmt.Errorf("some new operators not replied, cant continue: %w", finalErr)
+		return fmt.Errorf("some new operators returned errors, cant continue: %w", finalErr)
 	}
 	// we expect threshold of old operator responses
 	i := 0
@@ -843,7 +843,7 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 		for _, err := range errs {
 			finalErr = errors.Join(finalErr, fmt.Errorf("error: %w", err))
 		}
-		return fmt.Errorf("less than threshold of operators replied: %w", finalErr)
+		return fmt.Errorf("less than threshold of operators replied: threshold %d, errors %d, %w", threshold, len(errs), finalErr)
 	}
 	return nil
 }

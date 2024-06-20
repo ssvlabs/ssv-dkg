@@ -45,7 +45,12 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, opPath, version, operat
 		logger.Fatal("failed to read file", zap.Error(err))
 		return nil
 	}
-	priv, err := crypto.DecryptRSAKeystore(privKey, "12345678")
+	pass, err := os.ReadFile(filepath.Clean(opPath + "/password"))
+	if err != nil {
+		logger.Fatal("failed to read file", zap.Error(err))
+		return nil
+	}
+	priv, err := crypto.DecryptRSAKeystore(privKey, string(pass))
 	require.NoError(t, err)
 	r := chi.NewRouter()
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
