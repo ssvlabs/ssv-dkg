@@ -36,7 +36,7 @@ type Instance interface {
 	ReadError() error
 	VerifyInitiatorMessage(msg, sig []byte) error
 	GetLocalOwner() *dkg.LocalOwner
-	CheckIncomingOperators([]*wire.SignedTransport) ([]*spec.Operator, error)
+	CheckIncomingOperators([]*wire.SignedTransport) (map[uint64]*spec.Operator, error)
 }
 
 // instWrapper wraps LocalOwner instance with RSA public key
@@ -373,9 +373,17 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
 	}
 	// check that we received enough messages from other operator participants
-	incOperators, err := inst.CheckIncomingOperators(st.Messages)
+	ops, err := inst.CheckIncomingOperators(st.Messages)
 	if err != nil {
 		return nil, err
+	}
+	var incOperators []*spec.Operator
+	for _, op := range ops {
+		incOperators = append(incOperators, op)
+	}
+	incOperators = spec.OrderOperators(incOperators)
+	if !spec.UniqueAndOrderedOperators(incOperators) {
+		return nil, fmt.Errorf("operators at incoming messages are not unique")
 	}
 	for _, ts := range st.Messages {
 		err = inst.Process(ts, incOperators)

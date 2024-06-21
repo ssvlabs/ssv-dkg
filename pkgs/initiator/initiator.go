@@ -804,6 +804,12 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 	if err != nil {
 		return nil, err
 	}
+	if !spec.UniqueAndOrderedOperators(oldOps) {
+		return nil, fmt.Errorf("old operators are not ordered or unique")
+	}
+	if !spec.UniqueAndOrderedOperators(newOps) {
+		return nil, fmt.Errorf("new operators are not ordered or unique")
+	}
 	return &spec.Reshare{
 		ValidatorPubKey:       validatorPub,
 		OldOperators:          oldOps,

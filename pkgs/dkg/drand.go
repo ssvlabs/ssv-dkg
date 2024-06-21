@@ -420,7 +420,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return err
 		}
 		if _, ok := o.exchanges[from]; ok {
-			return ErrAlreadyExists
+			return fmt.Errorf("error at init exchange message processing: %w", ErrAlreadyExists)
 		}
 		o.exchanges[from] = exchMsg
 
@@ -437,7 +437,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return err
 		}
 		if _, ok := o.exchanges[from]; ok {
-			return ErrAlreadyExists
+			return fmt.Errorf("error at reshare exchange message processing: %w, from %d", ErrAlreadyExists, from)
 		}
 		o.exchanges[from] = exchMsg
 		if len(o.exchanges) == len(incOperators) {
@@ -485,7 +485,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return err
 		}
 		if _, ok := o.deals[from]; ok {
-			return ErrAlreadyExists
+			return fmt.Errorf("error at reshare deals message processing: %w", ErrAlreadyExists)
 		}
 		o.deals[from] = b
 		oldNodes := utils.GetDisjointOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
@@ -874,19 +874,22 @@ func (o *LocalOwner) PushDealsOldNodes() error {
 	return nil
 }
 
-func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) ([]*spec.Operator, error) {
-	opsAtMsgs := make([]*spec.Operator, 0)
+func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[uint64]*spec.Operator, error) {
 	// sanity check
 	if o.data == nil {
 		return nil, fmt.Errorf("no data object at instance")
 	}
+	// TODO: think how to change this logic to more robust
 	if o.data.init != nil {
+		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
 		for _, msg := range msgs {
 			id, err := spec.OperatorIDByPubKey(o.data.init.Operators, msg.Signer)
 			if err != nil {
 				return nil, err
 			}
-			opsAtMsgs = append(opsAtMsgs, &spec.Operator{ID: id, PubKey: msg.Signer})
+			if _, ok := opsAtMsgs[id]; !ok {
+				opsAtMsgs[id] = &spec.Operator{ID: id, PubKey: msg.Signer}
+			}
 		}
 		foundOps, err := FindOperatorsAtList(opsAtMsgs, o.data.init.Operators)
 		if err != nil {
@@ -895,15 +898,21 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) ([]*sp
 		if len(foundOps) != len(o.data.init.Operators) {
 			return nil, fmt.Errorf("at init all operators should send messages")
 		}
+		return opsAtMsgs, nil
 	}
 	if o.data.reshare != nil {
+		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
 		for _, msg := range msgs {
-			allOps := utils.JoinSets(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+			var allOps []*spec.Operator
+			allOps = append(allOps, o.data.reshare.OldOperators...)
+			allOps = append(allOps, o.data.reshare.NewOperators...)
 			id, err := spec.OperatorIDByPubKey(allOps, msg.Signer)
 			if err != nil {
 				return nil, err
 			}
-			opsAtMsgs = append(opsAtMsgs, &spec.Operator{ID: id, PubKey: msg.Signer})
+			if _, ok := opsAtMsgs[id]; !ok {
+				opsAtMsgs[id] = &spec.Operator{ID: id, PubKey: msg.Signer}
+			}
 		}
 		foundOldOps, err := FindOperatorsAtList(opsAtMsgs, o.data.reshare.OldOperators)
 		if err != nil {
@@ -921,20 +930,19 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) ([]*sp
 		if len(foundNewOps) != len(o.data.reshare.NewOperators) {
 			return nil, fmt.Errorf("not all new operators at incoming messages: new ops at reshare %d, incoming new operator messages %d", len(o.data.reshare.NewOperators), len(foundNewOps))
 		}
+		if len(opsAtMsgs) == 0 {
+			return nil, fmt.Errorf("no init or reshare operators found at incoming messages")
+		}
+		return opsAtMsgs, nil
 	}
-	if len(opsAtMsgs) == 0 {
-		return nil, fmt.Errorf("no init or reshare operators found at incoming messages")
-	}
-	return opsAtMsgs, nil
+	return nil, nil
 }
 
-func FindOperatorsAtList(list []*spec.Operator, ops []*spec.Operator) ([]*spec.Operator, error) {
+func FindOperatorsAtList(list map[uint64]*spec.Operator, ops []*spec.Operator) ([]*spec.Operator, error) {
 	var found []*spec.Operator
-	for _, op1 := range list {
-		for _, op2 := range ops {
-			if bytes.Equal(op1.PubKey, op2.PubKey) {
-				found = append(found, op1)
-			}
+	for _, op := range ops {
+		if _, ok := list[op.ID]; ok {
+			found = append(found, op)
 		}
 	}
 	if len(found) == 0 {
