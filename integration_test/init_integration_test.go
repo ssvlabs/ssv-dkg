@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	spec "github.com/ssvlabs/dkg-spec"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -1031,46 +1032,46 @@ func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, 
 	return servers, ops
 }
 
-func createOperatorsFromExamplesFolder(t *testing.T, version string) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
+func createOperatorsFromExamplesFolder(t *testing.T, version string, stubClient *stubs.Client) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
 	var servers []*test_utils.TestOperator
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 11, "../examples/operator1", version, operatorCert, operatorKey)
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 11, "../examples/operator1", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
 	servers = append(servers, srv1)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 22, "../examples/operator2", version, operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 22, "../examples/operator2", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
 	servers = append(servers, srv2)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 33, "../examples/operator3", version, operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 33, "../examples/operator3", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
 	servers = append(servers, srv3)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 44, "../examples/operator4", version, operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 44, "../examples/operator4", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
 	servers = append(servers, srv4)
-	srv5 := test_utils.CreateTestOperatorFromFile(t, 55, "../examples/operator5", version, operatorCert, operatorKey)
+	srv5 := test_utils.CreateTestOperatorFromFile(t, 55, "../examples/operator5", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
 	servers = append(servers, srv5)
-	srv6 := test_utils.CreateTestOperatorFromFile(t, 66, "../examples/operator6", version, operatorCert, operatorKey)
+	srv6 := test_utils.CreateTestOperatorFromFile(t, 66, "../examples/operator6", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
 	servers = append(servers, srv6)
-	srv7 := test_utils.CreateTestOperatorFromFile(t, 77, "../examples/operator7", version, operatorCert, operatorKey)
+	srv7 := test_utils.CreateTestOperatorFromFile(t, 77, "../examples/operator7", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
 	servers = append(servers, srv7)
-	srv8 := test_utils.CreateTestOperatorFromFile(t, 88, "../examples/operator8", version, operatorCert, operatorKey)
+	srv8 := test_utils.CreateTestOperatorFromFile(t, 88, "../examples/operator8", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
 	servers = append(servers, srv8)
-	srv9 := test_utils.CreateTestOperatorFromFile(t, 99, "../examples/operator9", version, operatorCert, operatorKey)
+	srv9 := test_utils.CreateTestOperatorFromFile(t, 99, "../examples/operator9", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
 	servers = append(servers, srv9)
-	srv10 := test_utils.CreateTestOperatorFromFile(t, 110, "../examples/operator10", version, operatorCert, operatorKey)
+	srv10 := test_utils.CreateTestOperatorFromFile(t, 110, "../examples/operator10", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 110, PubKey: &srv10.PrivKey.PublicKey})
 	servers = append(servers, srv10)
-	srv11 := test_utils.CreateTestOperatorFromFile(t, 111, "../examples/operator11", version, operatorCert, operatorKey)
+	srv11 := test_utils.CreateTestOperatorFromFile(t, 111, "../examples/operator11", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
 	servers = append(servers, srv11)
-	srv12 := test_utils.CreateTestOperatorFromFile(t, 112, "../examples/operator12", version, operatorCert, operatorKey)
+	srv12 := test_utils.CreateTestOperatorFromFile(t, 112, "../examples/operator12", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 112, PubKey: &srv12.PrivKey.PublicKey})
 	servers = append(servers, srv12)
-	srv13 := test_utils.CreateTestOperatorFromFile(t, 113, "../examples/operator13", version, operatorCert, operatorKey)
+	srv13 := test_utils.CreateTestOperatorFromFile(t, 113, "../examples/operator13", version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 113, PubKey: &srv13.PrivKey.PublicKey})
 	servers = append(servers, srv13)
 	return servers, ops

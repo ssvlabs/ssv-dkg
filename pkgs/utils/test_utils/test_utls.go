@@ -36,7 +36,7 @@ type TestOperator struct {
 	Srv     *operator.Server
 }
 
-func CreateTestOperatorFromFile(t *testing.T, id uint64, opPath, version, operatorCert, operatorKey string) *TestOperator {
+func CreateTestOperatorFromFile(t *testing.T, id uint64, opPath, version, operatorCert, operatorKey string, stubClient *stubs.Client) *TestOperator {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
@@ -56,11 +56,6 @@ func CreateTestOperatorFromFile(t *testing.T, id uint64, opPath, version, operat
 	operatorPubKey := priv.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
-	}
 	swtch := operator.NewSwitch(priv, logger, []byte(version), pkBytes, id, stubClient)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
