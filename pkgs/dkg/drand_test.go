@@ -88,7 +88,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,
-		OperatorPublicKey:  &pv.PublicKey,
+		OperatorSecretKey:  pv,
 		done:               make(chan struct{}, 1),
 		startedDKG:         make(chan struct{}, 1),
 	}, pv

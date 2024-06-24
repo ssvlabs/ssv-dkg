@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 	spec "github.com/ssvlabs/dkg-spec"
@@ -67,6 +70,19 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
+		// Open ethereum keystore
+		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
+		if err != nil {
+			return err
+		}
+		keyStorePassword, err := os.ReadFile(filepath.Clean(cli_utils.KeystorePass))
+		if err != nil {
+			return fmt.Errorf("😥 Error reading password file: %s", err)
+		}
+		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+		if err != nil {
+			return err
+		}
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
@@ -83,8 +99,21 @@ var StartResigning = &cobra.Command{
 				// Create a new ID.
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
+				// Construct resign message
+				reshareMsg, err := dkgInitiator.ConstructResignMessage(
+					operatorIDs,
+					proofsData[0].Proof.ValidatorPubKey,
+					ethnetwork,
+					cli_utils.WithdrawAddress.Bytes(),
+					cli_utils.OwnerAddress,
+					nonce,
+					sk.PrivateKey,
+					proofsData)
+				if err != nil {
+					return nil, err
+				}
 				// Perform the resigning ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce, []byte{})
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, reshareMsg)
 				if err != nil {
 					return nil, err
 				}

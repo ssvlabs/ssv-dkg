@@ -11,11 +11,8 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 )
 
@@ -78,22 +75,7 @@ var StartReshare = &cobra.Command{
 		if cli_utils.Network != "now_test_network" {
 			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
 		}
-		// Start the ceremony
-		reshare, err := dkgInitiator.ConstructReshareMessage(
-			oldOperatorIDs,
-			newOperatorIDs,
-			proofsData[0].Proof.ValidatorPubKey,
-			ethnetwork,
-			cli_utils.WithdrawAddress.Bytes(),
-			cli_utils.OwnerAddress, cli_utils.Nonce)
-		if err != nil {
-			return err
-		}
-		hash, err := reshare.HashTreeRoot()
-		if err != nil {
-			return err
-		}
-		// Sign EIP1271 reshare message root
+
 		// Open ethereum keystore
 		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
 		if err != nil {
@@ -107,26 +89,20 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+		reshareMsg, err := dkgInitiator.ConstructReshareMessage(
+			oldOperatorIDs,
+			newOperatorIDs,
+			proofsData[0].Proof.ValidatorPubKey,
+			ethnetwork,
+			cli_utils.WithdrawAddress.Bytes(),
+			cli_utils.OwnerAddress,
+			cli_utils.Nonce,
+			sk.PrivateKey,
+			proofsData)
 		if err != nil {
 			return err
 		}
-		ethBackend, err := ethclient.Dial(cli_utils.EthEndpointURL)
-		if err != nil {
-			return fmt.Errorf("😥 Error dialing to eth backend: %s", err)
-		}
-		err = spec_crypto.VerifySignedMessageByOwner(ethBackend, cli_utils.OwnerAddress, reshare, ownerSig)
-		if err != nil {
-			return fmt.Errorf("😥 Error verifying owner signature: %s", err)
-		}
 		logger.Info("🚀 Starting Re-SHARING ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs), zap.String("instance_id", hex.EncodeToString(id[:])))
-		reshareMsg := &wire.ReshareMessage{
-			SignedReshare: &spec.SignedReshare{
-				Reshare:   *reshare,
-				Signature: ownerSig,
-			},
-			Proofs: proofsData,
-		}
 		logger.Info("Outgoing reshare request fields",
 			zap.Any("Old operator IDs", oldOperatorIDs),
 			zap.Any("New operator IDs", newOperatorIDs),

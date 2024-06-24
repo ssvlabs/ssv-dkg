@@ -17,7 +17,6 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -52,32 +51,17 @@ func TestReshareValidEOASig(t *testing.T) {
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
 		// construct reshare message and sign eip1271
-		reshare, err := clnt.ConstructReshareMessage(
+		reshareMsg, err := clnt.ConstructReshareMessage(
 			ids,
 			newIds,
 			proofsData[0].Proof.ValidatorPubKey,
-			"mainnet",
+			"holesky",
 			withdraw.Bytes(),
 			owner,
-			0)
+			0,
+			sk.PrivateKey,
+			proofsData)
 		require.NoError(t, err)
-		hash, err := reshare.HashTreeRoot()
-		require.NoError(t, err)
-		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
-		require.NoError(t, err)
-		err = spec_crypto.VerifySignedMessageByOwner(stubClient,
-			owner,
-			reshare,
-			ownerSig,
-		)
-		require.NoError(t, err)
-		reshareMsg := &wire.ReshareMessage{
-			SignedReshare: &spec.SignedReshare{
-				Reshare:   *reshare,
-				Signature: ownerSig,
-			},
-			Proofs: proofsData,
-		}
 		depositData, ks, proofs, err := clnt.StartResharing(newId, reshareMsg)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
@@ -118,26 +102,16 @@ func TestReshareInvalidEOASig(t *testing.T) {
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
 		// construct reshare message and sign eip1271
-		reshare, err := clnt.ConstructReshareMessage(
+		reshareMsg, err := clnt.ConstructReshareMessage(
 			ids,
 			newIds,
 			proofsData[0].Proof.ValidatorPubKey,
-			"mainnet",
+			"holesky",
 			withdraw.Bytes(),
 			[20]byte{},
-			0)
-		require.NoError(t, err)
-		hash, err := reshare.HashTreeRoot()
-		require.NoError(t, err)
-		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
-		require.NoError(t, err)
-		reshareMsg := &wire.ReshareMessage{
-			SignedReshare: &spec.SignedReshare{
-				Reshare:   *reshare,
-				Signature: ownerSig,
-			},
-			Proofs: proofsData,
-		}
+			0,
+			sk.PrivateKey,
+			proofsData)
 		_, _, _, err = clnt.StartResharing(newId, reshareMsg)
 		require.Error(t, err, "invalid signed reshare signature")
 	})
@@ -182,26 +156,16 @@ func TestReshareValidContractSig(t *testing.T) {
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
 		// construct reshare message and sign eip1271
-		reshare, err := clnt.ConstructReshareMessage(
+		reshareMsg, err := clnt.ConstructReshareMessage(
 			ids,
 			newIds,
 			proofsData[0].Proof.ValidatorPubKey,
-			"mainnet",
+			"holesky",
 			withdraw.Bytes(),
 			owner,
-			0)
-		require.NoError(t, err)
-		hash, err := reshare.HashTreeRoot()
-		require.NoError(t, err)
-		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
-		require.NoError(t, err)
-		reshareMsg := &wire.ReshareMessage{
-			SignedReshare: &spec.SignedReshare{
-				Reshare:   *reshare,
-				Signature: ownerSig,
-			},
-			Proofs: proofsData,
-		}
+			0,
+			sk.PrivateKey,
+			proofsData)
 		depositData, ks, proofs, err := clnt.StartResharing(newId, reshareMsg)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
@@ -248,26 +212,16 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
 		// construct reshare message and sign eip1271
-		reshare, err := clnt.ConstructReshareMessage(
+		reshareMsg, err := clnt.ConstructReshareMessage(
 			ids,
 			newIds,
 			proofsData[0].Proof.ValidatorPubKey,
-			"mainnet",
+			"holesky",
 			withdraw.Bytes(),
 			owner,
-			0)
-		require.NoError(t, err)
-		hash, err := reshare.HashTreeRoot()
-		require.NoError(t, err)
-		ownerSig, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
-		require.NoError(t, err)
-		reshareMsg := &wire.ReshareMessage{
-			SignedReshare: &spec.SignedReshare{
-				Reshare:   *reshare,
-				Signature: ownerSig,
-			},
-			Proofs: proofsData,
-		}
+			0,
+			sk.PrivateKey,
+			proofsData)
 		_, _, _, err = clnt.StartResharing(newId, reshareMsg)
 		require.Error(t, err, "signature invalid")
 	})

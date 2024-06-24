@@ -14,4 +14,3 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
-ethEndpointURL: http://ethnode:8545

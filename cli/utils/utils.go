@@ -61,6 +61,7 @@ var (
 	OperatorID        uint64
 	ServerTLSCertPath string
 	ServerTLSKeyPath  string
+	EthEndpointURL    string
 )
 
 // verify flags
@@ -74,8 +75,6 @@ var (
 	NewOperatorIDs         []string
 	KeystorePath           string
 	KeystorePass           string
-	EIP1271ContractAddress common.Address
-	EthEndpointURL         string
 )
 
 // SetViperConfig reads a yaml config file if provided
@@ -399,6 +398,12 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
+		return err
+	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
@@ -449,6 +454,14 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
+	KeystorePath = viper.GetString("ethKeystorePath")
+	if strings.Contains(KeystorePath, "../") {
+		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
+	}
+	KeystorePass = viper.GetString("ethKeystorePass")
+	if strings.Contains(KeystorePath, "../") {
+		return fmt.Errorf("😥 ethKeystorePass should not contain traversal")
+	}
 	return nil
 }
 
@@ -491,9 +504,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethEndpointURL", cmd.PersistentFlags().Lookup("ethEndpointURL")); err != nil {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
@@ -557,10 +567,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	KeystorePass = viper.GetString("ethKeystorePass")
 	if strings.Contains(KeystorePath, "../") {
 		return fmt.Errorf("😥 ethKeystorePass should not contain traversal")
-	}
-	EthEndpointURL = viper.GetString("ethEndpointURL")
-	if !IsUrl(EthEndpointURL) {
-		return fmt.Errorf("ethereum endpoint URL: %s - Invalid", EthEndpointURL)
 	}
 	return nil
 }

@@ -58,6 +58,10 @@ docker-demo-ping:
 	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping
 
+docker-demo-ethnode:
+	@echo "Running ethereum node in docker demo"
+	docker-compose up --build ethnode
+
 docker-operator:
 	@echo "Running operator docker, make sure to update ./examples/operator1/congig/config.yaml"
 	docker run \

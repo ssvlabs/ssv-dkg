@@ -1,6 +1,6 @@
-operatorIDs: [1, 22, 44, 55]
+operatorIDs: [11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113]
 withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
-owner: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
+owner: "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"
 nonce: 10
 network: "holesky"
 # operatorsInfo: '[{
@@ -29,5 +29,6 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
-# clientCACertPath: /data/initiator/rootCA.crt
-proofsFilePath: /data/initiator/output/ceremony-2024-04-22--16-36-19.354/proofs.json
+proofsFilePath: /data/initiator/output/ceremony-2024-06-24--13-59-42.448/proofs.json
+ethKeystorePath: /data/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9
+ethKeystorePass: /data/initiator/password

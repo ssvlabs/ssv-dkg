@@ -540,8 +540,8 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 	if err != nil {
 		return nil, fmt.Errorf("resign: initiator signature isn't valid: %s", err.Error())
 	}
-	r := &wire.ResignMessage{}
-	if err := r.UnmarshalSSZ(resignMsg.Data); err != nil {
+	resign := &wire.ResignMessage{}
+	if err := resign.UnmarshalSSZ(resignMsg.Data); err != nil {
 		return nil, fmt.Errorf("resign: failed to unmarshal init message: %s", err.Error())
 	}
 	s.Logger.Info("✅ resign message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
@@ -549,11 +549,11 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 		return nil, err
 	}
 	s.Logger.Info("Incoming resign request fields",
-		zap.String("network", hex.EncodeToString(r.SignedResign.Resign.Fork[:])),
-		zap.String("withdrawal", hex.EncodeToString(r.SignedResign.Resign.WithdrawalCredentials)),
-		zap.String("owner", hex.EncodeToString(r.SignedResign.Resign.Owner[:])),
-		zap.Uint64("nonce", r.SignedResign.Resign.Nonce))
-	for _, proof := range r.Proofs {
+		zap.String("network", hex.EncodeToString(resign.SignedResign.Resign.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(resign.SignedResign.Resign.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(resign.SignedResign.Resign.Owner[:])),
+		zap.Uint64("nonce", resign.SignedResign.Resign.Nonce))
+	for _, proof := range resign.Proofs {
 		s.Logger.Info("Loaded proof",
 			zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
 			zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
@@ -561,7 +561,17 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
 	}
-	inst, resp, err := s.CreateResignInstance(reqID, r, initiatorPubKey)
+	// verify EIP1271 signature
+	if err := spec_crypto.VerifySignedMessageByOwner(
+		s.EthClient,
+		resign.SignedResign.Resign.Owner,
+		&resign.SignedResign.Resign,
+		resign.SignedResign.Signature,
+	); err != nil {
+		return nil, err
+	}
+	s.Logger.Info("✅ resign eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+	inst, resp, err := s.CreateResignInstance(reqID, resign, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("resign: failed to create resign instance: %s", err.Error())
 	}
