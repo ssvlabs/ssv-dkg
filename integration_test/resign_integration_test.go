@@ -140,7 +140,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)

@@ -14,6 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -48,7 +49,12 @@ func TestInitHappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
@@ -91,7 +97,12 @@ func TestInitOperatorsThreshold(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
@@ -111,7 +122,12 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -121,12 +137,10 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
-	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
 	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
@@ -161,37 +175,6 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	// re-sign
-	t.Run("test 4 operators bulk resign", func(t *testing.T) {
-		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
-			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
-				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
-			}
-			args := []string{"resign", "--proofsFilePath", proofsFilePath, "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "10", "--clientCACertPath", "./certs/rootCA.crt"}
-			RootCmd.SetArgs(args)
-			err = RootCmd.Execute()
-			require.NoError(t, err)
-			resetFlags(RootCmd)
-		}
-	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
-	// validate resign results
-	resignCeremonies, err := os.ReadDir("./output")
-	require.NoError(t, err)
-	for i, c := range resignCeremonies {
-		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(10)}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	}
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
@@ -203,7 +186,12 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -294,7 +282,12 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -385,7 +378,12 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -477,7 +475,12 @@ func TestThreshold(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
@@ -571,7 +574,12 @@ func TestUnhappyFlows(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-	servers, ops := createOperators(t, version)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	servers, ops := createOperators(t, version, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey})
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey})
 	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey})
@@ -700,31 +708,36 @@ func TestLargeOperatorIDs(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1100, "test.version", operatorCert, operatorKey)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	srv1 := test_utils.CreateTestOperator(t, 1100, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1100, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2222, "test.version", operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperator(t, 2222, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2222, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3300, "test.version", operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperator(t, 3300, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3300, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4444, "test.version", operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperator(t, 4444, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4444, PubKey: &srv4.PrivKey.PublicKey})
-	srv5 := test_utils.CreateTestOperator(t, 5555, "test.version", operatorCert, operatorKey)
+	srv5 := test_utils.CreateTestOperator(t, 5555, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 5555, PubKey: &srv5.PrivKey.PublicKey})
-	srv6 := test_utils.CreateTestOperator(t, 6666, "test.version", operatorCert, operatorKey)
+	srv6 := test_utils.CreateTestOperator(t, 6666, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 6666, PubKey: &srv6.PrivKey.PublicKey})
-	srv7 := test_utils.CreateTestOperator(t, 7777, "test.version", operatorCert, operatorKey)
+	srv7 := test_utils.CreateTestOperator(t, 7777, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 7777, PubKey: &srv7.PrivKey.PublicKey})
-	srv8 := test_utils.CreateTestOperator(t, 8888, "test.version", operatorCert, operatorKey)
+	srv8 := test_utils.CreateTestOperator(t, 8888, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 8888, PubKey: &srv8.PrivKey.PublicKey})
-	srv9 := test_utils.CreateTestOperator(t, 9999, "test.version", operatorCert, operatorKey)
+	srv9 := test_utils.CreateTestOperator(t, 9999, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 9999, PubKey: &srv9.PrivKey.PublicKey})
-	srv10 := test_utils.CreateTestOperator(t, 10000, "test.version", operatorCert, operatorKey)
+	srv10 := test_utils.CreateTestOperator(t, 10000, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 10000, PubKey: &srv10.PrivKey.PublicKey})
-	srv11 := test_utils.CreateTestOperator(t, 11111, "test.version", operatorCert, operatorKey)
+	srv11 := test_utils.CreateTestOperator(t, 11111, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 11111, PubKey: &srv11.PrivKey.PublicKey})
-	srv12 := test_utils.CreateTestOperator(t, 12222, "test.version", operatorCert, operatorKey)
+	srv12 := test_utils.CreateTestOperator(t, 12222, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 12222, PubKey: &srv12.PrivKey.PublicKey})
-	srv13 := test_utils.CreateTestOperator(t, 13333, "test.version", operatorCert, operatorKey)
+	srv13 := test_utils.CreateTestOperator(t, 13333, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 13333, PubKey: &srv13.PrivKey.PublicKey})
 	clnt, err := initiator.New(ops, logger, "test.version", rootCert)
 	require.NoError(t, err)
@@ -754,14 +767,19 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1, "test.version", operatorCert, operatorKey)
+	srv1 := test_utils.CreateTestOperator(t, 1, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2, "test.version", operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperator(t, 2, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3, "test.version", operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperator(t, 3, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
 	clnt, err := initiator.New(ops, logger, "v1.0.0", rootCert)
 	require.NoError(t, err)
@@ -780,14 +798,19 @@ func TestWrongOperatorVersion(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0", operatorCert, operatorKey)
+	srv1 := test_utils.CreateTestOperator(t, 1, "v1.0.0", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey})
-	srv2 := test_utils.CreateTestOperator(t, 2, "test.version", operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperator(t, 2, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey})
-	srv3 := test_utils.CreateTestOperator(t, 3, "test.version", operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperator(t, 3, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
-	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
 	clnt, err := initiator.New(ops, logger, "test.version", rootCert)
 	require.NoError(t, err)
@@ -919,46 +942,46 @@ func newEthAddress(t *testing.T) common.Address {
 	return address
 }
 
-func createOperators(t *testing.T, version string) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
+func createOperators(t *testing.T, version string, stubClient *stubs.Client) ([]*test_utils.TestOperator, wire.OperatorsCLI) {
 	var servers []*test_utils.TestOperator
 	ops := wire.OperatorsCLI{}
-	srv1 := test_utils.CreateTestOperator(t, 11, version, operatorCert, operatorKey)
+	srv1 := test_utils.CreateTestOperator(t, 11, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 11, PubKey: &srv1.PrivKey.PublicKey})
 	servers = append(servers, srv1)
-	srv2 := test_utils.CreateTestOperator(t, 22, version, operatorCert, operatorKey)
+	srv2 := test_utils.CreateTestOperator(t, 22, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 22, PubKey: &srv2.PrivKey.PublicKey})
 	servers = append(servers, srv2)
-	srv3 := test_utils.CreateTestOperator(t, 33, version, operatorCert, operatorKey)
+	srv3 := test_utils.CreateTestOperator(t, 33, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 33, PubKey: &srv3.PrivKey.PublicKey})
 	servers = append(servers, srv3)
-	srv4 := test_utils.CreateTestOperator(t, 44, version, operatorCert, operatorKey)
+	srv4 := test_utils.CreateTestOperator(t, 44, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 44, PubKey: &srv4.PrivKey.PublicKey})
 	servers = append(servers, srv4)
-	srv5 := test_utils.CreateTestOperator(t, 55, version, operatorCert, operatorKey)
+	srv5 := test_utils.CreateTestOperator(t, 55, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv5.HttpSrv.URL, ID: 55, PubKey: &srv5.PrivKey.PublicKey})
 	servers = append(servers, srv5)
-	srv6 := test_utils.CreateTestOperator(t, 66, version, operatorCert, operatorKey)
+	srv6 := test_utils.CreateTestOperator(t, 66, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv6.HttpSrv.URL, ID: 66, PubKey: &srv6.PrivKey.PublicKey})
 	servers = append(servers, srv6)
-	srv7 := test_utils.CreateTestOperator(t, 77, version, operatorCert, operatorKey)
+	srv7 := test_utils.CreateTestOperator(t, 77, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv7.HttpSrv.URL, ID: 77, PubKey: &srv7.PrivKey.PublicKey})
 	servers = append(servers, srv7)
-	srv8 := test_utils.CreateTestOperator(t, 88, version, operatorCert, operatorKey)
+	srv8 := test_utils.CreateTestOperator(t, 88, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv8.HttpSrv.URL, ID: 88, PubKey: &srv8.PrivKey.PublicKey})
 	servers = append(servers, srv8)
-	srv9 := test_utils.CreateTestOperator(t, 99, version, operatorCert, operatorKey)
+	srv9 := test_utils.CreateTestOperator(t, 99, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv9.HttpSrv.URL, ID: 99, PubKey: &srv9.PrivKey.PublicKey})
 	servers = append(servers, srv9)
-	srv10 := test_utils.CreateTestOperator(t, 100, version, operatorCert, operatorKey)
+	srv10 := test_utils.CreateTestOperator(t, 100, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv10.HttpSrv.URL, ID: 100, PubKey: &srv10.PrivKey.PublicKey})
 	servers = append(servers, srv10)
-	srv11 := test_utils.CreateTestOperator(t, 111, version, operatorCert, operatorKey)
+	srv11 := test_utils.CreateTestOperator(t, 111, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv11.HttpSrv.URL, ID: 111, PubKey: &srv11.PrivKey.PublicKey})
 	servers = append(servers, srv11)
-	srv12 := test_utils.CreateTestOperator(t, 122, version, operatorCert, operatorKey)
+	srv12 := test_utils.CreateTestOperator(t, 122, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 122, PubKey: &srv12.PrivKey.PublicKey})
 	servers = append(servers, srv12)
-	srv13 := test_utils.CreateTestOperator(t, 133, version, operatorCert, operatorKey)
+	srv13 := test_utils.CreateTestOperator(t, 133, version, operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 133, PubKey: &srv13.PrivKey.PublicKey})
 	servers = append(servers, srv13)
 
