@@ -382,8 +382,8 @@ func (c *Initiator) StartResigning(id [24]byte, rMsg *wire.ResignMessage) (*wire
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
 	}
 	resultsBytes, err := c.resignMessageFlowHandling(
-		rMsg, 
-		id, 
+		rMsg,
+		id,
 		rMsg.Operators)
 	if err != nil {
 		return nil, nil, nil, err

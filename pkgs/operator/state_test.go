@@ -8,9 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -58,7 +60,7 @@ func TestCreateInstance(t *testing.T) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		tempDir, err := os.MkdirTemp("", "dkg")
 		require.NoError(t, err)
-		s, err := New(privateKey, logger, []byte("test.version"), 1, tempDir)
+		s, err := New(privateKey, logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
 		require.NoError(t, err)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -80,7 +82,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.True(t, wrapper.LocalOwner.OperatorPublicKey.Equal(&privateKey.PublicKey))
+		require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey.PublicKey))
 	}
 
 	testParams := []struct {
@@ -106,7 +108,7 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
-	swtch, err := New(privateKey, logger, []byte("test.version"), 1, tempDir)
+	swtch, err := New(privateKey, logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
 	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -186,7 +188,12 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
-	swtch := NewSwitch(privateKey, logger, []byte("test.version"), pkBytes, 1)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	swtch := NewSwitch(privateKey, logger, []byte("test.version"), pkBytes, 1, stubClient)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()

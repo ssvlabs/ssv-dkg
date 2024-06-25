@@ -192,62 +192,21 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to get BLS partial secret key share: %w", err)
 	}
-	// Encrypt BLS share for SSV contract
-	encryptedShare, err := o.encryptFunc([]byte(secretKeyBLS.SerializeToHexStr()))
+	result, err := spec.BuildResult(
+		o.ID,
+		o.data.reqID,
+		secretKeyBLS,
+		o.OperatorSecretKey,
+		validatorPubKey.Serialize(),
+		o.data.init.Owner,
+		o.data.init.WithdrawalCredentials,
+		o.data.init.Fork,
+		o.data.init.Nonce,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt BLS share: %w", err)
-	}
-	// Sign root
-	network, err := spec_crypto.GetNetworkByFork(o.data.init.Fork)
-	if err != nil {
-		return fmt.Errorf("failed to get network by fork: %w", err)
-	}
-	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
-		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(o.data.init.WithdrawalCredentials),
-		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to generate deposit data with root %w", err)
-	}
-	// Sign.
-	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
-	if depositPartialSignature == nil {
-		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
-	}
-	// Validate partial signature
-	if val := depositPartialSignature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
-		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
 		return err
 	}
-	// Sign SSV owner + nonce
-	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(o.data.init.Owner).String(), o.data.init.Nonce))
-	hash := eth_crypto.Keccak256([]byte(data))
-	sigOwnerNonce := secretKeyBLS.SignByte(hash)
-	// Verify partial SSV owner + nonce signature
-	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
-	if !val {
-		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
-	}
-	// Generate and sign proof
-	proof := &spec.Proof{
-		ValidatorPubKey: validatorPubKey.Serialize(),
-		EncryptedShare:  encryptedShare,
-		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
-		Owner:           o.data.init.Owner,
-	}
-	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)
-	if err != nil {
-		return fmt.Errorf("failed to sign proof: %w", err)
-	}
-	out := &spec.Result{
-		RequestID:                  o.data.reqID,
-		DepositPartialSignature:    depositPartialSignature.Serialize(),
-		OperatorID:                 o.ID,
-		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		SignedProof:                *signedProof,
-	}
-	encodedOutput, err := out.MarshalSSZ()
+	encodedOutput, err := result.MarshalSSZ()
 	if err != nil {
 		return fmt.Errorf("failed to encode output: %w", err)
 	}
@@ -258,7 +217,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		Version:    o.version,
 	}
 	if err := o.Broadcast(tsMsg); err != nil {
-		o.Logger.Error("failed to broadcast output in PostDKG", zap.Error(err))
+		return fmt.Errorf("failed to broadcast output in PostDKG: %w", err)
 	}
 	close(o.done)
 	return nil
@@ -266,15 +225,13 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 
 func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 	if res.Error != nil {
-		o.broadcastError(res.Error)
-		return res.Error
+		return fmt.Errorf("dkg protocol failed: %w", res.Error)
 	}
 	o.Logger.Info("DKG resharing ceremony finished successfully")
 	// Get BLS partial secret key share from DKG
 	secretKeyBLS, err := crypto.ResultToShareSecretKey(res.Result.Key)
 	if err != nil {
-		o.broadcastError(err)
-		return err
+		return fmt.Errorf("failed to get validator BLS secret key: %w", err)
 	}
 	result, err := spec.BuildResult(
 		o.ID,
@@ -288,12 +245,10 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 		o.data.reshare.Nonce,
 	)
 	if err != nil {
-		o.broadcastError(err)
 		return err
 	}
 	encodedOutput, err := result.MarshalSSZ()
 	if err != nil {
-		o.broadcastError(err)
 		return err
 	}
 	tsMsg := &wire.Transport{
@@ -302,7 +257,9 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 		Data:       encodedOutput,
 		Version:    o.version,
 	}
-	o.Broadcast(tsMsg)
+	if err := o.Broadcast(tsMsg); err != nil {
+		return fmt.Errorf("failed to broadcast output in PostReshare: %w", err)
+	}
 	if _, ok := <-o.done; ok {
 		close(o.done)
 	}
@@ -510,7 +467,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 		<-o.startedDKG
 		return o.processDKG(from, st.Message)
 	default:
-		return fmt.Errorf("unknown message type")
+		return fmt.Errorf("unknown message type: %s", st.Message.Type.String())
 	}
 	return nil
 }
@@ -702,7 +659,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoints []kyber.Point) (*wire.Transport, error) {
 	// sanity check
 	if o.data != nil {
-		return nil, fmt.Errorf("data already exist at local instance", zap.Any("data:", o.data))
+		return nil, fmt.Errorf("data already exist at local instance: %v", o.data)
 	}
 	o.data = &DKGdata{}
 	var commits []byte
@@ -784,7 +741,8 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
 		if err := postF(&res); err != nil {
-			o.Logger.Error("Error in postReshare function", zap.Error(err))
+			o.Logger.Error("Error in PostReshare function", zap.Error(err))
+			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 		}
 	}(p, o.PostReshare)
 	close(o.startedDKG)
@@ -861,7 +819,8 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
 		if err := postF(&res); err != nil {
-			o.Logger.Error("Error in postReshare function", zap.Error(err))
+			o.Logger.Error("Error in PostReshare function", zap.Error(err))
+			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 		}
 	}(p, o.PostReshare)
 	return nil

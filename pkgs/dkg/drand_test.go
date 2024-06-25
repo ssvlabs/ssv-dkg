@@ -38,6 +38,7 @@ type testState struct {
 	opsPriv map[uint64]*rsa.PrivateKey
 	tv      *testVerify
 	ipk     *rsa.PublicKey
+	results map[uint64][]*spec.Result
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
@@ -46,7 +47,16 @@ func (ts *testState) Broadcast(id uint64, data []byte) error {
 		if err := st.UnmarshalSSZ(data); err != nil {
 			return err
 		}
-		if err := o.Process(st); err != nil {
+		if st.Message.Type == wire2.OutputMessageType {
+			res := &spec.Result{}
+			err := res.UnmarshalSSZ(st.Message.Data)
+			if err != nil {
+				return err
+			}
+			ts.results[o.ID] = append(ts.results[o.ID], res)
+			return nil
+		}
+		if err := o.Process(st, o.data.init.Operators); err != nil {
 			return err
 		}
 		return nil
@@ -104,6 +114,7 @@ func TestDKGInit(t *testing.T) {
 		opsPriv: make(map[uint64]*rsa.PrivateKey),
 		tv:      newTestVerify(),
 		ipk:     initatorPk,
+		results: make(map[uint64][]*spec.Result, 0),
 	}
 	for i := 1; i < 5; i++ {
 		op, priv := NewTestOperator(ts, uint64(i))
@@ -156,5 +167,10 @@ func TestDKGInit(t *testing.T) {
 		<-o.done
 		return nil
 	})
-	require.NoError(t, err)
+	for _, res := range ts.results {
+		validatorPK, err := spec.RecoverValidatorPKFromResults(res)
+		require.NoError(t, err)
+		_, _, _, err = spec.ValidateResults(opsarr, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, uid, res)
+		require.NoError(t, err)
+	}
 }
