@@ -2,6 +2,7 @@
 bin/
 .vscode/
 examples/*/output/*
+integration_test/output
 
 ######## Node
 # Logs

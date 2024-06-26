@@ -573,7 +573,7 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 	s.Logger.Info("✅ resign eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	inst, resp, err := s.CreateResignInstance(reqID, resign, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("resign: failed to create resign instance: %s", err.Error())
+		return nil, fmt.Errorf("resign: failed to create instance: %s", err.Error())
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst

@@ -184,7 +184,7 @@ func decryptBLSKeyFromProof(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKe
 		return nil, err
 	}
 	secret := &bls.SecretKey{}
-	err = secret.SetHexString(string(prShare))
+	err = secret.Deserialize(prShare)
 	if err != nil {
 		return nil, err
 	}

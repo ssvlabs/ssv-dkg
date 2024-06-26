@@ -17,7 +17,9 @@ import (
 )
 
 func TestBulkHappyFlows4Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -81,7 +83,9 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows7Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -99,12 +103,10 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
-	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
 	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
@@ -146,7 +148,9 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows10Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -164,12 +168,10 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
-	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
 	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}
@@ -211,7 +213,9 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows13Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -229,12 +233,10 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
 	cli_initiator.StartDKG.Version = version
-	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
 	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--clientCACertPath", "./certs/rootCA.crt"}

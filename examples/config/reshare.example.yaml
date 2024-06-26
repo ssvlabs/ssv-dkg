@@ -1,11 +1,10 @@
-operatorIDs: [11, 22, 44, 55]
+operatorIDs: [11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113]
 newOperatorIDs: [55, 66, 77, 88]
 withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"
 nonce: 2
 network: "holesky"
-keysharesFilePath: /data/initiator/output/ceremony-2024-06-18--10-46-50.068/000001-0xa07cffd43f588ba38828c8dbfd36bbd82d1c135001543d66232b2903366746e6c92c85509518ff5db6badf5e5529da29/keyshares.json
-proofsFilePath: /data/initiator/output/ceremony-2024-06-18--10-46-50.068/000001-0xa07cffd43f588ba38828c8dbfd36bbd82d1c135001543d66232b2903366746e6c92c85509518ff5db6badf5e5529da29/proofs.json
+proofsFilePath: /data/initiator/output/ceremony-2024-06-26--14-39-13.989/000001-0x8aff9fbcde3a96257425591b9cec35e2a05675973dcc99831f490e752a2531e563b138d20bc06eb846de6b2e3b6b0a96/proofs.json
 ethKeystorePath: /data/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9
 ethKeystorePass: /data/initiator/password
 operatorsInfoPath: /data/initiator/operators_info.json

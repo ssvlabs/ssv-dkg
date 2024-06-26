@@ -569,7 +569,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, err
 	}
 	secretKeyBLS := &bls.SecretKey{}
-	err = secretKeyBLS.SetHexString(string(prShare))
+	err = secretKeyBLS.Deserialize(prShare)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,9 @@ import (
 )
 
 func TestBulkResignHappyFlows4Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -150,7 +152,9 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 }
 
 func TestBulkResignHappyFlows7Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -282,7 +286,9 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 }
 
 func TestBulkResignHappyFlows10Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -414,7 +420,9 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 }
 
 func TestBulkResingHappyFlows13Ops(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	err := os.RemoveAll("./output/")
+	require.NoError(t, err)
+	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	version := "test.version"
 	stubClient := &stubs.Client{
