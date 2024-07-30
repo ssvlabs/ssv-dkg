@@ -109,6 +109,38 @@ func RegisterRoutes(s *Server) {
 			writer.Write(b)
 		})
 	})
+	s.Router.Route("/resign", func(r chi.Router) {
+		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {
+			s.Logger.Debug("incoming ReSign msg")
+			rawdata, err := io.ReadAll(request.Body)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				return
+			}
+			signedReSignMsg := &wire.SignedTransport{}
+			if err := signedReSignMsg.UnmarshalSSZ(rawdata); err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+				return
+			}
+
+			// Validate that incoming message is an init message
+			if signedReSignMsg.Message.Type != wire.ResignMessageType {
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not init message to init route")), http.StatusBadRequest)
+				return
+			}
+			reqid := signedReSignMsg.Message.Identifier
+			logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
+			b, err := s.State.ReSign(reqid, signedReSignMsg.Message, signedReSignMsg.Signature)
+			if err != nil {
+				utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+				return
+			}
+			logger.Info("✅ Resigned message successfully")
+			writer.WriteHeader(http.StatusOK)
+			writer.Write(b)
+
+		})
+	})
 	s.Router.Route("/reshare", func(r chi.Router) {
 		r.Use(rateLimit(s.Logger, routeLimit))
 		r.Post("/", func(writer http.ResponseWriter, request *http.Request) {

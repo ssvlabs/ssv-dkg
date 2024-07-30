@@ -32,6 +32,8 @@ const (
 	PingMessageType
 	PongMessageType
 	ResultMessageType
+	ResignMessageType
+	ResignResultMessageType
 )
 
 func (t TransportType) String() string {
@@ -66,6 +68,10 @@ func (t TransportType) String() string {
 		return "PongMessageType"
 	case ResultMessageType:
 		return "ResultMessageType"
+	case ResignMessageType:
+		return "ResignMessageType"
+	case ResignResultMessageType:
+		return "ResignResultMessageType"
 	default:
 		return "no type impl"
 	}
@@ -169,4 +175,17 @@ type ResultData struct {
 	DepositData   []byte   `ssz-max:"8192"`
 	KeysharesData []byte   `ssz-max:"32768"`
 	CeremonySigs  []byte   `ssz-max:"16384"`
+}
+
+type ReSign struct {
+	// Operators involved in the DKG
+	OldOperators []*Operator `ssz-max:"13"`
+	// Encrypted BLS shares
+	Keyshares   []byte `ssz-max:"32768"`
+	Root []byte `ssz-max:"32"`
+}
+
+type ReSignResult struct {
+	OperatorID uint64 
+	RootPartialSig []byte `ssz-max:"96"`
 }

@@ -1,0 +1,9 @@
+keysharesFilePath: /data/initiator/output/ceremony-2024-04-10T12:12:35Z/keyshares.json
+operatorsInfoPath: /data/initiator/operators_info.json
+outputPath: /data/initiator/output
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/initiator/output/initiator_debug.log
+beaconNodeAddress: http://bn-h-3.stage.bloxinfra.com:3500/
+network: "holesky"

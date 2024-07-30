@@ -63,6 +63,10 @@ var (
 	OperatorID      uint64
 )
 
+var (
+	BeaconNodeAddress string
+)
+
 // SetViperConfig reads a yaml config file if provided
 func SetViperConfig(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
@@ -225,6 +229,15 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	flags.PrivateKeyPassFlag(cmd)
 	flags.OperatorPortFlag(cmd)
 	flags.OperatorIDFlag(cmd)
+}
+
+func SetResignFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.KeysharesFilePathFlag(cmd)
+	flags.BeaconNoodeAddressFlag(cmd)
+	flags.NetworkFlag(cmd)
 }
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
@@ -421,6 +434,62 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	// 	return fmt.Errorf("😥 ceremonySigsFilePath should not be a folder")
 	// }
 	Nonce = viper.GetUint64("nonce")
+	return nil
+}
+
+// BindResignFlags
+func BindResignFlags(cmd *cobra.Command) error {
+	if err := BindBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("keysharesFilePath", cmd.PersistentFlags().Lookup("keysharesFilePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("beaconNodeAddress", cmd.PersistentFlags().Lookup("beaconNodeAddress")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
+		return err
+	}
+	Network = viper.GetString("network")
+	if Network == "" {
+		return fmt.Errorf("😥 Failed to get fork version flag value")
+	}
+	BeaconNodeAddress = viper.GetString("beaconNodeAddress")
+	if BeaconNodeAddress == "" {
+		return fmt.Errorf("😥 please provide beacon node address")
+	}
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if strings.Contains(OperatorsInfoPath, "../") {
+		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	}
+	OperatorsInfo = viper.GetString("operatorsInfo")
+	if OperatorsInfoPath != "" && OperatorsInfo != "" {
+		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+	}
+	if OperatorsInfoPath == "" && OperatorsInfo == "" {
+		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	KeysharesFilePath = viper.GetString("keysharesFilePath")
+	if KeysharesFilePath == "" {
+		return fmt.Errorf("😥 please provide a path to keyshares json file")
+	}
+	if strings.Contains(KeysharesFilePath, "../") {
+		return fmt.Errorf("😥 keysharesFilePath should not contain traversal")
+	}
+	stat, err := os.Stat(KeysharesFilePath)
+	if err != nil {
+		return fmt.Errorf("😥 keysharesFilePath is a folder path or not exist: %s", err)
+	}
+	if stat.IsDir() {
+		return fmt.Errorf("😥 keysharesFilePath should not be a folder")
+	}
 	return nil
 }
 
@@ -653,4 +722,16 @@ func createDirIfNotExist(path string) error {
 		}
 	}
 	return nil
+}
+
+func LoadKeyShares(path string) (*initiator.KeyShares, error) {
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	var ks *initiator.KeyShares
+	if err := json.Unmarshal(data, &ks); err != nil {
+		return nil, err
+	}
+	return ks, nil
 }

@@ -168,13 +168,13 @@ func (s *Switch) CreateInstanceReshare(reqID [24]byte, reshare *wire.Reshare, in
 	}
 	owner := dkg.New(&opts)
 	// wait for exchange msg
-	commits, err := crypto.GetPubCommitsFromSharesData(reshare)
+	commits, err := crypto.GetPubCommitsFromSharesData(reshare.OldOperators, reshare.Keyshares, int(reshare.OldT))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, op := range reshare.OldOperators {
 		if op.ID == operatorID {
-			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.InitiatorPublicKey, reshare.CeremonySigs, reshare.OldOperators, s.PrivateKey, s.OperatorID)
+			secretShare, err := crypto.GetSecretShareFromSharesData(reshare.Keyshares, reshare.OldOperators, s.PrivateKey, s.OperatorID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -371,6 +371,88 @@ func (s *Switch) InitInstanceReshare(reqID [24]byte, reshareMsg *wire.Transport,
 	s.InstanceInitTime[reqID] = time.Now()
 	s.Mtx.Unlock()
 	return resp, nil
+}
+
+func (s *Switch) ReSign(reqID [24]byte, reSignMsg *wire.Transport, initiatorSignature []byte) ([]byte, error) {
+	if !bytes.Equal(reSignMsg.Version, s.Version) {
+		return nil, utils.ErrVersion
+	}
+	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqID[:])))
+	logger.Info("🚀 Start resigning")
+	r := &wire.ReSign{}
+	if err := r.UnmarshalSSZ(reSignMsg.Data); err != nil {
+		return nil, err
+	}
+	operatorID, err := GetOperatorID(r.OldOperators, s.PubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	// sanity check of operator ID
+	if s.OperatorID != operatorID {
+		return nil, fmt.Errorf("wrong operator ID")
+	}
+	// compute threshold (3f+1)
+	oldThreshold := len(r.OldOperators) - ((len(r.OldOperators) - 1) / 3)
+	commits, err := crypto.GetPubCommitsFromSharesData(r.OldOperators, r.Keyshares, oldThreshold)
+	if err != nil {
+		return nil, err
+	}
+	var secretShare *kyber_dkg.DistKeyShare
+	for _, op := range r.OldOperators {
+		if op.ID == operatorID {
+			priShare, err := crypto.GetSecretShareFromSharesData(r.Keyshares, r.OldOperators, s.PrivateKey, s.OperatorID)
+			if err != nil {
+				return nil, err
+			}
+			if priShare == nil {
+				return nil, fmt.Errorf("cant decrypt incoming private share")
+			}
+			secretShare = &kyber_dkg.DistKeyShare{
+				Commits: commits,
+				Share:   priShare,
+			}
+		}
+	}
+
+	// convert to BLS and sign
+	secretKeyBLS, err := crypto.ResultToShareSecretKey(secretShare)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
+	}
+	sigRootMessage := secretKeyBLS.SignByte(r.Root)
+	resignResult := &wire.ReSignResult{
+		OperatorID:     s.OperatorID,
+		RootPartialSig: sigRootMessage.Serialize(),
+	}
+	resJSON, err := resignResult.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	tsMsg := &wire.Transport{
+		Type:       wire.ResignResultMessageType,
+		Identifier: reqID,
+		Data:       resJSON,
+		Version:    s.Version,
+	}
+	bts, err := tsMsg.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	// Sign message with RSA private key
+	sig, err := s.Sign(bts)
+	if err != nil {
+		return nil, err
+	}
+	signed := &wire.SignedTransport{
+		Message:   tsMsg,
+		Signer:    s.OperatorID,
+		Signature: sig,
+	}
+	final, err := signed.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
 }
 
 // CleanInstances removes all instances at Switch
