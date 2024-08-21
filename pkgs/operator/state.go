@@ -84,8 +84,8 @@ type Switch struct {
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
 // new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
-func (s *Switch) CreateInitInstance(reqID [24]byte, init *spec.Init, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	operatorID, err := spec.OperatorIDByPubKey(init.Operators, s.PubKeyBytes)
+func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, message interface{}, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
+	operatorID, err := spec.OperatorIDByPubKey(operators, s.PubKeyBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,50 +111,21 @@ func (s *Switch) CreateInitInstance(reqID [24]byte, init *spec.Init, initiatorPu
 		Version:            s.Version,
 	}
 	owner := dkg.New(&opts)
+	var resp *wire.Transport
 	// wait for exchange msg
-	resp, err := owner.Init(reqID, init)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := owner.Broadcast(resp); err != nil {
-		return nil, nil, err
-	}
-	res := <-bchan
-	return &instWrapper{owner, initiatorPublicKey, bchan, owner.ErrorChan}, res, nil
-}
-
-// CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
-// new instance. There cant be two instances with the same ID, but one initiator can start several DKG ceremonies.
-func (s *Switch) CreateResignInstance(reqID [24]byte, resign *wire.ResignMessage, initiatorPublicKey *rsa.PublicKey) (Instance, []byte, error) {
-	operatorID, err := spec.OperatorIDByPubKey(resign.Operators, s.PubKeyBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	// sanity check of operator ID
-	if s.OperatorID != operatorID {
-		return nil, nil, fmt.Errorf("wrong operator ID: want %d, got %d", s.OperatorID, operatorID)
-	}
-	bchan := make(chan []byte, 1)
-	broadcast := func(msg []byte) error {
-		bchan <- msg
-		return nil
-	}
-	opts := dkg.OwnerOpts{
-		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
-		BroadcastF:         broadcast,
-		Signer:             crypto.RSASigner(s.PrivateKey),
-		EncryptFunc:        s.Encrypt,
-		DecryptFunc:        s.Decrypt,
-		Suite:              kyber_bls12381.NewBLS12381Suite(),
-		ID:                 operatorID,
-		InitiatorPublicKey: initiatorPublicKey,
-		OperatorPublicKey:  &s.PrivateKey.PublicKey,
-		Version:            s.Version,
-	}
-	owner := dkg.New(&opts)
-	resp, err := owner.Resign(reqID, resign)
-	if err != nil {
-		return nil, nil, err
+	switch msg := message.(type) {
+	case *spec.Init:
+		resp, err = owner.Init(reqID, msg)
+		if err != nil {
+			return nil, nil, err
+		}
+	case *wire.ResignMessage:
+		resp, err = owner.Resign(reqID, msg)
+		if err != nil {
+			return nil, nil, err
+		}
+	default:
+		return nil, nil, fmt.Errorf("cant determine the ceremony message type")
 	}
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
@@ -222,7 +193,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	if err := s.validateInstances(reqID); err != nil {
 		return nil, err
 	}
-	inst, resp, err := s.CreateInitInstance(reqID, init, initiatorPubKey)
+	inst, resp, err := s.CreateInstance(reqID, init.Operators, init, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
 	}
@@ -454,7 +425,7 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
 	}
-	inst, resp, err := s.CreateResignInstance(reqID, r, initiatorPubKey)
+	inst, resp, err := s.CreateInstance(reqID, r.Operators, r, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("resign: failed to create resign instance: %s", err.Error())
 	}
