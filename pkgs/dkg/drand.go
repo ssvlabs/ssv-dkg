@@ -203,23 +203,10 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	}
 	// Sign.
 	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
-	if depositPartialSignature == nil {
-		return fmt.Errorf("failed to sign deposit data with partial signature %w", err)
-	}
-	// Validate partial signature
-	if val := depositPartialSignature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
-		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
-		return err
-	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(o.data.init.Owner).String(), o.data.init.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
-	// Verify partial SSV owner + nonce signature
-	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
-	if !val {
-		return fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
-	}
 	// Generate and sign proof
 	proof := &spec.Proof{
 		ValidatorPubKey: validatorPubKey.Serialize(),
@@ -501,7 +488,6 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, err
 	}
 	// Resigning
-	// Sign root
 	network, err := spec_crypto.GetNetworkByFork(r.Resign.Fork)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get network by fork: %w", err)
@@ -516,18 +502,10 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	}
 	// Sign.
 	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
-	if depositPartialSignature == nil {
-		return nil, fmt.Errorf("failed to sign deposit data with partial signature %w", err)
-	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(r.Resign.Owner).String(), r.Resign.Nonce))
 	hash := eth_crypto.Keccak256([]byte(data))
 	sigOwnerNonce := secretKeyBLS.SignByte(hash)
-	// Verify partial SSV owner + nonce signature
-	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
-	if !val {
-		return nil, fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
-	}
 	// Generate and sign proof
 	proof := &spec.Proof{
 		ValidatorPubKey: r.Proofs[position].Proof.ValidatorPubKey,
