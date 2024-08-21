@@ -12,17 +12,17 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/imroc/req/v3"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
-	"go.uber.org/zap"
-
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/consts"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/imroc/req/v3"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -220,14 +220,8 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	instanceIDField := zap.String("Ceremony ID", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
+	c.Logger.Info("🚀 Starting init dkg ceremony", zap.Uint64s("operator IDs", ids))
 
 	// compute threshold (3f+1)
 	threshold := len(ids) - ((len(ids) - 1) / 3)
@@ -240,57 +234,18 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		Owner:                 owner,
 		Nonce:                 nonce,
 	}
+	c.Logger.Info("Outgoing init request fields",
+		zap.String("network", hex.EncodeToString(init.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(init.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(init.Owner[:])),
+		zap.Uint64("nonce", init.Nonce),
+		zap.Any("operator IDs", ids))
 	c.Logger = c.Logger.With(instanceIDField)
-
 	dkgResultsBytes, err := c.initMessageFlowHandling(init, id, ops)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	dkgResults, err := parseDKGResultsFromBytes(dkgResultsBytes, id)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	c.Logger.Info("🏁 DKG completed, verifying deposit data and ssv payload")
-	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, init.Operators, init.WithdrawalCredentials, init.Fork, init.Owner, init.Nonce)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	c.Logger.Info("✅ verified master signature for ssv contract data")
-	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdraw)); err != nil {
-		return nil, nil, nil, err
-	}
-	if err := crypto.ValidateKeysharesCLI(keyshares, init.Operators, init.Owner, init.Nonce, depositDataJson.PubKey); err != nil {
-		return nil, nil, nil, err
-	}
-	// sending back to operators results
-	depositData, err := json.Marshal(depositDataJson)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	keysharesData, err := json.Marshal(keyshares)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	var proofsArray []*wire.SignedProof
-	for _, res := range dkgResults {
-		proofsArray = append(proofsArray, &wire.SignedProof{res.SignedProof}) //nolint:all
-	}
-	proofsData, err := json.Marshal(proofsArray)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	resultMsg := &wire.ResultData{
-		Operators:     ops,
-		Identifier:    id,
-		DepositData:   depositData,
-		KeysharesData: keysharesData,
-		Proofs:        proofsData,
-	}
-	err = c.sendResult(resultMsg, ops, consts.API_RESULTS_URL, id)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("🤖 Error storing results at operators %w", err)
-	}
-	return depositDataJson, keyshares, proofsArray, nil
+	return c.createCeremonyResults(dkgResultsBytes, id, init.Operators, init.WithdrawalCredentials, init.Fork, init.Owner, init.Nonce)
 }
 
 func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
@@ -301,12 +256,8 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	pkBytes, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	instanceIDField := zap.String("Ceremony ID", hex.EncodeToString(id[:]))
-	c.Logger.Info("🚀 Starting dkg ceremony", zap.String("initiator public key", string(pkBytes)), zap.Uint64s("operator IDs", ids), instanceIDField)
+	c.Logger.Info("🚀 Starting resign dkg ceremony", zap.Uint64s("operator IDs", ids))
 	// make resign message
 	rMsg := &wire.ResignMessage{
 		Operators: ops,
@@ -336,19 +287,31 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	return c.createCeremonyResults(resultsBytes, id, rMsg.Operators, rMsg.Resign.WithdrawalCredentials, rMsg.Resign.Fork, rMsg.Resign.Owner, rMsg.Resign.Nonce)
+}
+
+func (c *Initiator) createCeremonyResults(
+	resultsBytes [][]byte,
+	id [24]byte,
+	ops []*spec.Operator,
+	withdrawalCredentials []byte,
+	fork [4]byte,
+	ownerAddress [20]byte,
+	nonce uint64,
+) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	dkgResults, err := parseDKGResultsFromBytes(resultsBytes, id)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, rMsg.Operators, rMsg.Resign.WithdrawalCredentials, rMsg.Resign.Fork, rMsg.Resign.Owner, rMsg.Resign.Nonce)
+	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, ops, withdrawalCredentials, fork, ownerAddress, nonce)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
-	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdraw)); err != nil {
+	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdrawalCredentials)); err != nil {
 		return nil, nil, nil, err
 	}
-	if err := crypto.ValidateKeysharesCLI(keyshares, rMsg.Operators, rMsg.Resign.Owner, rMsg.Resign.Nonce, depositDataJson.PubKey); err != nil {
+	if err := crypto.ValidateKeysharesCLI(keyshares, ops, ownerAddress, nonce, depositDataJson.PubKey); err != nil {
 		return nil, nil, nil, err
 	}
 	// sending back to operators results
