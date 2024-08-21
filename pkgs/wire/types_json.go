@@ -84,6 +84,9 @@ type SignedProof struct {
 }
 
 func (sp *SignedProof) MarshalJSON() ([]byte, error) {
+	if sp.Proof == nil || sp.Proof.ValidatorPubKey == nil || sp.Proof.EncryptedShare == nil || sp.Proof.SharePubKey == nil || sp.Proof.Owner == [20]byte{0} || sp.Signature == nil {
+		return nil, fmt.Errorf("cant marshal json, signed proof json is malformed")
+	}
 	return json.Marshal(signedProofJSON{
 		Proof: &Proof{spec.Proof{
 			ValidatorPubKey: sp.Proof.ValidatorPubKey,
@@ -99,6 +102,9 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 	var signedProof signedProofJSON
 	if err := json.Unmarshal(data, &signedProof); err != nil {
 		return err
+	}
+	if signedProof.Proof == nil || signedProof.Proof.ValidatorPubKey == nil || signedProof.Proof.EncryptedShare == nil || signedProof.Proof.SharePubKey == nil || signedProof.Proof.Owner == [20]byte{0} || signedProof.Signature == "" {
+		return fmt.Errorf("cant unmarshal json, signed proof json is malformed")
 	}
 	p := &spec.Proof{
 		ValidatorPubKey: signedProof.Proof.ValidatorPubKey,
@@ -376,13 +382,18 @@ func ConvertSignedProofsToSpec(wireProofs []*SignedProof) []*spec.SignedProof {
 	return specProofs
 }
 
-func LoadProofs(path string) ([][]*SignedProof, error) {
-	var arrayOfSignedProofs [][]*SignedProof
-	if err := LoadJSONFile(path, &arrayOfSignedProofs); err != nil {
+func LoadProofs(path string) ([][]*spec.SignedProof, error) {
+	arrayOfSignedProofs := make([][]*SignedProof, 0)
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(data, &arrayOfSignedProofs)
+	if err != nil {
 		if strings.Contains(err.Error(), "cannot unmarshal object") {
 			// probably get only one proof, try to unmarshal it
 			var signedProof []*SignedProof
-			if err := LoadJSONFile(path, &signedProof); err != nil {
+			if err := json.Unmarshal(data, &signedProof); err != nil {
 				return nil, err
 			}
 			arrayOfSignedProofs = make([][]*SignedProof, 0)
@@ -391,5 +402,13 @@ func LoadProofs(path string) ([][]*SignedProof, error) {
 			return nil, err
 		}
 	}
-	return arrayOfSignedProofs, nil
+	result := make([][]*spec.SignedProof, 0)
+	for _, proofs := range arrayOfSignedProofs {
+		specSigProofs := make([]*spec.SignedProof, 0)
+		for _, proof := range proofs {
+			specSigProofs = append(specSigProofs, &spec.SignedProof{Proof: proof.Proof, Signature: proof.Signature})
+		}
+		result = append(result, specSigProofs)
+	}
+	return result, nil
 }

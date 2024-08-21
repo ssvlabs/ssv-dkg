@@ -8,15 +8,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/pkg/errors"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // request limits
@@ -216,7 +216,7 @@ func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, requ
 	}
 	// Validate that incoming message has requested type
 	if signedMsg.Message.Type != reqMessageType {
-		return nil, fmt.Errorf("operator %d, received non-init message to init route, err: %v", operatorID, errors.New("not init message to init route"))
+		return nil, fmt.Errorf("operator %d, received wrong message typec", operatorID)
 	}
 	return signedMsg, nil
 }

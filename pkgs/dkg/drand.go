@@ -1,12 +1,15 @@
 package dkg
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv-dkg/pkgs/board"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
@@ -16,14 +19,10 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/board"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -501,20 +500,6 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	if err != nil {
 		return nil, err
 	}
-	validatorPubKey := &bls.PublicKey{}
-	err = validatorPubKey.Deserialize(r.Proofs[position].Proof.ValidatorPubKey)
-	if err != nil {
-		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
-	}
-	sharePubKey := &bls.PublicKey{}
-	err = sharePubKey.Deserialize(r.Proofs[position].Proof.SharePubKey)
-	if err != nil {
-		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
-	}
-	if !bytes.Equal(sharePubKey.Serialize(), secretKeyBLS.GetPublicKey().Serialize()) {
-		return nil, fmt.Errorf("proof public key not equal to operator`s share public key")
-	}
-
 	// Resigning
 	// Sign root
 	network, err := spec_crypto.GetNetworkByFork(r.Resign.Fork)
@@ -522,7 +507,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, fmt.Errorf("failed to get network by fork: %w", err)
 	}
 	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
-		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
+		PublicKey:             phase0.BLSPubKey(r.Proofs[position].Proof.ValidatorPubKey),
 		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(r.Resign.WithdrawalCredentials),
 		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 	})
@@ -533,16 +518,6 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
 	if depositPartialSignature == nil {
 		return nil, fmt.Errorf("failed to sign deposit data with partial signature %w", err)
-	}
-	// Validate partial signature
-	if val := depositPartialSignature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
-		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
-		return nil, err
-	}
-	// Encrypt BLS share for SSV contract
-	encryptedShare, err := o.encryptFunc([]byte(secretKeyBLS.SerializeToHexStr()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	// Sign SSV owner + nonce
 	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(r.Resign.Owner).String(), r.Resign.Nonce))
@@ -555,9 +530,9 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	}
 	// Generate and sign proof
 	proof := &spec.Proof{
-		ValidatorPubKey: validatorPubKey.Serialize(),
-		EncryptedShare:  encryptedShare,
-		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
+		ValidatorPubKey: r.Proofs[position].Proof.ValidatorPubKey,
+		EncryptedShare:  r.Proofs[position].Proof.EncryptedShare,
+		SharePubKey:     r.Proofs[position].Proof.SharePubKey,
 		Owner:           r.Resign.Owner,
 	}
 	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)

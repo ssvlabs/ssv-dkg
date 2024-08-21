@@ -7,11 +7,11 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
 
-	"github.com/bloxapp/eth2-key-manager/core"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -35,7 +35,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	if !(spec_crypto.MaxEffectiveBalanceInGwei == depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
-	forkbytes := network.GenesisForkVersion()
+	forkBytes := network.GenesisForkVersion()
 	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
@@ -43,7 +43,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
-		ForkVersion:           hex.EncodeToString(forkbytes[:]),
+		ForkVersion:           hex.EncodeToString(forkBytes[:]),
 		NetworkName:           string(network),
 		DepositCliVersion:     depositCLIVersion,
 	}

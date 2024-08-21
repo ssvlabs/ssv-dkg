@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sourcegraph/conc/pool"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/sourcegraph/conc/pool"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -59,10 +58,7 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		ethnetwork := e2m_core.MainNetwork
-		if cli_utils.Network != "now_test_network" {
-			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
-		}
+		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
@@ -78,12 +74,11 @@ var StartResigning = &cobra.Command{
 				if err != nil {
 					return nil, err
 				}
-				proofsData := wire.ConvertSignedProofsToSpec(arrayOfSignedProofs[i])
-				// Create a new ID.
+				// Create a new ID
 				id := crypto.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
-				// Perform the resigning ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, proofsData, ethnetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				// Perform the resigning ceremony
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}

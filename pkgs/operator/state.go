@@ -10,18 +10,18 @@ import (
 	"sync"
 	"time"
 
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
-	"go.uber.org/zap"
-
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	eth_common "github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 const MaxInstances = 1024
@@ -91,7 +91,7 @@ func (s *Switch) CreateInitInstance(reqID [24]byte, init *spec.Init, initiatorPu
 	}
 	// sanity check of operator ID
 	if s.OperatorID != operatorID {
-		return nil, nil, fmt.Errorf("wrong operator ID")
+		return nil, nil, fmt.Errorf("wrong operator ID: want %d, got %d", s.OperatorID, operatorID)
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
@@ -132,7 +132,7 @@ func (s *Switch) CreateResignInstance(reqID [24]byte, resign *wire.ResignMessage
 	}
 	// sanity check of operator ID
 	if s.OperatorID != operatorID {
-		return nil, nil, fmt.Errorf("wrong operator ID")
+		return nil, nil, fmt.Errorf("wrong operator ID: want %d, got %d", s.OperatorID, operatorID)
 	}
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
