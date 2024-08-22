@@ -111,7 +111,7 @@ var StartReshare = &cobra.Command{
 		); err != nil {
 			logger.Fatal("Could not save results", zap.Error(err))
 		}
-		logger.Info("🚀 Resigning ceremony completed")
+		logger.Info("🚀 Resharing ceremony completed")
 		return nil
 	},
 }

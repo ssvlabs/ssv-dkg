@@ -83,7 +83,6 @@ var StartResigning = &cobra.Command{
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
-		// TODO: Sign EIP1271
 		for i := 0; i < len(arrayOfSignedProofs); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {

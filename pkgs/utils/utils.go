@@ -10,11 +10,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
@@ -125,9 +125,9 @@ func JoinSets(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
 	return set
 }
 
-// GetDisjointOldOperators returns an old set of operators disjoint from new set
+// GetCommonOldOperators returns an old set of operators disjoint from new set
 // For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
-func GetDisjointOldOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+func GetCommonOldOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
 	tmp := make(map[uint64]*spec.Operator)
 	var set []*spec.Operator
 	for _, op := range newOperators {

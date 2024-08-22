@@ -237,7 +237,7 @@ func (c *Initiator) resignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]b
 }
 
 func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.ReshareMessage) ([][]byte, error) {
-	c.Logger.Info("phase 1: sending reshare message to old operators")
+	c.Logger.Info("phase 1: sending reshare message to all operators")
 	allOps := utils.JoinSets(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators)
 	exchangeMsgs, errs, err := c.SendReshareMsg(id, reshareMsg, allOps)
 	if err != nil {
@@ -827,7 +827,7 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOperators, newOperators []*spec.Operator, threshold int) error {
 	allOps := utils.JoinSets(oldOperators, newOperators)
 	if len(responses)+len(errs) != len(allOps) {
-		return fmt.Errorf("wrong amount of replies from operators")
+		return fmt.Errorf("not enough replies from operators: exp %d, got %d", len(allOps), len(responses)+len(errs))
 	}
 	// all newly introduced operators should reply
 	var finalErr error

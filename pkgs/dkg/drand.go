@@ -442,7 +442,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return fmt.Errorf("error at reshare deals message processing: %w", ErrAlreadyExists)
 		}
 		o.deals[from] = b
-		oldNodes := utils.GetDisjointOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		oldNodes := utils.GetCommonOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 		newNodes := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
 		if len(o.deals) == len(incOperators) {
 			for _, op := range oldNodes {
@@ -686,7 +686,6 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 		}
 	}(p, o.PostReshare)
-	close(o.startedDKG)
 	return nil
 }
 
@@ -779,7 +778,6 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 	if o.data == nil {
 		return nil, fmt.Errorf("no data object at instance")
 	}
-	// TODO: think how to change this logic to more robust
 	if o.data.init != nil {
 		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
 		for _, msg := range msgs {
