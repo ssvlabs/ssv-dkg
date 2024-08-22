@@ -8,18 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
-	"github.com/ssvlabs/dkg-spec/testing/stubs"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -74,7 +74,7 @@ func TestCreateInstance(t *testing.T) {
 			Nonce:     1,
 		}
 
-		inst, resp, err := s.State.CreateInitInstance(reqID, init, &priv.PublicKey)
+		inst, resp, err := s.State.CreateInstance(reqID, init.Operators, init, &priv.PublicKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, inst)
@@ -174,7 +174,7 @@ func TestInitInstance(t *testing.T) {
 
 	swtch.State.InstanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
 
-	_, resp, err = swtch.State.CreateInitInstance(reqID, init, &priv.PublicKey)
+	_, resp, err = swtch.State.CreateInstance(reqID, init.Operators, init, &priv.PublicKey)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 

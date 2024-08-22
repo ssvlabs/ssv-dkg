@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv-dkg/pkgs/board"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -15,18 +18,12 @@ import (
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/util/random"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/board"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -204,7 +201,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.data.init.Nonce,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to encrypt BLS share: %w", err)
 	}
 	encodedOutput, err := result.MarshalSSZ()
 	if err != nil {
@@ -573,77 +570,21 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	if err != nil {
 		return nil, err
 	}
-	validatorPubKey := &bls.PublicKey{}
-	err = validatorPubKey.Deserialize(r.Proofs[position].Proof.ValidatorPubKey)
+	result, err := spec.BuildResult(
+		o.ID,
+		reqID,
+		secretKeyBLS,
+		o.OperatorSecretKey,
+		r.Proofs[position].Proof.ValidatorPubKey,
+		r.SignedResign.Resign.Owner,
+		r.SignedResign.Resign.WithdrawalCredentials,
+		r.SignedResign.Resign.Fork,
+		r.SignedResign.Resign.Nonce,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
-	}
-	sharePubKey := &bls.PublicKey{}
-	err = sharePubKey.Deserialize(r.Proofs[position].Proof.SharePubKey)
-	if err != nil {
-		return nil, fmt.Errorf("cant deserialize public key at proof: %w", err)
-	}
-	if !bytes.Equal(sharePubKey.Serialize(), secretKeyBLS.GetPublicKey().Serialize()) {
-		return nil, fmt.Errorf("proof public key not equal to operator`s share public key")
-	}
-
-	// Resigning
-	// Sign root
-	network, err := spec_crypto.GetNetworkByFork(r.SignedResign.Resign.Fork)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get network by fork: %w", err)
-	}
-	signingRoot, err := spec_crypto.ComputeDepositMessageSigningRoot(network, &phase0.DepositMessage{
-		PublicKey:             phase0.BLSPubKey(validatorPubKey.Serialize()),
-		WithdrawalCredentials: spec_crypto.ETH1WithdrawalCredentials(r.SignedResign.Resign.WithdrawalCredentials),
-		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate deposit data with root %w", err)
-	}
-	// Sign.
-	depositPartialSignature := secretKeyBLS.SignByte(signingRoot[:])
-	if depositPartialSignature == nil {
-		return nil, fmt.Errorf("failed to sign deposit data with partial signature %w", err)
-	}
-	// Validate partial signature
-	if val := depositPartialSignature.VerifyByte(secretKeyBLS.GetPublicKey(), signingRoot[:]); !val {
-		err = fmt.Errorf("partial deposit root signature is not valid %x", depositPartialSignature.Serialize())
 		return nil, err
 	}
-	// Encrypt BLS share for SSV contract
-	encryptedShare, err := o.encryptFunc([]byte(secretKeyBLS.SerializeToHexStr()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt BLS share: %w", err)
-	}
-	// Sign SSV owner + nonce
-	data := []byte(fmt.Sprintf("%s:%d", eth_common.Address(r.SignedResign.Resign.Owner).String(), r.SignedResign.Resign.Nonce))
-	hash := eth_crypto.Keccak256([]byte(data))
-	sigOwnerNonce := secretKeyBLS.SignByte(hash)
-	// Verify partial SSV owner + nonce signature
-	val := sigOwnerNonce.VerifyByte(secretKeyBLS.GetPublicKey(), hash)
-	if !val {
-		return nil, fmt.Errorf("partial owner + nonce signature isnt valid %x", sigOwnerNonce.Serialize())
-	}
-	// Generate and sign proof
-	proof := &spec.Proof{
-		ValidatorPubKey: validatorPubKey.Serialize(),
-		EncryptedShare:  encryptedShare,
-		SharePubKey:     secretKeyBLS.GetPublicKey().Serialize(),
-		Owner:           r.SignedResign.Resign.Owner,
-	}
-	signedProof, err := crypto.SignCeremonyProof(o.signer, proof)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign proof: %w", err)
-	}
-	out := &spec.Result{
-		RequestID:                  reqID,
-		DepositPartialSignature:    depositPartialSignature.Serialize(),
-		OperatorID:                 o.ID,
-		OwnerNoncePartialSignature: sigOwnerNonce.Serialize(),
-		SignedProof:                *signedProof,
-	}
-	encodedOutput, err := out.MarshalSSZ()
+	encodedOutput, err := result.MarshalSSZ()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode output: %w", err)
 	}

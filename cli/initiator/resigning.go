@@ -8,16 +8,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/sourcegraph/conc/pool"
-	"github.com/spf13/cobra"
-	spec "github.com/ssvlabs/dkg-spec"
-	"go.uber.org/zap"
-
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/sourcegraph/conc/pool"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 func init() {
@@ -62,11 +62,8 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		ethnetwork := e2m_core.MainNetwork
-		if cli_utils.Network != "now_test_network" {
-			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
-		}
-		arrayOfSignedProofs, err := wire.LoadProofsArray(cli_utils.ProofsFilePath)
+		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
@@ -95,25 +92,11 @@ var StartResigning = &cobra.Command{
 				if err != nil {
 					return nil, err
 				}
-				proofsData := wire.ConvertSignedProofsToSpec(arrayOfSignedProofs[i])
 				// Create a new ID.
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
-				// Construct resign message
-				reshareMsg, err := dkgInitiator.ConstructResignMessage(
-					operatorIDs,
-					proofsData[0].Proof.ValidatorPubKey,
-					ethnetwork,
-					cli_utils.WithdrawAddress.Bytes(),
-					cli_utils.OwnerAddress,
-					nonce,
-					sk.PrivateKey,
-					proofsData)
-				if err != nil {
-					return nil, err
-				}
-				// Perform the resigning ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, reshareMsg)
+				// Perform the resigning ceremony
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}

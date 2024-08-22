@@ -24,9 +24,7 @@ const (
 	keysharesFixture = `{
 		"version": "v1.1.0",
 		"createdAt": "2024-03-18T10:22:07.926Z",
-		"shares": [
-			{
-				"data": {
+		"shares": [cant unmarshal json,
 					"ownerNonce": 100,
 					"ownerAddress": "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 					"publicKey": "0xb1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
@@ -323,22 +321,31 @@ func TestArrayOfSignedProofsJSON(t *testing.T) {
 	require.JSONEq(t, arrayOfSignedProofs, string(b))
 }
 
-func TestLoadProofJSON(t *testing.T) {
-	var arrayOfsignedProofData [][]*SignedProof
-	err := LoadJSONFile("./testdata/ceremony-2024-04-22--16-36-19.354/proofs.json", &arrayOfsignedProofData)
+func TestLoadValidProofJSON(t *testing.T) {
+	arrayOfsignedProofData, err := LoadProofs("./testdata/proofs-valid.json")
 	require.NoError(t, err)
 	b, err := json.Marshal(arrayOfsignedProofData)
 	require.NoError(t, err)
-	data, err := os.ReadFile(filepath.Clean("./testdata/ceremony-2024-04-22--16-36-19.354/proofs.json"))
+	data, err := os.ReadFile(filepath.Clean("./testdata/proofs-valid.json"))
 	require.NoError(t, err)
 	require.JSONEq(t, string(data), string(b))
 }
 
-func TestSignedProofsJSON(t *testing.T) {
+func TestSignedValidProofsJSON(t *testing.T) {
 	signedProofsData := []*SignedProof{}
 	err := json.Unmarshal([]byte(signedProofs), &signedProofsData)
 	require.NoError(t, err)
 	b, err := json.Marshal(signedProofsData)
 	require.NoError(t, err)
 	require.JSONEq(t, signedProofs, string(b))
+}
+
+func TestLoadInvalidProofJSON(t *testing.T) {
+	arrayOfsignedProofData, err := LoadProofs("./testdata/proofs-invalid.json")
+	require.Error(t, err)
+	b, err := json.Marshal(arrayOfsignedProofData)
+	require.NoError(t, err)
+	data, err := os.ReadFile(filepath.Clean("./testdata/proofs-invalid.json"))
+	require.NoError(t, err)
+	require.NotEqual(t, string(data), string(b))
 }

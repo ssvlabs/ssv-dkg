@@ -12,18 +12,6 @@ import (
 	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	spec "github.com/ssvlabs/dkg-spec"
-	"github.com/ssvlabs/dkg-spec/testing/stubs"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
 	"github.com/bloxapp/ssv-dkg/pkgs/utils"
@@ -32,6 +20,18 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 var (
@@ -57,7 +57,7 @@ func TestInitHappyFlows(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 4 operators init happy flow", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -672,7 +672,7 @@ func createOperatorsFromExamplesFolder(t *testing.T, version string, stubClient 
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 112, PubKey: &srv12.PrivKey.PublicKey})
 	servers = append(servers, srv12)
 	srv13 := test_utils.CreateTestOperatorFromFile(t, 113, "../examples/operator13", version, operatorCert, operatorKey, stubClient)
-	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 113, PubKey: &srv13.PrivKey.PublicKey})
+	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 113, PubKey: &srv13.PrivKey.PublicKey})
 	servers = append(servers, srv13)
 	return servers, ops
 }
