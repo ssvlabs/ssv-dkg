@@ -63,6 +63,9 @@ var StartResigning = &cobra.Command{
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
+		}
 		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))

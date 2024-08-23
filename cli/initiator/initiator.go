@@ -12,8 +12,9 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 const (
@@ -62,6 +63,9 @@ var StartDKG = &cobra.Command{
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
+		}
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)

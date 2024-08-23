@@ -16,11 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-
 	"github.com/bloxapp/ssv-dkg/cli/flags"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -28,6 +23,10 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 // global base flags
@@ -71,10 +70,10 @@ var (
 
 // resigning/reshare flags
 var (
-	ProofsFilePath         string
-	NewOperatorIDs         []string
-	KeystorePath           string
-	KeystorePass           string
+	ProofsFilePath string
+	NewOperatorIDs []string
+	KeystorePath   string
+	KeystorePass   string
 )
 
 // SetViperConfig reads a yaml config file if provided

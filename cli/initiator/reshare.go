@@ -71,6 +71,9 @@ var StartReshare = &cobra.Command{
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
+		}
 		// Open ethereum keystore
 		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
 		if err != nil {

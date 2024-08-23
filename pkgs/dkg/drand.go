@@ -559,16 +559,16 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, fmt.Errorf("operator not found among resign operators: %d", o.ID)
 	}
 	if err := spec.ValidateResignMessage(&r.SignedResign.Resign, spec.GetOperator(r.Operators, o.ID), r.Proofs[position]); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to validate resign message: %w", err)
 	}
 	prShare, err := o.decryptFunc(r.Proofs[position].Proof.EncryptedShare)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decrypt encrypted share: %w", err)
 	}
 	secretKeyBLS := &bls.SecretKey{}
 	err = secretKeyBLS.Deserialize(prShare)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to deserialize private share bytes to BLS secret key: %w", err)
 	}
 	result, err := spec.BuildResult(
 		o.ID,
@@ -582,7 +582,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		r.SignedResign.Resign.Nonce,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build results message: %w", err)
 	}
 	encodedOutput, err := result.MarshalSSZ()
 	if err != nil {
@@ -775,8 +775,8 @@ func (o *LocalOwner) PushDealsOldNodes() error {
 
 func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[uint64]*spec.Operator, error) {
 	// sanity check
-	if o.data == nil {
-		return nil, fmt.Errorf("no data object at instance")
+	if o.data == nil || (o.data.init == nil && o.data.reshare == nil) || (o.data.init != nil && o.data.reshare != nil) {
+		return nil, fmt.Errorf("no init or reshare data at instance, or both are present")
 	}
 	if o.data.init != nil {
 		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
@@ -791,7 +791,7 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 		}
 		foundOps, err := FindOperatorsAtList(opsAtMsgs, o.data.init.Operators)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cant find operators at list %w", err)
 		}
 		if len(foundOps) != len(o.data.init.Operators) {
 			return nil, fmt.Errorf("at init all operators should send messages")
@@ -814,7 +814,7 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 		}
 		foundOldOps, err := FindOperatorsAtList(opsAtMsgs, o.data.reshare.OldOperators)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cant find operators at list %w", err)
 		}
 		// check threshold
 		if len(foundOldOps) < int(o.data.reshare.OldT) {
