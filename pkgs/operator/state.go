@@ -502,6 +502,19 @@ func (s *Switch) ResignInstance(reqID [24]byte, resignMsg *wire.Transport, initi
 			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
 	}
+	// verify EIP1271 signature
+	if err := spec_crypto.VerifySignedMessageByOwner(
+		s.EthClient,
+		resign.SignedResign.Resign.Owner,
+		&resign.SignedResign.Resign,
+		resign.SignedResign.Signature,
+	); err != nil {
+		return nil, err
+	}
+	s.Logger.Info("✅ reshare eip1271 owner signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+	if err := s.validateInstances(reqID); err != nil {
+		return nil, err
+	}
 	inst, resp, err := s.CreateInstance(reqID, resign.Operators, resign, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("resign: failed to create instance: %s", err.Error())

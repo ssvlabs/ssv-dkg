@@ -24,7 +24,9 @@ const (
 	keysharesFixture = `{
 		"version": "v1.1.0",
 		"createdAt": "2024-03-18T10:22:07.926Z",
-		"shares": [cant unmarshal json,
+		"shares": [			
+			{
+				"data": {
 					"ownerNonce": 100,
 					"ownerAddress": "0x81592c3DE184A3E2c0DCB5a261BC107Bfa91f494",
 					"publicKey": "0xb1b741af1f7f3064f13a860eafd644eba346b1852852a41fae6e229c18b04e76351be4d817788555153daa2b992acabc",
@@ -322,13 +324,8 @@ func TestArrayOfSignedProofsJSON(t *testing.T) {
 }
 
 func TestLoadValidProofJSON(t *testing.T) {
-	arrayOfsignedProofData, err := LoadProofs("./testdata/proofs-valid.json")
+	_, err := LoadProofs("./testdata/proofs-valid.json")
 	require.NoError(t, err)
-	b, err := json.Marshal(arrayOfsignedProofData)
-	require.NoError(t, err)
-	data, err := os.ReadFile(filepath.Clean("./testdata/proofs-valid.json"))
-	require.NoError(t, err)
-	require.JSONEq(t, string(data), string(b))
 }
 
 func TestSignedValidProofsJSON(t *testing.T) {

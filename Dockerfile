@@ -1,5 +1,5 @@
 # Use golang base image
-FROM golang:1.20-alpine3.18 as build
+FROM golang:1.23.0-alpine3.20 as build
 
 WORKDIR /ssv-dkg
 
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     ./cmd/ssv-dkg
 
 # Final stage
-FROM alpine:3.18  
+FROM alpine:3.20  
 WORKDIR /ssv-dkg
 
 # Install openssl

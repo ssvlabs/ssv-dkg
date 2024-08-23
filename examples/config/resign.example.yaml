@@ -29,6 +29,6 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
-proofsFilePath: /data/initiator/output/ceremony-2024-06-24--13-59-42.448/proofs.json
+proofsFilePath: /data/initiator/output/ceremony-2024-08-23--12-10-37.350/proofs.json
 ethKeystorePath: /data/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9
 ethKeystorePass: /data/initiator/password

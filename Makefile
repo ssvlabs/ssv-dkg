@@ -31,7 +31,7 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go run gotest.tools/gotestsum@latest --format pkgname --jsonfile test-output.log -- timeout 3600s
+	go run gotest.tools/gotestsum@latest --format pkgname --jsonfile test-output.log -- -timeout=3600s ./...
 
 # Recipe to build the Docker image
 docker-build-image:

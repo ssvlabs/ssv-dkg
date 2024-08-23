@@ -44,7 +44,7 @@ func TestResignValidEOASig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -82,13 +82,13 @@ func TestResignInvalidEOASig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
 		require.NoError(t, err)
 		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), [20]byte{}, 10)
-		require.Error(t, err, "invalid signed reshare signature")
+		require.ErrorContains(t, err, "invalid signed signature")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -124,7 +124,7 @@ func TestResignValidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -168,12 +168,12 @@ func TestResignInvalidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
 		require.NoError(t, err)
-		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10)
+		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "holesky", withdraw.Bytes(), owner, 10)
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

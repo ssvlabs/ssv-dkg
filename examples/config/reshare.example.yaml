@@ -4,7 +4,7 @@ withdrawAddress: "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"
 owner: "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"
 nonce: 2
 network: "holesky"
-proofsFilePath: /data/initiator/output/ceremony-2024-06-26--14-39-13.989/000001-0x8aff9fbcde3a96257425591b9cec35e2a05675973dcc99831f490e752a2531e563b138d20bc06eb846de6b2e3b6b0a96/proofs.json
+proofsFilePath: /data/initiator/output/ceremony-2024-08-23--12-10-37.350/000001-0x9919d632fa4a48128818a8661a20c6b5b85560a6fc1767fed5b3eae51e3290a11f5de16c5ac0a0873a57441bb19abbe5/proofs.json
 ethKeystorePath: /data/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9
 ethKeystorePass: /data/initiator/password
 operatorsInfoPath: /data/initiator/operators_info.json

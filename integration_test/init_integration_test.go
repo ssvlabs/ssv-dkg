@@ -497,7 +497,7 @@ func testSharesData(ops wire.OperatorsCLI, operatorCount int, keys []*rsa.Privat
 			return err
 		}
 		secret := &bls.SecretKey{}
-		err = secret.SetHexString(string(share))
+		err = secret.Deserialize(share)
 		if err != nil {
 			return err
 		}

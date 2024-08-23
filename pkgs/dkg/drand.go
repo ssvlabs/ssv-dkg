@@ -686,6 +686,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 		}
 	}(p, o.PostReshare)
+	close(o.startedDKG)
 	return nil
 }
 
@@ -763,6 +764,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 		}
 	}(p, o.PostReshare)
+	close(o.startedDKG)
 	return nil
 }
 

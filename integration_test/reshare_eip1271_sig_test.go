@@ -35,7 +35,7 @@ func TestReshareValidEOASig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -73,7 +73,7 @@ func TestReshareInvalidEOASig(t *testing.T) {
 	require.NoError(t, err)
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -109,7 +109,7 @@ func TestReshareValidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -153,7 +153,7 @@ func TestReshareInvalidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb92b076fdd7dcfb209bec593abb1291ee9ddfe8ecab279dc851b06bcd3fb056872888f947e4b5f9d6df6703e547679e7/proofs.json")
+	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
