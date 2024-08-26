@@ -88,7 +88,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 		id := spec.NewID()
 		require.NoError(t, err)
 		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), [20]byte{}, 10)
-		require.ErrorContains(t, err, "invalid signed signature")
+		require.ErrorContains(t, err, "invalid signed reshare signature") // spec 
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
