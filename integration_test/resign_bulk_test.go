@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/spf13/cobra"
-	"github.com/ssvlabs/dkg-spec/testing/stubs"
-	"github.com/stretchr/testify/require"
-
 	cli_initiator "github.com/bloxapp/ssv-dkg/cli/initiator"
 	cli_verify "github.com/bloxapp/ssv-dkg/cli/verify"
 	"github.com/bloxapp/ssv/logging"
+	"github.com/ethereum/go-ethereum"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 func TestBulkResignHappyFlows4Ops(t *testing.T) {
