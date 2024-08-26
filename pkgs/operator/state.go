@@ -131,6 +131,9 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		}
 	case *wire.ReshareMessage:
 		commits, share, err := s.getPublicCommitsAndSecretShare(msg)
+		if err != nil {
+			return nil, nil, err
+		}
 		owner.SecretShare = share
 		resp, err = owner.Reshare(reqID, &msg.SignedReshare.Reshare, commits)
 		if err != nil {

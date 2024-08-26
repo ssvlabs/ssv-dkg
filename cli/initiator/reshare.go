@@ -2,6 +2,7 @@ package initiator
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -45,7 +46,11 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer logger.Sync()
+		defer func() {
+			if err := cli_utils.Sync(logger); err != nil {
+				log.Printf("Failed to sync logger: %v", err)
+			}
+		}()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		opMap, err := cli_utils.LoadOperators(logger)
 		if err != nil {

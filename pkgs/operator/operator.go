@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -121,7 +120,10 @@ func RegisterRoutes(s *Server) {
 			}
 			logger.Info("✅ Reshare instance created successfully")
 			writer.WriteHeader(http.StatusOK)
-			writer.Write(b)
+			if _, err := writer.Write(b); err != nil {
+				logger.Error("error writing reshare response: " + err.Error())
+				return
+			}
 		})
 	s.Router.With(rateLimit(s.Logger, routeLimit)).
 		Post("/dkg", func(writer http.ResponseWriter, request *http.Request) {
@@ -253,12 +255,4 @@ func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, requ
 		return nil, fmt.Errorf("operator %d, received wrong message typec", operatorID)
 	}
 	return signedMsg, nil
-}
-
-func getIDsFromOperatorsArray(ops []*spec.Operator) []uint64 {
-	ids := make([]uint64, 0)
-	for _, op := range ops {
-		ids = append(ids, op.ID)
-	}
-	return ids
 }

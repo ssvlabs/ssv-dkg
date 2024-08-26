@@ -6,14 +6,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
@@ -144,29 +144,34 @@ func TestDKGInit(t *testing.T) {
 	uid := spec.NewID()
 	exch := map[uint64]*wire2.Transport{}
 
-	err = ts.ForAll(func(o *LocalOwner) error {
+	if err = ts.ForAll(func(o *LocalOwner) error {
 		ts, err := o.Init(uid, init)
 		if err != nil {
 			t.Error(t, err)
 		}
 		exch[o.ID] = ts
 		return nil
-	})
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err := ts.ForAll(func(o *LocalOwner) error {
 		return o.Broadcast(exch[o.ID])
-	})
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err = ts.ForAll(func(o *LocalOwner) error {
 		<-o.startedDKG
 		return nil
-	})
-
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err := ts.ForAll(func(o *LocalOwner) error {
 		<-o.done
 		return nil
-	})
+	}); err != nil {
+		t.Error(err)
+	}
+
 	for _, res := range ts.results {
 		validatorPK, err := spec.RecoverValidatorPKFromResults(res)
 		require.NoError(t, err)

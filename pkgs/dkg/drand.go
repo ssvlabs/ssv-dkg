@@ -426,7 +426,9 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 					Data:       byts,
 					Version:    o.version,
 				}
-				o.Broadcast(trsp)
+				if err := o.Broadcast(trsp); err != nil {
+					return fmt.Errorf("failed to broadcast ReshareKyberMessage message: %w", err)
+				}
 			}
 		}
 	case wire.ReshareKyberMessageType:

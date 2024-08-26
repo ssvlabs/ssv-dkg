@@ -239,6 +239,7 @@ func (c *Initiator) resignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]b
 func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.ReshareMessage) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending reshare message to all operators")
 	allOps := utils.JoinSets(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators)
+	var errs map[uint64]error
 	exchangeMsgs, errs, err := c.SendReshareMsg(id, reshareMsg, allOps)
 	if err != nil {
 		return nil, err
@@ -254,6 +255,10 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	c.Logger.Info("phase 1: ✅ verified operator resharing responses signatures")
 	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
 	kyberMsgs, errs, err := c.SendExchangeMsgs(id, exchangeMsgs, allOps)
+	// check that all new operators and threshold of old operators replied without errors
+	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators, int(reshareMsg.SignedReshare.Reshare.OldT)); err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -264,6 +269,10 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	c.Logger.Info("phase 2: ✅ verified old operator responses (deal messages) signatures")
 	c.Logger.Info("phase 3: ➡️ sending deal dkg data to new operators")
 	dkgResult, errs, err := c.SendKyberMsgs(id, kyberMsgs, reshareMsg.SignedReshare.Reshare.NewOperators)
+	// check that all new operators and threshold of old operators replied without errors
+	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators, int(reshareMsg.SignedReshare.Reshare.OldT)); err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -643,13 +652,15 @@ func (c *Initiator) SendKyberMsgs(id [24]byte, kyberDeals map[uint64][]byte, ope
 func (c *Initiator) sendResult(resData *wire.ResultData, operators []*spec.Operator, method string, id [24]byte) error {
 	signedMsgBts, err := c.prepareAndSignMessage(resData, wire.ResultMessageType, id, c.Version)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare message: %w", err)
 	}
 	_, errs := c.SendToAll(method, signedMsgBts, operators)
 	if len(errs) != 0 {
 		var finalErr error
 		for id, err := range errs {
-			errors.Join(finalErr, fmt.Errorf("operator %d, error: %w", id, err))
+			if err := errors.Join(finalErr, fmt.Errorf("operator %d, error: %w", id, err)); err != nil {
+				return fmt.Errorf("failed to join operator errors: %w", err)
+			}
 		}
 		return finalErr
 	}
