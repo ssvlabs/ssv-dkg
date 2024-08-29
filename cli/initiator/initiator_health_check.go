@@ -2,6 +2,7 @@ package initiator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -35,6 +36,11 @@ var HealthCheck = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥", zap.Error(err))
 		}
+
+		for i, s := range ips {
+			ips[i] = strings.TrimRight(s, "/")
+		}
+
 		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, cli_utils.ClientCACertPath)
 		if err != nil {
 			logger.Fatal("😥", zap.Error(err))
