@@ -16,16 +16,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bloxapp/ssv-dkg/cli/flags"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/validator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ssvlabs/ssv-dkg/cli/flags"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
+	"github.com/ssvlabs/ssv/logging"
 	"go.uber.org/zap"
 )
 

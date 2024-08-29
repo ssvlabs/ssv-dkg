@@ -7,10 +7,10 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/eth2-key-manager/core"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
+	"github.com/ssvlabs/eth2-key-manager/core"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )

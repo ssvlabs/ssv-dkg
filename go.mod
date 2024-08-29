@@ -1,4 +1,4 @@
-module github.com/bloxapp/ssv-dkg
+module github.com/ssvlabs/ssv-dkg
 
 go 1.23
 
@@ -78,9 +78,9 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/bloxapp/eth2-key-manager v1.4.0
-	github.com/bloxapp/ssv v1.0.0-rc.2
-	github.com/bloxapp/ssv-spec v0.3.1
+	github.com/ssvlabs/eth2-key-manager v1.4.0
+	github.com/ssvlabs/ssv v1.0.0-rc.2
+	github.com/ssvlabs/ssv-spec v0.3.1
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
