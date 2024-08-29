@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/bloxapp/ssv/logging"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv/logging"
 )
 
 func init() {

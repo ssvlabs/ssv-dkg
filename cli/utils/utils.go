@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,7 +26,6 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/ssvlabs/ssv/logging"
 	"go.uber.org/zap"
 )
 

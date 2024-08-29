@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv/logging"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"

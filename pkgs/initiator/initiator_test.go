@@ -15,16 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv/logging"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
-	"github.com/ssvlabs/eth2-key-manager/core"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/ssvlabs/ssv/logging"
 )
 
 var (

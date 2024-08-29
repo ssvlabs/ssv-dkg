@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
-	e2m_core "github.com/ssvlabs/eth2-key-manager/core"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"

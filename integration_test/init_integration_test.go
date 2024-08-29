@@ -12,6 +12,8 @@ import (
 	"unsafe"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -25,8 +27,6 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils/test_utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/ssvlabs/ssv/logging"
-	"github.com/ssvlabs/ssv/utils/rsaencryption"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 

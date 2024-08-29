@@ -4,7 +4,7 @@ go 1.23
 
 require (
 	github.com/aquasecurity/table v1.8.0
-	github.com/attestantio/go-eth2-client v0.21.1
+	github.com/attestantio/go-eth2-client v0.21.3
 	github.com/drand/kyber v1.1.18
 	github.com/drand/kyber-bls12381 v0.2.5
 	github.com/ethereum/go-ethereum v1.13.14
@@ -38,7 +38,7 @@ require (
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/goccy/go-yaml v1.11.0 // indirect
+	github.com/goccy/go-yaml v1.11.3 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
-	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
+	github.com/prysmaticlabs/go-bitfield v0.0.0-20240328144219-a1caa50c3a1e // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
@@ -78,9 +78,8 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/ssvlabs/eth2-key-manager v1.4.0
-	github.com/ssvlabs/ssv v1.0.0-rc.2
-	github.com/ssvlabs/ssv-spec v0.3.1
+	github.com/bloxapp/eth2-key-manager v1.4.0
+	github.com/bloxapp/ssv v1.3.8
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
@@ -100,6 +99,7 @@ require (
 	github.com/quic-go/quic-go v0.46.0 // indirect
 	github.com/refraction-networking/utls v1.3.2 // indirect
 	github.com/spf13/viper v1.16.0
+	github.com/ssvlabs/ssv-spec v0.3.10
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.3.0
 	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect

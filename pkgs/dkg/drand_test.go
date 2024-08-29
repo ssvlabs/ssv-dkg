@@ -6,11 +6,11 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/ssvlabs/ssv/utils/rsaencryption"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 

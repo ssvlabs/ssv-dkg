@@ -13,12 +13,11 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	e2m_core "github.com/ssvlabs/eth2-key-manager/core"
-	eth2_key_manager_core "github.com/ssvlabs/eth2-key-manager/core"
 	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
@@ -292,7 +291,7 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network e2m_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(withdraw) != len(common.Address{}) {
 		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
 	}
@@ -328,7 +327,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	return c.createCeremonyResults(dkgResultsBytes, id, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce)
 }
 
-func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, sk *ecdsa.PrivateKey, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.SignedProof, sk *ecdsa.PrivateKey, network e2m_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(proofs) == 0 {
 		return nil, nil, nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}
@@ -446,7 +445,7 @@ func (c *Initiator) createCeremonyResults(
 	return depositDataJson, keyshares, proofsArray, nil
 }
 
-func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs []uint64, proofs []*spec.SignedProof, sk *ecdsa.PrivateKey, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs []uint64, proofs []*spec.SignedProof, sk *ecdsa.PrivateKey, network e2m_core.Network, withdraw []byte, owner [20]byte, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(proofs) == 0 {
 		return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
 	}

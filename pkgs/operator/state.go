@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
@@ -19,7 +20,6 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/ssvlabs/ssv/utils/rsaencryption"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
