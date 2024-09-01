@@ -402,7 +402,11 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 					}
 				}
 			}
-			for _, op := range utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators) {
+			ops, err := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+			if err != nil {
+				return err
+			}
+			for _, op := range ops {
 				if o.ID != op.ID {
 					continue
 				}
@@ -444,8 +448,14 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			return fmt.Errorf("error at reshare deals message processing: %w", ErrAlreadyExists)
 		}
 		o.deals[from] = b
-		oldNodes := utils.GetCommonOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
-		newNodes := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		oldNodes, err := utils.GetCommonOldOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		if err != nil {
+			return err
+		}
+		newNodes, err := utils.GetDisjointNewOperators(o.data.reshare.OldOperators, o.data.reshare.NewOperators)
+		if err != nil {
+			return err
+		}
 		if len(o.deals) == len(incOperators) {
 			for _, op := range oldNodes {
 				if o.ID == op.ID {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/common"
@@ -106,62 +107,92 @@ func GetNonce(input []byte) []byte {
 }
 
 // JoinSets creates a set of two groups of operators. For example: [1,2,3,4] and [1,2,5,6,7] will return [1,2,3,4,5,6,7]
-func JoinSets(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+func JoinSets(oldOperators, newOperators []*spec.Operator) ([]*spec.Operator, error) {
+	if err := ValidateOpsLen(len(oldOperators)); err != nil {
+		return nil, fmt.Errorf("wrong old ops len: %w", err)
+	}
+	if err := ValidateOpsLen(len(newOperators)); err != nil {
+		return nil, fmt.Errorf("wrong new ops len: %w", err)
+	}
 	tmp := make(map[uint64]*spec.Operator)
 	var set []*spec.Operator
 	for _, op := range oldOperators {
-		if tmp[op.ID] == nil {
+		if _, ok := tmp[op.ID]; !ok {
 			tmp[op.ID] = op
 		}
 	}
 	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
+		if _, ok := tmp[op.ID]; !ok {
 			tmp[op.ID] = op
 		}
 	}
 	for _, op := range tmp {
 		set = append(set, op)
 	}
-	return set
+	// sort array
+	sort.SliceStable(set, func(i, j int) bool {
+		return set[i].ID < set[j].ID
+	})
+	return set, nil
 }
 
 // GetCommonOldOperators returns an old set of operators disjoint from new set
 // For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [3,4,5]
-func GetCommonOldOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+func GetCommonOldOperators(oldOperators, newOperators []*spec.Operator) ([]*spec.Operator, error) {
+	if err := ValidateOpsLen(len(oldOperators)); err != nil {
+		return nil, fmt.Errorf("wrong old ops len: %w", err)
+	}
+	if err := ValidateOpsLen(len(newOperators)); err != nil {
+		return nil, fmt.Errorf("wrong new ops len: %w", err)
+	}
 	tmp := make(map[uint64]*spec.Operator)
 	var set []*spec.Operator
 	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
+		if _, ok := tmp[op.ID]; !ok {
 			tmp[op.ID] = op
 		}
 	}
 	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
+		if _, ok := tmp[op.ID]; ok {
 			set = append(set, op)
 		}
 	}
-	return set
+	// sort array
+	sort.SliceStable(set, func(i, j int) bool {
+		return set[i].ID < set[j].ID
+	})
+	return set, nil
 }
 
 // GetDisjointNewOperators returns a new set of operators disjoint from old set
 // For example: old set [1,2,3,4,5]; new set [3,4,5,6,7]; returns [6,7]
-func GetDisjointNewOperators(oldOperators, newOperators []*spec.Operator) []*spec.Operator {
+func GetDisjointNewOperators(oldOperators, newOperators []*spec.Operator) ([]*spec.Operator, error) {
+	if err := ValidateOpsLen(len(oldOperators)); err != nil {
+		return nil, fmt.Errorf("wrong old ops len: %w", err)
+	}
+	if err := ValidateOpsLen(len(newOperators)); err != nil {
+		return nil, fmt.Errorf("wrong new ops len: %w", err)
+	}
 	tmp := make(map[uint64]*spec.Operator)
 	var set []*spec.Operator
 	for _, op := range newOperators {
-		if tmp[op.ID] == nil {
+		if _, ok := tmp[op.ID]; !ok {
 			tmp[op.ID] = op
 		}
 	}
 	for _, op := range oldOperators {
-		if tmp[op.ID] != nil {
+		if _, ok := tmp[op.ID]; ok {
 			delete(tmp, op.ID)
 		}
 	}
 	for _, op := range tmp {
 		set = append(set, op)
 	}
-	return set
+	// sort array
+	sort.SliceStable(set, func(i, j int) bool {
+		return set[i].ID < set[j].ID
+	})
+	return set, nil
 }
 
 func GetOpIDs(ops []*spec.Operator) []uint64 {
@@ -170,4 +201,17 @@ func GetOpIDs(ops []*spec.Operator) []uint64 {
 		ids = append(ids, op.ID)
 	}
 	return ids
+}
+
+func ValidateOpsLen(len int) error {
+	if len < 4 {
+		return fmt.Errorf("wrong operators len: < 4")
+	}
+	if len > 13 {
+		return fmt.Errorf("wrong operators len: > 13")
+	}
+	if len%3 != 1 {
+		return fmt.Errorf("amount of operators should be 4,7,10,13: got %d", len)
+	}
+	return nil
 }

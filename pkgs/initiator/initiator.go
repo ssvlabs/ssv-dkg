@@ -128,14 +128,8 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 
 // ValidatedOperatorData validates operators information data before starting a DKG ceremony
 func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.Operator, error) {
-	if len(ids) < 4 {
-		return nil, fmt.Errorf("wrong operators len: < 4")
-	}
-	if len(ids) > 13 {
-		return nil, fmt.Errorf("wrong operators len: > 13")
-	}
-	if len(ids)%3 != 1 {
-		return nil, fmt.Errorf("amount of operators should be 4,7,10,13: got %d", ids)
+	if err := utils.ValidateOpsLen(len(ids)); err != nil {
+		return nil, err
 	}
 
 	ops := make([]*spec.Operator, len(ids))
@@ -238,7 +232,10 @@ func (c *Initiator) resignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]b
 
 func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.ReshareMessage) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending reshare message to all operators")
-	allOps := utils.JoinSets(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators)
+	allOps, err := utils.JoinSets(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators)
+	if err != nil {
+		return nil, err
+	}
 	var errs map[uint64]error
 	exchangeMsgs, errs, err := c.SendReshareMsg(id, reshareMsg, allOps)
 	if err != nil {
@@ -836,7 +833,10 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 	}, nil
 }
 func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOperators, newOperators []*spec.Operator, threshold int) error {
-	allOps := utils.JoinSets(oldOperators, newOperators)
+	allOps, err := utils.JoinSets(oldOperators, newOperators)
+	if err != nil {
+		return err
+	}
 	if len(responses)+len(errs) != len(allOps) {
 		return fmt.Errorf("not enough replies from operators: exp %d, got %d", len(allOps), len(responses)+len(errs))
 	}
