@@ -181,9 +181,7 @@ func GetDisjointNewOperators(oldOperators, newOperators []*spec.Operator) ([]*sp
 		}
 	}
 	for _, op := range oldOperators {
-		if _, ok := tmp[op.ID]; ok {
-			delete(tmp, op.ID)
-		}
+		delete(tmp, op.ID)
 	}
 	for _, op := range tmp {
 		set = append(set, op)
