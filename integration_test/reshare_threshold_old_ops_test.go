@@ -16,7 +16,7 @@ import (
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
-func TestReshareHappyFlows4Ops(t *testing.T) {
+func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -44,7 +44,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
+	t.Run("test 4 operators", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
@@ -76,7 +76,8 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 4 operators reshare", func(t *testing.T) {
+	servers[0].HttpSrv.Close() // close ID 11
+	t.Run("test 4 old operators reshare, 1 old operator off, threshold 3", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -128,7 +129,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows7Ops(t *testing.T) {
+func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -162,7 +163,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
+			"--operatorIDs", "11,22,33,44,55,66,77",
 			"--nonce", "1",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
@@ -188,7 +189,9 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 7 operators reshare", func(t *testing.T) {
+	servers[0].HttpSrv.Close() // close ID 11
+	servers[1].HttpSrv.Close() // close ID 22
+	t.Run("test 7 old operators reshare, 2 old operators off, threshold 5", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -201,8 +204,8 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77",
+				"--operatorIDs", "11,22,33,44,55,66,77",
+				"--newOperatorIDs", "44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
@@ -240,7 +243,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows10Ops(t *testing.T) {
+func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -268,13 +271,13 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 7 operators 1 validator init happy flow", func(t *testing.T) {
+	t.Run("test 10 old operators 1 validator init happy flow", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 			"--nonce", "1",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
@@ -300,7 +303,10 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 7 operators reshare", func(t *testing.T) {
+	servers[0].HttpSrv.Close() // close ID 11
+	servers[1].HttpSrv.Close() // close ID 22
+	servers[2].HttpSrv.Close() // close ID 33
+	t.Run("test 10 old operators reshare, 3 old operators off, threshold 7", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -313,8 +319,8 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
+				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
@@ -352,7 +358,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows13Ops(t *testing.T) {
+func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -380,13 +386,13 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 4 operators 1 validator init happy flow", func(t *testing.T) {
+	t.Run("test 13 operators 1 validator init happy flow", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 			"--nonce", "1",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
@@ -412,7 +418,11 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 13 operators reshare", func(t *testing.T) {
+	servers[0].HttpSrv.Close() // close ID 11
+	servers[1].HttpSrv.Close() // close ID 22
+	servers[2].HttpSrv.Close() // close ID 33
+	servers[3].HttpSrv.Close() // close ID 44
+	t.Run("test 13 old operators reshare, 4 old operators off, threshold 9", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -425,8 +435,8 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
+				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",

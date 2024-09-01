@@ -157,6 +157,9 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 			PubKey: pkBytes,
 		}
 	}
+	sort.SliceIsSorted(ops, func(p, q int) bool {
+		return ops[p].ID < ops[q].ID
+	})
 	return ops, nil
 }
 
@@ -252,11 +255,11 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	c.Logger.Info("phase 1: ✅ verified operator resharing responses signatures")
 	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
 	kyberMsgs, errs, err := c.SendExchangeMsgs(id, exchangeMsgs, allOps)
-	// check that all new operators and threshold of old operators replied without errors
-	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators, int(reshareMsg.SignedReshare.Reshare.OldT)); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	if err != nil {
+	// check that all new operators and threshold of old operators replied without errors
+	if err := checkThreshold(kyberMsgs, errs, reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators, int(reshareMsg.SignedReshare.Reshare.OldT)); err != nil {
 		return nil, err
 	}
 	err = verifyMessageSignatures(id, kyberMsgs, c.VerifyMessageSignature)
@@ -266,11 +269,11 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	c.Logger.Info("phase 2: ✅ verified old operator responses (deal messages) signatures")
 	c.Logger.Info("phase 3: ➡️ sending deal dkg data to new operators")
 	dkgResult, errs, err := c.SendKyberMsgs(id, kyberMsgs, reshareMsg.SignedReshare.Reshare.NewOperators)
-	// check that all new operators and threshold of old operators replied without errors
-	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.SignedReshare.Reshare.NewOperators, int(reshareMsg.SignedReshare.Reshare.OldT)); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	if err != nil {
+	// check that all new operators replied without errors
+	if err := checkThreshold(dkgResult, errs, reshareMsg.SignedReshare.Reshare.NewOperators, reshareMsg.SignedReshare.Reshare.NewOperators, len(reshareMsg.SignedReshare.Reshare.NewOperators)); err != nil {
 		return nil, err
 	}
 	for id := range dkgResult {
@@ -329,9 +332,15 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	if len(proofs) == 0 {
 		return nil, nil, nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}
-	_, err := ValidatedOperatorData(ids, c.Operators)
+	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	// validate proofs
+	for i, op := range ops {
+		if err := spec.ValidateCeremonyProof(owner, proofs[0].Proof.ValidatorPubKey, op, *proofs[i]); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 	// Construct resign message
 	rMsg, err := c.ConstructResignMessage(
@@ -447,7 +456,7 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 	if len(proofs) == 0 {
 		return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
 	}
-	_, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
+	oldOps, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -455,7 +464,13 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	// Construct reshare message
+	// validate proofs
+	for i, op := range oldOps {
+		if err := spec.ValidateCeremonyProof(owner, proofs[0].Proof.ValidatorPubKey, op, *proofs[i]); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	// Consruct reshare message
 	reshareMsg, err := c.ConstructReshareMessage(
 		oldOperatorIDs,
 		newOperatorIDs,
