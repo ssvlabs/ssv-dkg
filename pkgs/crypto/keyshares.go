@@ -147,11 +147,11 @@ func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedPr
 		if err != nil {
 			return nil, err
 		}
-		kyberPubhare := &share.PubShare{
+		kyberPubshare := &share.PubShare{
 			I: int(operators[i].ID - 1),
 			V: v,
 		}
-		kyberPubShares = append(kyberPubShares, kyberPubhare)
+		kyberPubShares = append(kyberPubShares, kyberPubshare)
 	}
 	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, threshold, len(operators))
 	if err != nil {

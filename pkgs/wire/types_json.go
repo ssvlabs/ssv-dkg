@@ -271,12 +271,6 @@ func (sd *ShareData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type ResingMessageJSON struct {
-	Operators []*Operator `json:"operators"`
-	Resign    *Resign     `json:"resign"`
-	Proofs    []*Proof    `json:"proofs"`
-}
-
 type Resign struct {
 	spec.Resign
 }
