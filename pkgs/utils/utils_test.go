@@ -52,7 +52,7 @@ func TestJoinSets(t *testing.T) {
 		oldOperators := []*spec.Operator{}
 		newOperators := []*spec.Operator{}
 		_, err := JoinSets(oldOperators, newOperators)
-		require.ErrorContains(t, err, "wrong old ops len: wrong operators len: < 4")
+		require.ErrorContains(t, err, "wrong old ops len: amount of operators should be 4,7,10,13: got 0")
 		oldOperators = []*spec.Operator{
 			&spec.Operator{ID: 1, PubKey: []byte{1}},
 			&spec.Operator{ID: 2, PubKey: []byte{2}},
@@ -70,7 +70,7 @@ func TestJoinSets(t *testing.T) {
 			&spec.Operator{ID: 14, PubKey: []byte{14}},
 		}
 		_, err = JoinSets(oldOperators, newOperators)
-		require.ErrorContains(t, err, "wrong old ops len: wrong operators len: > 13")
+		require.ErrorContains(t, err, "wrong old ops len: amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test join sets: [1,2,3,4] and [1,2,3,4] will return [1,2,3,4]", func(t *testing.T) {
 		oldOperators := []*spec.Operator{

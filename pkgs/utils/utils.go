@@ -202,14 +202,10 @@ func GetOpIDs(ops []*spec.Operator) []uint64 {
 }
 
 func ValidateOpsLen(len int) error {
-	if len < 4 {
-		return fmt.Errorf("wrong operators len: < 4")
-	}
-	if len > 13 {
-		return fmt.Errorf("wrong operators len: > 13")
-	}
-	if len%3 != 1 {
+	switch len {
+	case 4, 7, 10, 13:
+		return nil
+	default:
 		return fmt.Errorf("amount of operators should be 4,7,10,13: got %d", len)
 	}
-	return nil
 }

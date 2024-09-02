@@ -94,14 +94,14 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: > 13")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
@@ -184,7 +184,7 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "wrong operators len: < 4",
+			errMsg:  "amount of operators should be 4,7,10,13: got 3",
 		},
 		{
 			name:    "not valid number of operators",
@@ -226,7 +226,7 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "wrong operators len: > 13",
+			errMsg:  "amount of operators should be 4,7,10,13: got 14",
 		},
 		{
 			name:    "duplicate operators",

@@ -285,25 +285,25 @@ func TestUnhappyFlows(t *testing.T) {
 		id := spec.NewID()
 		// 0 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 0")
 		// 1 op
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 1")
 		// 2 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 2")
 		// 3 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 		// op with zero ID
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{0, 11, 22, 33}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "operator ID cannot be 0")
 		// 14 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: > 13")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 		// 15 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144, 155}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: > 13")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 15")
 		// 5 ops
 		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55}, "mainnet", owner, 0)
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
