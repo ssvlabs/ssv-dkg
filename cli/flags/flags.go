@@ -53,12 +53,12 @@ func NewOperatorIDsFlag(c *cobra.Command) {
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `{ 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }`", false)
+	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `'[{\"id\":1,\"public_key\":\"xxx\",\"ip\":\"10.0.0.1:3033\"},...]'`", false)
 }
 
 // OperatorsInfoFlag  adds path to operators' ifo file flag to the command
 func OperatorsInfoPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. { 1: { publicKey: XXX, id: 1, ip: 10.0.0.1:3033 }", false)
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. [{\"id\":1,\"public_key\":\"xxx\",\"ip\":\"10.0.0.1:3033\"},...]", false)
 }
 
 // OwnerAddressFlag  adds owner address flag to the command
@@ -160,7 +160,6 @@ func KeystoreFilePath(c *cobra.Command) {
 func KeystoreFilePass(c *cobra.Command) {
 	AddPersistentStringFlag(c, ethKeystorePass, "", "Password to decrypt ethereum keystore json file", false)
 }
-
 
 // EthEndpointURL
 func EthEndpointURL(c *cobra.Command) {
