@@ -9,12 +9,6 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
 	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
@@ -22,6 +16,12 @@ import (
 	"github.com/bloxapp/ssv-dkg/pkgs/validator"
 	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/herumi/bls-eth-go-binary/bls"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
@@ -191,35 +191,35 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3, 4, 5},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 5",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 8",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 9",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9 10 11]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 11",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 7 8 9 10 11 12]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 11",
 		},
 		{
 			name:    "more than 13 operators",

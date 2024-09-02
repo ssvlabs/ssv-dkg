@@ -64,8 +64,10 @@ func TestResignInvalidEOASig(t *testing.T) {
 	require.NoError(t, err)
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
-
+	ids := []uint64{11, 22, 33, 44}
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
+	owner := common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+	nonce := 0
 	// Open ethereum keystore
 	jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	require.NoError(t, err)
@@ -79,16 +81,36 @@ func TestResignInvalidEOASig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	c, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
 		require.NoError(t, err)
-		// re-sign
 		id := spec.NewID()
+		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
 		require.NoError(t, err)
-		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), [20]byte{}, 10)
-		require.ErrorContains(t, err, "invalid signed reshare signature") // spec 
+		// validate proofs
+		for i, op := range ops {
+			if err := spec.ValidateCeremonyProof(owner, signedProofs[0][0].Proof.ValidatorPubKey, op, *signedProofs[0][i]); err != nil {
+				require.NoError(t, err)
+			}
+		}
+		// Construct resign message
+		rMsg, err := c.ConstructResignMessage(
+			ids,
+			signedProofs[0][0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			[20]byte{},
+			uint64(nonce),
+			sk.PrivateKey,
+			signedProofs[0])
+
+		_, err = c.ResignMessageFlowHandling(
+			rMsg,
+			id,
+			rMsg.Operators)
+		require.ErrorContains(t, err, "invalid signed reshare signature") // spec
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
