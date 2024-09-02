@@ -148,7 +148,7 @@ func TestLoadOperators(t *testing.T) {
         "ip": "wrongURL"
       }
     ]`), &ops)
-		require.ErrorContains(t, err, "invalid operator URL")
+		require.ErrorContains(t, err, "invalid operator 1 URL")
 	})
 }
 

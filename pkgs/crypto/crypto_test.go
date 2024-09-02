@@ -71,9 +71,9 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 
 	secretPoly, err := share.RecoverPriPoly(suite.G1(), shares, thr, n)
 	coefs := secretPoly.Coefficients()
-	t.Logf("Ploly len %d", len(coefs))
+	t.Logf("Poly len %d", len(coefs))
 	for _, c := range coefs {
-		t.Logf("Ploly coef %s", c.String())
+		t.Logf("Poly coef %s", c.String())
 	}
 	require.NoError(t, err)
 	gotPub := secretPoly.Commit(suite.G1().Point().Base())

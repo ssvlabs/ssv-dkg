@@ -216,11 +216,11 @@ func (o *OperatorCLI) UnmarshalJSON(data []byte) error {
 	}
 	_, err := url.ParseRequestURI(op.Addr)
 	if err != nil {
-		return fmt.Errorf("invalid operator URL %s", err.Error())
+		return fmt.Errorf("invalid operator %d URL %s", op.ID, err.Error())
 	}
 	pk, err := ParseRSAPublicKey([]byte(op.PubKey))
 	if err != nil {
-		return fmt.Errorf("invalid operator public key %s", err.Error())
+		return fmt.Errorf("invalid operator %d public key %s", op.ID, err.Error())
 	}
 	*o = OperatorCLI{
 		Addr:   strings.TrimRight(op.Addr, "/"),

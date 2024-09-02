@@ -131,62 +131,62 @@ func TestThreshold(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 13 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
+		ids := []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133})
-		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey}
-		require.Less(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 13, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		threshold := utils.GetThreshold(ids)
+		privateKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey}
+		require.Less(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 13, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey}
-		require.Equal(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 13, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		privateKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey, servers[7].PrivKey, servers[8].PrivKey}
+		require.Equal(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 13, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
+		ids := []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100})
-		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey}
-		require.Less(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		threshold := utils.GetThreshold(ids)
+		privateKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey}
+		require.Less(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 10, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey}
-		require.Equal(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 10, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		privateKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey, servers[5].PrivKey, servers[6].PrivKey}
+		require.Equal(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 10, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
+		ids := []uint64{11, 22, 33, 44, 55, 66, 77}
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
 		pubkeyraw, err := hex.DecodeString(ks.Shares[0].Payload.PublicKey[2:])
 		require.NoError(t, err)
-		threshold, err := utils.GetThreshold([]uint64{11, 22, 33, 44, 55, 66, 77})
-		require.NoError(t, err)
-		priviteKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}
-		require.Less(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 7, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		threshold := utils.GetThreshold(ids)
+		privateKeys := []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey}
+		require.Less(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 7, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.ErrorContains(t, err, "could not reconstruct a valid signature")
 		// test valid minimum threshold
-		priviteKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey}
-		require.Equal(t, len(priviteKeys), threshold)
-		err = testSharesData(ops, 7, priviteKeys, sharesDataSigned, pubkeyraw, owner, 0)
+		privateKeys = []*rsa.PrivateKey{servers[0].PrivKey, servers[1].PrivKey, servers[2].PrivKey, servers[3].PrivKey, servers[4].PrivKey}
+		require.Equal(t, len(privateKeys), threshold)
+		err = testSharesData(ops, 7, privateKeys, sharesDataSigned, pubkeyraw, owner, 0)
 		require.NoError(t, err)
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
