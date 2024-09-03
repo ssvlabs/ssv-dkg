@@ -249,7 +249,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		c, err := initiator.New(ops, logger, version, rootCert)
 		require.NoError(t, err)
 		// compute threshold (3f+1)
-		threshold := len(ids) - ((len(ids) - 1) / 3)
+		threshold := utils.GetThreshold(ids)
 		parts := make([]*spec.Operator, 0)
 		for _, id := range ids {
 			op := c.Operators.ByID(id)
@@ -431,9 +431,9 @@ func TestRecoverSharesData(t *testing.T) {
 	}
 	secretPoly, err := share.RecoverPriPoly(suite.G1(), kyberPrivShares, 3, operatorCount)
 	coefs := secretPoly.Coefficients()
-	t.Logf("Ploly len %d", len(coefs))
+	t.Logf("Poly len %d", len(coefs))
 	for _, c := range coefs {
-		t.Logf("Ploly coef %s", c.String())
+		t.Logf("Poly coef %s", c.String())
 	}
 	require.NoError(t, err)
 	pubPoly := secretPoly.Commit(nil)
