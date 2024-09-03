@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/bloxapp/ssv/utils/rsaencryption"
@@ -39,6 +40,7 @@ type testState struct {
 	tv      *testVerify
 	ipk     *rsa.PublicKey
 	results map[uint64][]*spec.Result
+	mu      sync.Mutex
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
@@ -53,7 +55,9 @@ func (ts *testState) Broadcast(id uint64, data []byte) error {
 			if err != nil {
 				return err
 			}
+			ts.mu.Lock()
 			ts.results[o.ID] = append(ts.results[o.ID], res)
+			ts.mu.Unlock()
 			return nil
 		}
 		if err := o.Process(st, o.data.init.Operators); err != nil {
@@ -171,11 +175,12 @@ func TestDKGInit(t *testing.T) {
 	}); err != nil {
 		t.Error(err)
 	}
-
+	ts.mu.Lock()
 	for _, res := range ts.results {
 		validatorPK, err := spec.RecoverValidatorPKFromResults(res)
 		require.NoError(t, err)
 		_, _, _, err = spec.ValidateResults(opsarr, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, uid, res)
 		require.NoError(t, err)
 	}
+	ts.mu.Unlock()
 }
