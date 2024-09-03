@@ -82,7 +82,7 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgR
 	}}
 
 	ks := &wire.KeySharesCLI{}
-	ks.Version = "v1.1.0"
+	ks.Version = "DKG - " + string(c.Version)
 	ks.Shares = data
 	ks.CreatedAt = time.Now().UTC()
 	return ks, nil
@@ -94,7 +94,7 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 		data = append(data, keyShares.Shares...)
 	}
 	ks := &wire.KeySharesCLI{}
-	ks.Version = "v1.1.0"
+	ks.Version = keySharesArr[0].Version
 	ks.Shares = data
 	ks.CreatedAt = time.Now().UTC()
 	return ks, nil
