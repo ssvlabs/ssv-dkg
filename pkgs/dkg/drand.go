@@ -6,10 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/board"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -20,6 +16,10 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
+	"github.com/ssvlabs/ssv-dkg/pkgs/board"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"

@@ -4,10 +4,10 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/dkg"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
 	"go.uber.org/zap"
 )

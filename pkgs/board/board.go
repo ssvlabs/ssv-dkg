@@ -4,7 +4,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
 
-	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
+	wire2 "github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 // Board is the interface between the dkg protocol and the external world. It

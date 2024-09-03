@@ -25,16 +25,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/consts"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/operator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/operator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 var (

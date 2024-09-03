@@ -9,7 +9,7 @@ import (
 	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 // opReqResult structure to represent http communication messages incoming to initiator from operators

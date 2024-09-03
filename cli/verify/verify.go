@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aquasecurity/table"
-	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/validator"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 )
 
 func init() {

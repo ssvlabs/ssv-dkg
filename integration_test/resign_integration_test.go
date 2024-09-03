@@ -3,12 +3,12 @@ package integration_test
 import (
 	"testing"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/validator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
