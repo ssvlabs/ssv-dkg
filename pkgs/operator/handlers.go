@@ -107,7 +107,7 @@ func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request
 	}
 	reqid := signedResignMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
-	b, err := s.State.ResignInstance(reqid, signedResignMsg.Message, signedResignMsg.Signer, signedResignMsg.Signature)
+	b, err := s.State.HandleInstanceOperation(reqid, signedResignMsg.Message, signedResignMsg.Signer, signedResignMsg.Signature, "resign")
 	if err != nil {
 		s.Logger.Error("Error resigning instance", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, failed to resign, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
@@ -140,7 +140,7 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 	}
 	reqid := signedReshareMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
-	b, err := s.State.ReshareInstance(reqid, signedReshareMsg.Message, signedReshareMsg.Signer, signedReshareMsg.Signature)
+	b, err := s.State.HandleInstanceOperation(reqid, signedReshareMsg.Message, signedReshareMsg.Signer, signedReshareMsg.Signature, "reshare")
 	if err != nil {
 		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
 		return
