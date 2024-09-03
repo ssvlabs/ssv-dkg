@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 // standardMessageVerification creates function to verify each participating operator RSA signature for incoming to initiator messages

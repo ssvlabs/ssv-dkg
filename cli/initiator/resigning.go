@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"

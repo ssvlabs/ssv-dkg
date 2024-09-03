@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/cli/initiator"
-	"github.com/bloxapp/ssv-dkg/cli/operator"
-	"github.com/bloxapp/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/cli/initiator"
+	"github.com/ssvlabs/ssv-dkg/cli/operator"
+	"github.com/ssvlabs/ssv-dkg/cli/verify"
 )
 
 func init() {

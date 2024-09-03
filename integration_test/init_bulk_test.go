@@ -11,9 +11,9 @@ import (
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/stretchr/testify/require"
 
-	cli_initiator "github.com/bloxapp/ssv-dkg/cli/initiator"
-	cli_verify "github.com/bloxapp/ssv-dkg/cli/verify"
 	"github.com/bloxapp/ssv/logging"
+	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
+	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
 )
 
 func TestBulkHappyFlows4Ops(t *testing.T) {
