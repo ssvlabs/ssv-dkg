@@ -190,7 +190,8 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
 		}
 		instanceMessage = reshare
-		allOps = append(reshare.SignedReshare.Reshare.OldOperators, reshare.SignedReshare.Reshare.NewOperators...)
+		allOps = append(allOps, reshare.SignedReshare.Reshare.OldOperators...)
+		allOps = append(allOps, reshare.SignedReshare.Reshare.NewOperators...)
 
 		s.Logger.Info("Incoming reshare request fields",
 			zap.Any("Old operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.OldOperators)),
