@@ -31,7 +31,7 @@ build:
 # Recipe to run tests
 test:
 	@echo "running tests"
-	go run gotest.tools/gotestsum@latest --format testname
+	go run gotest.tools/gotestsum@latest --format pkgname --jsonfile test-output.log -- -timeout=3600s ./...
 
 # Recipe to build the Docker image
 docker-build-image:
@@ -40,15 +40,27 @@ docker-build-image:
 
 docker-demo-operators:
 	@echo "Running operators in docker demo"
-	docker-compose up --build operator1 operator2 operator3 operator4 operator5 operator6 operator7 operator8
+	docker-compose up --build operator1 operator2 operator3 operator4 operator5 operator6 operator7 operator8 operator9 operator10 operator11 operator12 operator13
 
 docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
 
+docker-demo-resign:
+	@echo "Running re-sign ceremony in docker demo"
+	docker-compose up --build resign
+
+docker-demo-reshare:
+	@echo "Running re-share ceremony in docker demo"
+	docker-compose up --build reshare
+
 docker-demo-ping:
 	@echo "Running ping operators in docker demo"
 	docker-compose up --build ping
+
+docker-demo-ethnode:
+	@echo "Running ethereum node in docker demo"
+	docker-compose up --build ethnode
 
 docker-operator:
 	@echo "Running operator docker, make sure to update ./examples/operator1/congig/config.yaml"

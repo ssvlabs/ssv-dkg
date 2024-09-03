@@ -184,13 +184,13 @@ func OpenResultsDir(dir string) (*ResultsDir, error) {
 		}
 
 		validatorDir := filepath.Join(dir, file.Name())
-		if err := loadJSONFile(filepath.Join(validatorDir, "deposit_data.json"), &validator.DepositData); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(validatorDir, "deposit_data.json"), &validator.DepositData); err != nil {
 			return nil, fmt.Errorf("failed to load deposit data: %w", err)
 		}
-		if err := loadJSONFile(filepath.Join(validatorDir, "keyshares.json"), &validator.KeyShares); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(validatorDir, "keyshares.json"), &validator.KeyShares); err != nil {
 			return nil, fmt.Errorf("failed to load keyshares: %w", err)
 		}
-		if err := loadJSONFile(filepath.Join(validatorDir, "proofs.json"), &validator.Proofs); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(validatorDir, "proofs.json"), &validator.Proofs); err != nil {
 			return nil, fmt.Errorf("failed to load proofs: %w", err)
 		}
 
@@ -200,27 +200,19 @@ func OpenResultsDir(dir string) (*ResultsDir, error) {
 		return nil, fmt.Errorf("no validator directories found")
 	}
 	if len(results.Validators) > 1 {
-		if err := loadJSONFile(filepath.Join(dir, "deposit_data.json"), &results.AggregatedDepositData); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(dir, "deposit_data.json"), &results.AggregatedDepositData); err != nil {
 			return nil, fmt.Errorf("failed to load aggregated deposit data: %w", err)
 		}
-		if err := loadJSONFile(filepath.Join(dir, "keyshares.json"), &results.AggregatedKeyShares); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(dir, "keyshares.json"), &results.AggregatedKeyShares); err != nil {
 			return nil, fmt.Errorf("failed to load aggregated keyshares: %w", err)
 		}
-		if err := loadJSONFile(filepath.Join(dir, "proofs.json"), &results.AggregatedProofs); err != nil {
+		if err := wire.LoadJSONFile(filepath.Join(dir, "proofs.json"), &results.AggregatedProofs); err != nil {
 			return nil, fmt.Errorf("failed to load aggregated proofs: %w", err)
 		}
 	} else if foundAggregations {
 		return nil, fmt.Errorf("aggregation files found for single validator")
 	}
 	return &results, nil
-}
-
-func loadJSONFile(file string, v interface{}) error {
-	data, err := os.ReadFile(filepath.Clean(file))
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, v)
 }
 
 func jsonEqual(a, b any) error {

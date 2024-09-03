@@ -1,7 +1,7 @@
 privKey: /data/operator1/encrypted_private_key.json
 privKeyPassword: /data/operator1/password
 port: 3030
-operatorID: 1
+operatorID: 11
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
@@ -9,3 +9,4 @@ logFilePath: /data/operator1/output/operator1_logs_debug.log
 outputPath: /data/operator1/output
 serverTLSCertPath: /data/operator1/operator1.crt
 serverTLSKeyPath: /data/operator1/operator1.key
+ethEndpointURL: http://ethnode:8545

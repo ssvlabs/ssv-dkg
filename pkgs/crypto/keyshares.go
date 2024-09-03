@@ -2,17 +2,22 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
+	"github.com/drand/kyber"
+	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
@@ -125,4 +130,72 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) e
 		return fmt.Errorf("validator public key recovered from shares is different: exp %x, got %x", expValPubKey, validatorRecoveredPKBytes)
 	}
 	return nil
+}
+
+func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedProof, threshold int) ([]kyber.Point, error) {
+	suite := kyber_bls12381.NewBLS12381Suite()
+	// try to recover commits
+	var kyberPubShares []*share.PubShare
+	for i, proof := range proofs {
+		blsPub := &bls.PublicKey{}
+		err := blsPub.Deserialize(proof.Proof.SharePubKey)
+		if err != nil {
+			return nil, err
+		}
+		v := suite.G1().Point()
+		err = v.UnmarshalBinary(blsPub.Serialize())
+		if err != nil {
+			return nil, err
+		}
+		kyberPubshare := &share.PubShare{
+			I: int(operators[i].ID - 1),
+			V: v,
+		}
+		kyberPubShares = append(kyberPubShares, kyberPubshare)
+	}
+	pubPoly, err := share.RecoverPubPoly(suite.G1(), kyberPubShares, threshold, len(operators))
+	if err != nil {
+		return nil, err
+	}
+	_, commits := pubPoly.Info()
+	return commits, nil
+}
+
+func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
+	suite := kyber_bls12381.NewBLS12381Suite()
+	secret, err := decryptBLSKeyFromProof(proof, opPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	var kyberPrivShare *share.PriShare
+	serialized := secret.Serialize()
+	v := suite.G1().Scalar().SetBytes(serialized)
+	kyberPrivShare = &share.PriShare{
+		I: int(operatorID - 1),
+		V: v,
+	}
+	return kyberPrivShare, nil
+}
+
+func decryptBLSKeyFromProof(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, error) {
+	// try to decrypt private share
+	prShare, err := rsaencryption.DecodeKey(opPrivateKey, proof.Proof.EncryptedShare)
+	if err != nil {
+		return nil, err
+	}
+	secret := &bls.SecretKey{}
+	err = secret.Deserialize(prShare)
+	if err != nil {
+		return nil, err
+	}
+	// get share pub key
+	publicKey := &bls.PublicKey{}
+	err = publicKey.Deserialize(proof.Proof.SharePubKey)
+	if err != nil {
+		return nil, fmt.Errorf("cant deserialize public key at proof")
+	}
+	if !bytes.Equal(publicKey.Serialize(), secret.GetPublicKey().Serialize()) {
+		return nil, fmt.Errorf("public key from proof is not equal to operator`s decrypted bls public key")
+	}
+	return secret, nil
 }

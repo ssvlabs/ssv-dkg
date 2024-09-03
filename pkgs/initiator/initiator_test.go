@@ -9,18 +9,22 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/eth2-key-manager/core"
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/validator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/logging"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/eth2-key-manager/core"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/utils/test_utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/logging"
+	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 var (
@@ -52,18 +56,21 @@ var jsonStr = []byte(`[
   }
 ]`)
 
-const examplePath = "../../examples/"
-
 func TestStartDKG(t *testing.T) {
 	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version, operatorCert, operatorKey)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version, operatorCert, operatorKey)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version, operatorCert, operatorKey)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, "../../examples/operator1", version, operatorCert, operatorKey, stubClient)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, "../../examples/operator2", version, operatorCert, operatorKey, stubClient)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, "../../examples/operator3", version, operatorCert, operatorKey, stubClient)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, "../../examples/operator4", version, operatorCert, operatorKey, stubClient)
 	ops = append(
 		ops,
 		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
@@ -76,32 +83,30 @@ func TestStartDKG(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
-		depositData, keyshares, _, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		id := spec.NewID()
+		depositData, keyshares, proofs, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
 		require.NoError(t, err)
-		err = test_utils.VerifySharesData([]uint64{1, 2, 3, 4}, []*rsa.PrivateKey{srv1.PrivKey, srv2.PrivKey, srv3.PrivKey, srv4.PrivKey}, keyshares, owner, 0)
-		require.NoError(t, err)
-		err = crypto.ValidateDepositDataCLI(depositData, withdraw)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, keyshares, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: < 4")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
-		require.ErrorContains(t, err, "wrong operators len: > 13")
+		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
-		id := crypto.NewID()
+		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
@@ -179,49 +184,49 @@ func TestValidateDKGParams(t *testing.T) {
 			ids:     []uint64{1, 2, 3},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "wrong operators len: < 4",
+			errMsg:  "amount of operators should be 4,7,10,13: got 3",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 5",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 8",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 9",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 6 7 8 9 10 11]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 11",
 		},
 		{
 			name:    "not valid number of operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "amount of operators should be 4,7,10,13: got [1 2 3 4 5 7 8 9 10 11 12]",
+			errMsg:  "amount of operators should be 4,7,10,13: got 11",
 		},
 		{
 			name:    "more than 13 operators",
 			ids:     []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
 			ops:     nil, // doesn't matter should fail before
 			wantErr: true,
-			errMsg:  "wrong operators len: > 13",
+			errMsg:  "amount of operators should be 4,7,10,13: got 14",
 		},
 		{
 			name:    "duplicate operators",

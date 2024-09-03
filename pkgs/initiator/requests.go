@@ -20,7 +20,7 @@ type opReqResult struct {
 }
 
 // SendAndCollect ssends http message to operator and read the response
-func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []byte, checkError bool) ([]byte, error) {
+func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []byte) ([]byte, error) {
 	r := c.Client.R()
 	r.SetBodyBytes(data)
 	res, err := r.Post(fmt.Sprintf("%v/%v", op.Addr, method))
@@ -32,14 +32,12 @@ func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []by
 		return nil, err
 	}
 	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
-	if checkError {
-		if res.StatusCode < 200 || res.StatusCode >= 300 {
-			errmsg, parseErr := wire.ParseAsError(resdata)
-			if parseErr == nil {
-				return nil, fmt.Errorf("%v", errmsg)
-			}
-			return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(string(resdata)))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		errmsg, parseErr := wire.ParseAsError(resdata)
+		if parseErr == nil {
+			return nil, fmt.Errorf("%v", errmsg)
 		}
+		return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(string(resdata)))
 	}
 	return resdata, nil
 }
@@ -60,15 +58,16 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 }
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator, checkError bool) ([][]byte, error) {
+func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error) {
+	errors := make(map[uint64]error, 0)
 	resc := make(chan opReqResult, len(operators))
-	for _, wireOp := range operators {
-		operator := c.Operators.ByID(wireOp.ID)
+	for _, op := range operators {
+		operator := c.Operators.ByID(op.ID)
 		if operator == nil {
-			return nil, fmt.Errorf("operator ID: %d not found in operators list", wireOp.ID)
+			errors[op.ID] = fmt.Errorf("operator ID: %d not found in operators list", op.ID)
 		}
 		go func() {
-			res, err := c.SendAndCollect(*operator, method, msg, checkError)
+			res, err := c.SendAndCollect(*operator, method, msg)
 			resc <- opReqResult{
 				operatorID: operator.ID,
 				err:        err,
@@ -76,26 +75,16 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Opera
 			}
 		}()
 	}
-	final := make([][]byte, 0, len(operators))
-
-	errarr := make([]error, 0)
-
+	responses := make(map[uint64][]byte)
 	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {
-			errarr = append(errarr, fmt.Errorf("operator ID: %d; message: %w ", res.operatorID, ProcessError(res.err)))
+			errors[res.operatorID] = fmt.Errorf("operator ID: %d, %w", res.operatorID, res.err)
 			continue
 		}
-		final = append(final, res.result)
+		responses[res.operatorID] = res.result
 	}
-
-	finalerr := error(nil)
-
-	if len(errarr) > 0 {
-		finalerr = errors.Join(errarr...)
-	}
-
-	return final, finalerr
+	return responses, errors
 }
 
 func ProcessError(err error) error {

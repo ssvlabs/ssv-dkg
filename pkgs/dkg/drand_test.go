@@ -6,14 +6,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
+	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
+	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	wire2 "github.com/bloxapp/ssv-dkg/pkgs/wire"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
@@ -38,6 +38,7 @@ type testState struct {
 	opsPriv map[uint64]*rsa.PrivateKey
 	tv      *testVerify
 	ipk     *rsa.PublicKey
+	results map[uint64][]*spec.Result
 }
 
 func (ts *testState) Broadcast(id uint64, data []byte) error {
@@ -46,7 +47,16 @@ func (ts *testState) Broadcast(id uint64, data []byte) error {
 		if err := st.UnmarshalSSZ(data); err != nil {
 			return err
 		}
-		if err := o.Process(st); err != nil {
+		if st.Message.Type == wire2.OutputMessageType {
+			res := &spec.Result{}
+			err := res.UnmarshalSSZ(st.Message.Data)
+			if err != nil {
+				return err
+			}
+			ts.results[o.ID] = append(ts.results[o.ID], res)
+			return nil
+		}
+		if err := o.Process(st, o.data.init.Operators); err != nil {
 			return err
 		}
 		return nil
@@ -88,7 +98,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		encryptFunc:        encrypt,
 		decryptFunc:        decrypt,
 		InitiatorPublicKey: ts.ipk,
-		OperatorPublicKey:  &pv.PublicKey,
+		OperatorSecretKey:  pv,
 		done:               make(chan struct{}, 1),
 		startedDKG:         make(chan struct{}, 1),
 	}, pv
@@ -104,6 +114,7 @@ func TestDKGInit(t *testing.T) {
 		opsPriv: make(map[uint64]*rsa.PrivateKey),
 		tv:      newTestVerify(),
 		ipk:     initatorPk,
+		results: make(map[uint64][]*spec.Result, 0),
 	}
 	for i := 1; i < 5; i++ {
 		op, priv := NewTestOperator(ts, uint64(i))
@@ -130,31 +141,41 @@ func TestDKGInit(t *testing.T) {
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),
 	}
-	uid := crypto.NewID()
+	uid := spec.NewID()
 	exch := map[uint64]*wire2.Transport{}
 
-	err = ts.ForAll(func(o *LocalOwner) error {
+	if err = ts.ForAll(func(o *LocalOwner) error {
 		ts, err := o.Init(uid, init)
 		if err != nil {
 			t.Error(t, err)
 		}
 		exch[o.ID] = ts
 		return nil
-	})
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err := ts.ForAll(func(o *LocalOwner) error {
 		return o.Broadcast(exch[o.ID])
-	})
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err = ts.ForAll(func(o *LocalOwner) error {
 		<-o.startedDKG
 		return nil
-	})
-
-	require.NoError(t, err)
-	err = ts.ForAll(func(o *LocalOwner) error {
+	}); err != nil {
+		t.Error(err)
+	}
+	if err := ts.ForAll(func(o *LocalOwner) error {
 		<-o.done
 		return nil
-	})
-	require.NoError(t, err)
+	}); err != nil {
+		t.Error(err)
+	}
+
+	for _, res := range ts.results {
+		validatorPK, err := spec.RecoverValidatorPKFromResults(res)
+		require.NoError(t, err)
+		_, _, _, err = spec.ValidateResults(opsarr, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, uid, res)
+		require.NoError(t, err)
+	}
 }

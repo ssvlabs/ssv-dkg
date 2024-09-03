@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	spec "github.com/ssvlabs/dkg-spec"
@@ -44,7 +46,7 @@ func (p *Proof) MarshalJSON() ([]byte, error) {
 func (p *Proof) UnmarshalJSON(data []byte) error {
 	var proof proofJSON
 	if err := json.Unmarshal(data, &proof); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal to proofJSON %s", err.Error())
 	}
 	if len(proof.Owner) != 40 {
 		return fmt.Errorf("invalid owner length")
@@ -82,6 +84,9 @@ type SignedProof struct {
 }
 
 func (sp *SignedProof) MarshalJSON() ([]byte, error) {
+	if sp.Proof == nil || sp.Proof.ValidatorPubKey == nil || sp.Proof.EncryptedShare == nil || sp.Proof.SharePubKey == nil || sp.Proof.Owner == [20]byte{0} || sp.Signature == nil {
+		return nil, fmt.Errorf("cant marshal json, signed proof json is malformed")
+	}
 	return json.Marshal(signedProofJSON{
 		Proof: &Proof{spec.Proof{
 			ValidatorPubKey: sp.Proof.ValidatorPubKey,
@@ -97,6 +102,9 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 	var signedProof signedProofJSON
 	if err := json.Unmarshal(data, &signedProof); err != nil {
 		return err
+	}
+	if signedProof.Proof == nil || signedProof.Proof.ValidatorPubKey == nil || signedProof.Proof.EncryptedShare == nil || signedProof.Proof.SharePubKey == nil || signedProof.Proof.Owner == [20]byte{0} || signedProof.Signature == "" {
+		return fmt.Errorf("cant unmarshal json, signed proof json is malformed")
 	}
 	p := &spec.Proof{
 		ValidatorPubKey: signedProof.Proof.ValidatorPubKey,
@@ -263,6 +271,86 @@ func (sd *ShareData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type Resign struct {
+	spec.Resign
+}
+type ResignJSON struct {
+	ValidatorPubKey       string `json:"validatorPubKey"`
+	Fork                  string `json:"fork"`
+	WithdrawalCredentials string `json:"withdrawalCredentials"`
+	Owner                 string `json:"owner"`
+	Nonce                 uint64 `json:"nonce"`
+}
+
+func (r *Resign) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ResignJSON{
+		ValidatorPubKey:       hex.EncodeToString(r.ValidatorPubKey),
+		Fork:                  hex.EncodeToString(r.Fork[:]),
+		WithdrawalCredentials: hex.EncodeToString(r.WithdrawalCredentials),
+		Owner:                 hex.EncodeToString(r.Owner[:]),
+		Nonce:                 r.Nonce,
+	})
+}
+
+func (r *Resign) UnmarshalJSON(data []byte) error {
+	var resJSON ResignJSON
+	if err := json.Unmarshal(data, &resJSON); err != nil {
+		return err
+	}
+	val, err := hex.DecodeString(resJSON.ValidatorPubKey)
+	if err != nil {
+		return fmt.Errorf("invalid validator public key %s", err.Error())
+	}
+	r.ValidatorPubKey = val
+	fork, err := hex.DecodeString(resJSON.Fork)
+	if err != nil {
+		return fmt.Errorf("invalid fork %s", err.Error())
+	}
+	copy(r.Fork[:], fork)
+	withdrawalCredentials, err := hex.DecodeString(resJSON.WithdrawalCredentials)
+	if err != nil {
+		return fmt.Errorf("invalid withdrawal credentials %s", err.Error())
+	}
+	r.WithdrawalCredentials = withdrawalCredentials
+	owner, err := hex.DecodeString(resJSON.Owner)
+	if err != nil {
+		return fmt.Errorf("invalid owner %s", err.Error())
+	}
+	copy(r.Owner[:], owner)
+	r.Nonce = resJSON.Nonce
+	return nil
+}
+
+type Reshare struct {
+	spec.Reshare
+}
+type SignedReshare struct {
+	spec.SignedReshare
+}
+
+type signedReshareJSON struct {
+	Reshare *Reshare `json:"reshare"`
+	// Signature is an ECDSA signature over reshare
+	Signature string `json:"signature"`
+}
+
+func (sr *SignedReshare) MarshalJSON() ([]byte, error) {
+	return json.Marshal(signedReshareJSON{
+		Reshare: &Reshare{spec.Reshare{
+			ValidatorPubKey:       sr.Reshare.ValidatorPubKey,
+			OldOperators:          sr.Reshare.OldOperators,
+			NewOperators:          sr.Reshare.NewOperators,
+			OldT:                  sr.Reshare.OldT,
+			NewT:                  sr.Reshare.NewT,
+			Fork:                  sr.Reshare.Fork,
+			WithdrawalCredentials: sr.Reshare.WithdrawalCredentials,
+			Owner:                 sr.Reshare.Owner,
+			Nonce:                 sr.Reshare.Nonce,
+		}},
+		Signature: hex.EncodeToString(sr.Signature),
+	})
+}
+
 // TODO: duplicate from crypto. Resolve
 func ParseRSAPublicKey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))
@@ -297,4 +385,43 @@ func EncodeRSAPublicKey(pk *rsa.PublicKey) ([]byte, error) {
 	}
 
 	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
+}
+
+func LoadJSONFile(file string, v interface{}) error {
+	data, err := os.ReadFile(filepath.Clean(file))
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &v)
+}
+
+func LoadProofs(path string) ([][]*spec.SignedProof, error) {
+	arrayOfSignedProofs := make([][]*SignedProof, 0)
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(data, &arrayOfSignedProofs)
+	if err != nil {
+		if strings.Contains(err.Error(), "cannot unmarshal object") {
+			// probably get only one proof, try to unmarshal it
+			var signedProof []*SignedProof
+			if err := json.Unmarshal(data, &signedProof); err != nil {
+				return nil, err
+			}
+			arrayOfSignedProofs = make([][]*SignedProof, 0)
+			arrayOfSignedProofs = append(arrayOfSignedProofs, signedProof)
+		} else {
+			return nil, err
+		}
+	}
+	result := make([][]*spec.SignedProof, 0)
+	for _, proofs := range arrayOfSignedProofs {
+		specSigProofs := make([]*spec.SignedProof, 0)
+		for _, proof := range proofs {
+			specSigProofs = append(specSigProofs, &spec.SignedProof{Proof: proof.Proof, Signature: proof.Signature})
+		}
+		result = append(result, specSigProofs)
+	}
+	return result, nil
 }

@@ -1,0 +1,10 @@
+privKey: /data/operator9/encrypted_private_key.json
+privKeyPassword: /data/operator9/password
+port: 3030
+operatorID: 99
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/operator9/output/operator9_logs_debug.log
+outputPath: /data/operator9/output
+ethEndpointURL: http://ethnode:8545

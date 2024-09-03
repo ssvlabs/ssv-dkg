@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"log"
 
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
+	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
+	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
+	"github.com/bloxapp/ssv-dkg/pkgs/wire"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	cli_utils "github.com/bloxapp/ssv-dkg/cli/utils"
-	"github.com/bloxapp/ssv-dkg/pkgs/crypto"
-	"github.com/bloxapp/ssv-dkg/pkgs/initiator"
-	"github.com/bloxapp/ssv-dkg/pkgs/wire"
+	spec "github.com/ssvlabs/dkg-spec"
 )
 
 const (
@@ -62,10 +62,9 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		logger.Info("🔑 opening initiator RSA private key file")
-		ethnetwork := e2m_core.MainNetwork
-		if cli_utils.Network != "now_test_network" {
-			ethnetwork = e2m_core.NetworkFromString(cli_utils.Network)
+		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
 		}
 		// start the ceremony
 		ctx := context.Background()
@@ -79,10 +78,10 @@ var StartDKG = &cobra.Command{
 					return nil, err
 				}
 				// Create a new ID.
-				id := crypto.NewID()
+				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethnetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethNetwork, cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}

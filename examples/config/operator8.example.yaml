@@ -9,3 +9,4 @@ logFilePath: /data/operator8/output/operator8_logs_debug.log
 outputPath: /data/operator8/output
 # serverTLSCertPath: /data/operator8/operator8.crt
 # serverTLSKeyPath: /data/operator8/operator8.key
+ethEndpointURL: http://ethnode:8545

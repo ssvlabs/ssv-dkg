@@ -15,11 +15,13 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -35,8 +37,6 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
-const examplePath = "../../examples/"
-
 var (
 	rootCert     = []string{"../../integration_test/certs/rootCA.crt"}
 	operatorCert = "../../integration_test/certs/localhost.crt"
@@ -45,7 +45,23 @@ var (
 
 func TestRateLimit(t *testing.T) {
 	version := "test.version"
-	srv := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	ops := wire.OperatorsCLI{}
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, "../../examples/operator1", version, operatorCert, operatorKey, stubClient)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, "../../examples/operator2", version, operatorCert, operatorKey, stubClient)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, "../../examples/operator3", version, operatorCert, operatorKey, stubClient)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, "../../examples/operator4", version, operatorCert, operatorKey, stubClient)
+	ops = append(
+		ops,
+		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv2.HttpSrv.URL, ID: 2, PubKey: &srv2.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
+	)
 	// Initiator priv key
 	_, pv, err := rsaencryption.GenerateKeys()
 	require.NoError(t, err)
@@ -55,11 +71,8 @@ func TestRateLimit(t *testing.T) {
 	initPubBytes, err := spec_crypto.EncodeRSAPublicKey(pubKey)
 	require.NoError(t, err)
 	t.Run("test /init rate limit", func(t *testing.T) {
-		ops := wire.OperatorsCLI{}
-		ops = append(ops, wire.OperatorCLI{Addr: srv.HttpSrv.URL, ID: 1, PubKey: &srv.PrivKey.PublicKey})
-
 		parts := make([]*spec.Operator, 0)
-		for _, id := range []uint64{1} {
+		for _, id := range []uint64{1, 2, 3, 4} {
 			op := ops.ByID(id)
 			pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 			require.NoError(t, err)
@@ -82,7 +95,7 @@ func TestRateLimit(t *testing.T) {
 
 		ts := &wire.Transport{
 			Type:       wire.InitMessageType,
-			Identifier: [24]byte{},
+			Identifier: [24]byte{1, 1, 1, 1, 1},
 			Data:       sszinit,
 			Version:    []byte(version),
 		}
@@ -117,7 +130,7 @@ func TestRateLimit(t *testing.T) {
 			defer close(errChan)
 			defer wg.Done()
 			for i := 0; i < 1000; i++ {
-				res, err := r.Post(fmt.Sprintf("%v/%v", srv.HttpSrv.URL, "init"))
+				res, err := r.Post(fmt.Sprintf("%v/%v", srv1.HttpSrv.URL, "init"))
 				require.NoError(t, err)
 				if res.Status == "429 Too Many Requests" {
 					b, err := io.ReadAll(res.Body)
@@ -136,8 +149,45 @@ func TestRateLimit(t *testing.T) {
 		client := req.C()
 		client.SetRootCertsFromFile(rootCert...)
 		r := client.R()
+		exchMsg := wire.Exchange{
+			PK:      []byte{},
+			Commits: []byte{},
+		}
+		sszExch, err := exchMsg.MarshalSSZ()
+		require.NoError(t, err)
+		ts := &wire.Transport{
+			Type:       wire.ExchangeMessageType,
+			Identifier: [24]byte{1, 1, 1, 1, 1},
+			Data:       sszExch,
+			Version:    []byte(version),
+		}
+		tsssz, err := ts.MarshalSSZ()
+		require.NoError(t, err)
 
-		r.SetBodyBytes([]byte{})
+		sig, err := spec_crypto.SignRSA(priv, tsssz)
+		require.NoError(t, err)
+
+		signedTransportMsg := &wire.SignedTransport{
+			Message:   ts,
+			Signer:    initPubBytes,
+			Signature: sig,
+		}
+		signedTransportMsgEnc, err := signedTransportMsg.MarshalSSZ()
+		require.NoError(t, err)
+		var allMsgsBytes []byte
+		allMsgsBytes = append(allMsgsBytes, signedTransportMsgEnc...)
+		// sign message by initiator
+		sigMultMsg, err := spec_crypto.SignRSA(priv, allMsgsBytes)
+		require.NoError(t, err)
+		multSignedTransport := &wire.MultipleSignedTransports{
+			Identifier: [24]byte{1, 1, 1, 1, 1},
+			Messages:   []*wire.SignedTransport{signedTransportMsg},
+			Signature:  sigMultMsg,
+		}
+		msg, err := multSignedTransport.MarshalSSZ()
+		require.NoError(t, err)
+
+		r.SetBodyBytes(msg)
 
 		// Send requests
 		errChan := make(chan []byte)
@@ -148,7 +198,7 @@ func TestRateLimit(t *testing.T) {
 			defer close(errChan)
 			defer wg.Done()
 			for i := 0; i < 1000; i++ {
-				res, err := r.Post(fmt.Sprintf("%v/%v", srv.HttpSrv.URL, "dkg"))
+				res, err := r.Post(fmt.Sprintf("%v/%v", srv1.HttpSrv.URL, "dkg"))
 				require.NoError(t, err)
 				if res.Status == "429 Too Many Requests" {
 					b, err := io.ReadAll(res.Body)
@@ -163,7 +213,10 @@ func TestRateLimit(t *testing.T) {
 		}
 		wg.Wait()
 	})
-	srv.HttpSrv.Close()
+	srv1.HttpSrv.Close()
+	srv2.HttpSrv.Close()
+	srv3.HttpSrv.Close()
+	srv4.HttpSrv.Close()
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
@@ -172,10 +225,15 @@ func TestWrongInitiatorSignature(t *testing.T) {
 	logger := zap.L().Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
-	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, examplePath, version, operatorCert, operatorKey)
-	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, examplePath, version, operatorCert, operatorKey)
-	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, examplePath, version, operatorCert, operatorKey)
-	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, examplePath, version, operatorCert, operatorKey)
+	stubClient := &stubs.Client{
+		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+			return nil, nil
+		},
+	}
+	srv1 := test_utils.CreateTestOperatorFromFile(t, 1, "../../examples/operator1", version, operatorCert, operatorKey, stubClient)
+	srv2 := test_utils.CreateTestOperatorFromFile(t, 2, "../../examples/operator2", version, operatorCert, operatorKey, stubClient)
+	srv3 := test_utils.CreateTestOperatorFromFile(t, 3, "../../examples/operator3", version, operatorCert, operatorKey, stubClient)
+	srv4 := test_utils.CreateTestOperatorFromFile(t, 4, "../../examples/operator4", version, operatorCert, operatorKey, stubClient)
 	ops = append(
 		ops,
 		wire.OperatorCLI{Addr: srv1.HttpSrv.URL, ID: 1, PubKey: &srv1.PrivKey.PublicKey},
@@ -217,7 +275,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Owner:                 owner,
 			Nonce:                 0,
 		}
-		id := crypto.NewID()
+		id := spec.NewID()
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
 		initMessage := &wire.Transport{
@@ -235,19 +293,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Signature: sig}
 		signedInitMsgBts, err := signedInitMsg.MarshalSSZ()
 		require.NoError(t, err)
-		results, err := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts, false)
-		require.NoError(t, err)
-		var errs []error
-		for i := 0; i < len(results); i++ {
-			msg := results[i]
-			tsp := &wire.SignedTransport{}
-			if err := tsp.UnmarshalSSZ(msg); err != nil {
-				// try parsing an error
-				errmsg, parseErr := wire.ParseAsError(msg)
-				require.NoError(t, parseErr)
-				errs = append(errs, errmsg)
-			}
-		}
+		_, errs := c.SendToAll(consts.API_INIT_URL, signedInitMsgBts, parts)
 		require.Equal(t, 4, len(errs))
 		for _, err := range errs {
 			require.ErrorContains(t, err, "init: initiator signature isn't valid: crypto/rsa: verification error")
