@@ -103,7 +103,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 	// check type of values
 	if reflect.TypeOf(d.PubKey).String() != "string" ||
 		reflect.TypeOf(d.WithdrawalCredentials).String() != "string" ||
-		reflect.TypeOf(d.Amount).String() != "phase0.Gwei" ||
+		reflect.TypeOf(d.Amount).String() != "uint64" ||
 		reflect.TypeOf(d.Signature).String() != "string" ||
 		reflect.TypeOf(d.DepositMessageRoot).String() != "string" ||
 		reflect.TypeOf(d.DepositDataRoot).String() != "string" ||
