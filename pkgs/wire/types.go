@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	spec "github.com/ssvlabs/dkg-spec"
 )
 
@@ -135,15 +134,15 @@ type ResultData struct {
 
 // DepositDataCLI  is a deposit structure from the eth2 deposit CLI (https://github.com/ethereum/staking-deposit-cli).
 type DepositDataCLI struct {
-	PubKey                string      `json:"pubkey"`
-	WithdrawalCredentials string      `json:"withdrawal_credentials"`
-	Amount                phase0.Gwei `json:"amount"`
-	Signature             string      `json:"signature"`
-	DepositMessageRoot    string      `json:"deposit_message_root"`
-	DepositDataRoot       string      `json:"deposit_data_root"`
-	ForkVersion           string      `json:"fork_version"`
-	NetworkName           string      `json:"network_name"`
-	DepositCliVersion     string      `json:"deposit_cli_version"`
+	PubKey                string `json:"pubkey"`
+	WithdrawalCredentials string `json:"withdrawal_credentials"`
+	Amount                uint64 `json:"amount"`
+	Signature             string `json:"signature"`
+	DepositMessageRoot    string `json:"deposit_message_root"`
+	DepositDataRoot       string `json:"deposit_data_root"`
+	ForkVersion           string `json:"fork_version"`
+	NetworkName           string `json:"network_name"`
+	DepositCliVersion     string `json:"deposit_cli_version"`
 }
 
 // DepositCliVersion is last version accepted by launchpad

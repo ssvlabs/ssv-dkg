@@ -39,7 +39,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
+		Amount:                uint64(spec_crypto.MaxEffectiveBalanceInGwei),
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
@@ -166,7 +166,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	depositData := &phase0.DepositData{
 		PublicKey:             phase0.BLSPubKey(pubKey),
 		WithdrawalCredentials: withdrCreds,
-		Amount:                d.Amount,
+		Amount:                phase0.Gwei(d.Amount),
 		Signature:             phase0.BLSSignature(sig),
 	}
 	err = spec_crypto.VerifyDepositData(network, depositData)
