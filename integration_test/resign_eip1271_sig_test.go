@@ -44,7 +44,7 @@ func TestResignValidEOASig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -84,7 +84,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 	c, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 		require.NoError(t, err)
 		id := spec.NewID()
 		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
@@ -146,7 +146,7 @@ func TestResignValidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -190,7 +190,7 @@ func TestResignInvalidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xb2c0176e14077e792d3d2f72001687564a572f05d65d25bd6edb8777a68bf6981aa1769c68455d701825dcf1cc3a0453/proofs.json")
+		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()

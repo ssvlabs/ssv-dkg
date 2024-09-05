@@ -111,3 +111,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/ssvlabs/dkg-spec v0.0.0-20240417085845-2f5e6b68f3ae => github.com/pavelkrolevets/dkg-spec v0.0.0-20240905112925-adea224edff7
