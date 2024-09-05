@@ -4,6 +4,7 @@
   - [DKG](#dkg)
     - [DKG tool by SSV](#dkg-tool-by-ssv)
   - [Overview](#overview)
+  - [Minimum requirements](#minimum-requirements)
   - [Initiator Quick start](#initiator-quick-start)
     - [Check operators health](#healthcheck)
     - [Obtaining Operators data](#obtaining-operators-data)
@@ -55,6 +56,22 @@ In order for the DKG protocol to execute successfully:
 
 For details on how to run the tool as an Operator, please head over [to this section containing the related instructions](#operator-quick-start).
 Similarly, head over to [this other section](#initiator-quick-start) for instructions on how to launch the tool as the Initiator of the DKG ceremony.
+
+## Minimum requirements
+
+The tool relys on lots of cryptography, so its computationaly dependent. We require at least `AWS t3.medium` or similar machine dedicated to run DKG (https://aws.amazon.com/ec2/instance-types/).
+
+We recommend using `AWS t3.large` or more. The demands are raising depending on amount validators being created at once.
+
+Minimum docker resource allocations:
+
+```
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 500M
+```
 
 ## Initiator Quick start
 
