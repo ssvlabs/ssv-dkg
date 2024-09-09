@@ -572,7 +572,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		return nil, fmt.Errorf("failed to decrypt encrypted share: %w", err)
 	}
 	secretKeyBLS := &bls.SecretKey{}
-	err = secretKeyBLS.Deserialize(prShare)
+	err = secretKeyBLS.SetHexString(string(prShare))
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize private share bytes to BLS secret key: %w", err)
 	}
