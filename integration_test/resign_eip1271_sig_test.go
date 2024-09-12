@@ -10,15 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestResignValidEOASig(t *testing.T) {
@@ -134,7 +134,7 @@ func TestResignValidContractSig(t *testing.T) {
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			ret := make([]byte, 32) // needs to be 32 byte for packing
-			copy(ret[:4], eip1271.MagicValue[:])
+			copy(ret[:4], eip1271.MAGIC_VALUE[:])
 
 			return ret, nil
 		},

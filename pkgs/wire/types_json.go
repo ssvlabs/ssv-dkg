@@ -324,6 +324,94 @@ func (r *Resign) UnmarshalJSON(data []byte) error {
 type Reshare struct {
 	spec.Reshare
 }
+
+func (r *Reshare) MarshalJSON() ([]byte, error) {
+	// Convert []*spec.Operator to []*Operator for marshaling
+	specOldOperators := make([]*Operator, len(r.OldOperators))
+	for i, op := range r.OldOperators {
+		specOldOperators[i] = NewOperatorFromSpec(*op)
+	}
+	specNewOperators := make([]*Operator, len(r.NewOperators))
+	for i, op := range r.NewOperators {
+		specNewOperators[i] = NewOperatorFromSpec(*op)
+	}
+	return json.Marshal(ReshareJSON{
+		ValidatorPubKey:       hex.EncodeToString(r.ValidatorPubKey),
+		OldOperators:          specOldOperators,
+		NewOperators:          specNewOperators,
+		OldT:                  r.OldT,
+		NewT:                  r.NewT,
+		Fork:                  hex.EncodeToString(r.Fork[:]),
+		WithdrawalCredentials: hex.EncodeToString(r.WithdrawalCredentials),
+		Owner:                 hex.EncodeToString(r.Owner[:]),
+		Nonce:                 r.Nonce,
+	})
+}
+
+type ReshareJSON struct {
+	// ValidatorPubKey public key corresponding to the shared private key
+	ValidatorPubKey string `json:"validatorPubKey"`
+	// Operators involved in the DKG
+	OldOperators []*Operator `json:"oldOperators"`
+	// Operators involved in the resharing
+	NewOperators []*Operator `json:"newOperators"`
+	// OldT is the old threshold for signing
+	OldT uint64 `json:"oldThreshold"`
+	// NewT is the old threshold for signing
+	NewT uint64 `json:"newThreshold"`
+	// Fork ethereum fork for signing
+	Fork string `json:"fork"`
+	// WithdrawalCredentials for deposit data
+	WithdrawalCredentials string `json:"withdrawalCredentials"`
+	// Owner address
+	Owner string `json:"owner"`
+	// Owner nonce
+	Nonce uint64 `json:"nonce"`
+}
+
+func (r *Reshare) UnmarshalJSON(data []byte) error {
+	var resJSON ReshareJSON
+	if err := json.Unmarshal(data, &resJSON); err != nil {
+		return err
+	}
+	val, err := hex.DecodeString(resJSON.ValidatorPubKey)
+	if err != nil {
+		return fmt.Errorf("invalid validator public key %s", err.Error())
+	}
+	r.ValidatorPubKey = val
+	fork, err := hex.DecodeString(resJSON.Fork)
+	if err != nil {
+		return fmt.Errorf("invalid fork %s", err.Error())
+	}
+	copy(r.Fork[:], fork)
+	withdrawalCredentials, err := hex.DecodeString(resJSON.WithdrawalCredentials)
+	if err != nil {
+		return fmt.Errorf("invalid withdrawal credentials %s", err.Error())
+	}
+	r.WithdrawalCredentials = withdrawalCredentials
+	owner, err := hex.DecodeString(resJSON.Owner)
+	if err != nil {
+		return fmt.Errorf("invalid owner %s", err.Error())
+	}
+	copy(r.Owner[:], owner)
+
+	r.Nonce = resJSON.Nonce
+
+	r.OldT = resJSON.OldT
+	r.NewT = resJSON.NewT
+
+	r.OldOperators = make([]*spec.Operator, len(resJSON.OldOperators))
+	for i, op := range resJSON.OldOperators {
+		r.OldOperators[i] = op.ToSpecOperator()
+	}
+
+	r.NewOperators = make([]*spec.Operator, len(resJSON.NewOperators))
+	for i, op := range resJSON.NewOperators {
+		r.NewOperators[i] = op.ToSpecOperator()
+	}
+	return nil
+}
+
 type SignedReshare struct {
 	spec.SignedReshare
 }

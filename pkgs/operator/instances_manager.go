@@ -8,14 +8,14 @@ import (
 	"time"
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
-	ssz "github.com/ferranbt/fastssz"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -256,14 +256,16 @@ func getOwner(message interface{}) [20]byte {
 	return owner
 }
 
-func getResignOrReshare(message interface{}) ssz.HashRoot {
+func getResignOrReshare(message interface{}) [32]byte {
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		return &msg.SignedResign.Resign
+		hash, _ := msg.SignedResign.Resign.HashTreeRoot()
+		return hash
 	case *wire.ReshareMessage:
-		return &msg.SignedReshare.Reshare
+		hash, _ := msg.SignedReshare.Reshare.HashTreeRoot()
+		return hash
 	default:
-		return nil
+		return [32]byte{}
 	}
 }
 

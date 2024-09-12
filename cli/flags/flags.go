@@ -34,6 +34,7 @@ const (
 	ethKeystorePath   = "ethKeystorePath"
 	ethKeystorePass   = "ethKeystorePass"
 	ethEndpointURL    = "ethEndpointURL"
+	signedReshare     = "signedReshare"
 )
 
 // WithdrawAddressFlag  adds withdraw address flag to the command
@@ -164,6 +165,11 @@ func KeystoreFilePass(c *cobra.Command) {
 // EthEndpointURL
 func EthEndpointURL(c *cobra.Command) {
 	AddPersistentStringFlag(c, ethEndpointURL, "http://127.0.0.1:8545", "Ethereum node endpoint URL", false)
+}
+
+// KeystoreFilePath
+func SignedReshareFilePath(c *cobra.Command) {
+	AddPersistentStringFlag(c, ethKeystorePath, "signed_reshare.json", "Path to signed reshare message json file", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
