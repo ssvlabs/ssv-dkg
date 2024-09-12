@@ -61,43 +61,22 @@ async function main() {
   console.log(" - Version: ", version);
   console.log(" - Threshold: ", await protocolKit1.getThreshold(), "\n");
 
-  const MESSAGE = "I am the owner of DKG validator 7";
+  const MESSAGE = "I am the owner of DKG validator 5";
   var safeMessage = protocolKit1.createMessage(MESSAGE);
   const messageHash = hashSafeMessage(MESSAGE);
-  const signedMessage = await protocolKit1.signMessage(safeMessage);
-  const safeMessageHash = await protocolKit1.getSafeMessageHash(
-    hashSafeMessage(safeMessage.data)
-  );
-
-  await apiKit.addMessage(config.SAFE_ADDRESS, {
-    message: safeMessage.data as string | ApiKitEIP712TypedData,
-    signature: signedMessage.encodedSignatures(),
-  });
-
-  // confirm by Owner 2
-  let protocolKit2 = await Safe.init({
-    provider: config.RPC_URL,
-    signer: config.OWNER2_PRIVATE_KEY,
-    safeAddress: config.SAFE_ADDRESS,
-  });
-  safeMessage = await protocolKit2.signMessage(safeMessage);
-
-  await apiKit.addMessageSignature(
-    safeMessageHash,
-    safeMessage.encodedSignatures()
-  );
-  var messageResponse = await apiKit.getMessage(safeMessageHash);
-  console.log(" - Confirmations: ", messageResponse.confirmations.length);
 
   const isValid = await protocolKit1.isValidSignature(
     messageHash,
-    messageResponse.preparedSignature
+    "0x94ed7e91987dad7470e528ad11af59d4cd5e8c9195e69d752d083646b5c2141a3b54abe2bc069f72c7d49bb7be7185490e0cd349669903751573d656d35e04c51b6d0689838c826594c71919d091f7cbd83517b3ef18e54f1c0cf951fe792e957c2cf241a64ac126939c7394f01d945613c4a0c82bc249e251dd65dffaf70ae0d11c"
   );
 
   console.log("Message: ", MESSAGE);
   console.log("Message Hash: ", messageHash);
-  console.log("Safe Message Hash: ", safeMessageHash);
-  console.log("Encoded Signatures: ", messageResponse.preparedSignature);
+
+  console.log(
+    "Encoded Signatures: ",
+    "0x94ed7e91987dad7470e528ad11af59d4cd5e8c9195e69d752d083646b5c2141a3b54abe2bc069f72c7d49bb7be7185490e0cd349669903751573d656d35e04c51b6d0689838c826594c71919d091f7cbd83517b3ef18e54f1c0cf951fe792e957c2cf241a64ac126939c7394f01d945613c4a0c82bc249e251dd65dffaf70ae0d11c"
+  );
 
   console.log(`The signature is ${isValid ? "valid" : "invalid"}`);
 }
