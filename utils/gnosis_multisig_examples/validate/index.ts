@@ -12,6 +12,7 @@ import SafeApiKit, {
   EIP712TypedData as ApiKitEIP712TypedData,
 } from "@safe-global/api-kit";
 // This file can be used to play around with the Safe Core SDK
+import fs from "fs";
 
 interface Config {
   RPC_URL: string;
@@ -31,12 +32,9 @@ interface Config {
 const config: Config = {
   RPC_URL:
     "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz",
-  OWNER1_PRIVATE_KEY:
-    "",
-  OWNER2_PRIVATE_KEY:
-    "",
-  OWNER3_PRIVATE_KEY:
-    "",
+  OWNER1_PRIVATE_KEY: "",
+  OWNER2_PRIVATE_KEY: "",
+  OWNER3_PRIVATE_KEY: "",
   SAFE_ADDRESS: "0x0205c708899bde67330456886a05Fe30De0A79b6",
   CHAIN_ID: 11155111n,
 };
@@ -49,7 +47,6 @@ async function main() {
 
   let protocolKit1 = await Safe.init({
     provider: config.RPC_URL,
-    signer: config.OWNER1_PRIVATE_KEY,
     safeAddress: config.SAFE_ADDRESS,
   });
 
@@ -61,7 +58,14 @@ async function main() {
   console.log(" - Version: ", version);
   console.log(" - Threshold: ", await protocolKit1.getThreshold(), "\n");
 
-  const MESSAGE = "I am the owner of DKG validator 5";
+  var reshareBulk = JSON.parse(
+    fs.readFileSync(
+      "../../../integration_test/stubs/reshare/reshare_msgs.json",
+      "utf-8"
+    )
+  );
+
+  const MESSAGE = JSON.stringify(reshareBulk);
   var safeMessage = protocolKit1.createMessage(MESSAGE);
   const messageHash = hashSafeMessage(MESSAGE);
 
