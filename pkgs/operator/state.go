@@ -34,6 +34,7 @@ type InstanceID [24]byte
 type Switch struct {
 	Logger           *zap.Logger
 	Mtx              sync.RWMutex
+	UnsignedMessages map[string]string
 	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
 	Instances        map[InstanceID]Instance  // mapping to store DKG instances
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key
@@ -45,22 +46,22 @@ type Switch struct {
 
 func (s *Switch) getPublicCommitsAndSecretShare(reshareMsg *wire.ReshareMessage) ([]kyber.Point, *kyber_dkg.DistKeyShare, error) {
 	// sanity check for incoming proofs len
-	if len(reshareMsg.Proofs) != len(reshareMsg.SignedReshare.Reshare.OldOperators) {
-		return nil, nil, fmt.Errorf("wrong proofs len at reshare message: expected %d, got %d", len(reshareMsg.SignedReshare.Reshare.OldOperators), len(reshareMsg.Proofs))
+	if len(reshareMsg.Proofs) != len(reshareMsg.Reshare.OldOperators) {
+		return nil, nil, fmt.Errorf("wrong proofs len at reshare message: expected %d, got %d", len(reshareMsg.Reshare.OldOperators), len(reshareMsg.Proofs))
 	}
 	// wait for exchange msg
-	commits, err := crypto.GetPubCommitsFromProofs(reshareMsg.SignedReshare.Reshare.OldOperators, reshareMsg.Proofs, int(reshareMsg.SignedReshare.Reshare.OldT))
+	commits, err := crypto.GetPubCommitsFromProofs(reshareMsg.Reshare.OldOperators, reshareMsg.Proofs, int(reshareMsg.Reshare.OldT))
 	if err != nil {
 		return nil, nil, err
 	}
 	var distKeyShare *kyber_dkg.DistKeyShare
-	for i, op := range reshareMsg.SignedReshare.Reshare.OldOperators {
+	for i, op := range reshareMsg.Reshare.OldOperators {
 		if op.ID == s.OperatorID {
 			op := &spec.Operator{
 				ID:     s.OperatorID,
 				PubKey: s.PubKeyBytes,
 			}
-			if err := spec.ValidateReshareMessage(&reshareMsg.SignedReshare.Reshare, op, reshareMsg.Proofs[i]); err != nil {
+			if err := spec.ValidateReshareMessage(reshareMsg.Reshare, op, reshareMsg.Proofs[i]); err != nil {
 				return nil, nil, err
 			}
 			secretShare, err := crypto.GetSecretShareFromProofs(reshareMsg.Proofs[i], s.PrivateKey, s.OperatorID)
@@ -79,7 +80,7 @@ func (s *Switch) getPublicCommitsAndSecretShare(reshareMsg *wire.ReshareMessage)
 			if err != nil {
 				return nil, nil, err
 			}
-			if !bytes.Equal(valPK.Serialize(), reshareMsg.SignedReshare.Reshare.ValidatorPubKey) {
+			if !bytes.Equal(valPK.Serialize(), reshareMsg.Reshare.ValidatorPubKey) {
 				return nil, nil, fmt.Errorf("validator pub key recovered from proofs not equal validator pub key at reshare msg")
 			}
 			secretKeyBLS, err := crypto.ResultToShareSecretKey(distKeyShare)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
@@ -151,4 +152,55 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 		logger.Error("error writing reshare response: " + err.Error())
 		return
 	}
+}
+
+// storeHandler stores an unsigned (bulk) resign/reshare message
+func (s *Server) unsignedResignHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming unsigned resign msg")
+	rawdata, err := io.ReadAll(request.Body)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+		return
+	}
+	unsignedMsg := &wire.ResignMessage{} // to implement
+	if err := unsignedMsg.UnmarshalSSZ(rawdata); err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash the message and store it
+	unsignedResign, err := unsignedMsg.MarshalSSZ()
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	hash := eth_crypto.Keccak256(unsignedResign)
+	s.State.UnsignedMessages[string(hash[:])] = string(unsignedResign)
+
+	s.Logger.Info("✅ Stored unsigned resign message successfully")
+}
+
+func (s *Server) unsignedReshareHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming unsigned reshare msg")
+	rawdata, err := io.ReadAll(request.Body)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+		return
+	}
+	unsignedMsg := &wire.ReshareMessage{} // to implement
+	if err := unsignedMsg.UnmarshalSSZ(rawdata); err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash the message and store it
+	unsignedReshare, err := unsignedMsg.MarshalSSZ()
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	hash := eth_crypto.Keccak256(unsignedReshare)
+	s.State.UnsignedMessages[string(hash[:])] = string(unsignedReshare)
+
+	s.Logger.Info("✅ Stored unsigned reshare message successfully")
 }
