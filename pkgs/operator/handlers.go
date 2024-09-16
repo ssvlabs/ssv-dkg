@@ -100,12 +100,57 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 
 func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming RESIGN msg")
-	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.ResignMessageType, s.State.OperatorID)
+	resignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.ResignMessageType, s.State.OperatorID)
+	if err != nil {
+		s.Logger.Error("Error processing incoming resign message", zap.Error(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash the message and store it
+	resign := &wire.ResignMessage{}
+	err = resign.UnmarshalSSZ(resignMsg.Message.Data)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	hash := eth_crypto.Keccak256(resignMsg.Message.Data)
+	s.State.UnsignedResign[string(hash[:])] = resign
+
+	s.Logger.Info("✅ Stored unsigned resign message successfully")
+}
+
+func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming RESHARE msg")
+	reshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.ReshareMessageType, s.State.OperatorID)
+	if err != nil {
+		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash the message and store it
+	reshare := &wire.ReshareMessage{}
+	err = reshare.UnmarshalSSZ(reshareMsg.Message.Data)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	hash := eth_crypto.Keccak256(reshareMsg.Message.Data)
+	s.State.UnsignedReshare[string(hash[:])] = reshare
+
+	s.Logger.Info("✅ Stored unsigned reshare message successfully")
+}
+
+func (s *Server) signResignHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming SIGN RESIGN msg")
+	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming init message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return
 	}
+
 	reqid := signedResignMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 	b, err := s.State.HandleInstanceOperation(reqid, signedResignMsg.Message, signedResignMsg.Signer, signedResignMsg.Signature, "resign")
@@ -122,23 +167,15 @@ func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request
 	}
 }
 
-func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Request) {
-	s.Logger.Debug("incoming RESHARE msg")
-	rawdata, err := io.ReadAll(request.Body)
+func (s *Server) signReshareHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming SIGN RESHARE msg")
+	signedReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-		return
-	}
-	signedReshareMsg := &wire.SignedTransport{}
-	if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
+		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return
 	}
-	// Validate that incoming message is an init message
-	if signedReshareMsg.Message.Type != wire.ReshareMessageType {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not reshare message to reshare route")), http.StatusBadRequest)
-		return
-	}
+
 	reqid := signedReshareMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 	b, err := s.State.HandleInstanceOperation(reqid, signedReshareMsg.Message, signedReshareMsg.Signer, signedReshareMsg.Signature, "reshare")
@@ -152,55 +189,4 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 		logger.Error("error writing reshare response: " + err.Error())
 		return
 	}
-}
-
-// storeHandler stores an unsigned (bulk) resign/reshare message
-func (s *Server) unsignedResignHandler(writer http.ResponseWriter, request *http.Request) {
-	s.Logger.Debug("incoming unsigned resign msg")
-	rawdata, err := io.ReadAll(request.Body)
-	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-		return
-	}
-	unsignedMsg := &wire.ResignMessage{} // to implement
-	if err := unsignedMsg.UnmarshalSSZ(rawdata); err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
-		return
-	}
-
-	// hash the message and store it
-	unsignedResign, err := unsignedMsg.MarshalSSZ()
-	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
-		return
-	}
-	hash := eth_crypto.Keccak256(unsignedResign)
-	s.State.UnsignedMessages[string(hash[:])] = string(unsignedResign)
-
-	s.Logger.Info("✅ Stored unsigned resign message successfully")
-}
-
-func (s *Server) unsignedReshareHandler(writer http.ResponseWriter, request *http.Request) {
-	s.Logger.Debug("incoming unsigned reshare msg")
-	rawdata, err := io.ReadAll(request.Body)
-	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-		return
-	}
-	unsignedMsg := &wire.ReshareMessage{} // to implement
-	if err := unsignedMsg.UnmarshalSSZ(rawdata); err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
-		return
-	}
-
-	// hash the message and store it
-	unsignedReshare, err := unsignedMsg.MarshalSSZ()
-	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
-		return
-	}
-	hash := eth_crypto.Keccak256(unsignedReshare)
-	s.State.UnsignedMessages[string(hash[:])] = string(unsignedReshare)
-
-	s.Logger.Info("✅ Stored unsigned reshare message successfully")
 }

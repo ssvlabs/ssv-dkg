@@ -212,38 +212,42 @@ func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operat
 	return finalResults, nil
 }
 
-func (c *Initiator) ResignMessageFlowHandling(rMsg *wire.ResignMessage, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
-	dkgResult, errs, err := c.SendResignMsg(id, rMsg, operators)
+func (c *Initiator) ResignMessageFlowHandling(rMsg *wire.ResignMessage, sig *wire.SignatureForHash, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
+	_, _, err := c.SendResignMsg(id, rMsg, operators)
 	if err != nil {
 		return nil, err
 	}
+	resignResult, errs, err := c.SendSignResignMsg(id, sig, operators)
 	// sanity check
-	if err := checkThreshold(dkgResult, errs, operators, operators, len(operators)); err != nil {
+	if err := checkThreshold(resignResult, errs, operators, operators, len(operators)); err != nil {
 		return nil, err
 	}
-	err = verifyMessageSignatures(id, dkgResult, c.VerifyMessageSignature)
+	err = verifyMessageSignatures(id, resignResult, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
 	c.Logger.Info("✅ verified operator response signatures")
 	var results [][]byte
-	for _, res := range dkgResult {
+	for _, res := range resignResult {
 		results = append(results, res)
 	}
 	return results, nil
 }
 
-func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.ReshareMessage) ([][]byte, error) {
-	c.Logger.Info("phase 1: sending reshare message to all operators")
+func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.ReshareMessage, sig *wire.SignatureForHash) ([][]byte, error) {
+	c.Logger.Info("phase 1: sending unsigned reshare message to all operators")
 	allOps, err := utils.JoinSets(reshareMsg.Reshare.OldOperators, reshareMsg.Reshare.NewOperators)
 	if err != nil {
 		return nil, err
 	}
 	var errs map[uint64]error
-	exchangeMsgs, errs, err := c.SendReshareMsg(id, reshareMsg, allOps)
+	_, _, err = c.SendReshareMsg(id, reshareMsg, allOps)
 	if err != nil {
 		return nil, err
 	}
+	c.Logger.Info("phase 1: ✅ unsigned reshare message sent to all operators")
+	c.Logger.Info("phase 2: sending reshare message signature to all operators")
+	exchangeMsgs, errs, err := c.SendSignReshareMsg(id, sig, allOps)
 	// check that all new operators and threshold of old operators replied without errors
 	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.Reshare.OldOperators, reshareMsg.Reshare.NewOperators, int(reshareMsg.Reshare.OldT)); err != nil {
 		return nil, err
@@ -252,8 +256,8 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("phase 1: ✅ verified operator resharing responses signatures")
-	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
+	c.Logger.Info("phase 2: ✅ verified operator resharing responses signatures")
+	c.Logger.Info("phase 3: ➡️ sending operator data (exchange messages) required for dkg")
 	kyberMsgs, errs, err := c.SendExchangeMsgs(id, exchangeMsgs, allOps)
 	if err != nil {
 		return nil, err
@@ -266,8 +270,8 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("phase 2: ✅ verified old operator responses (deal messages) signatures")
-	c.Logger.Info("phase 3: ➡️ sending deal dkg data to new operators")
+	c.Logger.Info("phase 3: ✅ verified old operator responses (deal messages) signatures")
+	c.Logger.Info("phase 4: ➡️ sending deal dkg data to new operators")
 	dkgResult, errs, err := c.SendKyberMsgs(id, kyberMsgs, reshareMsg.Reshare.NewOperators)
 	if err != nil {
 		return nil, err
@@ -283,7 +287,7 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("phase 2: ✅ verified operator dkg results signatures")
+	c.Logger.Info("phase 4: ✅ verified operator dkg results signatures")
 	var finalResults [][]byte
 	for _, res := range dkgResult {
 		finalResults = append(finalResults, res)
@@ -376,6 +380,7 @@ func (c *Initiator) StartResigning(id [24]byte, ids []uint64, proofs []*spec.Sig
 	}
 	resultsBytes, err := c.ResignMessageFlowHandling(
 		rMsg,
+		sig,
 		id,
 		rMsg.Operators)
 	if err != nil {
@@ -508,7 +513,7 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 			zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
 			zap.String("Signature", hex.EncodeToString(proof.Signature)))
 	}
-	resultsBytes, err := c.messageFlowHandlingReshare(id, unsignedReshare)
+	resultsBytes, err := c.messageFlowHandlingReshare(id, unsignedReshare, sig)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -623,6 +628,24 @@ func (c *Initiator) SendReshareMsg(id [24]byte, reshare *wire.ReshareMessage, op
 		return nil, nil, err
 	}
 	results, errs := c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, operators)
+	return results, errs, nil
+}
+
+func (c *Initiator) SendSignResignMsg(id [24]byte, sig *wire.SignatureForHash, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error, error) {
+	signedSignHashMsgBts, err := c.prepareAndSignMessage(sig, wire.SignatureForHashMessageType, id, c.Version)
+	if err != nil {
+		return nil, nil, err
+	}
+	results, errs := c.SendToAll(consts.API_SIGN_RESIGN_URL, signedSignHashMsgBts, operators)
+	return results, errs, nil
+}
+
+func (c *Initiator) SendSignReshareMsg(id [24]byte, sig *wire.SignatureForHash, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error, error) {
+	signedSignHashMsgBts, err := c.prepareAndSignMessage(sig, wire.SignatureForHashMessageType, id, c.Version)
+	if err != nil {
+		return nil, nil, err
+	}
+	results, errs := c.SendToAll(consts.API_SIGN_RESHARE_URL, signedSignHashMsgBts, operators)
 	return results, errs, nil
 }
 
@@ -813,23 +836,6 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 		Reshare: reshare,
 		Proofs:  proofsData,
 	}, nil
-
-	// hash, err := reshare.HashTreeRoot()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // Sign message root
-	// ownerSig, err := eth_crypto.Sign(hash[:], sk)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &wire.ReshareMessage{
-	// 	SignedReshare: &spec.SignedReshare{
-	// 		Reshare:   *reshare,
-	// 		Signature: ownerSig,
-	// 	},
-	// 	Proofs: proofsData,
-	// }, nil
 }
 
 // SignReshare signs a single reshare message
@@ -865,20 +871,6 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 		Resign:    &resign,
 		Proofs:    proofsData,
 	}, nil
-	// hash, err := resign.HashTreeRoot()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // Sign message root
-	// ownerSig, err := eth_crypto.Sign(hash[:], sk)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &wire.ResignMessage{
-	// 	Operators:    ops,
-	// 	SignedResign: &spec.SignedResign{Resign: resign, Signature: ownerSig},
-	// 	Proofs:       proofsData,
-	// }, nil
 }
 
 func (c *Initiator) SignResign(msg *wire.ResignMessage, sk *ecdsa.PrivateKey) (*wire.SignatureForHash, error) {

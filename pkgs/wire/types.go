@@ -41,6 +41,7 @@ const (
 	ReshareMessageType
 	ReshareKyberMessageType
 	ReshareExchangeMessageType
+	SignatureForHashMessageType
 )
 
 func (t TransportType) String() string {
@@ -77,6 +78,8 @@ func (t TransportType) String() string {
 		return "ReshareKyberMessageType"
 	case ReshareExchangeMessageType:
 		return "ReshareExchangeMessageType"
+	case SignatureForHashMessageType:
+		return "SignatureForHashMessageType"
 	default:
 		return "no type impl"
 	}

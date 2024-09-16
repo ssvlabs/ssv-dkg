@@ -34,7 +34,8 @@ type InstanceID [24]byte
 type Switch struct {
 	Logger           *zap.Logger
 	Mtx              sync.RWMutex
-	UnsignedMessages map[string]string
+	UnsignedResign   map[string]*wire.ResignMessage
+	UnsignedReshare  map[string]*wire.ReshareMessage
 	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
 	Instances        map[InstanceID]Instance  // mapping to store DKG instances
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key

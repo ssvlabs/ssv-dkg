@@ -39,7 +39,7 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                uint64(spec_crypto.MaxEffectiveBalanceInGwei),
+		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
