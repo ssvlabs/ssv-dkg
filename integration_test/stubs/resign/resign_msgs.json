@@ -1,0 +1,16 @@
+[
+    {
+        "ValidatorPubKey": "aa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39",
+        "Fork": "01017000",
+        "WithdrawalCredentials": "81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+        "Owner": "dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
+        "Nonce": 1
+    },
+    {
+        "ValidatorPubKey": "b3b9bf20c26b6dc60aefcffeb89b04a3e47d659879da9fb0faa7ba8f50f6c51850c7b59909f6b62e7d6fd7536d9e50d9",
+        "Fork": "01017000",
+        "WithdrawalCredentials": "81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+        "Owner": "dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
+        "Nonce": 2
+    }
+]

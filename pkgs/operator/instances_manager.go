@@ -8,14 +8,14 @@ import (
 	"time"
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
-	ssz "github.com/ferranbt/fastssz"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -170,7 +170,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "resign":
 		resign, ok := s.UnsignedResign[string(sig.Hash)]
 		if !ok {
-			return nil, fmt.Errorf("Unknown resign message")
+			return nil, fmt.Errorf("unknown resign message")
 		}
 		instanceMessage = s.UnsignedResign[string(sig.Hash)]
 		allOps = resign.Operators
@@ -193,7 +193,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "reshare":
 		reshare, ok := s.UnsignedReshare[string(sig.Hash)]
 		if !ok {
-			return nil, fmt.Errorf("Unknown reshare message")
+			return nil, fmt.Errorf("unknown reshare message")
 		}
 		instanceMessage = reshare
 		allOps = append(allOps, reshare.Reshare.OldOperators...)
@@ -222,10 +222,14 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	}
 
 	// verify EIP1271 signature
+	hash, err := getResignOrReshare(instanceMessage)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+	}
 	if err := spec_crypto.VerifySignedMessageByOwner(
 		s.EthClient,
 		getOwner(instanceMessage),
-		getResignOrReshare(instanceMessage),
+		hash,
 		sig.Signature,
 	); err != nil {
 		return nil, err
@@ -239,7 +243,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	inst, resp, err := s.CreateInstance(reqID, allOps, instanceMessage, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create instance: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
 	}
 
 	s.Mtx.Lock()
@@ -262,14 +266,14 @@ func getOwner(message interface{}) [20]byte {
 	return owner
 }
 
-func getResignOrReshare(message interface{}) ssz.HashRoot {
+func getResignOrReshare(message interface{}) ([32]byte, error) {
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		return msg.Resign
+		return msg.Resign.HashTreeRoot()
 	case *wire.ReshareMessage:
-		return msg.Reshare
+		return msg.Reshare.HashTreeRoot()
 	default:
-		return nil
+		return [32]byte{}, fmt.Errorf("cant infer message type")
 	}
 }
 
