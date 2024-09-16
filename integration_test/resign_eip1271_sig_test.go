@@ -111,7 +111,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			sig,
 			id,
 			rMsg.Operators)
-		require.ErrorContains(t, err, "invalid signed reshare signature") // spec
+		require.ErrorContains(t, err, "invalid EOA signature") // spec
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
