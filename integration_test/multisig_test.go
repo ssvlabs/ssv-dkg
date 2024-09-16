@@ -133,7 +133,7 @@ func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 
 		bulkReshareMsgs, err := signedBulkReshare.MarshalReshareMessagesJSON()
 		require.NoError(t, err)
-		
+
 		var finalMsg []byte
 		prefix := []byte("\x19Ethereum Signed Message:\n")
 		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
@@ -146,7 +146,7 @@ func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 		copy(hash[:], keccak256)
 		t.Log("Hash", hex.EncodeToString(hash[:]))
 		require.NoError(t, err)
-		t.Log("Signature", hex.EncodeToString(signedBulkReshare.Signature[:]))
+		t.Log("Signature", hex.EncodeToString(signedBulkReshare.Signature))
 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
 			gnosisAddress,
 			hash,
@@ -182,7 +182,7 @@ func TestVerifyMultisigSignedBulkResignOffChain(t *testing.T) {
 		copy(hash[:], keccak256)
 		t.Log("Hash", hex.EncodeToString(hash[:]))
 		require.NoError(t, err)
-		t.Log("Signature", hex.EncodeToString(signedBulkResign.Signature[:]))
+		t.Log("Signature", hex.EncodeToString(signedBulkResign.Signature))
 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
 			gnosisAddress,
 			hash,

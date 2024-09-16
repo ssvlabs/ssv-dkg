@@ -115,7 +115,7 @@ func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request
 		return
 	}
 	hash := eth_crypto.Keccak256(resignMsg.Message.Data)
-	s.State.UnsignedResign[string(hash[:])] = resign
+	s.State.UnsignedResign[string(hash)] = resign
 
 	s.Logger.Info("✅ Stored unsigned resign message successfully")
 }
@@ -137,7 +137,7 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	hash := eth_crypto.Keccak256(reshareMsg.Message.Data)
-	s.State.UnsignedReshare[string(hash[:])] = reshare
+	s.State.UnsignedReshare[string(hash)] = reshare
 
 	s.Logger.Info("✅ Stored unsigned reshare message successfully")
 }
