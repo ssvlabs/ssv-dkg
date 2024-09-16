@@ -106,6 +106,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			signedProofs[0])
 		require.NoError(t, err)
 		sig, err := c.SignResign(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
 		_, err = c.ResignMessageFlowHandling(
 			rMsg,
 			sig,

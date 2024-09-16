@@ -218,6 +218,9 @@ func (c *Initiator) ResignMessageFlowHandling(rMsg *wire.ResignMessage, sig *wir
 		return nil, err
 	}
 	resignResult, errs, err := c.SendSignResignMsg(id, sig, operators)
+	if err != nil {
+		return nil, err
+	}
 	// sanity check
 	if err := checkThreshold(resignResult, errs, operators, operators, len(operators)); err != nil {
 		return nil, err
@@ -248,6 +251,9 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	c.Logger.Info("phase 1: ✅ unsigned reshare message sent to all operators")
 	c.Logger.Info("phase 2: sending reshare message signature to all operators")
 	exchangeMsgs, errs, err := c.SendSignReshareMsg(id, sig, allOps)
+	if err != nil {
+		return nil, err
+	}
 	// check that all new operators and threshold of old operators replied without errors
 	if err := checkThreshold(exchangeMsgs, errs, reshareMsg.Reshare.OldOperators, reshareMsg.Reshare.NewOperators, int(reshareMsg.Reshare.OldT)); err != nil {
 		return nil, err
@@ -494,6 +500,9 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 	}
 	// Sign reshare message
 	sig, err := c.SignReshare(unsignedReshare, sk)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	c.Logger.Info("🚀 Starting resharing ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs))
 	c.Logger.Info("Outgoing reshare request fields",
