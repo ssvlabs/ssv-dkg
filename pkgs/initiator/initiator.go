@@ -840,10 +840,11 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 
 // SignReshare signs a single reshare message
 func (c *Initiator) SignReshare(msg *wire.ReshareMessage, sk *ecdsa.PrivateKey) (*wire.SignatureForHash, error) {
-	hash, err := msg.HashTreeRoot()
+	msgBytes, err := msg.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
+	hash := eth_crypto.Keccak256(msgBytes)
 	// Sign message root
 	ownerSig, err := eth_crypto.Sign(hash[:], sk)
 	if err != nil {
@@ -874,10 +875,11 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 }
 
 func (c *Initiator) SignResign(msg *wire.ResignMessage, sk *ecdsa.PrivateKey) (*wire.SignatureForHash, error) {
-	hash, err := msg.HashTreeRoot()
+	msgBytes, err := msg.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
+	hash := eth_crypto.Keccak256(msgBytes)
 	// Sign message root
 	ownerSig, err := eth_crypto.Sign(hash[:], sk)
 	if err != nil {
