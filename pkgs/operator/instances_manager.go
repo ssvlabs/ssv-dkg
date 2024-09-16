@@ -66,7 +66,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 			return nil, nil, err
 		}
 		owner.SecretShare = share
-		resp, err = owner.Reshare(reqID, &msg.SignedReshare.Reshare, commits)
+		resp, err = owner.Reshare(reqID, msg.Reshare, commits)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -161,20 +161,26 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		allOps          []*spec.Operator
 	)
 
+	sig := &wire.SignatureForHash{}
+	if err := sig.UnmarshalSSZ(transportMsg.Data); err != nil {
+		return nil, fmt.Errorf("%s: failed to unmarshal signature for %s message", operationType, err.Error())
+	}
+
 	switch operationType {
 	case "resign":
-		resign := &wire.ResignMessage{}
-		if err := resign.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+		resign, ok := s.UnsignedResign[string(sig.Hash)]
+		if !ok {
+			return nil, fmt.Errorf("unknown resign message")
 		}
-		instanceMessage = resign
+		instanceMessage = s.UnsignedResign[string(sig.Hash)]
 		allOps = resign.Operators
 
 		s.Logger.Info("Incoming resign request fields",
-			zap.String("network", hex.EncodeToString(resign.SignedResign.Resign.Fork[:])),
-			zap.String("withdrawal", hex.EncodeToString(resign.SignedResign.Resign.WithdrawalCredentials)),
-			zap.String("owner", hex.EncodeToString(resign.SignedResign.Resign.Owner[:])),
-			zap.Uint64("nonce", resign.SignedResign.Resign.Nonce))
+			zap.String("network", hex.EncodeToString(resign.Resign.Fork[:])),
+			zap.String("withdrawal", hex.EncodeToString(resign.Resign.WithdrawalCredentials)),
+			zap.String("owner", hex.EncodeToString(resign.Resign.Owner[:])),
+			zap.Uint64("nonce", resign.Resign.Nonce),
+			zap.String("EIP1271 owner signature", hex.EncodeToString(sig.Signature)))
 		for _, proof := range resign.Proofs {
 			s.Logger.Info("Loaded proof",
 				zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
@@ -185,23 +191,23 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 
 	case "reshare":
-		reshare := &wire.ReshareMessage{}
-		if err := reshare.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+		reshare, ok := s.UnsignedReshare[string(sig.Hash)]
+		if !ok {
+			return nil, fmt.Errorf("unknown reshare message")
 		}
 		instanceMessage = reshare
-		allOps = append(allOps, reshare.SignedReshare.Reshare.OldOperators...)
-		allOps = append(allOps, reshare.SignedReshare.Reshare.NewOperators...)
+		allOps = append(allOps, reshare.Reshare.OldOperators...)
+		allOps = append(allOps, reshare.Reshare.NewOperators...)
 
 		s.Logger.Info("Incoming reshare request fields",
-			zap.Any("Old operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.OldOperators)),
-			zap.Any("New operator IDs", utils.GetOpIDs(reshare.SignedReshare.Reshare.NewOperators)),
+			zap.Any("Old operator IDs", utils.GetOpIDs(reshare.Reshare.OldOperators)),
+			zap.Any("New operator IDs", utils.GetOpIDs(reshare.Reshare.NewOperators)),
 			zap.String("ValidatorPubKey", hex.EncodeToString(reshare.Proofs[0].Proof.ValidatorPubKey)),
-			zap.String("network", hex.EncodeToString(reshare.SignedReshare.Reshare.Fork[:])),
-			zap.String("withdrawal", hex.EncodeToString(reshare.SignedReshare.Reshare.WithdrawalCredentials)),
-			zap.String("owner", hex.EncodeToString(reshare.SignedReshare.Reshare.Owner[:])),
-			zap.Uint64("nonce", reshare.SignedReshare.Reshare.Nonce),
-			zap.String("EIP1271 owner signature", hex.EncodeToString(reshare.SignedReshare.Signature)))
+			zap.String("network", hex.EncodeToString(reshare.Reshare.Fork[:])),
+			zap.String("withdrawal", hex.EncodeToString(reshare.Reshare.WithdrawalCredentials)),
+			zap.String("owner", hex.EncodeToString(reshare.Reshare.Owner[:])),
+			zap.Uint64("nonce", reshare.Reshare.Nonce),
+			zap.String("EIP1271 owner signature", hex.EncodeToString(sig.Signature)))
 		for _, proof := range reshare.Proofs {
 			s.Logger.Info("Reshare proof",
 				zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
@@ -216,11 +222,15 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	}
 
 	// verify EIP1271 signature
+	hash, err := getResignOrReshare(instanceMessage)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+	}
 	if err := spec_crypto.VerifySignedMessageByOwner(
 		s.EthClient,
 		getOwner(instanceMessage),
-		getResignOrReshare(instanceMessage),
-		getSignature(instanceMessage),
+		hash,
+		sig.Signature,
 	); err != nil {
 		return nil, err
 	}
@@ -233,7 +243,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	inst, resp, err := s.CreateInstance(reqID, allOps, instanceMessage, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create instance: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
 	}
 
 	s.Mtx.Lock()
@@ -249,34 +259,21 @@ func getOwner(message interface{}) [20]byte {
 	var owner [20]byte
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		copy(owner[:], msg.SignedResign.Resign.Owner[:])
+		copy(owner[:], msg.Resign.Owner[:])
 	case *wire.ReshareMessage:
-		copy(owner[:], msg.SignedReshare.Reshare.Owner[:])
+		copy(owner[:], msg.Reshare.Owner[:])
 	}
 	return owner
 }
 
-func getResignOrReshare(message interface{}) [32]byte {
+func getResignOrReshare(message interface{}) ([32]byte, error) {
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		hash, _ := msg.SignedResign.Resign.HashTreeRoot()
-		return hash
+		return msg.Resign.HashTreeRoot()
 	case *wire.ReshareMessage:
-		hash, _ := msg.SignedReshare.Reshare.HashTreeRoot()
-		return hash
+		return msg.Reshare.HashTreeRoot()
 	default:
-		return [32]byte{}
-	}
-}
-
-func getSignature(message interface{}) []byte {
-	switch msg := message.(type) {
-	case *wire.ResignMessage:
-		return msg.SignedResign.Signature
-	case *wire.ReshareMessage:
-		return msg.SignedReshare.Signature
-	default:
-		return nil
+		return [32]byte{}, fmt.Errorf("cant infer message type")
 	}
 }
 

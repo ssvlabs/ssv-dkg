@@ -40,6 +40,7 @@ const (
 	ReshareMessageType
 	ReshareKyberMessageType
 	ReshareExchangeMessageType
+	SignatureForHashMessageType
 )
 
 func (t TransportType) String() string {
@@ -76,6 +77,8 @@ func (t TransportType) String() string {
 		return "ReshareKyberMessageType"
 	case ReshareExchangeMessageType:
 		return "ReshareExchangeMessageType"
+	case SignatureForHashMessageType:
+		return "SignatureForHashMessageType"
 	default:
 		return "no type impl"
 	}
@@ -188,12 +191,17 @@ type OperatorCLI struct {
 }
 
 type ResignMessage struct {
-	Operators    []*spec.Operator `ssz-max:"13"`
-	SignedResign *spec.SignedResign
-	Proofs       []*spec.SignedProof `ssz-max:"13"`
+	Operators []*spec.Operator `ssz-max:"13"`
+	Resign    *spec.Resign
+	Proofs    []*spec.SignedProof `ssz-max:"13"`
 }
 
 type ReshareMessage struct {
-	SignedReshare *spec.SignedReshare
-	Proofs        []*spec.SignedProof `ssz-max:"13"`
+	Reshare *spec.Reshare
+	Proofs  []*spec.SignedProof `ssz-max:"13"`
+}
+
+type SignatureForHash struct {
+	Hash      []byte `ssz-max:"32"`
+	Signature []byte `ssz-max:"2048"`
 }
