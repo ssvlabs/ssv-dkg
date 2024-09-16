@@ -130,12 +130,10 @@ func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 		var signedBulkReshare wire.SignedBulkReshare
 		err = json.Unmarshal(reshareBytes, &signedBulkReshare)
 		require.NoError(t, err)
-		t.Log("Reshare unmarshal", signedBulkReshare)
 
 		bulkReshareMsgs, err := signedBulkReshare.MarshalReshareMessagesJSON()
 		require.NoError(t, err)
-		t.Log("Marshaled reshare messages", string(bulkReshareMsgs))
-
+		
 		var finalMsg []byte
 		prefix := []byte("\x19Ethereum Signed Message:\n")
 		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))

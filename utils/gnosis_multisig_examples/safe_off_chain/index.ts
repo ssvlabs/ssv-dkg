@@ -32,12 +32,9 @@ interface Config {
 const config: Config = {
   RPC_URL:
     "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz",
-  OWNER1_PRIVATE_KEY:
-    "",
-  OWNER2_PRIVATE_KEY:
-    "",
-  OWNER3_PRIVATE_KEY:
-    "",
+  OWNER1_PRIVATE_KEY: "",
+  OWNER2_PRIVATE_KEY: "",
+  OWNER3_PRIVATE_KEY: "",
   SAFE_ADDRESS: "0xC4D860871fb983d17eC665a305e98F1B3035a817",
   CHAIN_ID: 11155111n,
 };
@@ -64,7 +61,7 @@ async function main() {
 
   var reshareBulk = JSON.parse(
     fs.readFileSync(
-      "../../../integration_test/stubs/resign/resign_msgs.json",
+      "../../../integration_test/stubs/reshare/reshare_msgs.json",
       "utf-8"
     )
   );

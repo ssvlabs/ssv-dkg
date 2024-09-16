@@ -122,8 +122,8 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 }
 
 type operatorJSON struct {
-	ID     uint64 `json:"ID"`
-	PubKey string `json:"PubKey"`
+	ID     uint64 `json:"id"`
+	PubKey string `json:"operatorKey"`
 }
 
 type Operator struct {
