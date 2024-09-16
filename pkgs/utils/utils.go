@@ -15,6 +15,7 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	spec "github.com/ssvlabs/dkg-spec"
 )
 
@@ -207,4 +208,24 @@ func ValidateOpsLen(len int) error {
 	default:
 		return fmt.Errorf("amount of operators should be 4,7,10,13: got %d", len)
 	}
+}
+
+func GetResignHash(resign *wire.ResignMessage) ([32]byte, error) {
+	hash := [32]byte{}
+	msgBytes, err := resign.MarshalSSZ()
+	if err != nil {
+		return hash, err
+	}
+	copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	return hash, nil
+}
+
+func GetReshareHash(reshare *wire.ReshareMessage) ([32]byte, error) {
+	hash := [32]byte{}
+	msgBytes, err := reshare.MarshalSSZ()
+	if err != nil {
+		return hash, err
+	}
+	copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	return hash, nil
 }

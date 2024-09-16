@@ -269,9 +269,17 @@ func getOwner(message interface{}) [20]byte {
 func getResignOrReshare(message interface{}) ([32]byte, error) {
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		return msg.Resign.HashTreeRoot()
+		hash, err := utils.GetResignHash(msg)
+		if err != nil {
+			return hash, err
+		}
+		return hash, nil
 	case *wire.ReshareMessage:
-		return msg.Reshare.HashTreeRoot()
+		hash, err := utils.GetReshareHash(msg)
+		if err != nil {
+			return hash, err
+		}
+		return hash, nil
 	default:
 		return [32]byte{}, fmt.Errorf("cant infer message type")
 	}

@@ -102,6 +102,8 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
+		UnsignedResign:   make(map[string]*wire.ResignMessage),
+		UnsignedReshare:  make(map[string]*wire.ReshareMessage),
 		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
 		PrivateKey:       pv,
