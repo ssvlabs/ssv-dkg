@@ -3,7 +3,6 @@ package integration_test
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,17 +25,39 @@ func TestReshareBulkJSONPArsing(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("Reshare unmarshal", bulkReshare)
 
-	bulkReshareMsgs, err := bulkReshare.MarshalJSON()
+	bulkReshareMsgs, err := bulkReshare.MarshalReshareMessagesJSON()
 	require.NoError(t, err)
-	t.Log("Marshaled reshare messages", fmt.Sprintf("[%s]", bulkReshareMsgs))
+	t.Log("Marshaled reshare messages", string(bulkReshareMsgs))
 
 	var finalMsg []byte
-	message := []byte(fmt.Sprintf("[%s]", bulkReshareMsgs))
 	prefix := []byte("\x19Ethereum Signed Message:\n")
-	len := []byte(strconv.Itoa(len(message)))
+	len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
 	finalMsg = append(finalMsg, prefix...)
 	finalMsg = append(finalMsg, len...)
-	finalMsg = append(finalMsg, message...)
+	finalMsg = append(finalMsg, bulkReshareMsgs...)
+	var hash [32]byte
+	keccak256 := eth_crypto.Keccak256(finalMsg)
+	copy(hash[:], keccak256)
+	t.Log("Hash", hex.EncodeToString(hash[:]))
+}
+
+func TestResignBulkJSONPArsing(t *testing.T) {
+	bulkResignBytes, err := os.ReadFile(filepath.Clean("./stubs/resign/bulk_resign_msgs.json"))
+	require.NoError(t, err)
+	var signedBulkResign wire.SignedBulkResign
+	err = json.Unmarshal(bulkResignBytes, &signedBulkResign)
+	require.NoError(t, err)
+
+	bulkResignMsgs, err := signedBulkResign.MarshalResignMessagesJSON()
+	require.NoError(t, err)
+	t.Log("Marshaled reshare messages", string(bulkResignMsgs))
+
+	var finalMsg []byte
+	prefix := []byte("\x19Ethereum Signed Message:\n")
+	len := []byte(strconv.Itoa(len(bulkResignMsgs)))
+	finalMsg = append(finalMsg, prefix...)
+	finalMsg = append(finalMsg, len...)
+	finalMsg = append(finalMsg, bulkResignMsgs...)
 	var hash [32]byte
 	keccak256 := eth_crypto.Keccak256(finalMsg)
 	copy(hash[:], keccak256)
@@ -98,29 +119,75 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 	})
 }
 
-func TestVerifyMultisigSignedOffChain(t *testing.T) {
+func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
-		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
+		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
 		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
 		require.NoError(t, err)
 
+		reshareBytes, err := os.ReadFile(filepath.Clean("./stubs/reshare/bulk_reshare_msgs.json"))
+		require.NoError(t, err)
+		var signedBulkReshare wire.SignedBulkReshare
+		err = json.Unmarshal(reshareBytes, &signedBulkReshare)
+		require.NoError(t, err)
+		t.Log("Reshare unmarshal", signedBulkReshare)
+
+		bulkReshareMsgs, err := signedBulkReshare.MarshalReshareMessagesJSON()
+		require.NoError(t, err)
+		t.Log("Marshaled reshare messages", string(bulkReshareMsgs))
+
 		var finalMsg []byte
-		message := []byte("I am the owner of DKG validator 5")
 		prefix := []byte("\x19Ethereum Signed Message:\n")
-		len := []byte(strconv.Itoa(len(message)))
+		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
 
 		finalMsg = append(finalMsg, prefix...)
 		finalMsg = append(finalMsg, len...)
-		finalMsg = append(finalMsg, message...)
+		finalMsg = append(finalMsg, bulkReshareMsgs...)
 		var hash [32]byte
 		keccak256 := eth_crypto.Keccak256(finalMsg)
 		copy(hash[:], keccak256)
 		t.Log("Hash", hex.EncodeToString(hash[:]))
-		encSigs, err := hex.DecodeString("94ed7e91987dad7470e528ad11af59d4cd5e8c9195e69d752d083646b5c2141a3b54abe2bc069f72c7d49bb7be7185490e0cd349669903751573d656d35e04c51b6d0689838c826594c71919d091f7cbd83517b3ef18e54f1c0cf951fe792e957c2cf241a64ac126939c7394f01d945613c4a0c82bc249e251dd65dffaf70ae0d11c")
 		require.NoError(t, err)
+		t.Log("Signature", hex.EncodeToString(signedBulkReshare.Signature[:]))
 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
 			gnosisAddress,
 			hash,
-			encSigs))
+			signedBulkReshare.Signature))
+	})
+}
+
+func TestVerifyMultisigSignedBulkResignOffChain(t *testing.T) {
+	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
+		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
+		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
+		require.NoError(t, err)
+
+		bulkResignBytes, err := os.ReadFile(filepath.Clean("./stubs/resign/bulk_resign_msgs.json"))
+		require.NoError(t, err)
+		var signedBulkResign wire.SignedBulkResign
+		err = json.Unmarshal(bulkResignBytes, &signedBulkResign)
+		require.NoError(t, err)
+
+		bulkReshareMsgs, err := signedBulkResign.MarshalResignMessagesJSON()
+		require.NoError(t, err)
+		t.Log("Marshaled resign messages", string(bulkReshareMsgs))
+
+		var finalMsg []byte
+		prefix := []byte("\x19Ethereum Signed Message:\n")
+		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+
+		finalMsg = append(finalMsg, prefix...)
+		finalMsg = append(finalMsg, len...)
+		finalMsg = append(finalMsg, bulkReshareMsgs...)
+		var hash [32]byte
+		keccak256 := eth_crypto.Keccak256(finalMsg)
+		copy(hash[:], keccak256)
+		t.Log("Hash", hex.EncodeToString(hash[:]))
+		require.NoError(t, err)
+		t.Log("Signature", hex.EncodeToString(signedBulkResign.Signature[:]))
+		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
+			gnosisAddress,
+			hash,
+			signedBulkResign.Signature))
 	})
 }

@@ -151,8 +151,16 @@ func NewReshareFromSpec(r spec.Reshare) *Reshare {
 	return &Reshare{r}
 }
 
+func NewResignFromSpec(r spec.Resign) *Resign {
+	return &Resign{r}
+}
+
 func (r *Reshare) ToSpecReshare() *spec.Reshare {
 	return &r.Reshare
+}
+
+func (r *Resign) ToSpecResign() *spec.Resign {
+	return &r.Resign
 }
 
 func NewOperatorFromSpec(op spec.Operator) *Operator {
@@ -279,6 +287,52 @@ func (sd *ShareData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type SignedBulkResign struct {
+	ResignMsgs []*spec.Resign
+	Signature  []byte
+}
+
+type SignedBulkResignJSON struct {
+	ResignMsgs []*Resign `json:"ResignMessages"`
+	Signature  string    `json:"Signature"`
+}
+
+func (br *SignedBulkResign) MarshalJSON() ([]byte, error) {
+	resignMsgs := make([]*Resign, len(br.ResignMsgs))
+	for i, r := range br.ResignMsgs {
+		resignMsgs[i] = NewResignFromSpec(*r)
+	}
+	return json.Marshal(&SignedBulkResignJSON{
+		ResignMsgs: resignMsgs,
+		Signature:  hex.EncodeToString(br.Signature),
+	})
+}
+
+func (br *SignedBulkResign) UnmarshalJSON(data []byte) error {
+	var dataJson SignedBulkResignJSON
+	if err := json.Unmarshal(data, &dataJson); err != nil {
+		return err
+	}
+	br.ResignMsgs = make([]*spec.Resign, len(dataJson.ResignMsgs))
+	for i, r := range dataJson.ResignMsgs {
+		br.ResignMsgs[i] = r.ToSpecResign()
+	}
+	sig, err := hex.DecodeString(dataJson.Signature)
+	if err != nil {
+		return fmt.Errorf("cant decode signature at signed bulk reshare %s", err.Error())
+	}
+	br.Signature = sig
+	return nil
+}
+
+func (br *SignedBulkResign) MarshalResignMessagesJSON() ([]byte, error) {
+	resignMsgs := make([]*Resign, len(br.ResignMsgs))
+	for i, r := range br.ResignMsgs {
+		resignMsgs[i] = NewResignFromSpec(*r)
+	}
+	return json.Marshal(resignMsgs)
+}
+
 type Resign struct {
 	spec.Resign
 }
@@ -286,7 +340,7 @@ type ResignJSON struct {
 	ValidatorPubKey       string `json:"ValidatorPubKey"`
 	Fork                  string `json:"Fork"`
 	WithdrawalCredentials string `json:"WithdrawalCredentials"`
-	Owner                 string `json:"Qwner"`
+	Owner                 string `json:"Owner"`
 	Nonce                 uint64 `json:"Nonce"`
 }
 
@@ -329,38 +383,8 @@ func (r *Resign) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type ReshareMsgs struct {
-	ReshareMsgs []*spec.Reshare
-}
-
-type ReshareMsgsJSON struct {
-	ReshareMsgs []*Reshare
-}
-
-func (rm *ReshareMsgs) MarshalJSON() ([]byte, error) {
-	reshareMsgs := make([]*Reshare, len(rm.ReshareMsgs))
-	for i, r := range rm.ReshareMsgs {
-		reshareMsgs[i] = NewReshareFromSpec(*r)
-	}
-	return json.Marshal(&ReshareMsgsJSON{
-		ReshareMsgs: reshareMsgs,
-	})
-}
-
-func (br *ReshareMsgs) UnmarshalJSON(data []byte) error {
-	var dataJson ReshareMsgsJSON
-	if err := json.Unmarshal(data, &dataJson); err != nil {
-		return err
-	}
-	br.ReshareMsgs = make([]*spec.Reshare, len(dataJson.ReshareMsgs))
-	for i, r := range dataJson.ReshareMsgs {
-		br.ReshareMsgs[i] = r.ToSpecReshare()
-	}
-	return nil
-}
-
 type SignedBulkReshare struct {
-	ReshareMsgs ReshareMsgs
+	ReshareMsgs []*spec.Reshare
 	Signature   []byte
 }
 
@@ -370,8 +394,8 @@ type SignedBulkReshareJSON struct {
 }
 
 func (br *SignedBulkReshare) MarshalJSON() ([]byte, error) {
-	reshareMsgs := make([]*Reshare, len(br.ReshareMsgs.ReshareMsgs))
-	for i, r := range br.ReshareMsgs.ReshareMsgs {
+	reshareMsgs := make([]*Reshare, len(br.ReshareMsgs))
+	for i, r := range br.ReshareMsgs {
 		reshareMsgs[i] = NewReshareFromSpec(*r)
 	}
 	return json.Marshal(&SignedBulkReshareJSON{
@@ -385,16 +409,24 @@ func (br *SignedBulkReshare) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &dataJson); err != nil {
 		return err
 	}
-	br.ReshareMsgs.ReshareMsgs = make([]*spec.Reshare, len(dataJson.ReshareMsgs))
+	br.ReshareMsgs = make([]*spec.Reshare, len(dataJson.ReshareMsgs))
 	for i, r := range dataJson.ReshareMsgs {
-		br.ReshareMsgs.ReshareMsgs[i] = r.ToSpecReshare()
+		br.ReshareMsgs[i] = r.ToSpecReshare()
 	}
 	sig, err := hex.DecodeString(dataJson.Signature)
 	if err != nil {
-		return fmt.Errorf("invalid signature %s", err.Error())
+		return fmt.Errorf("cant decode signature at signed bulk reshare %s", err.Error())
 	}
-	copy(br.Signature, sig)
+	br.Signature = sig
 	return nil
+}
+
+func (br *SignedBulkReshare) MarshalReshareMessagesJSON() ([]byte, error) {
+	reshareMsgs := make([]*Reshare, len(br.ReshareMsgs))
+	for i, r := range br.ReshareMsgs {
+		reshareMsgs[i] = NewReshareFromSpec(*r)
+	}
+	return json.Marshal(reshareMsgs)
 }
 
 type Reshare struct {

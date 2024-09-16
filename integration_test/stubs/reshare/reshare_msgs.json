@@ -41,8 +41,8 @@
         "NewT": 3,
         "Fork": "01017000",
         "WithdrawalCredentials": "81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-        "Owner": "DCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-        "Nonce": 2
+        "Owner": "dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
+        "Nonce": 1
     },
     {
         "ValidatorPubKey": "b3b9bf20c26b6dc60aefcffeb89b04a3e47d659879da9fb0faa7ba8f50f6c51850c7b59909f6b62e7d6fd7536d9e50d9",
@@ -86,7 +86,7 @@
         "NewT": 3,
         "Fork": "01017000",
         "WithdrawalCredentials": "81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-        "Owner": "DCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+        "Owner": "dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
         "Nonce": 2
     }
 ]

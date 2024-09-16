@@ -12,6 +12,7 @@ import SafeApiKit, {
   EIP712TypedData as ApiKitEIP712TypedData,
 } from "@safe-global/api-kit";
 // This file can be used to play around with the Safe Core SDK
+import fs from "fs";
 
 interface Config {
   RPC_URL: string;
@@ -37,7 +38,7 @@ const config: Config = {
     "",
   OWNER3_PRIVATE_KEY:
     "",
-  SAFE_ADDRESS: "0x0205c708899bde67330456886a05Fe30De0A79b6",
+  SAFE_ADDRESS: "0xC4D860871fb983d17eC665a305e98F1B3035a817",
   CHAIN_ID: 11155111n,
 };
 
@@ -61,7 +62,14 @@ async function main() {
   console.log(" - Version: ", version);
   console.log(" - Threshold: ", await protocolKit1.getThreshold(), "\n");
 
-  const MESSAGE = "I am the owner of DKG validator 7";
+  var reshareBulk = JSON.parse(
+    fs.readFileSync(
+      "../../../integration_test/stubs/resign/resign_msgs.json",
+      "utf-8"
+    )
+  );
+
+  const MESSAGE = JSON.stringify(reshareBulk);
   var safeMessage = protocolKit1.createMessage(MESSAGE);
   const messageHash = hashSafeMessage(MESSAGE);
   const signedMessage = await protocolKit1.signMessage(safeMessage);

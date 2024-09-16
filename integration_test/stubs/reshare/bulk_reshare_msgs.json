@@ -43,7 +43,7 @@
             "Fork": "01017000",
             "WithdrawalCredentials": "81592c3de184a3e2c0dcb5a261bc107bfa91f494",
             "Owner": "dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-            "Nonce": 2
+            "Nonce": 1
         },
         {
             "ValidatorPubKey": "b3b9bf20c26b6dc60aefcffeb89b04a3e47d659879da9fb0faa7ba8f50f6c51850c7b59909f6b62e7d6fd7536d9e50d9",
@@ -91,5 +91,5 @@
             "Nonce": 2
         }
     ],
-    "Signature": ""
+    "Signature": "df8a3b71559cebe3f293b49febc5aa601c5b521f21d636077a0abeb7f1f17d1940b73df475f6ee2d7a9cfab9b3dd16dec7fed154ab00bbf50d246d2d058cc8a21c51e2a506f58b95f42a8cc2994373ba29c96d261fceba3df388c9d54690ab69c0681e52b8fe7c62b62dd1ff9e201cfc4d405bbf91ce0d945387fa792a154c932f1b"
 }
