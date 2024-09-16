@@ -103,11 +103,12 @@ func TestResignInvalidEOASig(t *testing.T) {
 			withdraw.Bytes(),
 			[20]byte{},
 			uint64(nonce),
-			sk.PrivateKey,
 			signedProofs[0])
 		require.NoError(t, err)
+		sig, err := c.SignResign(rMsg, sk.PrivateKey)
 		_, err = c.ResignMessageFlowHandling(
 			rMsg,
+			sig,
 			id,
 			rMsg.Operators)
 		require.ErrorContains(t, err, "invalid signed reshare signature") // spec
