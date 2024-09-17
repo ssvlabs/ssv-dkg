@@ -254,6 +254,92 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	return resp, nil
 }
 
+func (s *Switch) HandleBulkOperation(transportMsg *wire.Transport, initiatorPub, initiatorSignature []byte, operationType string) ([][]byte, error) {
+	if !bytes.Equal(transportMsg.Version, s.Version) {
+		return nil, fmt.Errorf("wrong version: remote %s local %s", transportMsg.Version, s.Version)
+	}
+
+	// Check that incoming message signature is valid
+	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to parse initiator public key: %s", operationType, err.Error())
+	}
+	marshalledWireMsg, err := transportMsg.MarshalSSZ()
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to marshal transport message: %s", operationType, err.Error())
+	}
+	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
+	if err != nil {
+		return nil, fmt.Errorf("%s: initiator signature isn't valid: %s", operationType, err.Error())
+	}
+
+	s.Logger.Info(fmt.Sprintf("🚀 Handling %s operation", operationType))
+
+	sig := &wire.SignatureForHash{}
+	if err := sig.UnmarshalSSZ(transportMsg.Data); err != nil {
+		return nil, fmt.Errorf("%s: failed to unmarshal signature for %s message", operationType, err.Error())
+	}
+
+	// resps store responses for all ceremonies
+	resps := [][]byte{}
+	switch operationType {
+	case "reshare":
+		bulk_reshare, ok := s.BulkReshare[string(sig.Hash)]
+		if !ok {
+			return nil, fmt.Errorf("unknown bulk reshare message")
+		}
+
+		// Verify signature for all ceremonies
+		hash, err := utils.GetBulkReshareHash(bulk_reshare)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get bulk reshare hash: %w", err)
+		}
+		if err := spec_crypto.VerifySignedMessageByOwner(
+			s.EthClient,
+			getOwner(bulk_reshare),
+			hash,
+			sig.Signature,
+		); err != nil {
+			return nil, err
+		}
+
+		// Run all reshare ceremonies
+		for _, reshare := range bulk_reshare.Reshares {
+			// make a unique ID for each reshare using the instance hash
+			// TODO: hash is 32 bytes, but reqID is 24 bytes, may not be the best solution.
+			// Potential solution is to use 32 bytes hash for all reqIDs, but need to check if it breaks anything
+			reqID := [24]byte{}
+			instanceHash, err := utils.GetReshareHash(reshare)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get reshare hash: %w", err)
+			}
+			copy(reqID[:], instanceHash[:])
+			if err := s.validateInstances(reqID); err != nil {
+				return nil, err
+			}
+
+			allOps := []*spec.Operator{}
+			allOps = append(allOps, reshare.Reshare.OldOperators...)
+			allOps = append(allOps, reshare.Reshare.NewOperators...)
+
+			inst, resp, err := s.CreateInstance(reqID, allOps, reshare, initiatorPubKey)
+			resps = append(resps, resp)
+			if err != nil {
+				return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+			}
+
+			s.Mtx.Lock()
+			s.Instances[reqID] = inst
+			s.InstanceInitTime[reqID] = time.Now()
+			s.Mtx.Unlock()
+		}
+	default:
+		return nil, fmt.Errorf("unknown operation type: %s", operationType)
+	}
+
+	return resps, nil
+}
+
 // Helper functions to abstract out common behavior
 func getOwner(message interface{}) [20]byte {
 	var owner [20]byte
@@ -262,6 +348,8 @@ func getOwner(message interface{}) [20]byte {
 		copy(owner[:], msg.Resign.Owner[:])
 	case *wire.ReshareMessage:
 		copy(owner[:], msg.Reshare.Owner[:])
+	case *wire.BulkReshareMessage:
+		copy(owner[:], msg.Reshares[0].Reshare.Owner[:])
 	}
 	return owner
 }

@@ -529,6 +529,91 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 	return c.CreateCeremonyResults(resultsBytes, id, unsignedReshare.Reshare.NewOperators, unsignedReshare.Reshare.WithdrawalCredentials, unsignedReshare.Reshare.ValidatorPubKey, unsignedReshare.Reshare.Fork, unsignedReshare.Reshare.Owner, unsignedReshare.Reshare.Nonce)
 }
 
+func (c *Initiator) startBulkResharing(id [24]byte, oldOperatorIDs, newOperatorIDs []uint64, allProofs [][]*spec.SignedProof, sk *ecdsa.PrivateKey, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
+	if len(allProofs) == 0 {
+		return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
+	}
+	oldOps, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	_, err = ValidatedOperatorData(newOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	for _, proofs := range allProofs {
+		if len(proofs) == 0 {
+			return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
+		}
+		// validate proofs
+		for i, op := range oldOps {
+			if err := spec.ValidateCeremonyProof(owner, proofs[0].Proof.ValidatorPubKey, op, *proofs[i]); err != nil {
+				return nil, nil, nil, err
+			}
+		}
+	}
+	// construct bulk reshare message
+	bulkReshareMsg := &wire.BulkReshareMessage{
+		Reshares: make([]*wire.ReshareMessage, 0),
+	}
+	for _, proofs := range allProofs {
+		unsignedReshare, err := c.ConstructReshareMessage(
+			oldOperatorIDs,
+			newOperatorIDs,
+			proofs[0].Proof.ValidatorPubKey,
+			network,
+			withdraw,
+			owner,
+			nonce,
+			proofs)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		bulkReshareMsg.Reshares = append(bulkReshareMsg.Reshares, unsignedReshare)
+	}
+	c.Logger.Info("🚀 Starting bulk reshare ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs))
+	c.Logger.Info("Outgoing reshare request fields",
+		zap.Any("Old operator IDs", oldOperatorIDs),
+		zap.Any("New operator IDs", newOperatorIDs),
+		zap.String("network", hex.EncodeToString(bulkReshareMsg.Reshares[0].Reshare.Fork[:])),
+		zap.String("withdrawal", hex.EncodeToString(bulkReshareMsg.Reshares[0].Reshare.WithdrawalCredentials)),
+		zap.String("owner", hex.EncodeToString(bulkReshareMsg.Reshares[0].Reshare.Owner[:])),
+		zap.Uint64("nonce", bulkReshareMsg.Reshares[0].Reshare.Nonce))
+
+	allDepositData := make([]*wire.DepositDataCLI, 0)
+	allKeyShares := make([]*wire.KeySharesCLI, 0)
+	allSignedProofs := make([][]*wire.SignedProof, 0)
+	for i, reshare := range bulkReshareMsg.Reshares {
+		// Sign reshare message
+		sig, err := c.SignReshare(reshare, sk)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		c.Logger.Info("Starting ceremony for reshare", zap.Int("index", i))
+		for _, proof := range reshare.Proofs {
+			c.Logger.Info("Loaded proof",
+				zap.String("ValidatorPubKey", hex.EncodeToString(proof.Proof.ValidatorPubKey)),
+				zap.String("Owner", hex.EncodeToString(proof.Proof.Owner[:])),
+				zap.String("SharePubKey", hex.EncodeToString(proof.Proof.SharePubKey)),
+				zap.String("EncryptedShare", hex.EncodeToString(proof.Proof.EncryptedShare)),
+				zap.String("Signature", hex.EncodeToString(proof.Signature)))
+		}
+		resultsBytes, err := c.messageFlowHandlingReshare(id, reshare, sig)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		depositData, keyShare, proofs, err := c.CreateCeremonyResults(resultsBytes, id, reshare.Reshare.NewOperators, reshare.Reshare.WithdrawalCredentials, reshare.Reshare.ValidatorPubKey, reshare.Reshare.Fork, reshare.Reshare.Owner, reshare.Reshare.Nonce)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		allDepositData = append(allDepositData, depositData)
+		allKeyShares = append(allKeyShares, keyShare)
+		allSignedProofs = append(allSignedProofs, proofs)
+	}
+	return allDepositData, allKeyShares, allSignedProofs, nil
+}
+
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
 func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	requestID [24]byte,
@@ -640,12 +725,30 @@ func (c *Initiator) SendReshareMsg(id [24]byte, reshare *wire.ReshareMessage, op
 	return results, errs, nil
 }
 
+func (c *Initiator) SendBulkReshareMsg(id [24]byte, bulkReshare *wire.BulkReshareMessage, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error, error) {
+	signedReshareMsgBts, err := c.prepareAndSignMessage(bulkReshare, wire.ReshareMessageType, id, c.Version)
+	if err != nil {
+		return nil, nil, err
+	}
+	results, errs := c.SendToAll(consts.API_RESHARE_URL, signedReshareMsgBts, operators)
+	return results, errs, nil
+}
+
 func (c *Initiator) SendSignResignMsg(id [24]byte, sig *wire.SignatureForHash, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error, error) {
 	signedSignHashMsgBts, err := c.prepareAndSignMessage(sig, wire.SignatureForHashMessageType, id, c.Version)
 	if err != nil {
 		return nil, nil, err
 	}
 	results, errs := c.SendToAll(consts.API_SIGN_RESIGN_URL, signedSignHashMsgBts, operators)
+	return results, errs, nil
+}
+
+func (c *Initiator) SendSignBulkReshareMsg(id [24]byte, sig *wire.SignatureForHash, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error, error) {
+	signedSignHashMsgBts, err := c.prepareAndSignMessage(sig, wire.SignatureForHashMessageType, id, c.Version)
+	if err != nil {
+		return nil, nil, err
+	}
+	results, errs := c.SendToAll(consts.API_SIGN_RESHARE_URL, signedSignHashMsgBts, operators)
 	return results, errs, nil
 }
 

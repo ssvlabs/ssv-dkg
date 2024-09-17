@@ -36,6 +36,7 @@ type Switch struct {
 	Mtx              sync.RWMutex
 	UnsignedResign   map[string]*wire.ResignMessage
 	UnsignedReshare  map[string]*wire.ReshareMessage
+	BulkReshare      map[string]*wire.BulkReshareMessage
 	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
 	Instances        map[InstanceID]Instance  // mapping to store DKG instances
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key
@@ -104,6 +105,7 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 		Mtx:              sync.RWMutex{},
 		UnsignedResign:   make(map[string]*wire.ResignMessage),
 		UnsignedReshare:  make(map[string]*wire.ReshareMessage),
+		BulkReshare:      make(map[string]*wire.BulkReshareMessage),
 		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
 		PrivateKey:       pv,

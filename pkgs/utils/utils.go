@@ -229,3 +229,13 @@ func GetReshareHash(reshare *wire.ReshareMessage) ([32]byte, error) {
 	copy(hash[:], eth_crypto.Keccak256(msgBytes))
 	return hash, nil
 }
+
+func GetBulkReshareHash(reshare *wire.BulkReshareMessage) ([32]byte, error) {
+	hash := [32]byte{}
+	msgBytes, err := reshare.MarshalSSZ()
+	if err != nil {
+		return hash, err
+	}
+	copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	return hash, nil
+}

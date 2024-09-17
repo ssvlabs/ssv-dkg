@@ -142,6 +142,28 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 	s.Logger.Info("✅ Stored unsigned reshare message successfully")
 }
 
+func (s *Server) bulkReshareHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming BULK RESHARE msg")
+	bulkReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.BulkReshareMessageType, s.State.OperatorID)
+	if err != nil {
+		s.Logger.Error("Error processing incoming bulk reshare message", zap.Error(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash the message and store it
+	bulkReshare := &wire.BulkReshareMessage{}
+	err = bulkReshare.UnmarshalSSZ(bulkReshareMsg.Message.Data)
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+	hash := eth_crypto.Keccak256(bulkReshareMsg.Message.Data)
+	s.State.BulkReshare[string(hash)] = bulkReshare
+
+	s.Logger.Info("✅ Stored unsigned bulk reshare message successfully")
+}
+
 func (s *Server) signResignHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming SIGN RESIGN msg")
 	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
@@ -187,6 +209,32 @@ func (s *Server) signReshareHandler(writer http.ResponseWriter, request *http.Re
 	writer.WriteHeader(http.StatusOK)
 	if _, err := writer.Write(b); err != nil {
 		logger.Error("error writing reshare response: " + err.Error())
+		return
+	}
+}
+
+func (s *Server) signBulkReshareHandler(writer http.ResponseWriter, request *http.Request) {
+	s.Logger.Debug("incoming SIGN BULK RESHARE msg")
+	signedBulkReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
+	if err != nil {
+		s.Logger.Error("Error processing incoming bulk reshare message", zap.Error(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		return
+	}
+
+	b, err := s.State.HandleBulkOperation(signedBulkReshareMsg.Message, signedBulkReshareMsg.Signer, signedBulkReshareMsg.Signature, "bulk_reshare")
+	if err != nil {
+		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
+		return
+	}
+	s.Logger.Info("✅ Bulk Reshare instances created successfully")
+	writer.WriteHeader(http.StatusOK)
+	var flattenedResp []byte
+	for _, resp := range b {
+		flattenedResp = append(flattenedResp, resp...)
+	}
+	if _, err := writer.Write(flattenedResp); err != nil {
+		s.Logger.Error("error writing bulk reshare response: " + err.Error())
 		return
 	}
 }

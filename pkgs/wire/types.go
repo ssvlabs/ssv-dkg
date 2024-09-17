@@ -40,6 +40,7 @@ const (
 	ReshareMessageType
 	ReshareKyberMessageType
 	ReshareExchangeMessageType
+	BulkReshareMessageType
 	SignatureForHashMessageType
 )
 
@@ -77,6 +78,8 @@ func (t TransportType) String() string {
 		return "ReshareKyberMessageType"
 	case ReshareExchangeMessageType:
 		return "ReshareExchangeMessageType"
+	case BulkReshareMessageType:
+		return "BulkReshareMessageType"
 	case SignatureForHashMessageType:
 		return "SignatureForHashMessageType"
 	default:
@@ -199,6 +202,10 @@ type ResignMessage struct {
 type ReshareMessage struct {
 	Reshare *spec.Reshare
 	Proofs  []*spec.SignedProof `ssz-max:"13"`
+}
+
+type BulkReshareMessage struct {
+	Reshares []*ReshareMessage `ssz-max:"100"`
 }
 
 type SignatureForHash struct {
