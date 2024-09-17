@@ -19,14 +19,14 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -396,6 +396,7 @@ func (c *Initiator) CreateCeremonyResults(
 	c.Logger.Info("🏁 DKG ceremony completed, validating results...")
 	// only for resigning and resharing
 	if validatorPK != nil {
+		c.Logger.Info("Validating results for resign/reshare ceremony")
 		_, _, _, err = spec.ValidateResults(
 			ops,
 			withdrawalCredentials,
@@ -529,7 +530,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	}
 	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(ops, withdrawalCredentials, validatorPK, fork, ownerAddress, nonce, requestID, dkgResults)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to process DKG result response: %w", err)
 	}
 	network, err := spec_crypto.GetNetworkByFork(fork)
 	if err != nil {
