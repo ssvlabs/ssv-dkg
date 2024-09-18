@@ -12,12 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func init() {
@@ -66,7 +66,7 @@ var StartResigning = &cobra.Command{
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
-		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
+		signedProofs, err := cli_utils.LoadProofs()
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
@@ -86,7 +86,7 @@ var StartResigning = &cobra.Command{
 		// start the ceremony
 		ctx := context.Background()
 		pool := pool.NewWithResults[*Result]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxConcurrency)
-		for i := 0; i < len(arrayOfSignedProofs); i++ {
+		for i := 0; i < len(signedProofs); i++ {
 			i := i
 			pool.Go(func(ctx context.Context) (*Result, error) {
 				// Create new DKG initiator
@@ -98,7 +98,7 @@ var StartResigning = &cobra.Command{
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the resigning ceremony
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, signedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
 				if err != nil {
 					return nil, err
 				}
@@ -136,7 +136,7 @@ var StartResigning = &cobra.Command{
 			keySharesArr,
 			proofs,
 			false,
-			len(arrayOfSignedProofs),
+			len(signedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

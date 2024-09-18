@@ -9,12 +9,12 @@ import (
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/spf13/cobra"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func init() {
@@ -71,9 +71,9 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		signedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
+		signedProofs, err := cli_utils.LoadProofs()
 		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			logger.Fatal("😥 Failed to read proofs json:", zap.Error(err))
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {

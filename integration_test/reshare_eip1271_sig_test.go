@@ -10,15 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestReshareValidEOASig(t *testing.T) {
@@ -35,7 +36,8 @@ func TestReshareValidEOASig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+	cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+	signedProofs, err := cli_utils.LoadProofs()
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -73,7 +75,8 @@ func TestReshareInvalidEOASig(t *testing.T) {
 	require.NoError(t, err)
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+	cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+	signedProofs, err := cli_utils.LoadProofs()
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -109,7 +112,8 @@ func TestReshareValidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+	cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+	signedProofs, err := cli_utils.LoadProofs()
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -153,7 +157,8 @@ func TestReshareInvalidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
-	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+	cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+	signedProofs, err := cli_utils.LoadProofs()
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {

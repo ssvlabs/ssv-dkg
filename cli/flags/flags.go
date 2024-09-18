@@ -31,6 +31,7 @@ const (
 	serverTLSCertPath = "serverTLSCertPath"
 	serverTLSKeyPath  = "serverTLSKeyPath"
 	proofsFilePath    = "proofsFilePath"
+	proofsRawJSON     = "proofsRawJSON"
 	ethKeystorePath   = "ethKeystorePath"
 	ethKeystorePass   = "ethKeystorePass"
 	ethEndpointURL    = "ethEndpointURL"
@@ -148,7 +149,12 @@ func OperatorIDFlag(c *cobra.Command) {
 
 // ProofsFilePath add file path to proofs flag to the command
 func ProofsFilePath(c *cobra.Command) {
-	AddPersistentStringFlag(c, proofsFilePath, "proofs.json", "Path to proofs file", false)
+	AddPersistentStringFlag(c, proofsFilePath, "", "Path to proofs file", false)
+}
+
+// ProofsFilePath add file path to proofs flag to the command
+func ProofsRawJSON(c *cobra.Command) {
+	AddPersistentStringFlag(c, proofsRawJSON, "", "Raw JSON of signed proofs", false)
 }
 
 // KeystoreFilePath

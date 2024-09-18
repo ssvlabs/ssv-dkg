@@ -20,13 +20,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // global base flags
@@ -70,6 +72,7 @@ var (
 
 // resigning/reshare flags
 var (
+	ProofsRawJSON  string
 	ProofsFilePath string
 	NewOperatorIDs []string
 	KeystorePath   string
@@ -158,6 +161,33 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.O
 	return operators, nil
 }
 
+func ReadProofs(proofsRaw []byte) ([][]*spec.SignedProof, error) {
+	arrayOfSignedProofs := make([][]*wire.SignedProof, 0)
+	err := json.Unmarshal(proofsRaw, &arrayOfSignedProofs)
+	if err != nil {
+		if strings.Contains(err.Error(), "cannot unmarshal object") {
+			// probably get only one proof, try to unmarshal it
+			var signedProof []*wire.SignedProof
+			if err := json.Unmarshal(proofsRaw, &signedProof); err != nil {
+				return nil, err
+			}
+			arrayOfSignedProofs = make([][]*wire.SignedProof, 0)
+			arrayOfSignedProofs = append(arrayOfSignedProofs, signedProof)
+		} else {
+			return nil, err
+		}
+	}
+	result := make([][]*spec.SignedProof, 0)
+	for _, proofs := range arrayOfSignedProofs {
+		specSigProofs := make([]*spec.SignedProof, 0)
+		for _, proof := range proofs {
+			specSigProofs = append(specSigProofs, &spec.SignedProof{Proof: proof.Proof, Signature: proof.Signature})
+		}
+		result = append(result, specSigProofs)
+	}
+	return result, nil
+}
+
 func SetBaseFlags(cmd *cobra.Command) {
 	flags.ResultPathFlag(cmd)
 	flags.ConfigPathFlag(cmd)
@@ -210,6 +240,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsRawJSON(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.KeystoreFilePath(cmd)
 	flags.KeystoreFilePass(cmd)
@@ -227,6 +258,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsRawJSON(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.KeystoreFilePath(cmd)
 	flags.KeystoreFilePass(cmd)
@@ -388,6 +420,9 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("proofsRawJSON", cmd.PersistentFlags().Lookup("proofsRawJSON")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
 		return err
 	}
@@ -430,11 +465,12 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		}
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
-	}
 	if strings.Contains(ProofsFilePath, "../") {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
+	}
+	ProofsRawJSON = viper.GetString("proofsRawJSON")
+	if (ProofsRawJSON != "" && ProofsFilePath != "") || (ProofsRawJSON == "" && ProofsFilePath == "") {
+		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath, not both")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -499,6 +535,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("proofsRawJSON", cmd.PersistentFlags().Lookup("proofsRawJSON")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
 		return err
 	}
@@ -525,11 +564,12 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
-	}
 	if strings.Contains(ProofsFilePath, "../") {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
+	}
+	ProofsRawJSON = viper.GetString("proofsRawJSON")
+	if (ProofsRawJSON != "" && ProofsFilePath != "") || (ProofsRawJSON == "" && ProofsFilePath == "") {
+		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath, not both")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -724,6 +764,29 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 		return nil, err
 	}
 	return operators, nil
+}
+
+func LoadProofs() ([][]*spec.SignedProof, error) {
+	switch {
+	case ProofsRawJSON != "":
+		arrayOfSignedProofs, err := ReadProofs([]byte(ProofsRawJSON))
+		if err != nil {
+			return nil, err
+		}
+		return arrayOfSignedProofs, nil
+	case ProofsFilePath != "":
+		data, err := os.ReadFile(filepath.Clean(ProofsFilePath))
+		if err != nil {
+			return nil, err
+		}
+		arrayOfSignedProofs, err := ReadProofs(data)
+		if err != nil {
+			return nil, err
+		}
+		return arrayOfSignedProofs, nil
+	default:
+		return nil, fmt.Errorf("cant load proofs")
+	}
 }
 
 func WriteResults(

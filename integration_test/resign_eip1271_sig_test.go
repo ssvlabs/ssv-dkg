@@ -10,15 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestResignValidEOASig(t *testing.T) {
@@ -44,7 +45,8 @@ func TestResignValidEOASig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+		cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+		signedProofs, err := cli_utils.LoadProofs()
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -84,7 +86,8 @@ func TestResignInvalidEOASig(t *testing.T) {
 	c, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+		cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+		signedProofs, err := cli_utils.LoadProofs()
 		require.NoError(t, err)
 		id := spec.NewID()
 		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
@@ -146,7 +149,8 @@ func TestResignValidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+		cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+		signedProofs, err := cli_utils.LoadProofs()
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
@@ -190,7 +194,8 @@ func TestResignInvalidContractSig(t *testing.T) {
 	clnt, err := initiator.New(ops, logger, version, rootCert)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
-		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
+		cli_utils.ProofsFilePath = "./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json"
+		signedProofs, err := cli_utils.LoadProofs()
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()

@@ -2,8 +2,6 @@ package wire
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -323,11 +321,6 @@ func TestArrayOfSignedProofsJSON(t *testing.T) {
 	require.JSONEq(t, arrayOfSignedProofs, string(b))
 }
 
-func TestLoadValidProofJSON(t *testing.T) {
-	_, err := LoadProofs("./testdata/proofs-valid.json")
-	require.NoError(t, err)
-}
-
 func TestSignedValidProofsJSON(t *testing.T) {
 	signedProofsData := []*SignedProof{}
 	err := json.Unmarshal([]byte(signedProofs), &signedProofsData)
@@ -335,14 +328,4 @@ func TestSignedValidProofsJSON(t *testing.T) {
 	b, err := json.Marshal(signedProofsData)
 	require.NoError(t, err)
 	require.JSONEq(t, signedProofs, string(b))
-}
-
-func TestLoadInvalidProofJSON(t *testing.T) {
-	arrayOfsignedProofData, err := LoadProofs("./testdata/proofs-invalid.json")
-	require.Error(t, err)
-	b, err := json.Marshal(arrayOfsignedProofData)
-	require.NoError(t, err)
-	data, err := os.ReadFile(filepath.Clean("./testdata/proofs-invalid.json"))
-	require.NoError(t, err)
-	require.NotEqual(t, string(data), string(b))
 }

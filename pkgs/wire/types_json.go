@@ -394,34 +394,3 @@ func LoadJSONFile(file string, v interface{}) error {
 	}
 	return json.Unmarshal(data, &v)
 }
-
-func LoadProofs(path string) ([][]*spec.SignedProof, error) {
-	arrayOfSignedProofs := make([][]*SignedProof, 0)
-	data, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &arrayOfSignedProofs)
-	if err != nil {
-		if strings.Contains(err.Error(), "cannot unmarshal object") {
-			// probably get only one proof, try to unmarshal it
-			var signedProof []*SignedProof
-			if err := json.Unmarshal(data, &signedProof); err != nil {
-				return nil, err
-			}
-			arrayOfSignedProofs = make([][]*SignedProof, 0)
-			arrayOfSignedProofs = append(arrayOfSignedProofs, signedProof)
-		} else {
-			return nil, err
-		}
-	}
-	result := make([][]*spec.SignedProof, 0)
-	for _, proofs := range arrayOfSignedProofs {
-		specSigProofs := make([]*spec.SignedProof, 0)
-		for _, proof := range proofs {
-			specSigProofs = append(specSigProofs, &spec.SignedProof{Proof: proof.Proof, Signature: proof.Signature})
-		}
-		result = append(result, specSigProofs)
-	}
-	return result, nil
-}
