@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -19,14 +20,14 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -858,6 +859,9 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 	var finalErr error
 	for _, op := range newOperators {
 		if err, ok := errs[op.ID]; ok {
+			if strings.Contains(err.Error(), "invalid ssz encoding") {
+				err = fmt.Errorf("%w, operator probably of old version 1.*.*, please upgrade", err)
+			}
 			finalErr = errors.Join(finalErr, fmt.Errorf("error: %w", err))
 		}
 	}

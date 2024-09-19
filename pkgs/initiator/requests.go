@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
@@ -31,13 +31,13 @@ func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []by
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
+	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("IP", op.Addr), zap.String("method", method), zap.Int("status", res.StatusCode))
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		errmsg, parseErr := wire.ParseAsError(resdata)
 		if parseErr == nil {
 			return nil, fmt.Errorf("%v", errmsg)
 		}
-		return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(string(resdata)))
+		return nil, fmt.Errorf("operator %d failed with: %w, probably of old version 1.*.*, please upgrade", op.ID, errors.New(string(resdata)))
 	}
 	return resdata, nil
 }
@@ -53,7 +53,13 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Debug("operator responded", zap.String("IP", op.Addr), zap.String("method", method), zap.Int("status", res.StatusCode))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		errmsg, parseErr := wire.ParseAsError(resdata)
+		if parseErr == nil {
+			return nil, fmt.Errorf("%v", errmsg)
+		}
+		return nil, fmt.Errorf("operator failed with: %w, probably of old version 1.*.*, please upgrade", errors.New(string(resdata)))
+	}
 	return resdata, nil
 }
 
