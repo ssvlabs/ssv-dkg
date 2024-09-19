@@ -71,6 +71,7 @@ var (
 // resigning/reshare flags
 var (
 	ProofsFilePath string
+	NoncesFilePath string
 	NewOperatorIDs []string
 	KeystorePath   string
 	KeystorePass   string
@@ -724,6 +725,19 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 		return nil, err
 	}
 	return operators, nil
+}
+
+func WriteBulkReshareMessage(
+	logger *zap.Logger,
+	bulkReshareMsg *wire.BulkReshareMessage,
+	outputPath string,
+) (err error) {
+	finalPath := fmt.Sprintf("%s/proofs.json", outputPath)
+	err = utils.WriteJSON(finalPath, bulkReshareMsg)
+	if err != nil {
+		return fmt.Errorf("failed writing data file: %w, %v", err, bulkReshareMsg)
+	}
+	return nil
 }
 
 func WriteResults(

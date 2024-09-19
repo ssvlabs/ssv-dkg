@@ -621,3 +621,17 @@ func LoadProofs(path string) ([][]*spec.SignedProof, error) {
 	}
 	return result, nil
 }
+
+// For bulk reshare, user can provide a list of nonces to use for the ceremonies
+func LoadNonces(path string) ([]uint64, error) {
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	var nonces []uint64
+	err = json.Unmarshal(data, &nonces)
+	if err != nil {
+		return nil, err
+	}
+	return nonces, nil
+}

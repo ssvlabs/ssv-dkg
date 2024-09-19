@@ -529,49 +529,16 @@ func (c *Initiator) StartResharing(id [24]byte, oldOperatorIDs, newOperatorIDs [
 	return c.CreateCeremonyResults(resultsBytes, id, unsignedReshare.Reshare.NewOperators, unsignedReshare.Reshare.WithdrawalCredentials, unsignedReshare.Reshare.ValidatorPubKey, unsignedReshare.Reshare.Fork, unsignedReshare.Reshare.Owner, unsignedReshare.Reshare.Nonce)
 }
 
-func (c *Initiator) startBulkResharing(id [24]byte, oldOperatorIDs, newOperatorIDs []uint64, allProofs [][]*spec.SignedProof, sk *ecdsa.PrivateKey, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonce uint64) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
-	if len(allProofs) == 0 {
-		return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
+func (c *Initiator) startBulkResharing(id [24]byte, bulkReshareMsg *wire.BulkReshareMessage, sk *ecdsa.PrivateKey) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
+	oldOperatorIDs := []uint64{}
+	for _, oldOperators := range bulkReshareMsg.Reshares[0].Reshare.OldOperators {
+		oldOperatorIDs = append(oldOperatorIDs, oldOperators.ID)
 	}
-	oldOps, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	_, err = ValidatedOperatorData(newOperatorIDs, c.Operators)
-	if err != nil {
-		return nil, nil, nil, err
+	newOperatorIDs := []uint64{}
+	for _, newOperators := range bulkReshareMsg.Reshares[0].Reshare.NewOperators {
+		newOperatorIDs = append(newOperatorIDs, newOperators.ID)
 	}
 
-	for _, proofs := range allProofs {
-		if len(proofs) == 0 {
-			return nil, nil, nil, fmt.Errorf("🤖 proofs are empty")
-		}
-		// validate proofs
-		for i, op := range oldOps {
-			if err := spec.ValidateCeremonyProof(owner, proofs[0].Proof.ValidatorPubKey, op, *proofs[i]); err != nil {
-				return nil, nil, nil, err
-			}
-		}
-	}
-	// construct bulk reshare message
-	bulkReshareMsg := &wire.BulkReshareMessage{
-		Reshares: make([]*wire.ReshareMessage, 0),
-	}
-	for _, proofs := range allProofs {
-		unsignedReshare, err := c.ConstructReshareMessage(
-			oldOperatorIDs,
-			newOperatorIDs,
-			proofs[0].Proof.ValidatorPubKey,
-			network,
-			withdraw,
-			owner,
-			nonce,
-			proofs)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		bulkReshareMsg.Reshares = append(bulkReshareMsg.Reshares, unsignedReshare)
-	}
 	c.Logger.Info("🚀 Starting bulk reshare ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs))
 	c.Logger.Info("Outgoing reshare request fields",
 		zap.Any("Old operator IDs", oldOperatorIDs),
@@ -965,6 +932,51 @@ func (c *Initiator) SignReshare(msg *wire.ReshareMessage, sk *ecdsa.PrivateKey) 
 		Hash:      hash[:],
 		Signature: ownerSig,
 	}, nil
+}
+
+func (c *Initiator) ConstructBulkReshareMessasge(oldOperatorIDs, newOperatorIDs []uint64, allProofs [][]*spec.SignedProof, network eth2_key_manager_core.Network, withdraw []byte, owner [20]byte, nonces []uint64) (*wire.BulkReshareMessage, error) {
+	if len(allProofs) == 0 {
+		return nil, fmt.Errorf("🤖 proofs are empty")
+	}
+	oldOps, err := ValidatedOperatorData(oldOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, err
+	}
+	_, err = ValidatedOperatorData(newOperatorIDs, c.Operators)
+	if err != nil {
+		return nil, err
+	}
+	for _, proofs := range allProofs {
+		if len(proofs) == 0 {
+			return nil, fmt.Errorf("🤖 proofs are empty")
+		}
+		// validate proofs
+		for i, op := range oldOps {
+			if err := spec.ValidateCeremonyProof(owner, proofs[0].Proof.ValidatorPubKey, op, *proofs[i]); err != nil {
+				return nil, err
+			}
+		}
+	}
+	// construct bulk reshare message
+	bulkReshareMsg := &wire.BulkReshareMessage{
+		Reshares: make([]*wire.ReshareMessage, 0),
+	}
+	for i, proofs := range allProofs {
+		unsignedReshare, err := c.ConstructReshareMessage(
+			oldOperatorIDs,
+			newOperatorIDs,
+			proofs[0].Proof.ValidatorPubKey,
+			network,
+			withdraw,
+			owner,
+			nonces[i],
+			proofs)
+		if err != nil {
+			return nil, err
+		}
+		bulkReshareMsg.Reshares = append(bulkReshareMsg.Reshares, unsignedReshare)
+	}
+	return bulkReshareMsg, nil
 }
 
 func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
