@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -896,6 +897,9 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 	var finalErr error
 	for _, op := range newOperators {
 		if err, ok := errs[op.ID]; ok {
+			if strings.Contains(err.Error(), "invalid ssz encoding") {
+				err = fmt.Errorf("%w, operator probably of old version 1.*.*, please upgrade", err)
+			}
 			finalErr = errors.Join(finalErr, fmt.Errorf("error: %w", err))
 		}
 	}
