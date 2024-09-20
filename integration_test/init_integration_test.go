@@ -684,6 +684,12 @@ func resetFlags(cmd *cobra.Command) {
 			ptr := (*[]string)(unsafe.Pointer(value.Pointer()))
 			*ptr = make([]string, 0)
 		}
+		if flag.Name == "proofsFilePath" {
+			flag.Value.Set("")
+		}
+		if flag.Name == "proofsRawJSON" {
+			flag.Value.Set("")
+		}
 	})
 	for _, cmd := range cmd.Commands() {
 		resetFlags(cmd)

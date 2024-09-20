@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 

@@ -469,8 +469,11 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
 	}
 	ProofsRawJSON = viper.GetString("proofsRawJSON")
-	if (ProofsRawJSON != "" && ProofsFilePath != "") || (ProofsRawJSON == "" && ProofsFilePath == "") {
+	if ProofsRawJSON != "" && ProofsFilePath != ""{
 		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath, not both")
+	} 
+	if ProofsRawJSON == "" && ProofsFilePath == "" {
+		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -568,8 +571,11 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
 	}
 	ProofsRawJSON = viper.GetString("proofsRawJSON")
-	if (ProofsRawJSON != "" && ProofsFilePath != "") || (ProofsRawJSON == "" && ProofsFilePath == "") {
+	if ProofsRawJSON != "" && ProofsFilePath != ""{
 		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath, not both")
+	} 
+	if ProofsRawJSON == "" && ProofsFilePath == "" {
+		return fmt.Errorf("please provide either proofsRaw flag or proofsFilePath")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
