@@ -606,7 +606,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoints []kyber.Point) (*wire.Transport, error) {
 	// sanity check
 	if o.data != nil {
-		return nil, fmt.Errorf("data already exist at local instance: %w", o.data)
+		return nil, fmt.Errorf("data already exist at local instance: %v", o.data)
 	}
 	o.data = &DKGdata{}
 	var commits []byte
