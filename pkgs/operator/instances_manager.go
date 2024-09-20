@@ -97,15 +97,15 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
-		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
+		return nil, fmt.Errorf("init: failed parse initiator public key: %w", err)
 	}
 	marshalledWireMsg, err := initMsg.MarshalSSZ()
 	if err != nil {
-		return nil, fmt.Errorf("init: failed to marshal transport message: %s", err.Error())
+		return nil, fmt.Errorf("init: failed to marshal transport message: %w", err)
 	}
 	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
+		return nil, fmt.Errorf("init: initiator signature isn't valid: %w", err)
 	}
 	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	if err := s.validateInstances(reqID); err != nil {
@@ -113,7 +113,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	inst, resp, err := s.CreateInstance(reqID, init.Operators, init, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
+		return nil, fmt.Errorf("init: failed to create instance: %w", err)
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst
@@ -144,15 +144,15 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to parse initiator public key: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to parse initiator public key: %w", operationType, err)
 	}
 	marshalledWireMsg, err := transportMsg.MarshalSSZ()
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to marshal transport message: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to marshal transport message: %w", operationType, err)
 	}
 	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("%s: initiator signature isn't valid: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: initiator signature isn't valid: %w", operationType, err)
 	}
 
 	s.Logger.Info(fmt.Sprintf("🚀 Handling %s operation", operationType))
@@ -234,7 +234,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	inst, resp, err := s.CreateInstance(reqID, allOps, instanceMessage, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create instance: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to create instance: %ц", operationType, err)
 	}
 
 	s.Mtx.Lock()

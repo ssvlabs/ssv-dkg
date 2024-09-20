@@ -353,7 +353,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -444,7 +444,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -539,7 +539,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -551,7 +551,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 Failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
@@ -685,7 +685,7 @@ func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
 	for i := 0; i < len(flagdata); i++ {
 		opid, err := strconv.ParseUint(flagdata[i], 10, strconv.IntSize)
 		if err != nil {
-			return nil, fmt.Errorf("😥 cant load operator err: %v , data: %v, ", err, flagdata[i])
+			return nil, fmt.Errorf("err: %w , data: %v, ", err, flagdata[i])
 		}
 		partsarr = append(partsarr, opid)
 	}

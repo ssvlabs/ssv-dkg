@@ -40,7 +40,7 @@ func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 
 	byts, err := wire2.EncodeDealBundle(bundle)
 	if err != nil {
-		b.logger.Error(err.Error())
+		b.logger.Error("error encoding deal bundle", zap.Error(err))
 		return
 	}
 	msg := &wire2.KyberMessage{
@@ -49,7 +49,7 @@ func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 	}
 
 	if err := b.broadcastF(msg); err != nil {
-		b.logger.Error(err.Error())
+		b.logger.Error("error broadcasting deal bundle", zap.Error(err))
 		return
 	}
 }

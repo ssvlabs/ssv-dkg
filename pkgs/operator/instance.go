@@ -4,12 +4,12 @@ import (
 	"crypto/rsa"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-
-	"go.uber.org/zap"
 )
 
 // Instance interface to process messages at DKG instances incoming from initiator
@@ -43,14 +43,14 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 	for _, transportMsg := range msg.Messages {
 		msgBytes, err := transportMsg.MarshalSSZ()
 		if err != nil {
-			return nil, fmt.Errorf("process message: failed to marshal message: %s", err.Error())
+			return nil, fmt.Errorf("process message: failed to ssz marshal message: %w", err)
 		}
 		multipleMsgsBytes = append(multipleMsgsBytes, msgBytes...)
 	}
 	// Verify initiator signature
 	err := iw.VerifyInitiatorMessage(multipleMsgsBytes, msg.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("process message: failed to verify initiator signature: %s", err.Error())
+		return nil, fmt.Errorf("process message: failed to verify initiator signature: %w", err)
 	}
 
 	// check that we received enough messages from other operator participants
@@ -69,7 +69,7 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 	for _, ts := range msg.Messages {
 		err = iw.Process(ts, incOperators)
 		if err != nil {
-			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
+			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
 	return <-iw.respChan, nil

@@ -72,7 +72,7 @@ func (s *Server) Start(port uint16, cert, key string) error {
 func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, request *http.Request, reqMessageType wire.TransportType, operatorID uint64) (*wire.SignedTransport, error) {
 	rawdata, err := io.ReadAll(request.Body)
 	if err != nil {
-		return nil, fmt.Errorf("operator %d, failed to read request body, err: %v", operatorID, err)
+		return nil, fmt.Errorf("operator %d, failed to read request body, err: %w", operatorID, err)
 	}
 	signedMsg := &wire.SignedTransport{}
 	if err := signedMsg.UnmarshalSSZ(rawdata); err != nil {

@@ -12,12 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func init() {
@@ -60,7 +60,7 @@ var StartResigning = &cobra.Command{
 		}
 		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
-			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
+			logger.Fatal("😥 Failed to load operator IDs: ", zap.Error(err))
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {

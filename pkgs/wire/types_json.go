@@ -46,7 +46,7 @@ func (p *Proof) MarshalJSON() ([]byte, error) {
 func (p *Proof) UnmarshalJSON(data []byte) error {
 	var proof proofJSON
 	if err := json.Unmarshal(data, &proof); err != nil {
-		return fmt.Errorf("failed to unmarshal to proofJSON %s", err.Error())
+		return fmt.Errorf("failed to unmarshal to proofJSON %w", err)
 	}
 	if len(proof.Owner) != 40 {
 		return fmt.Errorf("invalid owner length")
@@ -115,7 +115,7 @@ func (sp *SignedProof) UnmarshalJSON(data []byte) error {
 	sp.Proof = p
 	sig, err := hex.DecodeString(signedProof.Signature)
 	if err != nil {
-		return fmt.Errorf("cant decode hex at proof signature %s", err.Error())
+		return fmt.Errorf("cant decode hex at proof signature %w", err)
 	}
 	sp.Signature = sig
 	return err
@@ -212,15 +212,15 @@ func (o *OperatorCLI) MarshalJSON() ([]byte, error) {
 func (o *OperatorCLI) UnmarshalJSON(data []byte) error {
 	var op operatorCLIJSON
 	if err := json.Unmarshal(data, &op); err != nil {
-		return fmt.Errorf("failed to unmarshal operator: %s", err.Error())
+		return fmt.Errorf("failed to unmarshal operator: %w", err)
 	}
 	_, err := url.ParseRequestURI(op.Addr)
 	if err != nil {
-		return fmt.Errorf("invalid operator %d URL %s", op.ID, err.Error())
+		return fmt.Errorf("invalid operator %d URL %w", op.ID, err)
 	}
 	pk, err := ParseRSAPublicKey([]byte(op.PubKey))
 	if err != nil {
-		return fmt.Errorf("invalid operator %d public key %s", op.ID, err.Error())
+		return fmt.Errorf("invalid operator %d public key %w", op.ID, err)
 	}
 	*o = OperatorCLI{
 		Addr:   strings.TrimRight(op.Addr, "/"),

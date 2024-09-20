@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
@@ -33,11 +33,11 @@ func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []by
 	}
 	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("method", method))
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		errmsg, parseErr := wire.ParseAsError(resdata)
-		if parseErr == nil {
-			return nil, fmt.Errorf("%v", errmsg)
+		errString, err := wire.ParseAsError(resdata)
+		if err != nil {
+			return nil, fmt.Errorf("cant parse error message: %w", err)
 		}
-		return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(string(resdata)))
+		return nil, fmt.Errorf("operator %d failed with: %w", op.ID, errors.New(errString))
 	}
 	return resdata, nil
 }

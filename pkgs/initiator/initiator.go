@@ -19,14 +19,14 @@ import (
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -150,7 +150,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 
 		pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
-			return nil, fmt.Errorf("can't encode public key err: %v", err)
+			return nil, fmt.Errorf("can't encode public key err: %w", err)
 		}
 		ops[i] = &spec.Operator{
 			ID:     op.ID,
@@ -537,7 +537,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	}
 	depositDataJson, err := crypto.BuildDepositDataCLI(network, depositData, wire.DepositCliVersion)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create deposit data json: %v", err)
+		return nil, nil, fmt.Errorf("failed to create deposit data json: %w", err)
 	}
 	c.Logger.Info("✅ deposit data was successfully reconstructed")
 	keyshares, err := c.generateSSVKeysharesPayload(ops, dkgResults, masterSigOwnerNonce, ownerAddress, nonce)
@@ -746,11 +746,11 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	}
 	signedPongMsg := &wire.SignedTransport{}
 	if err := signedPongMsg.UnmarshalSSZ(res.Result); err != nil {
-		errmsg, parseErr := wire.ParseAsError(res.Result)
-		if parseErr == nil {
-			return fmt.Errorf("operator returned err: %v", errmsg)
+		errString, err := wire.ParseAsError(res.Result)
+		if err == nil {
+			return fmt.Errorf("cant parse error message: %w", err)
 		}
-		return err
+		return fmt.Errorf("operator returned error: %s", errString)
 	}
 	// Validate that incoming message is an pong message
 	if signedPongMsg.Message.Type != wire.PongMessageType {
