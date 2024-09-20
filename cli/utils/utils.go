@@ -20,13 +20,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // global base flags
@@ -84,7 +85,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 	ConfigPath = viper.GetString("configPath")
 	if ConfigPath != "" {
 		if strings.Contains(ConfigPath, "../") {
-			return fmt.Errorf("😥 configPath should not contain traversal")
+			return fmt.Errorf("configPath should not contain traversal")
 		}
 		stat, err := os.Stat(ConfigPath)
 		if err != nil {
@@ -121,34 +122,34 @@ func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
 func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
 	// check if a password string a valid path, then read password from the file
 	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
+		return nil, fmt.Errorf("password file doesn`t exist: %w", err)
 	}
 	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
+		return nil, fmt.Errorf("cant read operator's key file: %w", err)
 	}
 	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+		return nil, fmt.Errorf("error reading password file: %w", err)
 	}
 	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
+		return nil, fmt.Errorf("error converting pem to priv key: %w", err)
 	}
 	return privateKey, nil
 }
 
 // ReadOperatorsInfoFile reads operators data from path
 func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.OperatorsCLI, error) {
-	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
+	fmt.Printf("📖 looking operators info JSON file: %s \n", operatorsInfoPath)
 	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+		return nil, fmt.Errorf("cant find path to operators info JSON file: %s", err)
 	}
 	logger.Info("📖 reading operators info JSON file")
 	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+		return nil, fmt.Errorf("failed to read operators info JSON file: %w", err)
 	}
 	var operators wire.OperatorsCLI
 	err = json.Unmarshal(operatorsInfoJSON, &operators)

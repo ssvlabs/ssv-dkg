@@ -13,15 +13,15 @@ import (
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	eth_common "github.com/ethereum/go-ethereum/common"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 const MaxInstances = 1024
@@ -116,7 +116,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	st := &wire.MultipleSignedTransports{}
 	err := st.UnmarshalSSZ(dkgMsg)
 	if err != nil {
-		return nil, fmt.Errorf("process message: failed to unmarshal dkg message: %s", err.Error())
+		return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 
 	id := InstanceID(st.Identifier)
@@ -174,7 +174,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	resData := &wire.ResultData{}
 	err := resData.UnmarshalSSZ(incMsg.Message.Data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	_, err = s.VerifyIncomingMessage(incMsg)
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *Switch) VerifyIncomingMessage(incMsg *wire.SignedTransport) (uint64, er
 
 	resData := &wire.ResultData{}
 	if err := resData.UnmarshalSSZ(incMsg.Message.Data); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	s.Mtx.RLock()
 	inst, ok := s.Instances[resData.Identifier]

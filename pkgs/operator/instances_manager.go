@@ -9,13 +9,14 @@ import (
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	ssz "github.com/ferranbt/fastssz"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -88,7 +89,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	s.Logger.Info("🚀 Initializing Init instance")
 	init := &spec.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
-		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
+		return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	if err := spec.ValidateInitMessage(init); err != nil {
 		return nil, err
@@ -165,7 +166,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "resign":
 		resign := &wire.ResignMessage{}
 		if err := resign.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		instanceMessage = resign
 		allOps = resign.Operators
@@ -187,7 +188,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "reshare":
 		reshare := &wire.ReshareMessage{}
 		if err := reshare.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		instanceMessage = reshare
 		allOps = append(allOps, reshare.SignedReshare.Reshare.OldOperators...)

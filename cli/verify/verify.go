@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
 
-	"github.com/aquasecurity/table"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 )
@@ -32,8 +32,7 @@ var Verify = &cobra.Command{
 			cli_utils.WithdrawAddress,
 		)
 		if err != nil {
-			log.Printf("Failed to validate ceremony directory: %v", err)
-			return err
+			return fmt.Errorf("failed to validate ceremony directory: %w",err)
 		}
 
 		log.Printf("Ceremony is valid.")

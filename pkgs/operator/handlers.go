@@ -7,9 +7,10 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
@@ -20,7 +21,7 @@ func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Reques
 	}
 	signedResultMsg := &wire.SignedTransport{}
 	if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -130,7 +131,7 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 	}
 	signedReshareMsg := &wire.SignedTransport{}
 	if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err), http.StatusBadRequest)
 		return
 	}
 	// Validate that incoming message is an init message
