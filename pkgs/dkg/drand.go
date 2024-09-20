@@ -16,14 +16,14 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
-	"github.com/ssvlabs/ssv-dkg/pkgs/board"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/board"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -315,7 +315,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, err
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
-		return err
+		return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	o.Logger.Debug("operator: received kyber msg", zap.String("type", kyberMsg.Type.String()), zap.Uint64("from", from))
 	switch kyberMsg.Type {
@@ -369,7 +369,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		if _, ok := o.exchanges[from]; ok {
 			return fmt.Errorf("error at init exchange message processing: %w", ErrAlreadyExists)
@@ -386,7 +386,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ReshareExchangeMessageType:
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		if _, ok := o.exchanges[from]; ok {
 			return fmt.Errorf("error at reshare exchange message processing: %w, from %d", ErrAlreadyExists, from)
@@ -436,7 +436,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ReshareKyberMessageType:
 		kyberMsg := &wire.ReshareKyberMessage{}
 		if err := kyberMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
@@ -606,7 +606,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoints []kyber.Point) (*wire.Transport, error) {
 	// sanity check
 	if o.data != nil {
-		return nil, fmt.Errorf("data already exist at local instance: %v", o.data)
+		return nil, fmt.Errorf("data already exist at local instance: %w", o.data)
 	}
 	o.data = &DKGdata{}
 	var commits []byte

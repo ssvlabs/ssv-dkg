@@ -33,11 +33,11 @@ func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []by
 	}
 	c.Logger.Debug("operator responded", zap.Uint64("operator", op.ID), zap.String("IP", op.Addr), zap.String("method", method), zap.Int("status", res.StatusCode))
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		errmsg, parseErr := wire.ParseAsError(resdata)
-		if parseErr == nil {
-			return nil, fmt.Errorf("%v", errmsg)
+		errString, err := wire.ParseAsError(resdata)
+		if err != nil {
+			return nil, fmt.Errorf("cant parse error message: %w", err)
 		}
-		return nil, fmt.Errorf("operator %d failed with: %w, probably of old version 1.*.*, please upgrade", op.ID, errors.New(string(resdata)))
+		return nil, fmt.Errorf("operator %d failed with: %w, probably of old version, please upgrade", op.ID, errors.New(errString))
 	}
 	return resdata, nil
 }
@@ -54,11 +54,11 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 		return nil, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		errmsg, parseErr := wire.ParseAsError(resdata)
-		if parseErr == nil {
-			return nil, fmt.Errorf("%v", errmsg)
+		errString, err := wire.ParseAsError(resdata)
+		if err != nil {
+			return nil, fmt.Errorf("cant parse error message: %w", err)
 		}
-		return nil, fmt.Errorf("operator failed with: %w, probably of old version 1.*.*, please upgrade", errors.New(string(resdata)))
+		return nil, fmt.Errorf("operator failed with: %w, probably of old version, please upgrade", errors.New(errString))
 	}
 	return resdata, nil
 }

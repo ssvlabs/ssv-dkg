@@ -9,13 +9,14 @@ import (
 
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	ssz "github.com/ferranbt/fastssz"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // CreateInstance creates a LocalOwner instance with the DKG ceremony ID, that we can identify it later. Initiator public key identifies an initiator for
@@ -88,7 +89,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	s.Logger.Info("🚀 Initializing Init instance")
 	init := &spec.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
-		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
+		return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	if err := spec.ValidateInitMessage(init); err != nil {
 		return nil, err
@@ -96,15 +97,15 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
-		return nil, fmt.Errorf("init: failed parse initiator public key: %s", err.Error())
+		return nil, fmt.Errorf("init: failed parse initiator public key: %w", err)
 	}
 	marshalledWireMsg, err := initMsg.MarshalSSZ()
 	if err != nil {
-		return nil, fmt.Errorf("init: failed to marshal transport message: %s", err.Error())
+		return nil, fmt.Errorf("init: failed to marshal transport message: %w", err)
 	}
 	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("init: initiator signature isn't valid: %s", err.Error())
+		return nil, fmt.Errorf("init: initiator signature isn't valid: %w", err)
 	}
 	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 	if err := s.validateInstances(reqID); err != nil {
@@ -112,7 +113,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	}
 	inst, resp, err := s.CreateInstance(reqID, init.Operators, init, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
+		return nil, fmt.Errorf("init: failed to create instance: %w", err)
 	}
 	s.Mtx.Lock()
 	s.Instances[reqID] = inst
@@ -143,15 +144,15 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	// Check that incoming message signature is valid
 	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(initiatorPub)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to parse initiator public key: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to parse initiator public key: %w", operationType, err)
 	}
 	marshalledWireMsg, err := transportMsg.MarshalSSZ()
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to marshal transport message: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to marshal transport message: %w", operationType, err)
 	}
 	err = spec_crypto.VerifyRSA(initiatorPubKey, marshalledWireMsg, initiatorSignature)
 	if err != nil {
-		return nil, fmt.Errorf("%s: initiator signature isn't valid: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: initiator signature isn't valid: %w", operationType, err)
 	}
 
 	s.Logger.Info(fmt.Sprintf("🚀 Handling %s operation", operationType))
@@ -165,7 +166,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "resign":
 		resign := &wire.ResignMessage{}
 		if err := resign.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		instanceMessage = resign
 		allOps = resign.Operators
@@ -187,7 +188,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "reshare":
 		reshare := &wire.ReshareMessage{}
 		if err := reshare.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		instanceMessage = reshare
 		allOps = append(allOps, reshare.SignedReshare.Reshare.OldOperators...)
@@ -233,7 +234,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	inst, resp, err := s.CreateInstance(reqID, allOps, instanceMessage, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create instance: %s", operationType, err.Error())
+		return nil, fmt.Errorf("%s: failed to create instance: %ц", operationType, err)
 	}
 
 	s.Mtx.Lock()

@@ -41,7 +41,7 @@ func rateLimit(logger *zap.Logger, limit int) func(http.Handler) http.Handler {
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, err := w.Write([]byte(ErrTooManyRouteRequests))
 			if err != nil {
-				logger.Error("error writing rate limit response: " + err.Error())
+				logger.Error("error writing rate limit response", zap.Error(err))
 			}
 		}),
 	)
