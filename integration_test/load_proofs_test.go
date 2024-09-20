@@ -66,6 +66,7 @@ func TestLoadProofsFromFileResign(t *testing.T) {
 	require.NoError(t, err)
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -117,7 +118,9 @@ func TestLoadProofsFromRawJSONResign(t *testing.T) {
 	RootCmd.SetArgs(args)
 	err = RootCmd.Execute()
 	require.NoError(t, err)
-
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -173,6 +176,7 @@ func TestLoadProofsFromFileReshare(t *testing.T) {
 	require.NoError(t, err)
 	err = os.RemoveAll("./output/")
 	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -225,7 +229,9 @@ func TestLoadProofsFromRawJSONReshare(t *testing.T) {
 	RootCmd.SetArgs(args)
 	err = RootCmd.Execute()
 	require.NoError(t, err)
-
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -277,6 +283,9 @@ func TestLoadProofsErrorResign(t *testing.T) {
 	RootCmd.SetArgs(args)
 	err = RootCmd.Execute()
 	require.ErrorContains(t, err, "please provide either proofsRaw flag or proofsFilePath, not both")
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
@@ -331,6 +340,9 @@ func TestLoadProofsErrorReshare(t *testing.T) {
 	RootCmd.SetArgs(args)
 	err = RootCmd.Execute()
 	require.ErrorContains(t, err, "please provide either proofsRaw flag or proofsFilePath, not both")
+	err = os.RemoveAll("./output/")
+	require.NoError(t, err)
+	resetFlags(RootCmd)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
