@@ -212,7 +212,7 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	proofsArr := [][]*wire.SignedProof{proof}
 	withdrawCreds, err := hex.DecodeString(depJson.WithdrawalCredentials)
 	if err != nil {
-		return fmt.Errorf("failed to decode withdrawal credentials: %s", err.Error())
+		return fmt.Errorf("failed to decode withdrawal credentials: %w", err)
 	}
 	withdrawPrefix, withdrawAddress := crypto.ParseWithdrawalCredentials(withdrawCreds)
 	if withdrawPrefix != spec_crypto.ETH1WithdrawalPrefixByte {

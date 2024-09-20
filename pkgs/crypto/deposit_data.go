@@ -10,10 +10,10 @@ import (
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
-	spec "github.com/ssvlabs/dkg-spec"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
@@ -24,12 +24,12 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, err := depositMsg.HashTreeRoot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute deposit message root: %v", err)
+		return nil, fmt.Errorf("failed to compute deposit message root: %w", err)
 	}
 
 	depositDataRoot, err := depositData.HashTreeRoot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute deposit data root: %v", err)
+		return nil, fmt.Errorf("failed to compute deposit data root: %w", err)
 	}
 
 	// Final checks of prepared deposit data
@@ -63,11 +63,11 @@ func validateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredential
 	// Re-encode and re-decode the deposit data json to ensure encoding is valid.
 	b, err := json.Marshal(d)
 	if err != nil {
-		return fmt.Errorf("failed to marshal deposit data json: %v", err)
+		return fmt.Errorf("failed to marshal deposit data json: %w", err)
 	}
 	var depositData wire.DepositDataCLI
 	if err := json.Unmarshal(b, &depositData); err != nil {
-		return fmt.Errorf("failed to unmarshal deposit data json: %v", err)
+		return fmt.Errorf("failed to unmarshal deposit data json: %w", err)
 	}
 	if !reflect.DeepEqual(d, &depositData) {
 		return fmt.Errorf("failed to validate deposit data json")
@@ -76,11 +76,11 @@ func validateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredential
 
 	// 1. Validate format
 	if err := validateFieldFormatting(d); err != nil {
-		return fmt.Errorf("failed to validate deposit data json: %v", err)
+		return fmt.Errorf("failed to validate deposit data json: %w", err)
 	}
 	// 2. Verify deposit roots and signature
 	if err := verifyDepositRoots(d); err != nil {
-		return fmt.Errorf("failed to verify deposit roots: %v", err)
+		return fmt.Errorf("failed to verify deposit roots: %w", err)
 	}
 	// 3. Verify withdrawal address
 	if d.WithdrawalCredentials != hex.EncodeToString(expectedWithdrawalCredentials) {
@@ -143,26 +143,26 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	pubKey, err := hex.DecodeString(d.PubKey)
 	if err != nil {
-		return fmt.Errorf("failed to decode public key: %v", err)
+		return fmt.Errorf("failed to decode public key: %w", err)
 	}
 	withdrCreds, err := hex.DecodeString(d.WithdrawalCredentials)
 	if err != nil {
-		return fmt.Errorf("failed to decode withdrawal credentials: %v", err)
+		return fmt.Errorf("failed to decode withdrawal credentials: %w", err)
 	}
 	sig, err := hex.DecodeString(d.Signature)
 	if err != nil {
-		return fmt.Errorf("failed to decode signature: %v", err)
+		return fmt.Errorf("failed to decode signature: %w", err)
 	}
 	fork, err := hex.DecodeString(d.ForkVersion)
 	if err != nil {
-		return fmt.Errorf("failed to decode fork version: %v", err)
+		return fmt.Errorf("failed to decode fork version: %w", err)
 	}
 	if len(fork) != 4 {
 		return fmt.Errorf("fork version has wrong length")
 	}
 	network, err := spec_crypto.GetNetworkByFork([4]byte(fork))
 	if err != nil {
-		return fmt.Errorf("failed to get network by fork: %v", err)
+		return fmt.Errorf("failed to get network by fork: %w", err)
 	}
 	depositData := &phase0.DepositData{
 		PublicKey:             phase0.BLSPubKey(pubKey),
@@ -172,7 +172,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	}
 	err = spec_crypto.VerifyDepositData(network, depositData)
 	if err != nil {
-		return fmt.Errorf("failed to verify deposit data: %v", err)
+		return fmt.Errorf("failed to verify deposit data: %w", err)
 	}
 	return nil
 }

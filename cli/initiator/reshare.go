@@ -8,12 +8,12 @@ import (
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func init() {
@@ -147,11 +147,11 @@ var StartReshare = &cobra.Command{
 		}
 		oldOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
-			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
+			logger.Fatal("😥 Failed to load old operator IDs: ", zap.Error(err))
 		}
 		newOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.NewOperatorIDs)
 		if err != nil {
-			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
+			logger.Fatal("😥 Failed to load new operator IDs: ", zap.Error(err))
 		}
 		// create a new ID for resharing
 		id := spec.NewID()
