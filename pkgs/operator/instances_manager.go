@@ -234,7 +234,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	inst, resp, err := s.CreateInstance(reqID, allOps, instanceMessage, initiatorPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create instance: %ц", operationType, err)
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
 	}
 
 	s.Mtx.Lock()
