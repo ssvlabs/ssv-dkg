@@ -520,33 +520,6 @@ func (r *Reshare) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type SignedReshare struct {
-	spec.SignedReshare
-}
-
-type signedReshareJSON struct {
-	Reshare *Reshare `json:"reshare"`
-	// Signature is an ECDSA signature over reshare
-	Signature string `json:"signature"`
-}
-
-func (sr *SignedReshare) MarshalJSON() ([]byte, error) {
-	return json.Marshal(signedReshareJSON{
-		Reshare: &Reshare{spec.Reshare{
-			ValidatorPubKey:       sr.Reshare.ValidatorPubKey,
-			OldOperators:          sr.Reshare.OldOperators,
-			NewOperators:          sr.Reshare.NewOperators,
-			OldT:                  sr.Reshare.OldT,
-			NewT:                  sr.Reshare.NewT,
-			Fork:                  sr.Reshare.Fork,
-			WithdrawalCredentials: sr.Reshare.WithdrawalCredentials,
-			Owner:                 sr.Reshare.Owner,
-			Nonce:                 sr.Reshare.Nonce,
-		}},
-		Signature: hex.EncodeToString(sr.Signature),
-	})
-}
-
 // TODO: duplicate from crypto. Resolve
 func ParseRSAPublicKey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))

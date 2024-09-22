@@ -34,8 +34,6 @@ type InstanceID [24]byte
 type Switch struct {
 	Logger           *zap.Logger
 	Mtx              sync.RWMutex
-	UnsignedResign   map[string]*wire.ResignMessage
-	UnsignedReshare  map[string]*wire.ReshareMessage
 	InstanceInitTime map[InstanceID]time.Time // mapping to store DKG instance creation time
 	Instances        map[InstanceID]Instance  // mapping to store DKG instances
 	PrivateKey       *rsa.PrivateKey          // operator RSA private key
@@ -102,8 +100,6 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 	return &Switch{
 		Logger:           logger,
 		Mtx:              sync.RWMutex{},
-		UnsignedResign:   make(map[string]*wire.ResignMessage),
-		UnsignedReshare:  make(map[string]*wire.ReshareMessage),
 		InstanceInitTime: make(map[InstanceID]time.Time, MaxInstances),
 		Instances:        make(map[InstanceID]Instance, MaxInstances),
 		PrivateKey:       pv,

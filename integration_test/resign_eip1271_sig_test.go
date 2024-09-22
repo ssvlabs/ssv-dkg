@@ -105,11 +105,10 @@ func TestResignInvalidEOASig(t *testing.T) {
 			uint64(nonce),
 			signedProofs[0])
 		require.NoError(t, err)
-		sig, err := c.SignResign(rMsg, sk.PrivateKey)
+		signedResign, err := c.SignResign(rMsg, sk.PrivateKey)
 		require.NoError(t, err)
 		_, err = c.ResignMessageFlowHandling(
-			rMsg,
-			sig,
+			signedResign,
 			id,
 			rMsg.Operators)
 		require.ErrorContains(t, err, "invalid EOA signature") // spec

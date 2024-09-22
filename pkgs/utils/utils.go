@@ -210,22 +210,23 @@ func ValidateOpsLen(len int) error {
 	}
 }
 
-func GetResignHash(resign *wire.ResignMessage) ([32]byte, error) {
+func GetMessageHash(msg interface{}) ([32]byte, error) {
 	hash := [32]byte{}
-	msgBytes, err := resign.MarshalSSZ()
-	if err != nil {
-		return hash, err
+	switch msg := msg.(type) {
+	case *wire.ResignMessage:
+		msgBytes, err := msg.MarshalSSZ()
+		if err != nil {
+			return hash, err
+		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	case *wire.ReshareMessage:
+		msgBytes, err := msg.MarshalSSZ()
+		if err != nil {
+			return hash, err
+		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	default:
+		return hash, fmt.Errorf("unexpected message type: %T", msg)
 	}
-	copy(hash[:], eth_crypto.Keccak256(msgBytes))
-	return hash, nil
-}
-
-func GetReshareHash(reshare *wire.ReshareMessage) ([32]byte, error) {
-	hash := [32]byte{}
-	msgBytes, err := reshare.MarshalSSZ()
-	if err != nil {
-		return hash, err
-	}
-	copy(hash[:], eth_crypto.Keccak256(msgBytes))
 	return hash, nil
 }

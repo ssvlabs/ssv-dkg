@@ -196,12 +196,17 @@ type ResignMessage struct {
 	Proofs    []*spec.SignedProof `ssz-max:"13"`
 }
 
+type SignedResign struct {
+	Message   *ResignMessage
+	Signature []byte `ssz-max:"2048"`
+}
+
 type ReshareMessage struct {
 	Reshare *spec.Reshare
 	Proofs  []*spec.SignedProof `ssz-max:"13"`
 }
 
-type SignatureForHash struct {
-	Hash      []byte `ssz-max:"32"`
+type SignedReshare struct {
+	Message   *ReshareMessage
 	Signature []byte `ssz-max:"2048"`
 }
