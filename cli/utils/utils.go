@@ -199,6 +199,35 @@ func SetVerifyFlags(cmd *cobra.Command) {
 	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
 }
 
+func SetGenerateResignMsgFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.NetworkFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
+	flags.ProofsFilePath(cmd)
+	flags.ClientCACertPathFlag(cmd)
+	flags.EthEndpointURL(cmd)
+}
+
+func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+	flags.NewOperatorIDsFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.NetworkFlag(cmd)
+	flags.ProofsFilePath(cmd)
+	flags.ClientCACertPathFlag(cmd)
+	flags.EthEndpointURL(cmd)
+}
+
 func SetResigningFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	flags.OperatorsInfoFlag(cmd)
@@ -924,6 +953,23 @@ func WriteProofs(proofs []*wire.SignedProof, dir string) error {
 	err := utils.WriteJSON(finalPath, proofs)
 	if err != nil {
 		return fmt.Errorf("failed writing data file: %w, %v", err, proofs)
+	}
+	return nil
+}
+
+func WriteMessage(msg interface{}, outputPath string, msgType string) (err error) {
+	switch msgType {
+	case "resign":
+		finalPath := fmt.Sprintf("%s/resign.json", outputPath)
+		err = utils.WriteJSON(finalPath, msg)
+	case "reshare":
+		finalPath := fmt.Sprintf("%s/reshare.json", outputPath)
+		err = utils.WriteJSON(finalPath, msg)
+	default:
+		return fmt.Errorf("unknown message type: %s", msgType)
+	}
+	if err != nil {
+		return fmt.Errorf("failed writing data file: %w, %v", err, msg)
 	}
 	return nil
 }

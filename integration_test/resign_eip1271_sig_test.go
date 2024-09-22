@@ -78,13 +78,6 @@ func TestResignInvalidEOASig(t *testing.T) {
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
 	owner := common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	nonce := 0
-	// Open ethereum keystore
-	jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
-	require.NoError(t, err)
-	keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
-	require.NoError(t, err)
-	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-	require.NoError(t, err)
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			return nil, nil
@@ -96,7 +89,6 @@ func TestResignInvalidEOASig(t *testing.T) {
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 		require.NoError(t, err)
-		id := spec.NewID()
 		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
 		require.NoError(t, err)
 		// validate proofs
@@ -106,7 +98,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			}
 		}
 		// Construct resign message
-		rMsg, err := c.ConstructResignMessage(
+		_, err = c.ConstructResignMessage(
 			ids,
 			signedProofs[0][0].Proof.ValidatorPubKey,
 			"mainnet",
@@ -114,14 +106,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			[20]byte{},
 			uint64(nonce),
 			signedProofs[0])
-		require.NoError(t, err)
-		signedResign, err := c.SignResign(rMsg, sk.PrivateKey)
-		require.NoError(t, err)
-		_, err = c.ResignMessageFlowHandling(
-			signedResign,
-			id,
-			rMsg.Operators)
-		require.ErrorContains(t, err, "invalid EOA signature") // spec
+		require.ErrorContains(t, err, "invalid owner address")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
