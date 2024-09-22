@@ -72,8 +72,7 @@ var (
 var (
 	ProofsFilePath string
 	NewOperatorIDs []string
-	KeystorePath   string
-	KeystorePass   string
+	Signatures     string
 )
 
 // SetViperConfig reads a yaml config file if provided
@@ -211,8 +210,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
-	flags.KeystoreFilePath(cmd)
-	flags.KeystoreFilePass(cmd)
+	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
 
@@ -228,8 +226,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
-	flags.KeystoreFilePath(cmd)
-	flags.KeystoreFilePass(cmd)
+	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
 
@@ -397,10 +394,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
 		return err
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
@@ -453,13 +447,9 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
-	KeystorePath = viper.GetString("ethKeystorePath")
-	if strings.Contains(KeystorePath, "../") {
-		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
-	}
-	KeystorePass = viper.GetString("ethKeystorePass")
-	if strings.Contains(KeystorePath, "../") {
-		return fmt.Errorf("😥 ethKeystorePass should not contain traversal")
+	Signatures = viper.GetString("signatures")
+	if Signatures == "" {
+		return fmt.Errorf("😥 Failed to get signature flag value")
 	}
 	return nil
 }
@@ -499,10 +489,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
@@ -559,13 +546,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
 		}
 	}
-	KeystorePath = viper.GetString("ethKeystorePath")
-	if strings.Contains(KeystorePath, "../") {
-		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
-	}
-	KeystorePass = viper.GetString("ethKeystorePass")
-	if strings.Contains(KeystorePath, "../") {
-		return fmt.Errorf("😥 ethKeystorePass should not contain traversal")
+	Signatures = viper.GetString("signature")
+	if Signatures == "" {
+		return fmt.Errorf("😥 Failed to get signature flag value")
 	}
 	return nil
 }
@@ -678,8 +661,8 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// StingSliceToUintArray converts the string slice to uint64 slice
-func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
+// StringSliceToUintArray converts the string slice to uint64 slice
+func StringSliceToUintArray(flagdata []string) ([]uint64, error) {
 	partsarr := make([]uint64, 0, len(flagdata))
 	for i := 0; i < len(flagdata); i++ {
 		opid, err := strconv.ParseUint(flagdata[i], 10, strconv.IntSize)
@@ -724,6 +707,14 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 		return nil, err
 	}
 	return operators, nil
+}
+
+func SignaturesStringToBytes(signatures string) ([]byte, error) {
+	sig, err := hex.DecodeString(signatures)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to parse signatures: %s", err)
+	}
+	return sig, nil
 }
 
 func WriteResults(

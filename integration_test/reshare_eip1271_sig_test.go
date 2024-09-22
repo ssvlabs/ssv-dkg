@@ -49,7 +49,11 @@ func TestReshareValidEOASig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		require.NoError(t, err)
+		signedReshare, err := clnt.SignReshare(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		depositData, ks, proofs, err := clnt.StartResharing(newId, signedReshare)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -87,7 +91,11 @@ func TestReshareInvalidEOASig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], [20]byte{0}, 0)
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], [20]byte{0}, 0, signedProofs[0])
+		require.NoError(t, err)
+		signedReshare, err := clnt.SignReshare(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		_, _, _, err = clnt.StartResharing(newId, signedReshare)
 		require.Error(t, err, "invalid signed reshare signature")
 	})
 	for _, srv := range servers {
@@ -129,7 +137,11 @@ func TestReshareValidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		require.NoError(t, err)
+		signedReshare, err := clnt.SignReshare(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		depositData, ks, proofs, err := clnt.StartResharing(newId, signedReshare)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -173,7 +185,11 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		require.NoError(t, err)
+		signedReshare, err := clnt.SignReshare(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		_, _, _, err = clnt.StartResharing(newId, signedReshare)
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

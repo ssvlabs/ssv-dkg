@@ -5,11 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
@@ -58,7 +55,7 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
+		operatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
@@ -70,18 +67,9 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
-		// Open ethereum keystore
-		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
+		signatures, err := cli_utils.SignaturesStringToBytes(cli_utils.Signatures)
 		if err != nil {
-			return err
-		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(cli_utils.KeystorePass))
-		if err != nil {
-			return fmt.Errorf("😥 Error reading password file: %s", err)
-		}
-		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-		if err != nil {
-			return err
+			logger.Fatal("😥 Failed to load signatures: ", zap.Error(err))
 		}
 		// start the ceremony
 		ctx := context.Background()
@@ -97,8 +85,26 @@ var StartResigning = &cobra.Command{
 				// Create a new ID.
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
+				// Reconstruct the resign message
+				rMsg, err := dkgInitiator.ConstructResignMessage(
+					operatorIDs,
+					arrayOfSignedProofs[i][0].Proof.ValidatorPubKey,
+					ethNetwork,
+					cli_utils.WithdrawAddress[:],
+					cli_utils.OwnerAddress,
+					nonce,
+					arrayOfSignedProofs[i],
+				)
+				if err != nil {
+					return nil, err
+				}
+				// Append the signatures
+				signedResign := &wire.SignedResign{
+					Message:   rMsg,
+					Signature: signatures,
+				}
 				// Perform the resigning ceremony
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, signedResign)
 				if err != nil {
 					return nil, err
 				}

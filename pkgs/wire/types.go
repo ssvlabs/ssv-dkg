@@ -36,11 +36,10 @@ const (
 	PingMessageType
 	PongMessageType
 	ResultMessageType
-	ResignMessageType
-	ReshareMessageType
+	SignedResignMessageType
+	SignedReshareMessageType
 	ReshareKyberMessageType
 	ReshareExchangeMessageType
-	SignatureForHashMessageType
 )
 
 func (t TransportType) String() string {
@@ -69,16 +68,14 @@ func (t TransportType) String() string {
 		return "PongMessageType"
 	case ResultMessageType:
 		return "ResultMessageType"
-	case ResignMessageType:
-		return "ResignMessageType"
-	case ReshareMessageType:
-		return "ReshareMessageType"
+	case SignedResignMessageType:
+		return "SignedResignMessageType"
+	case SignedReshareMessageType:
+		return "SignedReshareMessageType"
 	case ReshareKyberMessageType:
 		return "ReshareKyberMessageType"
 	case ReshareExchangeMessageType:
 		return "ReshareExchangeMessageType"
-	case SignatureForHashMessageType:
-		return "SignatureForHashMessageType"
 	default:
 		return "no type impl"
 	}

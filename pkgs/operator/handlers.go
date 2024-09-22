@@ -99,7 +99,7 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 
 func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming SIGN RESIGN msg")
-	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
+	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedResignMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming init message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
@@ -124,7 +124,7 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 
 func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming SIGN RESHARE msg")
-	signedReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignatureForHashMessageType, s.State.OperatorID)
+	signedReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)

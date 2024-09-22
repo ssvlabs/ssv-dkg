@@ -48,8 +48,18 @@ func TestResignValidEOASig(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44},
+			signedProofs[0][0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs[0])
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10)
+		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -151,8 +161,18 @@ func TestResignValidContractSig(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44},
+			signedProofs[0][0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs[0])
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10)
+		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		require.NoError(t, err)
+		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -195,8 +215,17 @@ func TestResignInvalidContractSig(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id := spec.NewID()
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44},
+			signedProofs[0][0].Proof.ValidatorPubKey,
+			"holesky",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs[0])
 		require.NoError(t, err)
-		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "holesky", withdraw.Bytes(), owner, 10)
+		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		_, _, _, err = clnt.StartResigning(id, signedResign)
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

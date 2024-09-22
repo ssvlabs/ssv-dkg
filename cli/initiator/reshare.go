@@ -3,11 +3,8 @@ package initiator
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/spf13/cobra"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -56,11 +53,11 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		oldOperatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
+		oldOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		newOperatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.NewOperatorIDs)
+		newOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.NewOperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
 		}
@@ -79,21 +76,31 @@ var StartReshare = &cobra.Command{
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
-		// Open ethereum keystore
-		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
+		signatures, err := cli_utils.SignaturesStringToBytes(cli_utils.Signatures)
 		if err != nil {
-			return err
+			logger.Fatal("😥 Failed to load signatures: ", zap.Error(err))
 		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(cli_utils.KeystorePass))
+		// Contruct the resign message
+		rMsg, err := dkgInitiator.ConstructReshareMessage(
+			oldOperatorIDs,
+			newOperatorIDs,
+			signedProofs[0][0].Proof.ValidatorPubKey,
+			ethNetwork,
+			cli_utils.WithdrawAddress[:],
+			cli_utils.OwnerAddress,
+			cli_utils.Nonce,
+			signedProofs[0],
+		)
 		if err != nil {
-			return fmt.Errorf("😥 Error reading password file: %s", err)
+			logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
 		}
-		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-		if err != nil {
-			return err
+		// Append the signatures
+		signedReshare := &wire.SignedReshare{
+			Message:   rMsg,
+			Signature: signatures,
 		}
 		// Start the ceremony
-		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, signedProofs[0], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress[:], cli_utils.OwnerAddress, cli_utils.Nonce)
+		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, signedReshare)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
