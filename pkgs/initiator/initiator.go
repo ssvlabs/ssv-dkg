@@ -747,6 +747,10 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	}
 	signedPongMsg := &wire.SignedTransport{}
 	if err := signedPongMsg.UnmarshalSSZ(res.Result); err != nil {
+		if strings.Contains(err.Error(), "incorrect offset") {
+			return fmt.Errorf("%w, operator probably of old version, please upgrade", err)
+		}
+		// in case we received error message, try unmarshall
 		errString, err := wire.ParseAsError(res.Result)
 		if err == nil {
 			return fmt.Errorf("cant parse error message: %w", err)
