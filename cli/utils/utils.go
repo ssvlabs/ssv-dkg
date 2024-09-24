@@ -70,6 +70,7 @@ var (
 
 // resigning/reshare flags
 var (
+	NoncesFilePath string
 	ProofsFilePath string
 	NewOperatorIDs []string
 	Signatures     string
@@ -205,7 +206,7 @@ func SetGenerateResignMsgFlags(cmd *cobra.Command) {
 	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
+	flags.NoncesFilePathFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
@@ -221,7 +222,7 @@ func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
 	flags.NewOperatorIDsFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
+	flags.NoncesFilePathFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
@@ -234,7 +235,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.OperatorsInfoPathFlag(cmd)
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
+	flags.NoncesFilePathFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
@@ -251,7 +252,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NewOperatorIDsFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
+	flags.NoncesFilePathFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ClientCACertPathFlag(cmd)
@@ -405,7 +406,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+	if err := viper.BindPFlag("nonces", cmd.PersistentFlags().Lookup("nonces")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
@@ -445,7 +446,10 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
 	}
-	Nonce = viper.GetUint64("nonce")
+	NoncesFilePath = viper.GetString("nonces")
+	if ProofsFilePath == "" {
+		return fmt.Errorf("😥 Failed to get path to proofs flag value")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {
@@ -512,7 +516,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+	if err := viper.BindPFlag("nonces", cmd.PersistentFlags().Lookup("nonces")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
@@ -568,7 +572,10 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
-	Nonce = viper.GetUint64("nonce")
+	NoncesFilePath = viper.GetString("nonces")
+	if ProofsFilePath == "" {
+		return fmt.Errorf("😥 Failed to get path to proofs flag value")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {

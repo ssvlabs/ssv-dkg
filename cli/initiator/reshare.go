@@ -72,6 +72,13 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
+		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
+		if err != nil {
+			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
+		}
+		if len(signedProofs) != len(nonces) {
+			logger.Fatal("😥 Number of proofs and nonces do not match")
+		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
@@ -80,42 +87,40 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load signatures: ", zap.Error(err))
 		}
-		// Contruct the resign message
-		rMsg, err := dkgInitiator.ConstructReshareMessage(
-			oldOperatorIDs,
-			newOperatorIDs,
-			signedProofs[0][0].Proof.ValidatorPubKey,
-			ethNetwork,
-			cli_utils.WithdrawAddress[:],
-			cli_utils.OwnerAddress,
-			cli_utils.Nonce,
-			signedProofs[0],
-		)
-		if err != nil {
-			logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
+		rMsgs := []*wire.ReshareMessage{}
+		for i := 0; i < len(signedProofs); i++ {
+			// Contruct the resign message
+			rMsg, err := dkgInitiator.ConstructReshareMessage(
+				oldOperatorIDs,
+				newOperatorIDs,
+				signedProofs[i][0].Proof.ValidatorPubKey,
+				ethNetwork,
+				cli_utils.WithdrawAddress[:],
+				cli_utils.OwnerAddress,
+				nonces[i],
+				signedProofs[i],
+			)
+			if err != nil {
+				logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
+			}
+			rMsgs = append(rMsgs, rMsg)
 		}
 		// Append the signatures
 		signedReshare := &wire.SignedReshare{
-			Message:   rMsg,
+			Messages:  rMsgs,
 			Signature: signatures,
 		}
 		// Start the ceremony
-		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, signedReshare)
+		depositData, keyShares, proofs, err := dkgInitiator.StartResharing(id, signedReshare)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		var depositDataArr []*wire.DepositDataCLI
-		var keySharesArr []*wire.KeySharesCLI
-		var proofs [][]*wire.SignedProof
-		depositDataArr = append(depositDataArr, depositData)
-		keySharesArr = append(keySharesArr, keyShares)
-		proofs = append(proofs, proof)
 		// Save results
 		logger.Info("🎯 All data is validated.")
 		if err := cli_utils.WriteResults(
 			logger,
-			depositDataArr,
-			keySharesArr,
+			depositData,
+			keyShares,
 			proofs,
 			false,
 			1,

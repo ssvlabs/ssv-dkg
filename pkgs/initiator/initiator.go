@@ -862,7 +862,7 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 }
 
 // TODO: This function is to illustrate the process of signing a message and currently used for the tests to sign messages, consider removing it
-func (c *Initiator) SignReshare(msg *wire.ReshareMessage, sk *ecdsa.PrivateKey) (*wire.SignedReshare, error) {
+func (c *Initiator) SignReshare(msg []*wire.ReshareMessage, sk *ecdsa.PrivateKey) (*wire.SignedReshare, error) {
 	hash, err := utils.GetMessageHash(msg)
 	if err != nil {
 		return nil, err
@@ -874,7 +874,7 @@ func (c *Initiator) SignReshare(msg *wire.ReshareMessage, sk *ecdsa.PrivateKey) 
 	}
 
 	return &wire.SignedReshare{
-		Messages:  []*wire.ReshareMessage{msg},
+		Messages:  msg,
 		Signature: ownerSig,
 	}, nil
 }
@@ -907,7 +907,7 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 }
 
 // TODO: This function is to illustrate the process of signing a message and currently used for the tests to sign messages, consider removing it
-func (c *Initiator) SignResign(msg *wire.ResignMessage, sk *ecdsa.PrivateKey) (*wire.SignedResign, error) {
+func (c *Initiator) SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (*wire.SignedResign, error) {
 	hash, err := utils.GetMessageHash(msg)
 	if err != nil {
 		return nil, err
@@ -919,7 +919,7 @@ func (c *Initiator) SignResign(msg *wire.ResignMessage, sk *ecdsa.PrivateKey) (*
 	}
 
 	return &wire.SignedResign{
-		Messages:  []*wire.ResignMessage{msg},
+		Messages:  msg,
 		Signature: ownerSig,
 	}, nil
 }

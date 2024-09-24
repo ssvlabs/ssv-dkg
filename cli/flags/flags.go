@@ -19,6 +19,7 @@ const (
 	operatorPort      = "port"
 	owner             = "owner"
 	nonce             = "nonce"
+	nonces            = "nonces"
 	network           = "network"
 	outputPath        = "outputPath"
 	logLevel          = "logLevel"
@@ -68,6 +69,10 @@ func OwnerAddressFlag(c *cobra.Command) {
 // NonceFlag  owner nonce flag to the command
 func NonceFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", false)
+}
+
+func NoncesFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, nonces, "", "Path to file with nonces", false)
 }
 
 // NetworkFlag  adds the fork version of the network flag to the command
