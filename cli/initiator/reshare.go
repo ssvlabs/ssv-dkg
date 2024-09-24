@@ -15,7 +15,91 @@ import (
 )
 
 func init() {
+	cli_utils.SetGenerateReshareMsgFlags(GenerateReshareMsg)
 	cli_utils.SetReshareFlags(StartReshare)
+}
+
+var GenerateReshareMsg = &cobra.Command{
+	Use:   "generate-reshare-msg",
+	Short: "Generate reshare message for one or multiple ceremonies",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := cli_utils.SetViperConfig(cmd); err != nil {
+			return err
+		}
+		if err := cli_utils.BindReshareFlags(cmd); err != nil {
+			return err
+		}
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := cli_utils.Sync(logger); err != nil {
+				log.Printf("Failed to sync logger: %v", err)
+			}
+		}()
+		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
+		opMap, err := cli_utils.LoadOperators(logger)
+		if err != nil {
+			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+		}
+		oldOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
+		if err != nil {
+			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
+		}
+		newOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.NewOperatorIDs)
+		if err != nil {
+			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
+		}
+		// create initiator instance
+		dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, cli_utils.ClientCACertPath)
+		if err != nil {
+			return err
+		}
+		signedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
+		if err != nil {
+			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		}
+		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
+		if err != nil {
+			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
+		}
+		if len(signedProofs) != len(nonces) {
+			logger.Fatal("😥 Number of proofs and nonces do not match")
+		}
+		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
+		}
+		rMsgs := []*wire.ReshareMessage{}
+		for i := 0; i < len(signedProofs); i++ {
+			// Contruct the resign message
+			rMsg, err := dkgInitiator.ConstructReshareMessage(
+				oldOperatorIDs,
+				newOperatorIDs,
+				signedProofs[i][0].Proof.ValidatorPubKey,
+				ethNetwork,
+				cli_utils.WithdrawAddress[:],
+				cli_utils.OwnerAddress,
+				nonces[i],
+				signedProofs[i],
+			)
+			if err != nil {
+				logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
+			}
+			rMsgs = append(rMsgs, rMsg)
+		}
+		// write bulk reshare message to file
+		if err := cli_utils.WriteMessage(
+			rMsgs,
+			cli_utils.OutputPath,
+			"reshare",
+		); err != nil {
+			logger.Fatal("Could not save results", zap.Error(err))
+		}
+		logger.Info("🚀 Resharing ceremony completed")
+		return nil
+	},
 }
 
 var StartReshare = &cobra.Command{
