@@ -279,7 +279,7 @@ func (c *Initiator) messageFlowHandlingReshare(id [24]byte, reshareMsg *wire.Res
 	for id := range dkgResult {
 		c.Logger.Info("DKG Reshare results", zap.Any("id", id))
 	}
-	err = verifyMessageSignatures(id, kyberMsgs, c.VerifyMessageSignature)
+	err = verifyMessageSignatures(id, dkgResult, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
