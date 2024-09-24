@@ -81,7 +81,7 @@ var StartDKG = &cobra.Command{
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the ceremony.
-				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethNetwork, cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartDKG(id, cli_utils.WithdrawAddress.Bytes(), operatorIDs, ethNetwork, cli_utils.OwnerAddress, nonce, cli_utils.Amount)
 				if err != nil {
 					return nil, err
 				}

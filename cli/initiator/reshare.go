@@ -93,7 +93,7 @@ var StartReshare = &cobra.Command{
 			return err
 		}
 		// Start the ceremony
-		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, signedProofs[0], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress[:], cli_utils.OwnerAddress, cli_utils.Nonce)
+		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, signedProofs[0], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress[:], cli_utils.OwnerAddress, cli_utils.Nonce, cli_utils.Amount)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}

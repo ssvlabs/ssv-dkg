@@ -98,7 +98,7 @@ var StartResigning = &cobra.Command{
 				id := spec.NewID()
 				nonce := cli_utils.Nonce + uint64(i)
 				// Perform the resigning ceremony
-				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce)
+				depositData, keyShares, proofs, err := dkgInitiator.StartResigning(id, operatorIDs, arrayOfSignedProofs[i], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress.Bytes(), cli_utils.OwnerAddress, nonce, cli_utils.Amount)
 				if err != nil {
 					return nil, err
 				}

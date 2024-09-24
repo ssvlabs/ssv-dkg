@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -35,6 +36,7 @@ func TestResignValidEOASig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			return nil, nil
@@ -49,7 +51,7 @@ func TestResignValidEOASig(t *testing.T) {
 		// re-sign
 		id := spec.NewID()
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10)
+		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10, uint64(amount))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -68,6 +70,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
 	owner := common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	nonce := 0
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	// Open ethereum keystore
 	jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	require.NoError(t, err)
@@ -103,6 +106,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			withdraw.Bytes(),
 			[20]byte{},
 			uint64(nonce),
+			uint64(amount),
 			sk.PrivateKey,
 			signedProofs[0])
 		require.NoError(t, err)
@@ -131,6 +135,7 @@ func TestResignValidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			ret := make([]byte, 32) // needs to be 32 byte for packing
@@ -151,7 +156,7 @@ func TestResignValidContractSig(t *testing.T) {
 		// re-sign
 		id := spec.NewID()
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10)
+		depositData, ks, proofs, err := clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "mainnet", withdraw.Bytes(), owner, 10, uint64(amount))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -175,6 +180,7 @@ func TestResignInvalidContractSig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			ret := make([]byte, 32) // needs to be 32 byte for packing
@@ -195,7 +201,7 @@ func TestResignInvalidContractSig(t *testing.T) {
 		// re-sign
 		id := spec.NewID()
 		require.NoError(t, err)
-		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "holesky", withdraw.Bytes(), owner, 10)
+		_, _, _, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs[0], sk.PrivateKey, "holesky", withdraw.Bytes(), owner, 10, uint64(amount))
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

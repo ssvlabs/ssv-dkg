@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -35,6 +36,7 @@ func TestReshareValidEOASig(t *testing.T) {
 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 	require.NoError(t, err)
 	owner := eth_crypto.PubkeyToAddress(sk.PrivateKey.PublicKey)
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
@@ -49,7 +51,7 @@ func TestReshareValidEOASig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0, uint64(amount))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -66,6 +68,7 @@ func TestReshareInvalidEOASig(t *testing.T) {
 	version := "test.version"
 
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	// Open ethereum keystore
 	jsonBytes, err := os.ReadFile("../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	require.NoError(t, err)
@@ -87,7 +90,7 @@ func TestReshareInvalidEOASig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], [20]byte{0}, 0)
+		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], [20]byte{0}, 0, uint64(amount))
 		require.Error(t, err, "invalid signed reshare signature")
 	})
 	for _, srv := range servers {
@@ -101,6 +104,7 @@ func TestReshareValidContractSig(t *testing.T) {
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	// Open ethereum keystore
 	jsonBytes, err := os.ReadFile("../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	require.NoError(t, err)
@@ -129,7 +133,7 @@ func TestReshareValidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		depositData, ks, proofs, err := clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0, uint64(amount))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -145,6 +149,7 @@ func TestReshareInvalidContractSig(t *testing.T) {
 	logger := zap.L().Named("integration-tests")
 	version := "test.version"
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
+	amount := spec_crypto.MIN_ACTIVATION_BALANCE
 	// Open ethereum keystore
 	jsonBytes, err := os.ReadFile("../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	require.NoError(t, err)
@@ -173,7 +178,7 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0)
+		_, _, _, err = clnt.StartResharing(newId, ids, newIds, signedProofs[0], sk.PrivateKey, "holesky", withdraw[:], owner, 0, uint64(amount))
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

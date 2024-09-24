@@ -19,6 +19,7 @@ const (
 	operatorPort      = "port"
 	owner             = "owner"
 	nonce             = "nonce"
+	amount            = "amount"
 	network           = "network"
 	outputPath        = "outputPath"
 	logLevel          = "logLevel"
@@ -66,9 +67,14 @@ func OwnerAddressFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, owner, "", "Owner address", false)
 }
 
-// NonceFlag  owner nonce flag to the command
+// NonceFlag adds nonce flag to the command
 func NonceFlag(c *cobra.Command) {
 	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", false)
+}
+
+// AmountFlag adds amount in Gwei flag to the command (https://eips.ethereum.org/EIPS/eip-7251)
+func AmountFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, amount, 0, "Amount in Gwei", false)
 }
 
 // NetworkFlag  adds the fork version of the network flag to the command

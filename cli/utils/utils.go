@@ -16,10 +16,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -48,6 +50,7 @@ var (
 	Network           string
 	OwnerAddress      common.Address
 	Nonce             uint64
+	Amount            uint64
 	Validators        uint
 	ClientCACertPath  []string
 )
@@ -175,6 +178,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
@@ -292,6 +296,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		return err
 	}
@@ -322,6 +329,10 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {
@@ -382,6 +393,9 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
 		return err
 	}
@@ -453,6 +467,10 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	KeystorePath = viper.GetString("ethKeystorePath")
 	if strings.Contains(KeystorePath, "../") {
 		return fmt.Errorf("😥 ethKeystorePath should not contain traversal")
@@ -494,6 +512,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
@@ -553,6 +574,10 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {

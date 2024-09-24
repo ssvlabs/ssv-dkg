@@ -10,6 +10,7 @@ import (
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
@@ -18,7 +19,7 @@ import (
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
-		Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
+		Amount:                depositData.Amount,
 	}
 	copy(depositMsg.PublicKey[:], depositData.PublicKey[:])
 	depositMsgRoot, err := depositMsg.HashTreeRoot()
@@ -32,14 +33,14 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	}
 
 	// Final checks of prepared deposit data
-	if !(spec_crypto.MaxEffectiveBalanceInGwei == depositData.Amount) {
+	if !spec.ValidAmountSet(depositData.Amount) {
 		return nil, fmt.Errorf("deposit data is invalid. Wrong amount %d", depositData.Amount)
 	}
 	forkBytes := network.GenesisForkVersion()
 	depositDataJson := &wire.DepositDataCLI{
 		PubKey:                hex.EncodeToString(depositData.PublicKey[:]),
 		WithdrawalCredentials: hex.EncodeToString(depositData.WithdrawalCredentials),
-		Amount:                uint64(spec_crypto.MaxEffectiveBalanceInGwei),
+		Amount:                uint64(depositData.Amount),
 		Signature:             hex.EncodeToString(depositData.Signature[:]),
 		DepositMessageRoot:    hex.EncodeToString(depositMsgRoot[:]),
 		DepositDataRoot:       hex.EncodeToString(depositDataRoot[:]),
@@ -121,7 +122,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 		return fmt.Errorf("resulting deposit data json has wrong fields length")
 	}
 	// check the deposit amount
-	if d.Amount != 32000000000 {
+	if !spec.ValidAmountSet(phase0.Gwei(d.Amount)) {
 		return fmt.Errorf("resulting deposit data json has wrong amount")
 	}
 	v, err := version.NewVersion(d.DepositCliVersion)
@@ -134,7 +135,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 	}
 	// check the deposit-cli version
 	if v.LessThan(vMin) {
-		return fmt.Errorf("resulting deposit data json has wrong amount")
+		return fmt.Errorf("resulting deposit data json has wrong version")
 	}
 	return nil
 }

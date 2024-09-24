@@ -327,8 +327,8 @@ github.com/onsi/ginkgo/v2 v2.10.0 h1:sfUl4qgLdvkChZrWCYndY2EAu9BRIw1YphNAzy1VNWs
 github.com/onsi/ginkgo/v2 v2.10.0/go.mod h1:UDQOh5wbQUlMnkLfVaIUMtQ1Vus92oM+P2JX1aulgcE=
 github.com/onsi/gomega v1.27.7 h1:fVih9JD6ogIiHUN6ePK7HJidyEDpWGVB5mzM7cWNXoU=
 github.com/onsi/gomega v1.27.7/go.mod h1:1p8OOlwo2iUUDsHnOrjE5UKYJ+e3W8eQ3qSlRahPmr4=
-github.com/pavelkrolevets/dkg-spec v0.0.0-20240905112925-adea224edff7 h1:TMiQ1QTI+r0cqPs7LHQlMl5fKvTM2/5e1e8z1xnUKDU=
-github.com/pavelkrolevets/dkg-spec v0.0.0-20240905112925-adea224edff7/go.mod h1:0nho9Kj4P+rrkdyj+KrlzUWGNWA50tnu17ejIHqcR74=
+github.com/pavelkrolevets/dkg-spec v0.0.0-20240924200104-0dda5b1dd3cf h1:tk5bv105TZm8cw0H1GuZxT9BnARZgY8ATIrBXLlePiQ=
+github.com/pavelkrolevets/dkg-spec v0.0.0-20240924200104-0dda5b1dd3cf/go.mod h1:0nho9Kj4P+rrkdyj+KrlzUWGNWA50tnu17ejIHqcR74=
 github.com/pelletier/go-toml/v2 v2.0.8 h1:0ctb6s9mE31h0/lhu+J6OPmVeDxJn+kYnJc2jZR9tGQ=
 github.com/pelletier/go-toml/v2 v2.0.8/go.mod h1:vuYfssBdrU2XDZ9bYydBu6t+6a6PYNcZljzZR9VXg+4=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

@@ -280,6 +280,7 @@ type ResignJSON struct {
 	WithdrawalCredentials string `json:"withdrawalCredentials"`
 	Owner                 string `json:"owner"`
 	Nonce                 uint64 `json:"nonce"`
+	Amount                uint64 `json:"amount"`
 }
 
 func (r *Resign) MarshalJSON() ([]byte, error) {
@@ -289,6 +290,7 @@ func (r *Resign) MarshalJSON() ([]byte, error) {
 		WithdrawalCredentials: hex.EncodeToString(r.WithdrawalCredentials),
 		Owner:                 hex.EncodeToString(r.Owner[:]),
 		Nonce:                 r.Nonce,
+		Amount:                r.Amount,
 	})
 }
 
@@ -318,6 +320,7 @@ func (r *Resign) UnmarshalJSON(data []byte) error {
 	}
 	copy(r.Owner[:], owner)
 	r.Nonce = resJSON.Nonce
+	r.Amount = resJSON.Amount
 	return nil
 }
 
@@ -346,6 +349,7 @@ func (sr *SignedReshare) MarshalJSON() ([]byte, error) {
 			WithdrawalCredentials: sr.Reshare.WithdrawalCredentials,
 			Owner:                 sr.Reshare.Owner,
 			Nonce:                 sr.Reshare.Nonce,
+			Amount:                sr.Reshare.Amount,
 		}},
 		Signature: hex.EncodeToString(sr.Signature),
 	})
