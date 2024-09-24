@@ -194,8 +194,8 @@ type ResignMessage struct {
 }
 
 type SignedResign struct {
-	Message   *ResignMessage
-	Signature []byte `ssz-max:"2048"`
+	Messages  []*ResignMessage `ssz-max:"100"`
+	Signature []byte           `ssz-max:"2048"`
 }
 
 type ReshareMessage struct {
@@ -204,6 +204,6 @@ type ReshareMessage struct {
 }
 
 type SignedReshare struct {
-	Message   *ReshareMessage
-	Signature []byte `ssz-max:"2048"`
+	Messages  []*ReshareMessage `ssz-max:"100"`
+	Signature []byte            `ssz-max:"2048"`
 }

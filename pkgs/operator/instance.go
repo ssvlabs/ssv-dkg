@@ -66,6 +66,7 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 	if !spec.UniqueAndOrderedOperators(incOperators) {
 		return nil, fmt.Errorf("operators at incoming messages are not unique")
 	}
+	// TODO: start changing here, this is for one ceremony, msg.Messages (map[operator][]byte) needs to be unflattened and processed
 	for _, ts := range msg.Messages {
 		err = iw.Process(ts, incOperators)
 		if err != nil {
