@@ -89,6 +89,7 @@ func TestRateLimit(t *testing.T) {
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 			Nonce:                 0,
+			Amount: uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		}
 		sszinit, err := init.MarshalSSZ()
 		require.NoError(t, err)
@@ -274,6 +275,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 owner,
 			Nonce:                 0,
+			Amount: uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		}
 		id := spec.NewID()
 		sszinit, err := init.MarshalSSZ()

@@ -72,6 +72,7 @@ func TestCreateInstance(t *testing.T) {
 			Operators: ops,
 			Owner:     common.HexToAddress("0x0000000"),
 			Nonce:     1,
+			Amount: uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		}
 
 		inst, resp, err := s.State.CreateInstance(reqID, init.Operators, init, &priv.PublicKey)
@@ -128,6 +129,7 @@ func TestInitInstance(t *testing.T) {
 		Nonce:                 1,
 		T:                     3,
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		Amount: uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 	}
 
 	initmsg, err := init.MarshalSSZ()
@@ -211,6 +213,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Nonce:                 1,
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		T:                     3,
+		Amount: uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 	}
 
 	initmsg, err := init.MarshalSSZ()
