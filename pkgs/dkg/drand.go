@@ -240,7 +240,7 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 		o.data.reshare.WithdrawalCredentials,
 		o.data.reshare.Fork,
 		o.data.reshare.Nonce,
-		0,
+		phase0.Gwei(o.data.reshare.Amount),
 	)
 	if err != nil {
 		return err
@@ -589,7 +589,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		r.SignedResign.Resign.WithdrawalCredentials,
 		r.SignedResign.Resign.Fork,
 		r.SignedResign.Resign.Nonce,
-		0,
+		phase0.Gwei(r.SignedResign.Resign.Amount),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build results message: %w", err)
