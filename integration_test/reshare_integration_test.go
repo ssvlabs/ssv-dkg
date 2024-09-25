@@ -52,6 +52,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
+			"--amount", "32000000000",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
@@ -92,6 +93,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
 				"--nonce", strconv.Itoa(10),
+				"--amount", "32000000000",
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
 				"--network", "holesky"}
@@ -164,6 +166,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
+			"--amount", "32000000000",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
@@ -204,6 +207,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
+				"--amount", "32000000000",
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
 				"--network", "holesky"}
@@ -276,6 +280,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
+			"--amount", "32000000000",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
@@ -316,6 +321,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
+				"--amount", "32000000000",
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
 				"--network", "holesky"}
@@ -388,6 +394,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
+			"--amount", "32000000000",
 			"--network", "holesky"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
@@ -428,6 +435,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
+				"--amount", "32000000000",
 				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
 				"--ethKeystorePass", "./stubs/password",
 				"--network", "holesky"}
