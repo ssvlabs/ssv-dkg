@@ -213,6 +213,15 @@ func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operat
 }
 
 func (c *Initiator) ResignMessageFlowHandling(signedResign *wire.SignedResign, id [24]byte, operators []*spec.Operator) ([][][]byte, error) {
+	// reqIDtracker is used to track if all ceremony are in the responses in the expected order
+	reqIDs := make([][24]byte, 0)
+	for _, msg := range signedResign.Messages {
+		reqID, err := utils.GetReqIDfromMsg(msg)
+		if err != nil {
+			return nil, err
+		}
+		reqIDs = append(reqIDs, reqID)
+	}
 	resignResult, errs, err := c.SendResignMsg(id, signedResign, operators)
 	if err != nil {
 		return nil, err
@@ -222,7 +231,8 @@ func (c *Initiator) ResignMessageFlowHandling(signedResign *wire.SignedResign, i
 		return nil, err
 	}
 	expectedNumOfResponses := len(signedResign.Messages)
-	var allResults map[uint64][][]byte
+	// allResults is a map of operatorID -> [ceremony][response]
+	allResults := make(map[uint64][][]byte)
 	for operatorID, res := range resignResult {
 		allRes, err := utils.UnflattenResponseMsgs(res)
 		if err != nil {
@@ -233,22 +243,23 @@ func (c *Initiator) ResignMessageFlowHandling(signedResign *wire.SignedResign, i
 		}
 		allResults[operatorID] = allRes
 	}
+	// results is a 3d array of [ceremony][operator][response]
+	var results [][][]byte
 	for i := 0; i < expectedNumOfResponses; i++ {
-		instanceResignResult := make(map[uint64][]byte)
+		instanceResignResultMap := make(map[uint64][]byte)
+		var instanceResignResultArr [][]byte
 		for operatorID, res := range allResults {
-			instanceResignResult[operatorID] = res[i]
+			instanceResignResultMap[operatorID] = res[i]
+			instanceResignResultArr = append(instanceResignResultArr, res[i])
 		}
-		err = verifyMessageSignatures(id, instanceResignResult, c.VerifyMessageSignature)
+		err = verifyMessageSignatures(reqIDs[i], instanceResignResultMap, c.VerifyMessageSignature)
 		if err != nil {
 			return nil, err
 		}
+		results = append(results, instanceResignResultArr)
 	}
 	c.Logger.Info("✅ verified operator response signatures")
-	// returns result bytes for each operator for each ceremony
-	var results [][][]byte
-	for _, res := range allResults {
-		results = append(results, res)
-	}
+
 	return results, nil
 }
 
@@ -256,6 +267,15 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 	allOps, err := utils.JoinSets(signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators)
 	if err != nil {
 		return nil, err
+	}
+	// reqIDtracker is used to track if all ceremony are in the responses in the expected order
+	reqIDs := make([][24]byte, 0)
+	for _, msg := range signedReshare.Messages {
+		reqID, err := utils.GetReqIDfromMsg(msg)
+		if err != nil {
+			return nil, err
+		}
+		reqIDs = append(reqIDs, reqID)
 	}
 	c.Logger.Info("sending signed reshare message to all operators")
 	var errs map[uint64]error
@@ -268,7 +288,8 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 		return nil, err
 	}
 	numOfCeremonies := len(signedReshare.Messages)
-	var allResults map[uint64][][]byte
+	// allResults is a map of operatorID -> [ceremony][response]
+	allResults := make(map[uint64][][]byte)
 	for operatorID, res := range exchangeMsgs {
 		allRes, err := utils.UnflattenResponseMsgs(res)
 		if err != nil {
@@ -285,16 +306,16 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 	// finalResults contains result bytes for each operator for each ceremony
 	var finalResults [][][]byte
 	for i := 0; i < numOfCeremonies; i++ {
+		reqID := reqIDs[i]
 		instanceExchangeMsgs := make(map[uint64][]byte)
 		for operatorID, res := range allResults {
-			// TODO: double check here, this requires each operator to return results in the same order of ceremonies
 			instanceExchangeMsgs[operatorID] = res[i]
 		}
-		err = verifyMessageSignatures(id, instanceExchangeMsgs, c.VerifyMessageSignature)
+		err = verifyMessageSignatures(reqID, instanceExchangeMsgs, c.VerifyMessageSignature)
 		if err != nil {
 			return nil, err
 		}
-		kyberMsgs, errs, err := c.SendExchangeMsgs(id, exchangeMsgs, allOps)
+		kyberMsgs, errs, err := c.SendExchangeMsgs(reqID, instanceExchangeMsgs, allOps)
 		if err != nil {
 			return nil, err
 		}
@@ -302,11 +323,11 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 		if err := checkThreshold(kyberMsgs, errs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil {
 			return nil, err
 		}
-		err = verifyMessageSignatures(id, kyberMsgs, c.VerifyMessageSignature)
+		err = verifyMessageSignatures(reqID, kyberMsgs, c.VerifyMessageSignature)
 		if err != nil {
 			return nil, err
 		}
-		dkgResult, errs, err := c.SendKyberMsgs(id, kyberMsgs, signedReshare.Messages[0].Reshare.NewOperators)
+		dkgResult, errs, err := c.SendKyberMsgs(reqID, kyberMsgs, signedReshare.Messages[0].Reshare.NewOperators)
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +338,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 		for id := range dkgResult {
 			c.Logger.Info("DKG Reshare results", zap.Any("id", id))
 		}
-		err = verifyMessageSignatures(id, kyberMsgs, c.VerifyMessageSignature)
+		err = verifyMessageSignatures(reqID, kyberMsgs, c.VerifyMessageSignature)
 		if err != nil {
 			return nil, err
 		}
@@ -327,6 +348,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 		}
 		finalResults = append(finalResults, ceremonyResult)
 	}
+	c.Logger.Info("all ceremonies completed")
 	return finalResults, nil
 }
 
@@ -416,7 +438,7 @@ func (c *Initiator) StartResigning(id [24]byte, signedResign *wire.SignedResign)
 		}
 		reqID := dkgResults[0].RequestID
 		// TODO: verify that the validatorPubKeys from results are the same as the ones in the resign messages
-		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, id, signedResign.Messages[0].Operators, signedResign.Messages[0].Resign.WithdrawalCredentials, resignIDMap[reqID].ValidatorPubKey, signedResign.Messages[0].Resign.Fork, signedResign.Messages[0].Resign.Owner, resignIDMap[reqID].Nonce)
+		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedResign.Messages[0].Operators, signedResign.Messages[0].Resign.WithdrawalCredentials, resignIDMap[reqID].ValidatorPubKey, signedResign.Messages[0].Resign.Fork, signedResign.Messages[0].Resign.Owner, resignIDMap[reqID].Nonce)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -503,13 +525,13 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 	if len(signedReshare.Messages) == 0 {
 		return nil, nil, nil, errors.New("no reshare messages")
 	}
-	resignIDMap := make(map[[24]byte]*spec.Reshare)
+	reshareIDMap := make(map[[24]byte]*spec.Reshare)
 	for _, msg := range signedReshare.Messages {
 		reqID, err := utils.GetReqIDfromMsg(msg)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		resignIDMap[reqID] = msg.Reshare
+		reshareIDMap[reqID] = msg.Reshare
 	}
 	oldOperatorIDs := make([]uint64, 0)
 	for _, op := range signedReshare.Messages[0].Reshare.OldOperators {
@@ -541,7 +563,7 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 		}
 		reqID := dkgResults[0].RequestID
 		// TODO: verify that the validatorPubKeys from results are the same as the ones in the resign messages
-		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, id, signedReshare.Messages[0].Reshare.NewOperators, signedReshare.Messages[0].Reshare.WithdrawalCredentials, resignIDMap[reqID].ValidatorPubKey, signedReshare.Messages[0].Reshare.Fork, signedReshare.Messages[0].Reshare.Owner, resignIDMap[reqID].Nonce)
+		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedReshare.Messages[0].Reshare.NewOperators, signedReshare.Messages[0].Reshare.WithdrawalCredentials, reshareIDMap[reqID].ValidatorPubKey, signedReshare.Messages[0].Reshare.Fork, signedReshare.Messages[0].Reshare.Owner, reshareIDMap[reqID].Nonce)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -612,10 +634,10 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			finalErr = errors.Join(finalErr, err)
 			continue
 		}
-		if !bytes.Equal(result.RequestID[:], id[:]) {
-			finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
-			continue
-		}
+		// if !bytes.Equal(result.RequestID[:], id[:]) {
+		// 	finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
+		// 	continue
+		// }
 		dkgResults = append(dkgResults, result)
 	}
 	if finalErr != nil {

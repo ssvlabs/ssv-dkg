@@ -57,11 +57,12 @@ func TestResignValidEOASig(t *testing.T) {
 			10,
 			signedProofs[0])
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
 		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	for _, srv := range servers {
@@ -155,11 +156,12 @@ func TestResignValidContractSig(t *testing.T) {
 			10,
 			signedProofs[0])
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
 		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	for _, srv := range servers {
@@ -209,7 +211,8 @@ func TestResignInvalidContractSig(t *testing.T) {
 			10,
 			signedProofs[0])
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk.PrivateKey)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
 		_, _, _, err = clnt.StartResigning(id, signedResign)
 		require.Error(t, err, "signature invalid")
 	})

@@ -64,11 +64,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 			signedProofs,
 		)
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositData, ks, proofs, err = clnt.StartResigning(id, signedResign)
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators resign happy flow", func(t *testing.T) {
@@ -94,11 +95,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 			signedProofs,
 		)
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositData, ks, proofs, err = clnt.StartResigning(id, signedResign)
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators resign happy flow", func(t *testing.T) {
@@ -124,11 +126,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 			signedProofs,
 		)
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositData, ks, proofs, err = clnt.StartResigning(id, signedResign)
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators resign happy flow", func(t *testing.T) {
@@ -153,11 +156,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 			signedProofs,
 		)
 		require.NoError(t, err)
-		signedResign, err := clnt.SignResign(rMsg, sk)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		signedResign, err := clnt.SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositData, ks, proofs, err = clnt.StartResigning(id, signedResign)
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	for _, srv := range servers {

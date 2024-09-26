@@ -121,7 +121,6 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 
 	id := InstanceID(st.Identifier)
 
-	// TODO: remove this instance check because it won't work now with multiple instances
 	s.Mtx.RLock()
 	inst, ok := s.Instances[id]
 	s.Mtx.RUnlock()

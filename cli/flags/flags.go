@@ -19,7 +19,7 @@ const (
 	operatorPort      = "port"
 	owner             = "owner"
 	nonce             = "nonce"
-	nonces            = "nonces"
+	nonces            = "noncesFilePath"
 	network           = "network"
 	outputPath        = "outputPath"
 	logLevel          = "logLevel"

@@ -156,10 +156,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	s.Logger.Info(fmt.Sprintf("🚀 Handling %s operation", operationType))
 
-	var (
-		instanceMessages interface{}
-		allOps           []*spec.Operator
-	)
+	var allOps []*spec.Operator
 
 	switch operationType {
 	case "resign":
@@ -167,7 +164,6 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		if err := signedResign.UnmarshalSSZ(transportMsg.Data); err != nil {
 			return nil, fmt.Errorf("%s: failed to unmarshal signed resign message: %s", operationType, err.Error())
 		}
-		instanceMessages = signedResign.Messages
 		allOps = signedResign.Messages[0].Operators
 
 		s.Logger.Info("Incoming resign request fields",
@@ -190,6 +186,33 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			return nil, err
 		}
 
+		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+
+		resps := [][]byte{}
+		// Run all resign/reshare ceremonies
+		for _, instance := range signedResign.Messages {
+			reqID, err := utils.GetReqIDfromMsg(instance)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.validateInstances(reqID); err != nil {
+				return nil, err
+			}
+
+			inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
+			resps = append(resps, resp)
+			if err != nil {
+				return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+			}
+
+			s.Mtx.Lock()
+			s.Instances[reqID] = inst
+			s.InstanceInitTime[reqID] = time.Now()
+			s.Mtx.Unlock()
+		}
+
+		return resps, nil
+
 	case "reshare":
 		signedReshare := &wire.SignedReshare{}
 		if err := signedReshare.UnmarshalSSZ(transportMsg.Data); err != nil {
@@ -198,7 +221,6 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		if len(signedReshare.Messages) == 0 {
 			return nil, fmt.Errorf("%s: no reshare messages", operationType)
 		}
-		instanceMessages = signedReshare.Messages
 		allOps = append(allOps, signedReshare.Messages[0].Reshare.OldOperators...)
 		allOps = append(allOps, signedReshare.Messages[0].Reshare.NewOperators...)
 
@@ -223,36 +245,37 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		); err != nil {
 			return nil, err
 		}
+
+		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
+
+		resps := [][]byte{}
+		// Run all resign/reshare ceremonies
+		for _, instance := range signedReshare.Messages {
+			reqID, err := utils.GetReqIDfromMsg(instance)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.validateInstances(reqID); err != nil {
+				return nil, err
+			}
+
+			inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
+			resps = append(resps, resp)
+			if err != nil {
+				return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+			}
+
+			s.Mtx.Lock()
+			s.Instances[reqID] = inst
+			s.InstanceInitTime[reqID] = time.Now()
+			s.Mtx.Unlock()
+		}
+
+		return resps, nil
+
 	default:
 		return nil, fmt.Errorf("unknown operation type: %s", operationType)
 	}
-
-	s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
-
-	resps := [][]byte{}
-	// Run all reshare ceremonies
-	for _, instance := range instanceMessages.([]interface{}) {
-		reqID, err := utils.GetReqIDfromMsg(instance)
-		if err != nil {
-			return nil, err
-		}
-		if err := s.validateInstances(reqID); err != nil {
-			return nil, err
-		}
-
-		inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
-		resps = append(resps, resp)
-		if err != nil {
-			return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
-		}
-
-		s.Mtx.Lock()
-		s.Instances[reqID] = inst
-		s.InstanceInitTime[reqID] = time.Now()
-		s.Mtx.Unlock()
-	}
-
-	return resps, nil
 }
 
 // Helper functions to abstract out common behavior
