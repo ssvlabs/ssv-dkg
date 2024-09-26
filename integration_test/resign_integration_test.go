@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -41,7 +42,6 @@ func TestInitResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		require.NoError(t, err)
 		signedProofs := []*spec.SignedProof{}
 		for _, p := range proofs {
 			signedProofs = append(signedProofs, &spec.SignedProof{
@@ -54,8 +54,16 @@ func TestInitResignHappyFlows(t *testing.T) {
 				Signature: p.Signature,
 			})
 		}
+		originalProofs := proofs
+		// sort.Slice(originalProofs, func(i, j int) bool {
+		// 	return bytes.Compare(proofs[i].Proof.EncryptedShare, proofs[j].Proof.EncryptedShare) < 0
+		// })
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
 		require.NoError(t, err)
+		// sort.Slice(proofs, func(i, j int) bool {
+		// 	return bytes.Compare(proofs[i].Proof.EncryptedShare, proofs[j].Proof.EncryptedShare) < 0
+		// })
+		require.True(t, CompareProofSlices(originalProofs, proofs))
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
@@ -67,7 +75,6 @@ func TestInitResignHappyFlows(t *testing.T) {
 		require.NoError(t, err)
 		// re-sign
 		id = spec.NewID()
-		require.NoError(t, err)
 		signedProofs := []*spec.SignedProof{}
 		for _, p := range proofs {
 			signedProofs = append(signedProofs, &p.SignedProof)
@@ -89,7 +96,6 @@ func TestInitResignHappyFlows(t *testing.T) {
 		for _, p := range proofs {
 			signedProofs = append(signedProofs, &p.SignedProof)
 		}
-		require.NoError(t, err)
 		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
@@ -115,4 +121,46 @@ func TestInitResignHappyFlows(t *testing.T) {
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
+}
+
+// CompareProofSlices compares two slices of *wire.SignedProof for equality.
+// Returns true if they are equal, false otherwise.
+func CompareProofSlices(a, b []*wire.SignedProof) bool {
+	// Check if lengths are equal
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Iterate and compare each proof
+	for i := range a {
+		if !CompareProofs(a[i].Proof, b[i].Proof) {
+			return false
+		}
+	}
+	return true
+}
+
+// CompareProofs compares two Proof structs for equality.
+func CompareProofs(p1, p2 *spec.Proof) bool {
+	// Compare ValidatorPubKey
+	if !bytes.Equal(p1.ValidatorPubKey, p2.ValidatorPubKey) {
+		return false
+	}
+
+	// Compare EncryptedShare
+	if !bytes.Equal(p1.EncryptedShare, p2.EncryptedShare) {
+		return false
+	}
+
+	// Compare SharePubKey
+	if !bytes.Equal(p1.SharePubKey, p2.SharePubKey) {
+		return false
+	}
+
+	// Compare Owner ([20]byte array)
+	if p1.Owner != p2.Owner {
+		return false
+	}
+
+	return true
 }
