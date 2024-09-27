@@ -26,7 +26,7 @@ var GenerateResignMsg = &cobra.Command{
 		if err := cli_utils.SetViperConfig(cmd); err != nil {
 			return err
 		}
-		if err := cli_utils.BindResigningFlags(cmd); err != nil {
+		if err := cli_utils.BindGenerateResignMsgFlags(cmd); err != nil {
 			return err
 		}
 		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")

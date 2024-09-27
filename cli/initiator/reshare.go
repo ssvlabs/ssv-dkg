@@ -26,7 +26,7 @@ var GenerateReshareMsg = &cobra.Command{
 		if err := cli_utils.SetViperConfig(cmd); err != nil {
 			return err
 		}
-		if err := cli_utils.BindReshareFlags(cmd); err != nil {
+		if err := cli_utils.BindGenerateReshareMsgFlags(cmd); err != nil {
 			return err
 		}
 		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")

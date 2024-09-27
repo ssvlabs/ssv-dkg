@@ -397,8 +397,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
-func BindResigningFlags(cmd *cobra.Command) error {
+func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
@@ -430,9 +429,6 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
 		return err
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
@@ -492,6 +488,17 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
+	return nil
+}
+
+// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
+func BindResigningFlags(cmd *cobra.Command) error {
+	if err := BindGenerateResignMsgFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
+		return err
+	}
 	Signatures = viper.GetString("signatures")
 	if Signatures == "" {
 		return fmt.Errorf("😥 Failed to get signature flag value")
@@ -499,8 +506,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
+func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
@@ -535,9 +541,6 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return err
 	}
 	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
@@ -601,7 +604,18 @@ func BindReshareFlags(cmd *cobra.Command) error {
 			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
 		}
 	}
-	Signatures = viper.GetString("signature")
+	return nil
+}
+
+// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
+func BindReshareFlags(cmd *cobra.Command) error {
+	if err := BindGenerateReshareMsgFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
+		return err
+	}
+	Signatures = viper.GetString("signatures")
 	if Signatures == "" {
 		return fmt.Errorf("😥 Failed to get signature flag value")
 	}

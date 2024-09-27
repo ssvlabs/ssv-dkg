@@ -109,6 +109,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
