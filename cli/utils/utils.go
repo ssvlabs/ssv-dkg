@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -70,8 +71,8 @@ var (
 
 // resigning/reshare flags
 var (
-	NoncesFilePath string
 	ProofsFilePath string
+	ProofsString   string
 	NewOperatorIDs []string
 	Signatures     string
 )
@@ -210,6 +211,7 @@ func SetGenerateResignMsgFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
@@ -225,6 +227,7 @@ func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
@@ -239,6 +242,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
@@ -255,6 +259,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
 	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
@@ -406,13 +411,16 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("nonces", cmd.PersistentFlags().Lookup("nonces")); err != nil {
+	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
@@ -446,7 +454,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
 	}
-	NoncesFilePath = viper.GetString("nonces")
+	Nonce = viper.GetUint64("nonce")
 	if ProofsFilePath == "" {
 		return fmt.Errorf("😥 Failed to get path to proofs flag value")
 	}
@@ -457,8 +465,12 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		}
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
+	ProofsString = viper.GetString("proofsString")
+	if ProofsFilePath == "" && ProofsString == "" {
+		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+	}
+	if ProofsFilePath != "" && ProofsString != "" {
+		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
 	if strings.Contains(ProofsFilePath, "../") {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
@@ -516,10 +528,13 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("nonces", cmd.PersistentFlags().Lookup("nonces")); err != nil {
+	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
@@ -545,8 +560,12 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
+	ProofsString = viper.GetString("proofsString")
+	if ProofsFilePath == "" && ProofsString == "" {
+		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+	}
+	if ProofsFilePath != "" && ProofsString != "" {
+		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
 	if strings.Contains(ProofsFilePath, "../") {
 		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
@@ -572,7 +591,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
-	NoncesFilePath = viper.GetString("nonces")
+	Nonce = viper.GetUint64("nonce")
 	if ProofsFilePath == "" {
 		return fmt.Errorf("😥 Failed to get path to proofs flag value")
 	}
@@ -751,6 +770,15 @@ func SignaturesStringToBytes(signatures string) ([]byte, error) {
 		return nil, fmt.Errorf("😥 Failed to parse signatures: %s", err)
 	}
 	return sig, nil
+}
+
+func DecodeProofsString(proofsString string) ([][]*spec.SignedProof, error) {
+	allProofs := make([][]*spec.SignedProof, 0)
+	err := json.Unmarshal([]byte(proofsString), &allProofs)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to unmarshal proofs: %s", err)
+	}
+	return allProofs, nil
 }
 
 func WriteResults(

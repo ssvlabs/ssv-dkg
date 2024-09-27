@@ -56,9 +56,18 @@ var GenerateReshareMsg = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		signedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {
@@ -146,9 +155,18 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		signedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {

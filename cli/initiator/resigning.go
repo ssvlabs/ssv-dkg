@@ -51,9 +51,18 @@ var GenerateResignMsg = &cobra.Command{
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
-		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
 		}
 		// Create new DKG initiator
 		dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, cli_utils.ClientCACertPath)
@@ -62,16 +71,16 @@ var GenerateResignMsg = &cobra.Command{
 		}
 		// Reconstruct the resign messages
 		rMsgs := []*wire.ResignMessage{}
-		for i := 0; i < len(arrayOfSignedProofs); i++ {
+		for i := 0; i < len(signedProofs); i++ {
 			nonce := cli_utils.Nonce + uint64(i)
 			rMsg, err := dkgInitiator.ConstructResignMessage(
 				operatorIDs,
-				arrayOfSignedProofs[i][0].Proof.ValidatorPubKey,
+				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
 				nonce,
-				arrayOfSignedProofs[i],
+				signedProofs[i],
 			)
 			if err != nil {
 				return err
@@ -129,9 +138,18 @@ var StartResigning = &cobra.Command{
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
-		arrayOfSignedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
 		}
 		signatures, err := cli_utils.SignaturesStringToBytes(cli_utils.Signatures)
 		if err != nil {
@@ -146,16 +164,16 @@ var StartResigning = &cobra.Command{
 		id := spec.NewID()
 		// Reconstruct the resign messages
 		rMsgs := []*wire.ResignMessage{}
-		for i := 0; i < len(arrayOfSignedProofs); i++ {
+		for i := 0; i < len(signedProofs); i++ {
 			nonce := cli_utils.Nonce + uint64(i)
 			rMsg, err := dkgInitiator.ConstructResignMessage(
 				operatorIDs,
-				arrayOfSignedProofs[i][0].Proof.ValidatorPubKey,
+				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
 				nonce,
-				arrayOfSignedProofs[i],
+				signedProofs[i],
 			)
 			if err != nil {
 				return err
@@ -180,7 +198,7 @@ var StartResigning = &cobra.Command{
 			keyShares,
 			proofs,
 			false,
-			len(arrayOfSignedProofs),
+			len(signedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

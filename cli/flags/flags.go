@@ -31,6 +31,7 @@ const (
 	serverTLSCertPath = "serverTLSCertPath"
 	serverTLSKeyPath  = "serverTLSKeyPath"
 	proofsFilePath    = "proofsFilePath"
+	proofsString      = "proofsString"
 	ethEndpointURL    = "ethEndpointURL"
 	signatures        = "signatures"
 )
@@ -147,8 +148,15 @@ func OperatorIDFlag(c *cobra.Command) {
 
 // ProofsFilePath add file path to proofs flag to the command
 func ProofsFilePath(c *cobra.Command) {
-	AddPersistentStringFlag(c, proofsFilePath, "proofs.json", "Path to proofs file", false)
+	AddPersistentStringFlag(c, proofsFilePath, "", "Path to proofs file, provide this OR a stringified proofs", false)
 }
+
+// ProofsStringFlag add proofs string flag to the command
+func ProofsStringFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, proofsString, "", "Stringified proofs, provide this OR a path to proofs file", false)
+}
+
+// SignaturesFlag add signatures flag to the command
 func SignaturesFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, signatures, "", "Stringified signature(s) for the resign/reshare message", false)
 }
