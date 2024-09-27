@@ -150,6 +150,9 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -193,6 +196,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -341,6 +345,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -489,6 +494,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"

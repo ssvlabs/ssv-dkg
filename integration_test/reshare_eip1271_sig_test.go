@@ -72,12 +72,6 @@ func TestReshareInvalidEOASig(t *testing.T) {
 
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
 	// Open ethereum keystore
-	jsonBytes, err := os.ReadFile("../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
-	require.NoError(t, err)
-	keyStorePassword, err := os.ReadFile(filepath.Clean("../examples/initiator/password"))
-	require.NoError(t, err)
-	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-	require.NoError(t, err)
 	signedProofs, err := wire.LoadProofs("./stubs/4/000001-0xaa57eab07f1a740672d0c106867d366c798d3b932d373c88cf047da1a3c16d0816ac58bab5a9d6f6f4b63a07608f8f39/proofs.json")
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
@@ -91,13 +85,8 @@ func TestReshareInvalidEOASig(t *testing.T) {
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
-		newId := spec.NewID()
-		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], [20]byte{0}, 0, signedProofs[0])
-		require.NoError(t, err)
-		signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{rMsg}, sk.PrivateKey)
-		require.NoError(t, err)
-		_, _, _, err = clnt.StartResharing(newId, signedReshare)
-		require.Error(t, err, "invalid signed reshare signature")
+		_, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], [20]byte{0}, 0, signedProofs[0])
+		require.Error(t, err, "invalid owner address")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
