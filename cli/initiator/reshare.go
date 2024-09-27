@@ -60,19 +60,13 @@ var GenerateReshareMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
-		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
-		}
-		if len(signedProofs) != len(nonces) {
-			logger.Fatal("😥 Number of proofs and nonces do not match")
-		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
 			// Contruct the resign message
 			rMsg, err := dkgInitiator.ConstructReshareMessage(
 				oldOperatorIDs,
@@ -81,7 +75,7 @@ var GenerateReshareMsg = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonces[i],
+				nonce,
 				signedProofs[i],
 			)
 			if err != nil {
@@ -156,13 +150,6 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
-		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
-		}
-		if len(signedProofs) != len(nonces) {
-			logger.Fatal("😥 Number of proofs and nonces do not match")
-		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
@@ -173,6 +160,7 @@ var StartReshare = &cobra.Command{
 		}
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
 			// Contruct the resign message
 			rMsg, err := dkgInitiator.ConstructReshareMessage(
 				oldOperatorIDs,
@@ -181,7 +169,7 @@ var StartReshare = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonces[i],
+				nonce,
 				signedProofs[i],
 			)
 			if err != nil {

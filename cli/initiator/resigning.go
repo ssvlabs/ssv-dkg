@@ -55,13 +55,6 @@ var GenerateResignMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
-		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
-		}
-		if len(arrayOfSignedProofs) != len(nonces) {
-			logger.Fatal("😥 Number of proofs and nonces do not match")
-		}
 		// Create new DKG initiator
 		dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, cli_utils.ClientCACertPath)
 		if err != nil {
@@ -70,13 +63,14 @@ var GenerateResignMsg = &cobra.Command{
 		// Reconstruct the resign messages
 		rMsgs := []*wire.ResignMessage{}
 		for i := 0; i < len(arrayOfSignedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
 			rMsg, err := dkgInitiator.ConstructResignMessage(
 				operatorIDs,
 				arrayOfSignedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonces[i],
+				nonce,
 				arrayOfSignedProofs[i],
 			)
 			if err != nil {
@@ -139,13 +133,6 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
 		}
-		nonces, err := wire.LoadNonces(cli_utils.NoncesFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read nonces json file:", zap.Error(err))
-		}
-		if len(arrayOfSignedProofs) != len(nonces) {
-			logger.Fatal("😥 Number of proofs and nonces do not match")
-		}
 		signatures, err := cli_utils.SignaturesStringToBytes(cli_utils.Signatures)
 		if err != nil {
 			logger.Fatal("😥 Failed to load signatures: ", zap.Error(err))
@@ -160,13 +147,14 @@ var StartResigning = &cobra.Command{
 		// Reconstruct the resign messages
 		rMsgs := []*wire.ResignMessage{}
 		for i := 0; i < len(arrayOfSignedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
 			rMsg, err := dkgInitiator.ConstructResignMessage(
 				operatorIDs,
 				arrayOfSignedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonces[i],
+				nonce,
 				arrayOfSignedProofs[i],
 			)
 			if err != nil {
