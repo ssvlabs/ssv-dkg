@@ -12,12 +12,12 @@ import (
 func RegisterRoutes(s *Server) {
 	s.Router.Use(rateLimit(s.Logger, generalLimit))
 
-	addRoute(s.Router, "POST", "/init", s.initHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/dkg", s.dkgHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "GET", "/health_check", s.healthHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/results", s.resultsHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/resign", s.resignHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/reshare", s.reshareHandler, rateLimit(s.Logger, routeLimit))
+	addRoute(s.Router, "POST", "/init", s.initHandler, rateLimit(s.Logger, initRouteLimit))
+	addRoute(s.Router, "POST", "/dkg", s.dkgHandler, rateLimit(s.Logger, dkgRouteLimit))
+	addRoute(s.Router, "GET", "/health_check", s.healthHandler, rateLimit(s.Logger, healthCheckRouteLimit))
+	addRoute(s.Router, "POST", "/results", s.resultsHandler, rateLimit(s.Logger, resultsRouteLimit))
+	addRoute(s.Router, "POST", "/resign", s.resignHandler, rateLimit(s.Logger, resignRouteLimit))
+	addRoute(s.Router, "POST", "/reshare", s.reshareHandler, rateLimit(s.Logger, reshareRouteLimit))
 }
 
 // Add route with optional middleware
