@@ -246,6 +246,7 @@ func GetMessageHash(msg interface{}) ([32]byte, error) {
 			}
 			msgBytes = append(msgBytes, reshareBytes...)
 		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
 	default:
 		return hash, fmt.Errorf("unexpected message type: %T", msg)
 	}

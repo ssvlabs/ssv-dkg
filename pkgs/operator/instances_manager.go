@@ -191,24 +191,11 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedResign.Messages {
-			reqID, err := utils.GetReqIDfromMsg(instance)
+			resp, err := s.runInstance(instance, allOps, initiatorPubKey, operationType)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
 			}
-			if err := s.validateInstances(reqID); err != nil {
-				return nil, err
-			}
-
-			inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
 			resps = append(resps, resp)
-			if err != nil {
-				return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
-			}
-
-			s.Mtx.Lock()
-			s.Instances[reqID] = inst
-			s.InstanceInitTime[reqID] = time.Now()
-			s.Mtx.Unlock()
 		}
 
 		return resps, nil
@@ -251,24 +238,11 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedReshare.Messages {
-			reqID, err := utils.GetReqIDfromMsg(instance)
+			resp, err := s.runInstance(instance, allOps, initiatorPubKey, operationType)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
 			}
-			if err := s.validateInstances(reqID); err != nil {
-				return nil, err
-			}
-
-			inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
 			resps = append(resps, resp)
-			if err != nil {
-				return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
-			}
-
-			s.Mtx.Lock()
-			s.Instances[reqID] = inst
-			s.InstanceInitTime[reqID] = time.Now()
-			s.Mtx.Unlock()
 		}
 
 		return resps, nil
@@ -312,4 +286,26 @@ func (s *Switch) validateInstances(reqID InstanceID) error {
 	}
 	s.Mtx.Unlock()
 	return nil
+}
+
+func (s *Switch) runInstance(instance interface{}, allOps []*spec.Operator, initiatorPubKey *rsa.PublicKey, operationType string) ([]byte, error) {
+	reqID, err := utils.GetReqIDfromMsg(instance)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateInstances(reqID); err != nil {
+		return nil, err
+	}
+
+	inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
+	}
+
+	s.Mtx.Lock()
+	s.Instances[reqID] = inst
+	s.InstanceInitTime[reqID] = time.Now()
+	s.Mtx.Unlock()
+
+	return resp, nil
 }

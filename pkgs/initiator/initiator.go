@@ -254,7 +254,7 @@ func (c *Initiator) ResignMessageFlowHandling(signedResign *wire.SignedResign, i
 		}
 		err = verifyMessageSignatures(reqIDs[i], instanceResignResultMap, c.VerifyMessageSignature)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to verify message signatures for ceremony %d: %w", i, err)
 		}
 		results = append(results, instanceResignResultArr)
 	}
@@ -432,12 +432,20 @@ func (c *Initiator) StartResigning(id [24]byte, signedResign *wire.SignedResign)
 	bulkKeyShares := []*wire.KeySharesCLI{}
 	bulkProofs := [][]*wire.SignedProof{}
 	for _, ceremonyResult := range allResults {
-		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult, id)
+		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		reqID := dkgResults[0].RequestID
-		// TODO: verify that the validatorPubKeys from results are the same as the ones in the resign messages
+		expectedValidatorPubKey := resignIDMap[reqID].ValidatorPubKey
+		for _, res := range dkgResults {
+			if !bytes.Equal(res.RequestID[:], reqID[:]) {
+				return nil, nil, nil, fmt.Errorf("request ID mismatch")
+			}
+			if !bytes.Equal(res.SignedProof.Proof.ValidatorPubKey, expectedValidatorPubKey) {
+				return nil, nil, nil, fmt.Errorf("validator pub key mismatch")
+			}
+		}
 		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedResign.Messages[0].Operators, signedResign.Messages[0].Resign.WithdrawalCredentials, resignIDMap[reqID].ValidatorPubKey, signedResign.Messages[0].Resign.Fork, signedResign.Messages[0].Resign.Owner, resignIDMap[reqID].Nonce)
 		if err != nil {
 			return nil, nil, nil, err
@@ -459,7 +467,7 @@ func (c *Initiator) CreateCeremonyResults(
 	ownerAddress [20]byte,
 	nonce uint64,
 ) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
-	dkgResults, err := parseDKGResultsFromBytes(resultsBytes, id)
+	dkgResults, err := parseDKGResultsFromBytes(resultsBytes)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -557,12 +565,20 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 	bulkKeyShares := []*wire.KeySharesCLI{}
 	bulkProofs := [][]*wire.SignedProof{}
 	for _, ceremonyResult := range resultsBytes {
-		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult, id)
+		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		reqID := dkgResults[0].RequestID
-		// TODO: verify that the validatorPubKeys from results are the same as the ones in the resign messages
+		expectedValidatorPubKey := reshareIDMap[reqID].ValidatorPubKey
+		for _, res := range dkgResults {
+			if !bytes.Equal(res.RequestID[:], reqID[:]) {
+				return nil, nil, nil, fmt.Errorf("request ID mismatch")
+			}
+			if !bytes.Equal(res.SignedProof.Proof.ValidatorPubKey, expectedValidatorPubKey) {
+				return nil, nil, nil, fmt.Errorf("validator pub key mismatch")
+			}
+		}
 		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedReshare.Messages[0].Reshare.NewOperators, signedReshare.Messages[0].Reshare.WithdrawalCredentials, reshareIDMap[reqID].ValidatorPubKey, signedReshare.Messages[0].Reshare.Fork, signedReshare.Messages[0].Reshare.Owner, reshareIDMap[reqID].Nonce)
 		if err != nil {
 			return nil, nil, nil, err
@@ -613,7 +629,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	return depositDataJson, keyshares, nil
 }
 
-func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults []*spec.Result, finalErr error) {
+func parseDKGResultsFromBytes(responseResult [][]byte) (dkgResults []*spec.Result, finalErr error) {
 	for i := 0; i < len(responseResult); i++ {
 		msg := responseResult[i]
 		tsp := &wire.SignedTransport{}
@@ -634,10 +650,6 @@ func parseDKGResultsFromBytes(responseResult [][]byte, id [24]byte) (dkgResults 
 			finalErr = errors.Join(finalErr, err)
 			continue
 		}
-		// if !bytes.Equal(result.RequestID[:], id[:]) {
-		// 	finalErr = errors.Join(finalErr, fmt.Errorf("DKG result has wrong ID, sender ID: %d, message type: %s", tsp.Signer, tsp.Message.Type.String()))
-		// 	continue
-		// }
 		dkgResults = append(dkgResults, result)
 	}
 	if finalErr != nil {

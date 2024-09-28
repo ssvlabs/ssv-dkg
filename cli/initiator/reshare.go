@@ -90,19 +90,19 @@ var GenerateReshareMsg = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
+				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
 		// write bulk reshare message to file
 		rMsgBytes, err := json.Marshal(rMsgs)
 		if err != nil {
-			logger.Fatal("😥 Failed to marshal resign messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to marshal reshare messages:", zap.Error(err))
 		}
 		finalPath := fmt.Sprintf("%s/reshare.json", cli_utils.OutputPath)
 		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
 		if err != nil {
-			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to save reshare messages:", zap.Error(err))
 		}
 		logger.Info("🚀 Reshare message generated")
 		return nil
@@ -195,7 +195,7 @@ var StartReshare = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				logger.Fatal("😥 Failed to construct resign message: ", zap.Error(err))
+				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
@@ -217,7 +217,7 @@ var StartReshare = &cobra.Command{
 			keyShares,
 			proofs,
 			false,
-			1,
+			len(signedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

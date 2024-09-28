@@ -85,7 +85,7 @@ var GenerateResignMsg = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				return err
+				logger.Fatal("😥 Failed to construct resign message:", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
@@ -99,9 +99,6 @@ var GenerateResignMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
 		}
-		// if err := cli_utils.WriteMessage(rMsgs, cli_utils.OutputPath, "resign"); err != nil {
-		// 	logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
-		// }
 		logger.Info("🚀 Resign messages generated")
 		return nil
 	},
@@ -187,7 +184,7 @@ var StartResigning = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				return err
+				logger.Fatal("😥 Failed to construct resign message:", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
