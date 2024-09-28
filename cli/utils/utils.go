@@ -1000,14 +1000,24 @@ func WriteProofs(proofs []*wire.SignedProof, dir string) error {
 	return nil
 }
 
+// This function is temporarily unused because it creates incorrect format of JSON files for unknown reason
+// When when there are more than one ReshareMessage/ResignMessage in the array, it creates multiple arrays with one message in each
 func WriteMessage(msg interface{}, outputPath string, msgType string) (err error) {
 	switch msgType {
 	case "resign":
+		resignMsgArr, ok := msg.([]*wire.ResignMessage)
+		if !ok {
+			return fmt.Errorf("failed to cast resign message")
+		}
 		finalPath := fmt.Sprintf("%s/resign.json", outputPath)
-		err = utils.WriteJSON(finalPath, msg)
+		err = utils.WriteJSON(finalPath, resignMsgArr)
 	case "reshare":
+		reshareMsgArr, ok := msg.([]*wire.ReshareMessage)
+		if !ok {
+			return fmt.Errorf("failed to cast reshare message")
+		}
 		finalPath := fmt.Sprintf("%s/reshare.json", outputPath)
-		err = utils.WriteJSON(finalPath, msg)
+		err = utils.WriteJSON(finalPath, reshareMsgArr)
 	default:
 		return fmt.Errorf("unknown message type: %s", msgType)
 	}

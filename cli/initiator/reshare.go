@@ -1,8 +1,10 @@
 package initiator
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
@@ -93,12 +95,14 @@ var GenerateReshareMsg = &cobra.Command{
 			rMsgs = append(rMsgs, rMsg)
 		}
 		// write bulk reshare message to file
-		if err := cli_utils.WriteMessage(
-			rMsgs,
-			cli_utils.OutputPath,
-			"reshare",
-		); err != nil {
-			logger.Fatal("Could not save results", zap.Error(err))
+		rMsgBytes, err := json.Marshal(rMsgs)
+		if err != nil {
+			logger.Fatal("😥 Failed to marshal resign messages:", zap.Error(err))
+		}
+		finalPath := fmt.Sprintf("%s/reshare.json", cli_utils.OutputPath)
+		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
+		if err != nil {
+			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
 		}
 		logger.Info("🚀 Reshare message generated")
 		return nil

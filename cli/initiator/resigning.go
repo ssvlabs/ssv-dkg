@@ -1,8 +1,10 @@
 package initiator
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
@@ -88,9 +90,18 @@ var GenerateResignMsg = &cobra.Command{
 			rMsgs = append(rMsgs, rMsg)
 		}
 		// Save the resign messages
-		if err := cli_utils.WriteMessage(rMsgs, cli_utils.OutputPath, "resign"); err != nil {
+		rMsgBytes, err := json.Marshal(rMsgs)
+		if err != nil {
+			logger.Fatal("😥 Failed to marshal resign messages:", zap.Error(err))
+		}
+		finalPath := fmt.Sprintf("%s/resign.json", cli_utils.OutputPath)
+		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
+		if err != nil {
 			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
 		}
+		// if err := cli_utils.WriteMessage(rMsgs, cli_utils.OutputPath, "resign"); err != nil {
+		// 	logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
+		// }
 		logger.Info("🚀 Resign messages generated")
 		return nil
 	},
