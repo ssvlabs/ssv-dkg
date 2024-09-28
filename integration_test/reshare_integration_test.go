@@ -126,7 +126,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 
 			// start resharing
 			args := []string{"reshare",
@@ -138,7 +138,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--newOperatorIDs", "55,66,77,88",
 				"--network", "holesky",
 				"--nonce", strconv.Itoa(10),
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -279,7 +279,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -290,7 +290,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -431,7 +431,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -442,7 +442,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -583,7 +583,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -594,7 +594,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)

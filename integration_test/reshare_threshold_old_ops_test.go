@@ -107,7 +107,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -117,7 +117,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 				"--newOperatorIDs", "55,66,77,88",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -246,7 +246,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				"--newOperatorIDs", "44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -376,7 +376,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -497,7 +497,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedReshare.Signature)
+			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -507,7 +507,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
