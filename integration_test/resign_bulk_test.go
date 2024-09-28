@@ -149,7 +149,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedResign.Signature)
+			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -158,7 +158,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--nonce", "10",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -321,7 +321,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedResign.Signature)
+			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -330,7 +330,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", "10",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -493,7 +493,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedResign.Signature)
+			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -502,7 +502,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
 				"--nonce", "10",
-				"--sigantures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -642,7 +642,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			siganture := hex.EncodeToString(signedResign.Signature)
+			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -651,7 +651,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--nonce", "10",
-				"--signatures", siganture}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
