@@ -158,7 +158,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--nonce", "10",
-				"sigantures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -170,6 +170,9 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -327,7 +330,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", "10",
-				"signatures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -339,6 +342,9 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -496,7 +502,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
 				"--nonce", "10",
-				"sigantures", siganture}
+				"--sigantures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -508,6 +514,9 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -642,7 +651,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--nonce", "10",
-				"signatures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -654,6 +663,9 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)

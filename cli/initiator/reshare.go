@@ -100,7 +100,7 @@ var GenerateReshareMsg = &cobra.Command{
 		); err != nil {
 			logger.Fatal("Could not save results", zap.Error(err))
 		}
-		logger.Info("🚀 Resharing ceremony completed")
+		logger.Info("🚀 Reshare message generated")
 		return nil
 	},
 }

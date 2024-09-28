@@ -451,9 +451,6 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
 	}
 	Nonce = viper.GetUint64("nonce")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
-	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {
@@ -595,9 +592,6 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
-	if ProofsFilePath == "" {
-		return fmt.Errorf("😥 Failed to get path to proofs flag value")
-	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(certPath, "../") {

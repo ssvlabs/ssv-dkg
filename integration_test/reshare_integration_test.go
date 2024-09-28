@@ -290,7 +290,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"signatures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -302,6 +302,9 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -439,7 +442,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"signatures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -451,6 +454,9 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -588,7 +594,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"signatures", siganture}
+				"--signatures", siganture}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -600,6 +606,9 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
