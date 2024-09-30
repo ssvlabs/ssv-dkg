@@ -215,13 +215,8 @@ func ValidateOpsLen(len int) error {
 func GetMessageHash(msg interface{}) ([32]byte, error) {
 	hash := [32]byte{}
 	switch msg := msg.(type) {
-	case *wire.ResignMessage:
-		msgBytes, err := msg.MarshalSSZ()
-		if err != nil {
-			return hash, err
-		}
-		copy(hash[:], eth_crypto.Keccak256(msgBytes))
-	case *wire.ReshareMessage:
+	case wire.SSZMarshaller:
+		// Single message case
 		msgBytes, err := msg.MarshalSSZ()
 		if err != nil {
 			return hash, err
@@ -255,8 +250,6 @@ func GetMessageHash(msg interface{}) ([32]byte, error) {
 
 func GetReqIDfromMsg(instance interface{}) ([24]byte, error) {
 	// make a unique ID for each reshare using the instance hash
-	// TODO: hash is 32 bytes, but reqID is 24 bytes, may not be the best solution.
-	// Potential solution is to use 32 bytes hash for all reqIDs, but need to check if it breaks anything
 	reqID := [24]byte{}
 	instanceHash, err := GetMessageHash(instance)
 	if err != nil {
