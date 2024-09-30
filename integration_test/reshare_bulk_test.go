@@ -147,6 +147,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
 			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -317,6 +318,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
 			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -487,6 +489,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
 			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
