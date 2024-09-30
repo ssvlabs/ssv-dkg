@@ -31,9 +31,9 @@ func TestReshareBulkJSONPArsing(t *testing.T) {
 
 	var finalMsg []byte
 	prefix := []byte("\x19Ethereum Signed Message:\n")
-	len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+	msgLen := []byte(strconv.Itoa(len(bulkReshareMsgs)))
 	finalMsg = append(finalMsg, prefix...)
-	finalMsg = append(finalMsg, len...)
+	finalMsg = append(finalMsg, msgLen...)
 	finalMsg = append(finalMsg, bulkReshareMsgs...)
 	var hash [32]byte
 	keccak256 := eth_crypto.Keccak256(finalMsg)
@@ -54,9 +54,9 @@ func TestResignBulkJSONPArsing(t *testing.T) {
 
 	var finalMsg []byte
 	prefix := []byte("\x19Ethereum Signed Message:\n")
-	len := []byte(strconv.Itoa(len(bulkResignMsgs)))
+	msgLen := []byte(strconv.Itoa(len(bulkResignMsgs)))
 	finalMsg = append(finalMsg, prefix...)
-	finalMsg = append(finalMsg, len...)
+	finalMsg = append(finalMsg, msgLen...)
 	finalMsg = append(finalMsg, bulkResignMsgs...)
 	var hash [32]byte
 	keccak256 := eth_crypto.Keccak256(finalMsg)
@@ -73,10 +73,10 @@ func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
 		var finalMsg []byte
 		message := []byte("I am the owner of this Safe account")
 		prefix := []byte("\x19Ethereum Signed Message:\n")
-		len := []byte(strconv.Itoa(len(message)))
+		msgLen := []byte(strconv.Itoa(len(message)))
 
 		finalMsg = append(finalMsg, prefix...)
-		finalMsg = append(finalMsg, len...)
+		finalMsg = append(finalMsg, msgLen...)
 		finalMsg = append(finalMsg, message...)
 		var hash [32]byte
 		keccak256 := eth_crypto.Keccak256(finalMsg)
@@ -101,10 +101,10 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 		var finalMsg []byte
 		message := []byte("I am the owner of this Safe account")
 		prefix := []byte("\x19Ethereum Signed Message:\n")
-		len := []byte(strconv.Itoa(len(message)))
+		msgLen := []byte(strconv.Itoa(len(message)))
 
 		finalMsg = append(finalMsg, prefix...)
-		finalMsg = append(finalMsg, len...)
+		finalMsg = append(finalMsg, msgLen...)
 		finalMsg = append(finalMsg, message...)
 		var hash [32]byte
 		keccak256 := eth_crypto.Keccak256(finalMsg)
@@ -136,10 +136,10 @@ func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 
 		var finalMsg []byte
 		prefix := []byte("\x19Ethereum Signed Message:\n")
-		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+		msgLen := []byte(strconv.Itoa(len(bulkReshareMsgs)))
 
 		finalMsg = append(finalMsg, prefix...)
-		finalMsg = append(finalMsg, len...)
+		finalMsg = append(finalMsg, msgLen...)
 		finalMsg = append(finalMsg, bulkReshareMsgs...)
 		var hash [32]byte
 		keccak256 := eth_crypto.Keccak256(finalMsg)
@@ -172,10 +172,10 @@ func TestVerifyMultisigSignedBulkResignOffChain(t *testing.T) {
 
 		var finalMsg []byte
 		prefix := []byte("\x19Ethereum Signed Message:\n")
-		len := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+		msgLen := []byte(strconv.Itoa(len(bulkReshareMsgs)))
 
 		finalMsg = append(finalMsg, prefix...)
-		finalMsg = append(finalMsg, len...)
+		finalMsg = append(finalMsg, msgLen...)
 		finalMsg = append(finalMsg, bulkReshareMsgs...)
 		var hash [32]byte
 		keccak256 := eth_crypto.Keccak256(finalMsg)
