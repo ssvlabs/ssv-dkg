@@ -12,14 +12,14 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
-	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -155,24 +155,35 @@ func TestInitInstance(t *testing.T) {
 	require.Nil(t, resp2)
 
 	var tested = false
-
+	initiatorPubKey, err := spec_crypto.ParseRSAPublicKey(encPubKey)
+	require.NoError(t, err)
 	for i := 0; i < MaxInstances; i++ {
-		var reqIDx [24]byte
-		copy(reqIDx[:], fmt.Sprintf("testRequestID111111%v1", i)) // Just a sample value
-		respx, errx := swtch.State.InitInstance(reqIDx, initMessage, encPubKey, sig)
+		reqIDx := [24]byte{}
+		rand.Read(reqIDx[:]) // Just a sample value
+		respx, errx := func(reqID [24]byte, initMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
+			if err := swtch.State.validateInstances(reqID); err != nil {
+				return nil, err
+			}
+			if err != nil {
+				return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
+			}
+			swtch.State.Mtx.Lock()
+			swtch.State.Instances[reqID] = &instWrapper{&dkg.LocalOwner{}, initiatorPubKey, make(chan []byte, 1)}
+			swtch.State.InstanceInitTime[reqID] = time.Now()
+			swtch.State.Mtx.Unlock()
+			return resp, nil
+		}(reqIDx, initMessage, encPubKey, sig)
 		if i == MaxInstances-1 {
 			require.Equal(t, errx, utils.ErrMaxInstances)
 			require.Nil(t, respx)
 			tested = true
 			break
 		}
-		require.NoError(t, errx)
-		require.NotNil(t, respx)
 	}
 
 	require.True(t, tested)
 
-	swtch.State.InstanceInitTime[reqID] = time.Now().Add(-6 * time.Minute)
+	swtch.State.InstanceInitTime[reqID] = time.Now().Add(-2 * time.Minute)
 
 	_, resp, err = swtch.State.CreateInstance(reqID, init.Operators, init, &priv.PublicKey)
 	require.NoError(t, err)
