@@ -69,7 +69,7 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 	for _, ts := range msg.Messages {
 		err = iw.Process(ts, incOperators)
 		if err != nil {
-			return nil, fmt.Errorf("process message: failed to process dkg message: %s", err.Error())
+			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
 	return <-iw.respChan, nil

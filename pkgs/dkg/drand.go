@@ -8,12 +8,12 @@ import (
 
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/group/edwards25519"
 	"github.com/drand/kyber/pairing"
 	kyber_share "github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	kyber_dkg "github.com/drand/kyber/share/dkg"
-	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
-	"github.com/drand/kyber/util/random"
+	kyber_dkg "github.com/drand/kyber/share/dkg" //nolint:all
+	"github.com/drand/kyber/sign/schnorr"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"github.com/ssvlabs/ssv-dkg/pkgs/board"
@@ -25,6 +25,8 @@ import (
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
+
+var authSuite = edwards25519.NewBlakeSHA256Ed25519()
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGdata struct {
@@ -123,7 +125,7 @@ func (o *LocalOwner) StartDKG() error {
 		NewNodes:  nodes,
 		OldNodes:  nodes, // when initiating dkg we consider the old nodes the new nodes (taken from kyber)
 		Threshold: int(o.data.init.T),
-		Auth:      drand_bls.NewSchemeOnG2(o.Suite),
+		Auth:      schnorr.NewScheme(authSuite),
 	}
 	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
 	if err != nil {
@@ -294,7 +296,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, err
 		},
 	)
 	// Generate random k scalar (secret) and corresponding public key k*G where G is a G1 generator
-	eciesSK, pk := initsecret(o.Suite)
+	eciesSK, pk := initsecret()
 	o.data.secret = eciesSK
 	bts, _, err := CreateExchange(pk, nil)
 	if err != nil {
@@ -320,7 +322,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	o.Logger.Debug("operator: received kyber msg", zap.String("type", kyberMsg.Type.String()), zap.Uint64("from", from))
 	switch kyberMsg.Type {
 	case wire.KyberDealBundleMessageType:
-		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
+		b, err := wire.DecodeDealBundle(kyberMsg.Data, authSuite)
 		if err != nil {
 			return err
 		}
@@ -334,7 +336,7 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 		o.Logger.Debug("operator: received response bundle from", zap.Uint64("ID", from))
 		o.board.ResponseC <- *b
 	case wire.KyberJustificationBundleMessageType:
-		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
+		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, authSuite)
 		if err != nil {
 			return err
 		}
@@ -480,10 +482,10 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 }
 
 // initsecret generates a random scalar and computes public point k*G where G is a generator of the field
-func initsecret(suite pairing.Suite) (kyber.Scalar, kyber.Point) {
-	eciesSK := suite.G1().Scalar().Pick(random.New())
-	pk := suite.G1().Point().Mul(eciesSK, nil)
-	return eciesSK, pk
+func initsecret() (kyber.Scalar, kyber.Point) {
+	secret := authSuite.Scalar().Pick(authSuite.RandomStream())
+	public := authSuite.Point().Mul(secret, nil)
+	return secret, public
 }
 
 func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, error) {
@@ -644,7 +646,7 @@ func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoint
 		},
 	)
 
-	eciesSK, pk := initsecret(o.Suite)
+	eciesSK, pk := initsecret()
 	o.data.secret = eciesSK
 	bts, _, err := CreateExchange(pk, commits)
 	if err != nil {
@@ -678,7 +680,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		OldNodes:     OldNodes,
 		Threshold:    int(o.data.reshare.NewT),
 		OldThreshold: int(o.data.reshare.OldT),
-		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
+		Auth:         schnorr.NewScheme(o.Suite.G2().(kyber_dkg.Suite)),
 		Share:        o.SecretShare,
 	}
 	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
@@ -752,7 +754,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		OldNodes:     OldNodes,
 		Threshold:    int(o.data.reshare.NewT),
 		OldThreshold: int(o.data.reshare.OldT),
-		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
+		Auth:         schnorr.NewScheme(o.Suite.G2().(kyber_dkg.Suite)),
 		PublicCoeffs: coefs,
 	}
 	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
