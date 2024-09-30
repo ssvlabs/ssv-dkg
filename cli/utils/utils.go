@@ -95,8 +95,6 @@ func SetViperConfig(cmd *cobra.Command) error {
 		if err := viper.ReadInConfig(); err != nil {
 			return err
 		}
-	} else {
-		return fmt.Errorf("😥 wrong configPath")
 	}
 	return nil
 }
@@ -302,15 +300,15 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if !filepath.IsLocal(OperatorsInfoPath) {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
@@ -407,15 +405,15 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if !filepath.IsLocal(OperatorsInfoPath) {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
@@ -502,15 +500,15 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if !filepath.IsLocal(OperatorsInfoPath) {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
