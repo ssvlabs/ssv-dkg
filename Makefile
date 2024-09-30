@@ -46,9 +46,17 @@ docker-demo-initiator:
 	@echo "Running initiator in docker demo"
 	docker-compose up --build initiator
 
+docker-demo-generate-resign-msg:
+	@echo "Running generate re-sign message in docker demo"
+	docker-compose up --build generate-resign-msg
+
 docker-demo-resign:
 	@echo "Running re-sign ceremony in docker demo"
 	docker-compose up --build resign
+
+docker-demo-generate-reshare-msg:
+	@echo "Running generate re-share message in docker demo"
+	docker-compose up --build generate-reshare-msg
 
 docker-demo-reshare:
 	@echo "Running re-share ceremony in docker demo"
