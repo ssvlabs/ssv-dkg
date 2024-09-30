@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -58,9 +59,12 @@ func TestResignValidEOASig(t *testing.T) {
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
+		siganture, err := SignResign(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositData, ks, proofs, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -157,9 +161,12 @@ func TestResignValidContractSig(t *testing.T) {
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
+		siganture, err := SignResign(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositData, ks, proofs, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -212,8 +219,12 @@ func TestResignInvalidContractSig(t *testing.T) {
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk.PrivateKey)
-		_, _, _, err = clnt.StartResigning(id, signedResign)
+		siganture, err := SignResign(rMsgs, sk.PrivateKey)
+		require.NoError(t, err)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		_, _, _, err = clnt.StartResigning(id, &signedResign)
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

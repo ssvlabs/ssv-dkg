@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,9 +53,12 @@ func TestReshareValidEOASig(t *testing.T) {
 		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
-		signedReshare, err := clnt.SignReshare(rMsgs, sk.PrivateKey)
+		signature, err := SignReshare(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResharing(newId, signedReshare)
+		signatureBytes, err := hex.DecodeString(signature)
+		require.NoError(t, err)
+		signedReshare := wire.SignedReshare{Messages: rMsgs, Signature: signatureBytes}
+		depositData, ks, proofs, err := clnt.StartResharing(newId, &signedReshare)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -130,9 +134,12 @@ func TestReshareValidContractSig(t *testing.T) {
 		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
-		signedReshare, err := clnt.SignReshare(rMsgs, sk.PrivateKey)
+		signature, err := SignReshare(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
-		depositData, ks, proofs, err := clnt.StartResharing(newId, signedReshare)
+		signatureBytes, err := hex.DecodeString(signature)
+		require.NoError(t, err)
+		signedReshare := wire.SignedReshare{Messages: rMsgs, Signature: signatureBytes}
+		depositData, ks, proofs, err := clnt.StartResharing(newId, &signedReshare)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositData, ks[0], proofs, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -179,9 +186,12 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
-		signedReshare, err := clnt.SignReshare(rMsgs, sk.PrivateKey)
+		signature, err := SignReshare(rMsgs, sk.PrivateKey)
 		require.NoError(t, err)
-		_, _, _, err = clnt.StartResharing(newId, signedReshare)
+		signatureBytes, err := hex.DecodeString(signature)
+		require.NoError(t, err)
+		signedReshare := wire.SignedReshare{Messages: rMsgs, Signature: signatureBytes}
+		_, _, _, err = clnt.StartResharing(newId, &signedReshare)
 		require.Error(t, err, "signature invalid")
 	})
 	for _, srv := range servers {

@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -65,9 +66,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk)
+		siganture, err := SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -96,9 +100,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk)
+		siganture, err := SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -127,9 +134,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk)
+		siganture, err := SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
@@ -157,9 +167,12 @@ func TestInitResignHappyFlows(t *testing.T) {
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		signedResign, err := clnt.SignResign(rMsgs, sk)
+		siganture, err := SignResign(rMsgs, sk)
 		require.NoError(t, err)
-		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, signedResign)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
 		require.NoError(t, err)
 		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)

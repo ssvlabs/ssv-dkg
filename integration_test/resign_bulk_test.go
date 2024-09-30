@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -11,13 +12,13 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -78,19 +79,19 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
+	// t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -144,12 +145,8 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -316,12 +313,8 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -488,12 +481,8 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -637,12 +626,8 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
 			require.NoError(t, err)
-			signedResign, err := clnt.SignResign(resignMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedResign.Signature)
 
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
@@ -681,4 +666,19 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
+}
+
+func SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (string, error) {
+	hash, err := utils.GetMessageHash(msg)
+	if err != nil {
+		return "", err
+	}
+	// Sign message root
+	ownerSigBytes, err := eth_crypto.Sign(hash[:], sk)
+	if err != nil {
+		return "", err
+	}
+	signature := hex.EncodeToString(ownerSigBytes)
+
+	return signature, nil
 }

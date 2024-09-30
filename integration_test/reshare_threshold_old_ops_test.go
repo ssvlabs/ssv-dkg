@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -105,16 +104,15 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			require.NoError(t, err)
 			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44}, []uint64{22, 33, 44, 55}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
 			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "55,66,77,88",
+				"--newOperatorIDs", "22,33,44,55",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
 				"--signatures", signature}
@@ -234,9 +232,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			require.NoError(t, err)
 			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77}, []uint64{44, 55, 66, 77, 88, 99, 110}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
 			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -364,9 +361,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			require.NoError(t, err)
 			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
 			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -495,9 +491,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			require.NoError(t, err)
 			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
 			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),

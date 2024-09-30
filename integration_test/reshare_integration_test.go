@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -14,10 +13,8 @@ import (
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -121,12 +118,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
-			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
 
 			// start resharing
 			args := []string{"reshare",
@@ -274,12 +266,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
-			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -426,12 +413,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
-			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -578,12 +560,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
-			require.NoError(t, err)
-			signedReshare, err := clnt.SignReshare(reshareMsg, sk.PrivateKey)
-			require.NoError(t, err)
-			signature := hex.EncodeToString(signedReshare.Signature)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
 
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,

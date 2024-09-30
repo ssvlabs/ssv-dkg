@@ -99,7 +99,7 @@ var GenerateResignMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
 		}
-		logger.Info("🚀 Resign messages generated")
+		logger.Info("🚀 Resign message generated", zap.String("path", finalPath))
 		return nil
 	},
 }

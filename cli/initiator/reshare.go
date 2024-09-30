@@ -104,7 +104,7 @@ var GenerateReshareMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to save reshare messages:", zap.Error(err))
 		}
-		logger.Info("🚀 Reshare message generated")
+		logger.Info("🚀 Reshare message generated", zap.String("path", finalPath))
 		return nil
 	},
 }
@@ -183,7 +183,7 @@ var StartReshare = &cobra.Command{
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
 			nonce := cli_utils.Nonce + uint64(i)
-			// Contruct the resign message
+			// Contruct the reshare message
 			rMsg, err := dkgInitiator.ConstructReshareMessage(
 				oldOperatorIDs,
 				newOperatorIDs,

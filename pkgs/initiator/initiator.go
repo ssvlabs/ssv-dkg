@@ -2,7 +2,6 @@ package initiator
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"encoding/hex"
@@ -16,7 +15,6 @@ import (
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
 	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
@@ -428,33 +426,7 @@ func (c *Initiator) StartResigning(id [24]byte, signedResign *wire.SignedResign)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	bulkDepositData := []*wire.DepositDataCLI{}
-	bulkKeyShares := []*wire.KeySharesCLI{}
-	bulkProofs := [][]*wire.SignedProof{}
-	for _, ceremonyResult := range allResults {
-		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		reqID := dkgResults[0].RequestID
-		expectedValidatorPubKey := resignIDMap[reqID].ValidatorPubKey
-		for _, res := range dkgResults {
-			if !bytes.Equal(res.RequestID[:], reqID[:]) {
-				return nil, nil, nil, fmt.Errorf("request ID mismatch")
-			}
-			if !bytes.Equal(res.SignedProof.Proof.ValidatorPubKey, expectedValidatorPubKey) {
-				return nil, nil, nil, fmt.Errorf("validator pub key mismatch")
-			}
-		}
-		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedResign.Messages[0].Operators, signedResign.Messages[0].Resign.WithdrawalCredentials, resignIDMap[reqID].ValidatorPubKey, signedResign.Messages[0].Resign.Fork, signedResign.Messages[0].Resign.Owner, resignIDMap[reqID].Nonce)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		bulkDepositData = append(bulkDepositData, depositData)
-		bulkKeyShares = append(bulkKeyShares, keyShares)
-		bulkProofs = append(bulkProofs, Proofs)
-	}
-	return bulkDepositData, bulkKeyShares, bulkProofs, nil
+	return c.createBulkResults(allResults, signedResign, resignIDMap)
 }
 
 func (c *Initiator) CreateCeremonyResults(
@@ -561,33 +533,7 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	bulkDepositData := []*wire.DepositDataCLI{}
-	bulkKeyShares := []*wire.KeySharesCLI{}
-	bulkProofs := [][]*wire.SignedProof{}
-	for _, ceremonyResult := range resultsBytes {
-		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		reqID := dkgResults[0].RequestID
-		expectedValidatorPubKey := reshareIDMap[reqID].ValidatorPubKey
-		for _, res := range dkgResults {
-			if !bytes.Equal(res.RequestID[:], reqID[:]) {
-				return nil, nil, nil, fmt.Errorf("request ID mismatch")
-			}
-			if !bytes.Equal(res.SignedProof.Proof.ValidatorPubKey, expectedValidatorPubKey) {
-				return nil, nil, nil, fmt.Errorf("validator pub key mismatch")
-			}
-		}
-		depositData, keyShares, Proofs, err := c.CreateCeremonyResults(ceremonyResult, reqID, signedReshare.Messages[0].Reshare.NewOperators, signedReshare.Messages[0].Reshare.WithdrawalCredentials, reshareIDMap[reqID].ValidatorPubKey, signedReshare.Messages[0].Reshare.Fork, signedReshare.Messages[0].Reshare.Owner, reshareIDMap[reqID].Nonce)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		bulkDepositData = append(bulkDepositData, depositData)
-		bulkKeyShares = append(bulkKeyShares, keyShares)
-		bulkProofs = append(bulkProofs, Proofs)
-	}
-	return bulkDepositData, bulkKeyShares, bulkProofs, nil
+	return c.createBulkResults(resultsBytes, signedReshare, reshareIDMap)
 }
 
 // processDKGResultResponseInitial deserializes incoming DKG result messages from operators after successful initiation ceremony
@@ -895,24 +841,6 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 	}, nil
 }
 
-// TODO: This function is to illustrate the process of signing a message and currently used for the tests to sign messages, consider removing it
-func (c *Initiator) SignReshare(msg []*wire.ReshareMessage, sk *ecdsa.PrivateKey) (*wire.SignedReshare, error) {
-	hash, err := utils.GetMessageHash(msg)
-	if err != nil {
-		return nil, err
-	}
-	// Sign message root
-	ownerSig, err := eth_crypto.Sign(hash[:], sk)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wire.SignedReshare{
-		Messages:  msg,
-		Signature: ownerSig,
-	}, nil
-}
-
 func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
@@ -937,24 +865,6 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 		Operators: ops,
 		Resign:    &resign,
 		Proofs:    proofsData,
-	}, nil
-}
-
-// TODO: This function is to illustrate the process of signing a message and currently used for the tests to sign messages, consider removing it
-func (c *Initiator) SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (*wire.SignedResign, error) {
-	hash, err := utils.GetMessageHash(msg)
-	if err != nil {
-		return nil, err
-	}
-	// Sign message root
-	ownerSig, err := eth_crypto.Sign(hash[:], sk)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wire.SignedResign{
-		Messages:  msg,
-		Signature: ownerSig,
 	}, nil
 }
 
@@ -990,4 +900,49 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 		return fmt.Errorf("less than threshold of operators replied: threshold %d, errors %d, %w", threshold, len(errs), finalErr)
 	}
 	return nil
+}
+
+func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg interface{}, msgIDMap interface{}) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
+	bulkDepositData := []*wire.DepositDataCLI{}
+	bulkKeyShares := []*wire.KeySharesCLI{}
+	bulkProofs := [][]*wire.SignedProof{}
+	for _, ceremonyResult := range resultsBytes {
+		dkgResults, err := parseDKGResultsFromBytes(ceremonyResult)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		reqID := dkgResults[0].RequestID
+		depositData := &wire.DepositDataCLI{}
+		keyShares := &wire.KeySharesCLI{}
+		Proofs := []*wire.SignedProof{}
+		var expectedValidatorPubKey []byte
+		switch signedMsg := signedMsg.(type) {
+		case *wire.SignedResign:
+			msgIDMap := msgIDMap.(map[[24]byte]*spec.Resign)
+			expectedValidatorPubKey = msgIDMap[reqID].ValidatorPubKey
+			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Operators, signedMsg.Messages[0].Resign.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Resign.Fork, signedMsg.Messages[0].Resign.Owner, msgIDMap[reqID].Nonce)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		case *wire.SignedReshare:
+			msgIDMap := msgIDMap.(map[[24]byte]*spec.Reshare)
+			expectedValidatorPubKey = msgIDMap[reqID].ValidatorPubKey
+			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Reshare.NewOperators, signedMsg.Messages[0].Reshare.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Reshare.Fork, signedMsg.Messages[0].Reshare.Owner, msgIDMap[reqID].Nonce)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		}
+		for _, res := range dkgResults {
+			if !bytes.Equal(res.RequestID[:], reqID[:]) {
+				return nil, nil, nil, fmt.Errorf("request ID mismatch")
+			}
+			if !bytes.Equal(res.SignedProof.Proof.ValidatorPubKey, expectedValidatorPubKey) {
+				return nil, nil, nil, fmt.Errorf("validator pub key mismatch")
+			}
+		}
+		bulkDepositData = append(bulkDepositData, depositData)
+		bulkKeyShares = append(bulkKeyShares, keyShares)
+		bulkProofs = append(bulkProofs, Proofs)
+	}
+	return bulkDepositData, bulkKeyShares, bulkProofs, nil
 }
