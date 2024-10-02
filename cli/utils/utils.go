@@ -83,10 +83,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if ConfigPath != "" {
-		if strings.Contains(ConfigPath, "../") {
-			return fmt.Errorf("😥 configPath should not contain traversal")
-		}
+	if filepath.IsLocal(ConfigPath) {
 		stat, err := os.Stat(ConfigPath)
 		if err != nil {
 			return err
@@ -290,8 +287,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
-	if strings.Contains(OutputPath, "../") {
-		return fmt.Errorf("😥 outputPath should not contain traversal")
+	if !filepath.IsLocal(OutputPath) {
+		return fmt.Errorf("😥 wrong outputPath flag")
 	}
 	if err := createDirIfNotExist(OutputPath); err != nil {
 		return err
@@ -300,8 +297,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFormat = viper.GetString("logFormat")
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
-	if strings.Contains(LogFilePath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
+	if !filepath.IsLocal(LogFilePath) {
+		return fmt.Errorf("😥 wrong logFilePath flag")
 	}
 	return nil
 }
@@ -335,15 +332,15 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 operatorsInfoPath flag should not contain traversal")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
@@ -356,8 +353,8 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if strings.Contains(certPath, "../") {
-			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		if !filepath.IsLocal(certPath) {
+			return fmt.Errorf("😥 wrong clientCACertPath flag")
 		}
 	}
 	return nil
@@ -436,15 +433,15 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 operatorsInfoPath flag should not contain traversal")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
@@ -453,8 +450,8 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if strings.Contains(certPath, "../") {
-			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		if !filepath.IsLocal(certPath) {
+			return fmt.Errorf("😥 worng clientCACertPath flag")
 		}
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
@@ -465,8 +462,8 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if ProofsFilePath != "" && ProofsString != "" {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
-	if strings.Contains(ProofsFilePath, "../") {
-		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
+	if ProofsFilePath != "" && !filepath.IsLocal(ProofsFilePath) {
+		return fmt.Errorf("😥 wrong proofsFilePath flag")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -541,15 +538,15 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if strings.Contains(OperatorsInfoPath, "../") {
-		return fmt.Errorf("😥 logFilePath should not contain traversal")
-	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
 	}
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+	}
+	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
@@ -567,8 +564,8 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if ProofsFilePath != "" && ProofsString != "" {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
-	if strings.Contains(ProofsFilePath, "../") {
-		return fmt.Errorf("😥 proofsFilePath flag should not contain traversal")
+	if ProofsFilePath != "" && !filepath.IsLocal(ProofsFilePath) {
+		return fmt.Errorf("😥 wrong proofsFilePath flag")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -594,8 +591,8 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if strings.Contains(certPath, "../") {
-			return fmt.Errorf("😥 clientCACertPath flag should not contain traversal")
+		if !filepath.IsLocal(certPath) {
+			return fmt.Errorf("😥 wrong clientCACertPath flag")
 		}
 	}
 	return nil
@@ -659,18 +656,12 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
 	ServerTLSCertPath = viper.GetString("serverTLSCertPath")
-	if ServerTLSCertPath == "" {
-		return fmt.Errorf("😥 Failed to get serverTLSCertPath flag value")
-	}
-	if strings.Contains(ServerTLSCertPath, "../") {
-		return fmt.Errorf("😥 serverTLSCertPath flag should not contain traversal")
+	if !filepath.IsLocal(ServerTLSCertPath) {
+		return fmt.Errorf("😥 wrong serverTLSCertPath flag")
 	}
 	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
-	if ServerTLSKeyPath == "" {
-		return fmt.Errorf("😥 Failed to get serverTLSKeyPath flag value")
-	}
-	if strings.Contains(ServerTLSKeyPath, "../") {
-		return fmt.Errorf("😥 serverTLSKeyPath flag should not contain traversal")
+	if !filepath.IsLocal(ServerTLSKeyPath) {
+		return fmt.Errorf("😥 wrong serverTLSKeyPath flag")
 	}
 	EthEndpointURL = viper.GetString("ethEndpointURL")
 	if !IsUrl(EthEndpointURL) {
@@ -697,11 +688,8 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 		return err
 	}
 	CeremonyDir = viper.GetString("ceremonyDir")
-	if CeremonyDir == "" {
-		return fmt.Errorf("😥 Failed to get ceremony directory flag value")
-	}
-	if strings.Contains(CeremonyDir, "../") {
-		return fmt.Errorf("😥 CeremonyDir should not contain traversal")
+	if !filepath.IsLocal(CeremonyDir) {
+		return fmt.Errorf("😥 wrong CeremonyDir flag")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
