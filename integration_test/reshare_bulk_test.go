@@ -279,7 +279,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	// re-sign
+	// re-share
 	t.Run("test 7 operators bulk reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
