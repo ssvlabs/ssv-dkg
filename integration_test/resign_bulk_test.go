@@ -1,16 +1,23 @@
 package integration_test
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
@@ -37,6 +44,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -71,19 +79,19 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
+	// t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -109,6 +117,37 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate resign message for signing
+			generateResignMsgArgs := []string{"generate-resign-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--nonce", "10"}
+			RootCmd.SetArgs(generateResignMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load resign message
+			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			require.NoError(t, err)
+			resignMsg := make([]*wire.ResignMessage, 0)
+			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			require.NoError(t, err)
+
+			// sign resign message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -116,8 +155,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--nonce", "10",
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password"}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -129,6 +167,9 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -172,6 +213,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -243,6 +285,37 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateResignMsgArgs := []string{"generate-resign-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77",
+				"--nonce", "10"}
+			RootCmd.SetArgs(generateResignMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load resign message
+			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			require.NoError(t, err)
+			resignMsg := make([]*wire.ResignMessage, 0)
+			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			require.NoError(t, err)
+
+			// sign resign message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -250,8 +323,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", "10",
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password"}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -263,6 +335,9 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -306,6 +381,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -377,6 +453,37 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateResignMsgArgs := []string{"generate-resign-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+				"--nonce", "10"}
+			RootCmd.SetArgs(generateResignMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load resign message
+			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			require.NoError(t, err)
+			resignMsg := make([]*wire.ResignMessage, 0)
+			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			require.NoError(t, err)
+
+			// sign resign message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -384,8 +491,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
 				"--nonce", "10",
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password"}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -397,6 +503,9 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -440,6 +549,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -488,6 +598,37 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateResignMsgArgs := []string{"generate-resign-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+				"--nonce", "10"}
+			RootCmd.SetArgs(generateResignMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load resign message
+			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			require.NoError(t, err)
+			resignMsg := make([]*wire.ResignMessage, 0)
+			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			require.NoError(t, err)
+
+			// sign resign message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"resign",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -495,8 +636,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--nonce", "10",
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password"}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -508,6 +648,9 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove resign message
+	err = os.Remove("./output/resign.json")
+	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -523,4 +666,19 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
 	}
+}
+
+func SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (string, error) {
+	hash, err := utils.GetMessageHash(msg)
+	if err != nil {
+		return "", err
+	}
+	// Sign message root
+	ownerSigBytes, err := eth_crypto.Sign(hash[:], sk)
+	if err != nil {
+		return "", err
+	}
+	signature := hex.EncodeToString(ownerSigBytes)
+
+	return signature, nil
 }

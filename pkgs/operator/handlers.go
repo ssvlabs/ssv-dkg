@@ -97,14 +97,15 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 	}
 }
 
-func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming RESIGN msg")
-	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.ResignMessageType, s.State.OperatorID)
+	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedResignMessageType, s.State.OperatorID)
 	if err != nil {
-		s.Logger.Error("Error processing incoming init message", zap.Error(err))
+		s.Logger.Error("Error processing incoming resign message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return
 	}
+
 	reqid := signedResignMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 	b, err := s.State.HandleInstanceOperation(reqid, signedResignMsg.Message, signedResignMsg.Signer, signedResignMsg.Signature, "resign")
@@ -115,29 +116,22 @@ func (s *Server) resignHandler(writer http.ResponseWriter, request *http.Request
 	}
 	logger.Info("✅ resigned data successfully")
 	writer.WriteHeader(http.StatusOK)
-	if _, err := writer.Write(b); err != nil {
+	flattenedResp := utils.FlattenReponseMsgs(b)
+	if _, err := writer.Write(flattenedResp); err != nil {
 		logger.Error("error writing resign response: " + err.Error())
 		return
 	}
 }
 
-func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming RESHARE msg")
-	rawdata, err := io.ReadAll(request.Body)
+	signedReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, err), http.StatusBadRequest)
-		return
-	}
-	signedReshareMsg := &wire.SignedTransport{}
-	if err := signedReshareMsg.UnmarshalSSZ(rawdata); err != nil {
+		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
 		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
 		return
 	}
-	// Validate that incoming message is an init message
-	if signedReshareMsg.Message.Type != wire.ReshareMessageType {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %v", s.State.OperatorID, errors.New("not reshare message to reshare route")), http.StatusBadRequest)
-		return
-	}
+
 	reqid := signedReshareMsg.Message.Identifier
 	logger := s.Logger.With(zap.String("reqid", hex.EncodeToString(reqid[:])))
 	b, err := s.State.HandleInstanceOperation(reqid, signedReshareMsg.Message, signedReshareMsg.Signer, signedReshareMsg.Signature, "reshare")
@@ -147,7 +141,8 @@ func (s *Server) reshareHandler(writer http.ResponseWriter, request *http.Reques
 	}
 	logger.Info("✅ Reshare instance created successfully")
 	writer.WriteHeader(http.StatusOK)
-	if _, err := writer.Write(b); err != nil {
+	flattenedResp := utils.FlattenReponseMsgs(b)
+	if _, err := writer.Write(flattenedResp); err != nil {
 		logger.Error("error writing reshare response: " + err.Error())
 		return
 	}

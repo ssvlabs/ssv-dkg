@@ -564,7 +564,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	if position == -1 {
 		return nil, fmt.Errorf("operator not found among resign operators: %d", o.ID)
 	}
-	if err := spec.ValidateResignMessage(&r.SignedResign.Resign, spec.GetOperator(r.Operators, o.ID), r.Proofs[position]); err != nil {
+	if err := spec.ValidateResignMessage(r.Resign, spec.GetOperator(r.Operators, o.ID), r.Proofs[position]); err != nil {
 		return nil, fmt.Errorf("failed to validate resign message: %w", err)
 	}
 	prShare, err := o.decryptFunc(r.Proofs[position].Proof.EncryptedShare)
@@ -582,10 +582,10 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		secretKeyBLS,
 		o.OperatorSecretKey,
 		r.Proofs[position].Proof.ValidatorPubKey,
-		r.SignedResign.Resign.Owner,
-		r.SignedResign.Resign.WithdrawalCredentials,
-		r.SignedResign.Resign.Fork,
-		r.SignedResign.Resign.Nonce,
+		r.Resign.Owner,
+		r.Resign.WithdrawalCredentials,
+		r.Resign.Fork,
+		r.Resign.Nonce,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build results message: %w", err)

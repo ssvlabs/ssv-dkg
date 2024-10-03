@@ -16,8 +16,8 @@ func RegisterRoutes(s *Server) {
 	addRoute(s.Router, "POST", "/dkg", s.dkgHandler, rateLimit(s.Logger, routeLimit))
 	addRoute(s.Router, "GET", "/health_check", s.healthHandler, rateLimit(s.Logger, routeLimit))
 	addRoute(s.Router, "POST", "/results", s.resultsHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/resign", s.resignHandler, rateLimit(s.Logger, routeLimit))
-	addRoute(s.Router, "POST", "/reshare", s.reshareHandler, rateLimit(s.Logger, routeLimit))
+	addRoute(s.Router, "POST", "/resign", s.signedResignHandler, rateLimit(s.Logger, routeLimit))
+	addRoute(s.Router, "POST", "/reshare", s.signedReshareHandler, rateLimit(s.Logger, routeLimit))
 }
 
 // Add route with optional middleware

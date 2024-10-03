@@ -1,13 +1,12 @@
 package initiator
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/spf13/cobra"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -18,7 +17,96 @@ import (
 )
 
 func init() {
+	cli_utils.SetGenerateReshareMsgFlags(GenerateReshareMsg)
 	cli_utils.SetReshareFlags(StartReshare)
+}
+
+var GenerateReshareMsg = &cobra.Command{
+	Use:   "generate-reshare-msg",
+	Short: "Generate reshare message for one or multiple ceremonies",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := cli_utils.SetViperConfig(cmd); err != nil {
+			return err
+		}
+		if err := cli_utils.BindGenerateReshareMsgFlags(cmd); err != nil {
+			return err
+		}
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-initiator")
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := cli_utils.Sync(logger); err != nil {
+				log.Printf("Failed to sync logger: %v", err)
+			}
+		}()
+		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
+		opMap, err := cli_utils.LoadOperators(logger)
+		if err != nil {
+			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
+		}
+		oldOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
+		if err != nil {
+			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
+		}
+		newOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.NewOperatorIDs)
+		if err != nil {
+			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
+		}
+		// create initiator instance
+		dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, cli_utils.ClientCACertPath)
+		if err != nil {
+			return err
+		}
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
+		}
+		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
+		if ethNetwork == "" {
+			logger.Fatal("😥 Cant recognize eth network")
+		}
+		rMsgs := []*wire.ReshareMessage{}
+		for i := 0; i < len(signedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
+			// Contruct the resign message
+			rMsg, err := dkgInitiator.ConstructReshareMessage(
+				oldOperatorIDs,
+				newOperatorIDs,
+				signedProofs[i][0].Proof.ValidatorPubKey,
+				ethNetwork,
+				cli_utils.WithdrawAddress[:],
+				cli_utils.OwnerAddress,
+				nonce,
+				signedProofs[i],
+			)
+			if err != nil {
+				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
+			}
+			rMsgs = append(rMsgs, rMsg)
+		}
+		// write bulk reshare message to file
+		rMsgBytes, err := json.Marshal(rMsgs)
+		if err != nil {
+			logger.Fatal("😥 Failed to marshal reshare messages:", zap.Error(err))
+		}
+		finalPath := fmt.Sprintf("%s/reshare.json", cli_utils.OutputPath)
+		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
+		if err != nil {
+			logger.Fatal("😥 Failed to save reshare messages:", zap.Error(err))
+		}
+		logger.Info("🚀 Reshare message generated", zap.String("path", finalPath))
+		return nil
+	},
 }
 
 var StartReshare = &cobra.Command{
@@ -56,11 +144,11 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		oldOperatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
+		oldOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		newOperatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.NewOperatorIDs)
+		newOperatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.NewOperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load new participants: ", zap.Error(err))
 		}
@@ -71,47 +159,65 @@ var StartReshare = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		signedProofs, err := wire.LoadProofs(cli_utils.ProofsFilePath)
-		if err != nil {
-			logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+		var signedProofs [][]*spec.SignedProof
+		if cli_utils.ProofsFilePath != "" {
+			signedProofs, err = wire.LoadProofs(cli_utils.ProofsFilePath)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs json file:", zap.Error(err))
+			}
+		}
+		if cli_utils.ProofsString != "" {
+			signedProofs, err = cli_utils.DecodeProofsString(cli_utils.ProofsString)
+			if err != nil {
+				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
+			}
 		}
 		ethNetwork := e2m_core.NetworkFromString(cli_utils.Network)
 		if ethNetwork == "" {
 			logger.Fatal("😥 Cant recognize eth network")
 		}
-		// Open ethereum keystore
-		jsonBytes, err := os.ReadFile(cli_utils.KeystorePath)
+		signatures, err := cli_utils.SignaturesStringToBytes(cli_utils.Signatures)
 		if err != nil {
-			return err
+			logger.Fatal("😥 Failed to load signatures: ", zap.Error(err))
 		}
-		keyStorePassword, err := os.ReadFile(filepath.Clean(cli_utils.KeystorePass))
-		if err != nil {
-			return fmt.Errorf("😥 Error reading password file: %s", err)
+		rMsgs := []*wire.ReshareMessage{}
+		for i := 0; i < len(signedProofs); i++ {
+			nonce := cli_utils.Nonce + uint64(i)
+			// Contruct the reshare message
+			rMsg, err := dkgInitiator.ConstructReshareMessage(
+				oldOperatorIDs,
+				newOperatorIDs,
+				signedProofs[i][0].Proof.ValidatorPubKey,
+				ethNetwork,
+				cli_utils.WithdrawAddress[:],
+				cli_utils.OwnerAddress,
+				nonce,
+				signedProofs[i],
+			)
+			if err != nil {
+				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
+			}
+			rMsgs = append(rMsgs, rMsg)
 		}
-		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-		if err != nil {
-			return err
+		// Append the signatures
+		signedReshare := &wire.SignedReshare{
+			Messages:  rMsgs,
+			Signature: signatures,
 		}
 		// Start the ceremony
-		depositData, keyShares, proof, err := dkgInitiator.StartResharing(id, oldOperatorIDs, newOperatorIDs, signedProofs[0], sk.PrivateKey, ethNetwork, cli_utils.WithdrawAddress[:], cli_utils.OwnerAddress, cli_utils.Nonce)
+		depositData, keyShares, proofs, err := dkgInitiator.StartResharing(id, signedReshare)
 		if err != nil {
 			logger.Fatal("😥 Failed to initiate DKG ceremony: ", zap.Error(err))
 		}
-		var depositDataArr []*wire.DepositDataCLI
-		var keySharesArr []*wire.KeySharesCLI
-		var proofs [][]*wire.SignedProof
-		depositDataArr = append(depositDataArr, depositData)
-		keySharesArr = append(keySharesArr, keyShares)
-		proofs = append(proofs, proof)
 		// Save results
 		logger.Info("🎯 All data is validated.")
 		if err := cli_utils.WriteResults(
 			logger,
-			depositDataArr,
-			keySharesArr,
+			depositData,
+			keyShares,
 			proofs,
 			false,
-			1,
+			len(signedProofs),
 			cli_utils.OwnerAddress,
 			cli_utils.Nonce,
 			cli_utils.WithdrawAddress,

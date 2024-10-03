@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -71,9 +72,9 @@ var (
 // resigning/reshare flags
 var (
 	ProofsFilePath string
+	ProofsString   string
 	NewOperatorIDs []string
-	KeystorePath   string
-	KeystorePass   string
+	Signatures     string
 )
 
 // SetViperConfig reads a yaml config file if provided
@@ -82,7 +83,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if filepath.IsLocal(ConfigPath) {
+	if ConfigPath != "" && filepath.Clean(ConfigPath) != "" && !strings.Contains(ConfigPath, "..") {
 		stat, err := os.Stat(ConfigPath)
 		if err != nil {
 			return err
@@ -197,6 +198,37 @@ func SetVerifyFlags(cmd *cobra.Command) {
 	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
 }
 
+func SetGenerateResignMsgFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.NetworkFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
+	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
+	flags.ClientCACertPathFlag(cmd)
+	flags.EthEndpointURL(cmd)
+}
+
+func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	flags.OperatorsInfoFlag(cmd)
+	flags.OperatorsInfoPathFlag(cmd)
+	flags.OperatorIDsFlag(cmd)
+	flags.NewOperatorIDsFlag(cmd)
+	flags.WithdrawAddressFlag(cmd)
+	flags.OwnerAddressFlag(cmd)
+	flags.NonceFlag(cmd)
+	flags.NetworkFlag(cmd)
+	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
+	flags.ClientCACertPathFlag(cmd)
+	flags.EthEndpointURL(cmd)
+}
+
 func SetResigningFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	flags.OperatorsInfoFlag(cmd)
@@ -207,9 +239,9 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
-	flags.KeystoreFilePath(cmd)
-	flags.KeystoreFilePass(cmd)
+	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
 
@@ -224,9 +256,9 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.NonceFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
+	flags.ProofsStringFlag(cmd)
 	flags.ClientCACertPathFlag(cmd)
-	flags.KeystoreFilePath(cmd)
-	flags.KeystoreFilePass(cmd)
+	flags.SignaturesFlag(cmd)
 	flags.EthEndpointURL(cmd)
 }
 
@@ -255,8 +287,11 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return err
 	}
 	OutputPath = viper.GetString("outputPath")
-	if !filepath.IsLocal(OutputPath) {
-		return fmt.Errorf("😥 wrong outputPath flag")
+	if OutputPath != "" {
+		OutputPath = filepath.Clean(OutputPath)
+	}
+	if strings.Contains(OutputPath, "..") {
+		return fmt.Errorf("😥 outputPath cant contain traversal")
 	}
 	if err := createDirIfNotExist(OutputPath); err != nil {
 		return err
@@ -265,8 +300,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFormat = viper.GetString("logFormat")
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
-	if !filepath.IsLocal(LogFilePath) {
-		return fmt.Errorf("😥 wrong logFilePath flag")
+	if strings.Contains(LogFilePath, "..") {
+		return fmt.Errorf("😥 logFilePath cant contain traversal")
 	}
 	return nil
 }
@@ -300,6 +335,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -307,7 +345,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
 	}
-	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
 		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
@@ -321,7 +359,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if !filepath.IsLocal(certPath) {
+		if strings.Contains(filepath.Clean(certPath), "..") {
 			return fmt.Errorf("😥 wrong clientCACertPath flag")
 		}
 	}
@@ -362,8 +400,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
-func BindResigningFlags(cmd *cobra.Command) error {
+func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
@@ -385,6 +422,9 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
 		return err
 	}
@@ -394,17 +434,14 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
-		return err
-	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -412,7 +449,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
 	}
-	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
 		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	owner := viper.GetString("owner")
@@ -422,12 +459,22 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if !filepath.IsLocal(certPath) {
+		if strings.Contains(filepath.Clean(certPath), "..") {
 			return fmt.Errorf("😥 worng clientCACertPath flag")
 		}
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if !filepath.IsLocal(ProofsFilePath) {
+	if ProofsFilePath != "" {
+		ProofsFilePath = filepath.Clean(ProofsFilePath)
+	}
+	ProofsString = viper.GetString("proofsString")
+	if ProofsFilePath == "" && ProofsString == "" {
+		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+	}
+	if ProofsFilePath != "" && ProofsString != "" {
+		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
+	}
+	if ProofsFilePath != "" && strings.Contains(ProofsFilePath, "..") {
 		return fmt.Errorf("😥 wrong proofsFilePath flag")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
@@ -447,19 +494,25 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
-	KeystorePath = viper.GetString("ethKeystorePath")
-	if !filepath.IsLocal(KeystorePath) {
-		return fmt.Errorf("😥 wrong ethKeystorePath flag")
+	return nil
+}
+
+// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
+func BindResigningFlags(cmd *cobra.Command) error {
+	if err := BindGenerateResignMsgFlags(cmd); err != nil {
+		return err
 	}
-	KeystorePass = viper.GetString("ethKeystorePass")
-	if !filepath.IsLocal(KeystorePass) {
-		return fmt.Errorf("😥 wrong ethKeystorePass flag")
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
+		return err
+	}
+	Signatures = viper.GetString("signatures")
+	if Signatures == "" {
+		return fmt.Errorf("😥 Failed to get signature flag value")
 	}
 	return nil
 }
 
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
+func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if err := BindBaseFlags(cmd); err != nil {
 		return err
 	}
@@ -493,13 +546,13 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("ethKeystorePath", cmd.PersistentFlags().Lookup("ethKeystorePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethKeystorePass", cmd.PersistentFlags().Lookup("ethKeystorePass")); err != nil {
+	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
 		return err
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -507,7 +560,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	if OperatorsInfoPath == "" && OperatorsInfo == "" {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
 	}
-	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
+	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
 		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
@@ -519,7 +572,17 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
-	if !filepath.IsLocal(ProofsFilePath) {
+	if ProofsFilePath != "" {
+		ProofsFilePath = filepath.Clean(ProofsFilePath)
+	}
+	ProofsString = viper.GetString("proofsString")
+	if ProofsFilePath == "" && ProofsString == "" {
+		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+	}
+	if ProofsFilePath != "" && ProofsString != "" {
+		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
+	}
+	if ProofsFilePath != "" && strings.Contains(ProofsFilePath, "..") {
 		return fmt.Errorf("😥 wrong proofsFilePath flag")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
@@ -546,17 +609,24 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	Nonce = viper.GetUint64("nonce")
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
-		if !filepath.IsLocal(certPath) {
+		if strings.Contains(filepath.Clean(certPath), "..") {
 			return fmt.Errorf("😥 wrong clientCACertPath flag")
 		}
 	}
-	KeystorePath = viper.GetString("ethKeystorePath")
-	if !filepath.IsLocal(KeystorePath) {
-		return fmt.Errorf("😥 wrong ethKeystorePath flag")
+	return nil
+}
+
+// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
+func BindReshareFlags(cmd *cobra.Command) error {
+	if err := BindGenerateReshareMsgFlags(cmd); err != nil {
+		return err
 	}
-	KeystorePass = viper.GetString("ethKeystorePass")
-	if !filepath.IsLocal(KeystorePass) {
-		return fmt.Errorf("😥 wrong ethKeystorePass flag")
+	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
+		return err
+	}
+	Signatures = viper.GetString("signatures")
+	if Signatures == "" {
+		return fmt.Errorf("😥 Failed to get signature flag value")
 	}
 	return nil
 }
@@ -587,12 +657,12 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("ethEndpointURL", cmd.PersistentFlags().Lookup("ethEndpointURL")); err != nil {
 		return err
 	}
-	PrivKey = viper.GetString("privKey")
-	PrivKeyPassword = viper.GetString("privKeyPassword")
-	if PrivKey == "" {
+	PrivKey = filepath.Clean(viper.GetString("privKey"))
+	PrivKeyPassword = filepath.Clean(viper.GetString("privKeyPassword"))
+	if strings.Contains(PrivKey, "..") {
 		return fmt.Errorf("😥 Failed to get private key path flag value")
 	}
-	if PrivKeyPassword == "" {
+	if strings.Contains(PrivKeyPassword, "..") {
 		return fmt.Errorf("😥 Failed to get password for private key flag value")
 	}
 	Port = viper.GetUint64("port")
@@ -603,12 +673,12 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	if OperatorID == 0 {
 		return fmt.Errorf("😥 Wrong operator ID provided")
 	}
-	ServerTLSCertPath = viper.GetString("serverTLSCertPath")
-	if !filepath.IsLocal(ServerTLSCertPath) {
+	ServerTLSCertPath = filepath.Clean(viper.GetString("serverTLSCertPath"))
+	if strings.Contains(ServerTLSCertPath, "..") {
 		return fmt.Errorf("😥 wrong serverTLSCertPath flag")
 	}
-	ServerTLSKeyPath = viper.GetString("serverTLSKeyPath")
-	if !filepath.IsLocal(ServerTLSKeyPath) {
+	ServerTLSKeyPath = filepath.Clean(viper.GetString("serverTLSKeyPath"))
+	if strings.Contains(ServerTLSKeyPath, "..") {
 		return fmt.Errorf("😥 wrong serverTLSKeyPath flag")
 	}
 	EthEndpointURL = viper.GetString("ethEndpointURL")
@@ -635,8 +705,8 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
-	CeremonyDir = viper.GetString("ceremonyDir")
-	if !filepath.IsLocal(CeremonyDir) {
+	CeremonyDir = filepath.Clean(viper.GetString("ceremonyDir"))
+	if strings.Contains(CeremonyDir, "..") {
 		return fmt.Errorf("😥 wrong CeremonyDir flag")
 	}
 	owner := viper.GetString("owner")
@@ -660,8 +730,8 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// StingSliceToUintArray converts the string slice to uint64 slice
-func StingSliceToUintArray(flagdata []string) ([]uint64, error) {
+// StringSliceToUintArray converts the string slice to uint64 slice
+func StringSliceToUintArray(flagdata []string) ([]uint64, error) {
 	partsarr := make([]uint64, 0, len(flagdata))
 	for i := 0; i < len(flagdata); i++ {
 		opid, err := strconv.ParseUint(flagdata[i], 10, strconv.IntSize)
@@ -706,6 +776,23 @@ func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
 		return nil, err
 	}
 	return operators, nil
+}
+
+func SignaturesStringToBytes(signatures string) ([]byte, error) {
+	sig, err := hex.DecodeString(signatures)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to parse signatures: %s", err)
+	}
+	return sig, nil
+}
+
+func DecodeProofsString(proofsString string) ([][]*spec.SignedProof, error) {
+	allProofs := make([][]*spec.SignedProof, 0)
+	err := json.Unmarshal([]byte(proofsString), &allProofs)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to unmarshal proofs: %s", err)
+	}
+	return allProofs, nil
 }
 
 func WriteResults(

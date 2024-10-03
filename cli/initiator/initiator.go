@@ -54,7 +54,7 @@ var StartDKG = &cobra.Command{
 		}()
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		// Load operators TODO: add more sources.
-		operatorIDs, err := cli_utils.StingSliceToUintArray(cli_utils.OperatorIDs)
+		operatorIDs, err := cli_utils.StringSliceToUintArray(cli_utils.OperatorIDs)
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}

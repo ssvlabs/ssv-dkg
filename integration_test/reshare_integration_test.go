@@ -3,14 +3,17 @@ package integration_test
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
@@ -37,6 +40,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -84,6 +88,40 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--newOperatorIDs", "55,66,77,88",
+				"--network", "holesky",
+				"--nonce", strconv.Itoa(10)}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			require.NoError(t, err)
+			reshareMsg := make([]*wire.ReshareMessage, 0)
+			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			require.NoError(t, err)
+
+			// sign reshare message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
+			// start resharing
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -91,10 +129,9 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
+				"--network", "holesky",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -106,6 +143,9 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -149,6 +189,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -196,6 +237,39 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--newOperatorIDs", "11,22,33,44,55,66,77",
+				"--nonce", strconv.Itoa(10),
+				"--network", "holesky"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			require.NoError(t, err)
+			reshareMsg := make([]*wire.ReshareMessage, 0)
+			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			require.NoError(t, err)
+
+			// sign reshare message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -204,9 +278,8 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -218,6 +291,9 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -261,6 +337,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -308,6 +385,39 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
+				"--nonce", strconv.Itoa(10),
+				"--network", "holesky"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			require.NoError(t, err)
+			reshareMsg := make([]*wire.ReshareMessage, 0)
+			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			require.NoError(t, err)
+
+			// sign reshare message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -316,9 +426,8 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -330,6 +439,9 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -373,6 +485,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		},
 	}
 	RootCmd.AddCommand(cli_initiator.StartDKG)
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -420,6 +533,39 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
+				"--nonce", strconv.Itoa(10),
+				"--network", "holesky"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
+			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			require.NoError(t, err)
+			reshareMsg := make([]*wire.ReshareMessage, 0)
+			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			require.NoError(t, err)
+
+			// sign reshare message
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -428,9 +574,8 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -442,6 +587,9 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
+	// remove reshare file
+	err = os.Remove("./output/reshare.json")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)

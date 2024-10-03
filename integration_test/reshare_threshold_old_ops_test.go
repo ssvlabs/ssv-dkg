@@ -3,15 +3,21 @@ package integration_test
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
@@ -85,17 +91,31 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+			signedProof, err := wire.LoadProofs(proofsFilePath)
+			require.NoError(t, err)
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			logger := zap.L().Named("integration-tests")
+			clnt, err := initiator.New(ops, logger, version, rootCert)
+			require.NoError(t, err)
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44}, []uint64{22, 33, 44, 55}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			require.NoError(t, err)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			require.NoError(t, err)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "55,66,77,88",
+				"--newOperatorIDs", "22,33,44,55",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -199,6 +219,21 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+			signedProof, err := wire.LoadProofs(proofsFilePath)
+			require.NoError(t, err)
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			logger := zap.L().Named("integration-tests")
+			clnt, err := initiator.New(ops, logger, version, rootCert)
+			require.NoError(t, err)
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77}, []uint64{44, 55, 66, 77, 88, 99, 110}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			require.NoError(t, err)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			require.NoError(t, err)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -207,9 +242,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--newOperatorIDs", "44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -314,6 +348,21 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+			signedProof, err := wire.LoadProofs(proofsFilePath)
+			require.NoError(t, err)
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			logger := zap.L().Named("integration-tests")
+			clnt, err := initiator.New(ops, logger, version, rootCert)
+			require.NoError(t, err)
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			require.NoError(t, err)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			require.NoError(t, err)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -322,9 +371,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -430,6 +478,21 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
+			signedProof, err := wire.LoadProofs(proofsFilePath)
+			require.NoError(t, err)
+			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
+			require.NoError(t, err)
+			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
+			require.NoError(t, err)
+			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+			require.NoError(t, err)
+			logger := zap.L().Named("integration-tests")
+			clnt, err := initiator.New(ops, logger, version, rootCert)
+			require.NoError(t, err)
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			require.NoError(t, err)
+			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			require.NoError(t, err)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -438,9 +501,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
-				"--ethKeystorePath", "./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9",
-				"--ethKeystorePass", "./stubs/password",
-				"--network", "holesky"}
+				"--network", "holesky",
+				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
