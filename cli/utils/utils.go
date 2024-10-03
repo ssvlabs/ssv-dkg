@@ -83,7 +83,7 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if filepath.Clean(ConfigPath) != "" && !strings.Contains(ConfigPath, "..") {
+	if ConfigPath != "" && filepath.Clean(ConfigPath) != "" && !strings.Contains(ConfigPath, "..") {
 		stat, err := os.Stat(ConfigPath)
 		if err != nil {
 			return err
@@ -286,7 +286,10 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
 		return err
 	}
-	OutputPath = filepath.Clean(viper.GetString("outputPath"))
+	OutputPath = viper.GetString("outputPath")
+	if OutputPath != "" {
+		OutputPath = filepath.Clean(OutputPath)
+	}
 	if strings.Contains(OutputPath, "..") {
 		return fmt.Errorf("😥 outputPath cant contain traversal")
 	}
@@ -331,7 +334,10 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
-	OperatorsInfoPath = filepath.Clean(viper.GetString("operatorsInfoPath"))
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -432,7 +438,10 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if len(OperatorIDs) == 0 {
 		return fmt.Errorf("😥 Operator IDs flag cant be empty")
 	}
-	OperatorsInfoPath = filepath.Clean(viper.GetString("operatorsInfoPath"))
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -454,7 +463,10 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 			return fmt.Errorf("😥 worng clientCACertPath flag")
 		}
 	}
-	ProofsFilePath = filepath.Clean(viper.GetString("proofsFilePath"))
+	ProofsFilePath = viper.GetString("proofsFilePath")
+	if ProofsFilePath != "" {
+		ProofsFilePath = filepath.Clean(ProofsFilePath)
+	}
 	ProofsString = viper.GetString("proofsString")
 	if ProofsFilePath == "" && ProofsString == "" {
 		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
@@ -537,7 +549,10 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
 		return err
 	}
-	OperatorsInfoPath = filepath.Clean(viper.GetString("operatorsInfoPath"))
+	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
+	if OperatorsInfoPath != "" {
+		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
+	}
 	OperatorsInfo = viper.GetString("operatorsInfo")
 	if OperatorsInfoPath != "" && OperatorsInfo != "" {
 		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
@@ -556,7 +571,10 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if len(NewOperatorIDs) == 0 {
 		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
 	}
-	ProofsFilePath = filepath.Clean(viper.GetString("proofsFilePath"))
+	ProofsFilePath = viper.GetString("proofsFilePath")
+	if ProofsFilePath != "" {
+		ProofsFilePath = filepath.Clean(ProofsFilePath)
+	}
 	ProofsString = viper.GetString("proofsString")
 	if ProofsFilePath == "" && ProofsString == "" {
 		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
