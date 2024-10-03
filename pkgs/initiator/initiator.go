@@ -718,7 +718,7 @@ func (c *Initiator) Ping(ips []string) error {
 		res := <-resc
 		err := c.processPongMessage(res)
 		if err != nil {
-			c.Logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.IP))
+			c.Logger.Error("🔴 operator not healthy: ", zap.Error(err), zap.String("IP", res.IP))
 			continue
 		}
 	}
@@ -780,22 +780,33 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if signedPongMsg.Message.Type != wire.PongMessageType {
 		return fmt.Errorf("wrong incoming message type from operator")
 	}
+	// id, pubKey, multisig, connected, err := parsePongMessage(signedPongMsg.Message.Data)
 	pong := &wire.Pong{}
 	if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
-		return err
+		return fmt.Errorf("🆘 cant unmarshall pong message, probably old version, please upgrade: %w", err)
+
 	}
 	pongBytes, err := signedPongMsg.Message.MarshalSSZ()
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling signedPongMsg: %w", err)
 	}
 	pub, err := spec_crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("cant parse RSA public key from pong message: %w", err)
 	}
+	// Check that we got pong with correct pub
 	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
-		return err
+		return fmt.Errorf("operator sent pong with wrong RSA public key %w", err)
 	}
-	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	if pong.Multisig == true {
+		if pong.EthClientConnected {
+			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 and connected ⛓️", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+		} else {
+			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 but NOT connected 🚫", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+		}
+	} else {
+		c.Logger.Info("🟢 operator online: but NOT multisig ready 🚫", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	}
 	return nil
 }
 
