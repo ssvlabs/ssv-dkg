@@ -798,7 +798,7 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
 		return fmt.Errorf("operator sent pong with wrong RSA public key %w", err)
 	}
-	if pong.Multisig == true {
+	if pong.Multisig {
 		if pong.EthClientConnected {
 			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 and connected ⛓️", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 		} else {
