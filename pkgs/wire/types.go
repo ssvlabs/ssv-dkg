@@ -110,16 +110,11 @@ type Exchange struct {
 	Commits []byte `ssz-max:"2048"`
 }
 
-type Ping struct {
-	// Operators involved in the DKG
-	Operators []*spec.Operator `ssz-max:"13"`
-	// Initiator public key
-	InitiatorPublicKey []byte `ssz-max:"2048"`
-}
-
 type Pong struct {
-	ID     uint64
-	PubKey []byte `ssz-max:"2048"`
+	ID                 uint64
+	PubKey             []byte `ssz-max:"2048"`
+	Multisig           bool
+	EthClientConnected bool
 }
 
 type ResultData struct {

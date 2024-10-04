@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
@@ -163,9 +164,16 @@ func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportT
 }
 
 func (s *Switch) Pong() ([]byte, error) {
+	var connected bool
+	latestBlock, err := s.EthClient.BlockNumber(context.Background())
+	if latestBlock > 0 && err == nil {
+		connected = true
+	}
 	pong := &wire.Pong{
-		ID:     s.OperatorID,
-		PubKey: s.PubKeyBytes,
+		ID:                 s.OperatorID,
+		PubKey:             s.PubKeyBytes,
+		Multisig:           true,
+		EthClientConnected: connected,
 	}
 	return s.MarshallAndSign(pong, wire.PongMessageType, s.OperatorID, [24]byte{})
 }

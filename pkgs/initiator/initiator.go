@@ -17,14 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -718,7 +718,7 @@ func (c *Initiator) Ping(ips []string) error {
 		res := <-resc
 		err := c.processPongMessage(res)
 		if err != nil {
-			c.Logger.Error("😥 Operator not healthy: ", zap.Error(err), zap.String("IP", res.IP))
+			c.Logger.Error("🔴 operator not healthy: ", zap.Error(err), zap.String("IP", res.IP))
 			continue
 		}
 	}
@@ -782,20 +782,30 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	}
 	pong := &wire.Pong{}
 	if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
-		return err
+		return fmt.Errorf("🆘 cant unmarshall pong message, probably old version, please upgrade: %w", err)
+
 	}
 	pongBytes, err := signedPongMsg.Message.MarshalSSZ()
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling signedPongMsg: %w", err)
 	}
 	pub, err := spec_crypto.ParseRSAPublicKey(pong.PubKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("cant parse RSA public key from pong message: %w", err)
 	}
+	// Check that we got pong with correct pub
 	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
-		return err
+		return fmt.Errorf("operator sent pong with wrong RSA public key %w", err)
 	}
-	c.Logger.Info("🍎 operator online and healthy", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	if pong.Multisig {
+		if pong.EthClientConnected {
+			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 and connected to ethereum network ⛓️", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+		} else {
+			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 but NOT connected to ethereum network 🚫", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+		}
+	} else {
+		c.Logger.Error("🔴 operator online: but NOT multisig ready", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+	}
 	return nil
 }
 
