@@ -17,9 +17,14 @@ import (
 
 // request limits
 const (
-	generalLimit = 5000
-	routeLimit   = 500
-	timePeriod   = time.Minute
+	generalLimit          = 5000
+	initRouteLimit        = 200
+	resignRouteLimit      = 200
+	reshareRouteLimit     = 200
+	dkgRouteLimit         = 500
+	healthCheckRouteLimit = 500
+	resultsRouteLimit     = 500
+	timePeriod            = time.Minute
 )
 
 // Server structure for operator to store http server and DKG ceremony instances

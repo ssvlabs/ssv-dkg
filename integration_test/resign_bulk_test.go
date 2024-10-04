@@ -79,19 +79,19 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	// t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44",
-	// 		"--nonce", "1"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
+	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "100",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44",
+			"--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
