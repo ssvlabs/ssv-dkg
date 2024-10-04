@@ -12,14 +12,15 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
@@ -159,7 +160,8 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	for i := 0; i < MaxInstances; i++ {
 		reqIDx := [24]byte{}
-		rand.Read(reqIDx[:]) // Just a sample value
+		_, err := rand.Read(reqIDx[:]) // Just a sample value
+		require.NoError(t, err)
 		respx, errx := func(reqID [24]byte, initMsg *wire.Transport, initiatorPub, initiatorSignature []byte) ([]byte, error) {
 			if err := swtch.State.validateInstances(reqID); err != nil {
 				return nil, err
