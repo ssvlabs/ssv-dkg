@@ -18,12 +18,12 @@ import (
 // request limits
 const (
 	generalLimit          = 5000
-	initRouteLimit        = 100
-	resignRouteLimit      = 100
-	reshareRouteLimit     = 100
+	initRouteLimit        = 200
+	resignRouteLimit      = 200
+	reshareRouteLimit     = 200
 	dkgRouteLimit         = 500
 	healthCheckRouteLimit = 500
-	resultsRouteLimit     = 100
+	resultsRouteLimit     = 500
 	timePeriod            = time.Minute
 )
 
