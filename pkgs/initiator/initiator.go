@@ -805,7 +805,7 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 			c.Logger.Info("🟢 operator online and healthy: multisig ready 👌 but NOT connected to ethereum network 🚫", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 		}
 	} else {
-		c.Logger.Info("🟢 operator online: but NOT multisig ready 🚫", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
+		c.Logger.Error("🔴 operator online: but NOT multisig ready", zap.Uint64("ID", pong.ID), zap.String("IP", res.IP), zap.String("Version", string(signedPongMsg.Message.Version)), zap.String("Public key", string(pong.PubKey)))
 	}
 	return nil
 }
