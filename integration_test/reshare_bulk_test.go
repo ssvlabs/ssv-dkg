@@ -19,7 +19,7 @@ import (
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
-func TestReshareHappyFlows4Ops(t *testing.T) {
+func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -30,7 +30,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -55,18 +55,43 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--network", "holesky"}
+			"--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 
+	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "10",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44",
+			"--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	// t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	validators := []int{1}
+	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
@@ -80,7 +105,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 4 operators reshare", func(t *testing.T) {
+	t.Run("test 4 operators bulk reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -97,8 +122,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
-				"--network", "holesky",
-				"--nonce", strconv.Itoa(10)}
+				"--nonce", "10"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -121,7 +145,6 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
 			require.NoError(t, err)
 
-			// start resharing
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -129,8 +152,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
-				"--network", "holesky",
-				"--nonce", strconv.Itoa(10),
+				"--nonce", "10",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -143,13 +165,13 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
-	// remove reshare file
+	// remove resign message
 	err = os.Remove("./output/reshare.json")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	for i, c := range resignCeremonies {
+	for i, c := range reshareCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
@@ -168,7 +190,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows7Ops(t *testing.T) {
+func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -179,7 +201,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -197,25 +219,50 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 7 operators 1 validator init happy flow", func(t *testing.T) {
+	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--network", "holesky"}
+			"--operatorIDs", "11,22,33,44,55,66,77",
+			"--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 
+	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "10",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77",
+			"--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	// t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44,55,66,77",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	validators := []int{1}
+	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
@@ -229,7 +276,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 7 operators reshare", func(t *testing.T) {
+	t.Run("test 7 operators bulk reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -244,10 +291,9 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky"}
+				"--operatorIDs", "11,22,33,44,55,66,77",
+				"--newOperatorIDs", "77,88,99,100,111,122,133",
+				"--nonce", "10"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -275,10 +321,9 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--operatorIDs", "11,22,33,44,55,66,77",
+				"--newOperatorIDs", "77,88,99,100,111,122,133",
+				"--nonce", "10",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -291,13 +336,13 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
-	// remove reshare file
+	// remove resign message
 	err = os.Remove("./output/reshare.json")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	for i, c := range resignCeremonies {
+	for i, c := range reshareCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
@@ -316,7 +361,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows10Ops(t *testing.T) {
+func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -327,7 +372,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -345,25 +390,50 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 7 operators 1 validator init happy flow", func(t *testing.T) {
+	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--network", "holesky"}
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+			"--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 
+	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "10",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+			"--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	// t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	validators := []int{1}
+	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
@@ -377,7 +447,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 7 operators reshare", func(t *testing.T) {
+	t.Run("test 10 operators bulk reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -392,10 +462,9 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky"}
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+				"--newOperatorIDs", "11,22,33,44",
+				"--nonce", "10"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -423,10 +492,9 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+				"--newOperatorIDs", "11,22,33,44",
+				"--nonce", "10",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -439,13 +507,13 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
-	// remove reshare file
+	// remove resign message
 	err = os.Remove("./output/reshare.json")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	for i, c := range resignCeremonies {
+	for i, c := range reshareCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
@@ -464,7 +532,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	}
 }
 
-func TestReshareHappyFlows13Ops(t *testing.T) {
+func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 	err := os.RemoveAll("./output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
@@ -475,7 +543,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
+	servers, ops := createOperators(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -493,25 +561,50 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartReshare.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 4 operators 1 validator init happy flow", func(t *testing.T) {
+	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
 		args := []string{"init",
 			"--validators", "1",
 			"--operatorsInfo", string(operators),
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--network", "holesky"}
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+			"--nonce", "1"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
 
+	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "10",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+			"--nonce", "1"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
+	// t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+	// 		"--nonce", "1"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	validators := []int{1}
+	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
@@ -525,7 +618,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	}
 	// re-share
-	t.Run("test 13 operators reshare", func(t *testing.T) {
+	t.Run("test 13 operators bulk reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
 			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
@@ -540,10 +633,9 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky"}
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+				"--newOperatorIDs", "11,22,33,44",
+				"--nonce", "10"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -571,10 +663,9 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+				"--newOperatorIDs", "11,22,33,44",
+				"--nonce", "10",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -587,13 +678,13 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		err = os.RemoveAll("./output/" + c.Name())
 		require.NoError(t, err)
 	}
-	// remove reshare file
+	// remove resign message
 	err = os.Remove("./output/reshare.json")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
-	for i, c := range resignCeremonies {
+	for i, c := range reshareCeremonies {
 		args := []string{"verify",
 			"--ceremonyDir", "./output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),

@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,6 +17,7 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	spec "github.com/ssvlabs/dkg-spec"
 )
 
@@ -207,4 +210,89 @@ func ValidateOpsLen(len int) error {
 	default:
 		return fmt.Errorf("amount of operators should be 4,7,10,13: got %d", len)
 	}
+}
+
+func GetMessageHash(msg interface{}) ([32]byte, error) {
+	hash := [32]byte{}
+	switch msg := msg.(type) {
+	case wire.SSZMarshaller:
+		// Single message case
+		msgBytes, err := msg.MarshalSSZ()
+		if err != nil {
+			return hash, err
+		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	case []*wire.ResignMessage:
+		msgBytes := []byte{}
+		for _, resign := range msg {
+			resignBytes, err := resign.MarshalSSZ()
+			if err != nil {
+				return hash, err
+			}
+			msgBytes = append(msgBytes, resignBytes...)
+		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	case []*wire.ReshareMessage:
+		msgBytes := []byte{}
+		for _, reshare := range msg {
+			reshareBytes, err := reshare.MarshalSSZ()
+			if err != nil {
+				return hash, err
+			}
+			msgBytes = append(msgBytes, reshareBytes...)
+		}
+		copy(hash[:], eth_crypto.Keccak256(msgBytes))
+	default:
+		return hash, fmt.Errorf("unexpected message type: %T", msg)
+	}
+	return hash, nil
+}
+
+func GetReqIDfromMsg(instance interface{}) ([24]byte, error) {
+	// make a unique ID for each reshare using the instance hash
+	reqID := [24]byte{}
+	instanceHash, err := GetMessageHash(instance)
+	if err != nil {
+		return reqID, fmt.Errorf("failed to get reqID: %w", err)
+	}
+	copy(reqID[:], instanceHash[:])
+	return reqID, nil
+}
+
+func FlattenReponseMsgs(responses [][]byte) []byte {
+	var buffer bytes.Buffer
+
+	for _, response := range responses {
+		// in front of each response there is a prefix that stores the length of the response
+		prefix := make([]byte, 4)
+		binary.BigEndian.PutUint32(prefix, uint32(len(response)))
+		buffer.Write(prefix)
+		buffer.Write(response)
+	}
+	return buffer.Bytes()
+}
+
+func UnflattenResponseMsgs(flattenedResponses []byte) ([][]byte, error) {
+	var result [][]byte
+	reader := bytes.NewReader(flattenedResponses)
+
+	for reader.Len() > 0 {
+		// get the length of next response from the prefix
+		lengthPrefix := make([]byte, 4)
+		if _, err := reader.Read(lengthPrefix); err != nil {
+			return nil, fmt.Errorf("failed to read prefix when unflattening responses: %w", err)
+		}
+		length := binary.BigEndian.Uint32(lengthPrefix)
+
+		// Read the actual bytes based on the length
+		response := make([]byte, length)
+		if _, err := reader.Read(response); err != nil {
+			return nil, fmt.Errorf("failed to read response when unflattening responses: %w", err)
+		}
+
+		// Append the recovered inner slice to the result
+		result = append(result, response)
+	}
+
+	return result, nil
 }

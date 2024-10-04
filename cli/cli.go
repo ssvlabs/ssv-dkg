@@ -16,7 +16,9 @@ func init() {
 	RootCmd.AddCommand(operator.StartDKGOperator)
 	RootCmd.AddCommand(initiator.HealthCheck)
 	RootCmd.AddCommand(verify.Verify)
+	RootCmd.AddCommand(initiator.GenerateResignMsg)
 	RootCmd.AddCommand(initiator.StartResigning)
+	RootCmd.AddCommand(initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(initiator.StartReshare)
 }
 
@@ -34,7 +36,9 @@ func Execute(appName, version string) {
 	RootCmd.Version = version
 	initiator.HealthCheck.Version = version
 	initiator.StartDKG.Version = version
+	initiator.GenerateResignMsg.Version = version
 	initiator.StartResigning.Version = version
+	initiator.GenerateReshareMsg.Version = version
 	initiator.StartReshare.Version = version
 	operator.StartDKGOperator.Version = version
 	if err := RootCmd.Execute(); err != nil {

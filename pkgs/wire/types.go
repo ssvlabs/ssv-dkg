@@ -36,8 +36,8 @@ const (
 	PingMessageType
 	PongMessageType
 	ResultMessageType
-	ResignMessageType
-	ReshareMessageType
+	SignedResignMessageType
+	SignedReshareMessageType
 	ReshareKyberMessageType
 	ReshareExchangeMessageType
 )
@@ -68,10 +68,10 @@ func (t TransportType) String() string {
 		return "PongMessageType"
 	case ResultMessageType:
 		return "ResultMessageType"
-	case ResignMessageType:
-		return "ResignMessageType"
-	case ReshareMessageType:
-		return "ReshareMessageType"
+	case SignedResignMessageType:
+		return "SignedResignMessageType"
+	case SignedReshareMessageType:
+		return "SignedReshareMessageType"
 	case ReshareKyberMessageType:
 		return "ReshareKyberMessageType"
 	case ReshareExchangeMessageType:
@@ -188,12 +188,22 @@ type OperatorCLI struct {
 }
 
 type ResignMessage struct {
-	Operators    []*spec.Operator `ssz-max:"13"`
-	SignedResign *spec.SignedResign
-	Proofs       []*spec.SignedProof `ssz-max:"13"`
+	Operators []*spec.Operator `ssz-max:"13"`
+	Resign    *spec.Resign
+	Proofs    []*spec.SignedProof `ssz-max:"13"`
+}
+
+type SignedResign struct {
+	Messages  []*ResignMessage `ssz-max:"100"`
+	Signature []byte           `ssz-max:"2048"`
 }
 
 type ReshareMessage struct {
-	SignedReshare *spec.SignedReshare
-	Proofs        []*spec.SignedProof `ssz-max:"13"`
+	Reshare *spec.Reshare
+	Proofs  []*spec.SignedProof `ssz-max:"13"`
+}
+
+type SignedReshare struct {
+	Messages  []*ReshareMessage `ssz-max:"100"`
+	Signature []byte            `ssz-max:"2048"`
 }

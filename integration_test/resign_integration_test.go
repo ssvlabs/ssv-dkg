@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -54,9 +55,25 @@ func TestInitResignHappyFlows(t *testing.T) {
 				Signature: p.Signature,
 			})
 		}
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44},
+			signedProofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs,
+		)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		siganture, err := SignResign(rMsgs, sk)
+		require.NoError(t, err)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
+		require.NoError(t, err)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators resign happy flow", func(t *testing.T) {
@@ -72,9 +89,25 @@ func TestInitResignHappyFlows(t *testing.T) {
 		for _, p := range proofs {
 			signedProofs = append(signedProofs, &p.SignedProof)
 		}
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44, 55, 66, 77},
+			signedProofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs,
+		)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		siganture, err := SignResign(rMsgs, sk)
+		require.NoError(t, err)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
+		require.NoError(t, err)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators resign happy flow", func(t *testing.T) {
@@ -90,9 +123,25 @@ func TestInitResignHappyFlows(t *testing.T) {
 			signedProofs = append(signedProofs, &p.SignedProof)
 		}
 		require.NoError(t, err)
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100},
+			signedProofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs,
+		)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		siganture, err := SignResign(rMsgs, sk)
+		require.NoError(t, err)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
+		require.NoError(t, err)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators resign happy flow", func(t *testing.T) {
@@ -107,9 +156,25 @@ func TestInitResignHappyFlows(t *testing.T) {
 		for _, p := range proofs {
 			signedProofs = append(signedProofs, &p.SignedProof)
 		}
-		depositData, ks, proofs, err = clnt.StartResigning(id, []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, signedProofs, sk, "mainnet", withdraw.Bytes(), owner, 10)
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133},
+			signedProofs[0].Proof.ValidatorPubKey,
+			"mainnet",
+			withdraw.Bytes(),
+			owner,
+			10,
+			signedProofs,
+		)
 		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 10, withdraw)
+		rMsgs := []*wire.ResignMessage{rMsg}
+		siganture, err := SignResign(rMsgs, sk)
+		require.NoError(t, err)
+		signatureBytes, err := hex.DecodeString(siganture)
+		require.NoError(t, err)
+		signedResign := wire.SignedResign{Messages: rMsgs, Signature: signatureBytes}
+		depositDataArr, ksArr, proofsArr, err := clnt.StartResigning(id, &signedResign)
+		require.NoError(t, err)
+		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, owner, 10, withdraw)
 		require.NoError(t, err)
 	})
 	for _, srv := range servers {
