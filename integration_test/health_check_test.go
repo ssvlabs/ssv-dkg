@@ -29,7 +29,6 @@ func TestHealthCheck(t *testing.T) {
 	for _, s := range servers {
 		ips = append(ips, s.HttpSrv.URL)
 	}
-	require.NoError(t, err)
 	RootCmd := &cobra.Command{
 		Use:   "ssv-dkg",
 		Short: "CLI for running Distributed Key Generation protocol",

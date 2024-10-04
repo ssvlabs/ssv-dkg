@@ -17,14 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
-	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/consts"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -780,7 +780,6 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if signedPongMsg.Message.Type != wire.PongMessageType {
 		return fmt.Errorf("wrong incoming message type from operator")
 	}
-	// id, pubKey, multisig, connected, err := parsePongMessage(signedPongMsg.Message.Data)
 	pong := &wire.Pong{}
 	if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
 		return fmt.Errorf("🆘 cant unmarshall pong message, probably old version, please upgrade: %w", err)
