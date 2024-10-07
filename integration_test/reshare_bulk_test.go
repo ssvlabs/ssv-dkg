@@ -55,7 +55,8 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -69,7 +70,8 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -82,7 +84,8 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -98,7 +101,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1), "--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -122,7 +125,8 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
-				"--nonce", "10"}
+				"--nonce", "10",
+				"--amount", "32000000000"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -153,6 +157,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "55,66,77,88",
 				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -177,7 +182,8 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -226,7 +232,8 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -240,25 +247,27 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	// t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44,55,66,77",
-	// 		"--nonce", "1"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
+	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "100",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77",
+			"--nonce", "1",
+			"--amount", "32000000000"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -269,7 +278,8 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -293,7 +303,8 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--newOperatorIDs", "77,88,99,100,111,122,133",
-				"--nonce", "10"}
+				"--nonce", "10",
+				"--amount", "32000000000"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -324,6 +335,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--newOperatorIDs", "77,88,99,100,111,122,133",
 				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -348,7 +360,8 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -397,7 +410,8 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -411,25 +425,27 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	// t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-	// 		"--nonce", "1"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
+	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "100",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+			"--nonce", "1",
+			"--amount", "32000000000"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -440,7 +456,8 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -464,7 +481,8 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
 				"--newOperatorIDs", "11,22,33,44",
-				"--nonce", "10"}
+				"--nonce", "10",
+				"--amount", "32000000000"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -495,6 +513,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
 				"--newOperatorIDs", "11,22,33,44",
 				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -519,7 +538,8 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -568,7 +588,8 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -582,25 +603,27 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-			"--nonce", "1"}
+			"--nonce", "1",
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	// t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-	// 		"--nonce", "1"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
+	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
+		args := []string{"init",
+			"--validators", "100",
+			"--operatorsInfo", string(operators),
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+			"--nonce", "1",
+			"--amount", "32000000000"}
+		RootCmd.SetArgs(args)
+		err := RootCmd.Execute()
+		require.NoError(t, err)
+		resetFlags(RootCmd)
+	})
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -611,7 +634,8 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -635,7 +659,8 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--newOperatorIDs", "11,22,33,44",
-				"--nonce", "10"}
+				"--nonce", "10",
+				"--amount", "32000000000"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -666,6 +691,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--newOperatorIDs", "11,22,33,44",
 				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -690,7 +716,8 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)

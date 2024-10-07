@@ -351,7 +351,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 }
 
 // StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	if len(withdraw) != len(common.Address{}) {
 		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
 	}
@@ -371,6 +371,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		Fork:                  network.GenesisForkVersion(),
 		Owner:                 owner,
 		Nonce:                 nonce,
+		Amount:                amount,
 	}
 	c.Logger.Info("Outgoing init request fields",
 		zap.String("network", hex.EncodeToString(init.Fork[:])),
@@ -383,7 +384,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return c.CreateCeremonyResults(dkgResultsBytes, id, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce)
+	return c.CreateCeremonyResults(dkgResultsBytes, id, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount))
 }
 
 func (c *Initiator) StartResigning(id [24]byte, signedResign *wire.SignedResign) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
@@ -438,6 +439,7 @@ func (c *Initiator) CreateCeremonyResults(
 	fork [4]byte,
 	ownerAddress [20]byte,
 	nonce uint64,
+	amount phase0.Gwei,
 ) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	dkgResults, err := parseDKGResultsFromBytes(resultsBytes)
 	if err != nil {
@@ -453,13 +455,14 @@ func (c *Initiator) CreateCeremonyResults(
 			fork,
 			ownerAddress,
 			nonce,
+			amount,
 			id,
 			dkgResults)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
-	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, ops, withdrawalCredentials, fork, ownerAddress, nonce)
+	depositDataJson, keyshares, err := c.processDKGResultResponse(dkgResults, id, ops, withdrawalCredentials, fork, ownerAddress, nonce, amount)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -543,7 +546,8 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	withdrawalCredentials []byte,
 	fork [4]byte,
 	ownerAddress [20]byte,
-	nonce uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
+	nonce uint64,
+	amount phase0.Gwei) (*wire.DepositDataCLI, *wire.KeySharesCLI, error) {
 	// check results sorted by operatorID
 	sorted := sort.SliceIsSorted(dkgResults, func(p, q int) bool {
 		return dkgResults[p].OperatorID < dkgResults[q].OperatorID
@@ -555,7 +559,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	if err != nil {
 		return nil, nil, err
 	}
-	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(ops, withdrawalCredentials, validatorPK, fork, ownerAddress, nonce, requestID, dkgResults)
+	_, depositData, masterSigOwnerNonce, err := spec.ValidateResults(ops, withdrawalCredentials, validatorPK, fork, ownerAddress, nonce, amount, requestID, dkgResults)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -809,7 +813,7 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	return nil
 }
 
-func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
+func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 proofs are empty")
 	}
@@ -844,6 +848,7 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 		WithdrawalCredentials: withdrawCreds,
 		Owner:                 owner,
 		Nonce:                 nonce,
+		Amount:                amount,
 	}
 	return &wire.ReshareMessage{
 		Reshare: reshare,
@@ -851,7 +856,7 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 	}, nil
 }
 
-func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
+func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}
@@ -870,7 +875,8 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 		Fork:                  ethnetwork.GenesisForkVersion(),
 		WithdrawalCredentials: withdrawCreds,
 		Owner:                 owner,
-		Nonce:                 nonce}
+		Nonce:                 nonce,
+		Amount:                amount}
 	return &wire.ResignMessage{
 		Operators: ops,
 		Resign:    &resign,
@@ -930,14 +936,14 @@ func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg interfa
 		case *wire.SignedResign:
 			msgIDMap := msgIDMap.(map[[24]byte]*spec.Resign)
 			expectedValidatorPubKey = msgIDMap[reqID].ValidatorPubKey
-			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Operators, signedMsg.Messages[0].Resign.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Resign.Fork, signedMsg.Messages[0].Resign.Owner, msgIDMap[reqID].Nonce)
+			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Operators, signedMsg.Messages[0].Resign.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Resign.Fork, signedMsg.Messages[0].Resign.Owner, msgIDMap[reqID].Nonce, phase0.Gwei(msgIDMap[reqID].Amount))
 			if err != nil {
 				return nil, nil, nil, err
 			}
 		case *wire.SignedReshare:
 			msgIDMap := msgIDMap.(map[[24]byte]*spec.Reshare)
 			expectedValidatorPubKey = msgIDMap[reqID].ValidatorPubKey
-			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Reshare.NewOperators, signedMsg.Messages[0].Reshare.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Reshare.Fork, signedMsg.Messages[0].Reshare.Owner, msgIDMap[reqID].Nonce)
+			depositData, keyShares, Proofs, err = c.CreateCeremonyResults(ceremonyResult, reqID, signedMsg.Messages[0].Reshare.NewOperators, signedMsg.Messages[0].Reshare.WithdrawalCredentials, expectedValidatorPubKey, signedMsg.Messages[0].Reshare.Fork, signedMsg.Messages[0].Reshare.Owner, msgIDMap[reqID].Nonce, phase0.Gwei(msgIDMap[reqID].Amount))
 			if err != nil {
 				return nil, nil, nil, err
 			}

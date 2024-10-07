@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -50,7 +51,7 @@ func TestReshareValidEOASig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
 		signature, err := SignReshare(rMsgs, sk.PrivateKey)
@@ -89,7 +90,7 @@ func TestReshareInvalidEOASig(t *testing.T) {
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
-		_, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], [20]byte{0}, 0, signedProofs[0])
+		_, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], [20]byte{0}, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs[0])
 		require.Error(t, err, "invalid owner address")
 	})
 	for _, srv := range servers {
@@ -131,7 +132,7 @@ func TestReshareValidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
 		signature, err := SignReshare(rMsgs, sk.PrivateKey)
@@ -183,7 +184,7 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
 		newIds := []uint64{55, 66, 77, 88}
 		newId := spec.NewID()
-		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, signedProofs[0])
+		rMsg, err := clnt.ConstructReshareMessage(ids, newIds, signedProofs[0][0].Proof.ValidatorPubKey, "holesky", withdraw[:], owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ReshareMessage{rMsg}
 		signature, err := SignReshare(rMsgs, sk.PrivateKey)

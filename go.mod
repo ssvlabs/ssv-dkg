@@ -17,7 +17,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/ssvlabs/dkg-spec v0.0.0-20240417085845-2f5e6b68f3ae
+	github.com/ssvlabs/dkg-spec v0.0.0-20241007074617-40e39a71b6bd
 	github.com/stretchr/testify v1.9.0
 	github.com/wealdtech/go-eth2-util v1.8.1
 	go.uber.org/zap v1.24.0
@@ -112,4 +112,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/ssvlabs/dkg-spec v0.0.0-20240417085845-2f5e6b68f3ae => github.com/pavelkrolevets/dkg-spec v0.0.0-20240911132539-d3b223c79b34
+replace github.com/ssvlabs/dkg-spec v0.0.0-20241007074617-40e39a71b6bd => github.com/pavelkrolevets/dkg-spec v0.0.0-20241007101621-82596abc10c8

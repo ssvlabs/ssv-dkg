@@ -84,7 +84,7 @@ func TestStartDKG(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := spec.NewID()
-		depositData, keyshares, proofs, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+		depositData, keyshares, proofs, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, keyshares, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -93,21 +93,21 @@ func TestStartDKG(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0)
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0)
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0)
+		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 
@@ -388,7 +388,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 				&phase0.DepositMessage{
 					PublicKey:             phase0.BLSPubKey(test.validatorPubKey),
 					WithdrawalCredentials: crypto.BLSWithdrawalCredentials(test.withdrawalPubKey),
-					Amount:                spec_crypto.MaxEffectiveBalanceInGwei,
+					Amount:                spec_crypto.MIN_ACTIVATION_BALANCE,
 				},
 			)
 			require.NoError(t, err)
@@ -405,7 +405,7 @@ func TestDepositDataSigningAndVerification(t *testing.T) {
 
 			require.Equal(t, sk.GetPublicKey().SerializeToHexStr(), depositDataCLI.PubKey, "0x")
 			require.Equal(t, test.expectedWithdrawalCredentials, depositData.WithdrawalCredentials)
-			require.Equal(t, spec_crypto.MaxEffectiveBalanceInGwei, depositData.Amount)
+			require.Equal(t, spec_crypto.MIN_ACTIVATION_BALANCE, depositData.Amount)
 			require.Equal(t, hex.EncodeToString(test.expectedRoot), depositDataCLI.DepositDataRoot)
 			require.Equal(t, hex.EncodeToString(test.expectedSig), depositDataCLI.Signature, "0x")
 		})

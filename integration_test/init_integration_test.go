@@ -25,6 +25,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -57,28 +58,28 @@ func TestInitHappyFlows(t *testing.T) {
 	owner := newEthAddress(t)
 	t.Run("test 4 operators init happy flow", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 7 operators init happy flow", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 10 operators init happy flow", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 	})
 	t.Run("test 13 operators init happy flow", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
+		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -106,7 +107,7 @@ func TestInitOperatorsThreshold(t *testing.T) {
 	servers[0].HttpSrv.Close()
 	t.Run("test 4 operators init unhappy flow, 1 not reachable", func(t *testing.T) {
 		id := spec.NewID()
-		_, _, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0)
+		_, _, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "some new operators returned errors, cant continue")
 	})
 	for _, srv := range servers {
@@ -132,7 +133,7 @@ func TestThreshold(t *testing.T) {
 	t.Run("test 13 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
 		ids := []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -152,7 +153,7 @@ func TestThreshold(t *testing.T) {
 	t.Run("test 10 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
 		ids := []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -172,7 +173,7 @@ func TestThreshold(t *testing.T) {
 	t.Run("test 7 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
 		ids := []uint64{11, 22, 33, 44, 55, 66, 77}
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), ids, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -191,7 +192,7 @@ func TestThreshold(t *testing.T) {
 	})
 	t.Run("test 4 operators threshold", func(t *testing.T) {
 		id := spec.NewID()
-		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
+		_, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -233,7 +234,7 @@ func TestUnhappyFlows(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := spec.NewID()
-	depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
+	depositData, ks, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 	require.NoError(t, err)
 	sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 	require.NoError(t, err)
@@ -250,7 +251,7 @@ func TestUnhappyFlows(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := spec.NewID()
-		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0)
+		_, ks, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		sharesDataSigned, err := hex.DecodeString(ks.Shares[0].Payload.SharesData[2:])
 		require.NoError(t, err)
@@ -269,14 +270,14 @@ func TestUnhappyFlows(t *testing.T) {
 		require.ErrorContains(t, err, "shares order is incorrect")
 	})
 	t.Run("test same ID", func(t *testing.T) {
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "got init msg for existing instance")
 	})
 	t.Run("test wrong operator IDs", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := spec.NewID()
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 66, 77, 88}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{101, 66, 77, 88}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operator is not in given operator data list")
 	})
 	t.Run("test non 3f+1 operator set", func(t *testing.T) {
@@ -284,62 +285,62 @@ func TestUnhappyFlows(t *testing.T) {
 		owner := newEthAddress(t)
 		id := spec.NewID()
 		// 0 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 0")
 		// 1 op
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 1")
 		// 2 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 2")
 		// 3 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 		// op with zero ID
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{0, 11, 22, 33}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{0, 11, 22, 33}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operator ID cannot be 0")
 		// 14 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 		// 15 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144, 155}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144, 155}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 15")
 		// 5 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		// 6 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		// 8 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		// 9 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		// 11 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 		// 12 ops
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13")
 	})
 	t.Run("test out of order operators (i.e 3,2,4,1) ", func(t *testing.T) {
 		withdraw := newEthAddress(t)
 		owner := newEthAddress(t)
 		id := spec.NewID()
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators not unique or not ordered")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators not unique or not ordered")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators not unique or not ordered")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77, 66, 55, 133}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77, 66, 55, 133}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators not unique or not ordered")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 33, 44, 11}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 33, 44, 11}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 22, 100, 111, 122, 99, 88, 77}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 22, 100, 111, 122, 99, 88, 77}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
-		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77, 66, 55, 111}, "mainnet", owner, 0)
+		_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{33, 22, 44, 11, 100, 111, 122, 99, 88, 77, 66, 55, 111}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operators ids should be unique in the list")
 	})
 	for _, srv := range servers {
@@ -388,7 +389,7 @@ func TestLargeOperatorIDs(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := spec.NewID()
-	depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1100, 2222, 3300, 4444, 5555, 6666, 7777, 8888, 9999, 10000, 11111, 12222, 13333}, "mainnet", owner, 0)
+	depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{1100, 2222, 3300, 4444, 5555, 6666, 7777, 8888, 9999, 10000, 11111, 12222, 13333}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 	require.NoError(t, err)
 	err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 	require.NoError(t, err)
@@ -430,7 +431,7 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := spec.NewID()
-	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
@@ -461,7 +462,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
 	id := spec.NewID()
-	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0)
+	_, _, _, err = clnt.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 	require.ErrorContains(t, err, "wrong version")
 	srv1.HttpSrv.Close()
 	srv2.HttpSrv.Close()
