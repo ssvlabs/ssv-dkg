@@ -198,6 +198,7 @@ func SetVerifyFlags(cmd *cobra.Command) {
 	flags.AddPersistentIntFlag(cmd, "validators", 1, "Number of validators", true)
 	flags.AddPersistentStringFlag(cmd, "withdrawAddress", "", "Withdrawal address", true)
 	flags.AddPersistentIntFlag(cmd, "nonce", 0, "Owner nonce", true)
+	flags.AddPersistentIntFlag(cmd, "amount", 0, "Amount in Gwei", true)
 	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
 }
 
