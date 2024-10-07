@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -16,14 +17,14 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
+
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/board"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
-
-	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
@@ -197,6 +198,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 		o.data.init.WithdrawalCredentials,
 		o.data.init.Fork,
 		o.data.init.Nonce,
+		phase0.Gwei(o.data.init.Amount),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt BLS share: %w", err)
@@ -238,6 +240,7 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 		o.data.reshare.WithdrawalCredentials,
 		o.data.reshare.Fork,
 		o.data.reshare.Nonce,
+		phase0.Gwei(o.data.reshare.Amount),
 	)
 	if err != nil {
 		return err
@@ -586,6 +589,7 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 		r.Resign.WithdrawalCredentials,
 		r.Resign.Fork,
 		r.Resign.Nonce,
+		phase0.Gwei(r.Resign.Amount),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build results message: %w", err)

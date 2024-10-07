@@ -81,7 +81,8 @@ var GenerateResignMsg = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonce,
+				nonce, 
+				cli_utils.Amount,
 				signedProofs[i],
 			)
 			if err != nil {
@@ -180,7 +181,7 @@ var StartResigning = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonce,
+				nonce, cli_utils.Amount,
 				signedProofs[i],
 			)
 			if err != nil {

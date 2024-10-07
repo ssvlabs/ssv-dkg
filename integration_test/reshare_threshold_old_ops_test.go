@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 )
 
@@ -102,7 +103,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			logger := zap.L().Named("integration-tests")
 			clnt, err := initiator.New(ops, logger, version, rootCert)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44}, []uint64{22, 33, 44, 55}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44}, []uint64{22, 33, 44, 55}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
 			require.NoError(t, err)
 			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
@@ -230,7 +231,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			logger := zap.L().Named("integration-tests")
 			clnt, err := initiator.New(ops, logger, version, rootCert)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77}, []uint64{44, 55, 66, 77, 88, 99, 110}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77}, []uint64{44, 55, 66, 77, 88, 99, 110}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
 			require.NoError(t, err)
 			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
@@ -359,7 +360,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			logger := zap.L().Named("integration-tests")
 			clnt, err := initiator.New(ops, logger, version, rootCert)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
 			require.NoError(t, err)
 			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)
@@ -489,7 +490,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			logger := zap.L().Named("integration-tests")
 			clnt, err := initiator.New(ops, logger, version, rootCert)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, signedProof[0])
+			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
 			require.NoError(t, err)
 			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
 			require.NoError(t, err)

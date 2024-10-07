@@ -17,6 +17,8 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
+const EthRPC string = "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz"
+
 func TestReshareBulkJSONPArsing(t *testing.T) {
 	reshareBytes, err := os.ReadFile(filepath.Clean("./stubs/reshare/bulk_reshare_msgs.json"))
 	require.NoError(t, err)
@@ -67,7 +69,7 @@ func TestResignBulkJSONPArsing(t *testing.T) {
 func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
-		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
+		ethBackend, err := ethclient.Dial(EthRPC)
 		require.NoError(t, err)
 
 		var finalMsg []byte
@@ -95,7 +97,7 @@ func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
 func TestVerifyMultisigSignedOnChain(t *testing.T) {
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
-		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
+		ethBackend, err := ethclient.Dial(EthRPC)
 		require.NoError(t, err)
 
 		var finalMsg []byte
@@ -122,7 +124,7 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
-		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
+		ethBackend, err := ethclient.Dial(EthRPC)
 		require.NoError(t, err)
 
 		reshareBytes, err := os.ReadFile(filepath.Clean("./stubs/reshare/bulk_reshare_msgs.json"))
@@ -157,7 +159,7 @@ func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
 func TestVerifyMultisigSignedBulkResignOffChain(t *testing.T) {
 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
-		ethBackend, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz")
+		ethBackend, err := ethclient.Dial(EthRPC)
 		require.NoError(t, err)
 
 		bulkResignBytes, err := os.ReadFile(filepath.Clean("./stubs/resign/bulk_resign_msgs.json"))

@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/eip1271"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
@@ -56,6 +57,7 @@ func TestResignValidEOASig(t *testing.T) {
 			withdraw.Bytes(),
 			owner,
 			10,
+			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
@@ -110,6 +112,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 			withdraw.Bytes(),
 			[20]byte{},
 			uint64(nonce),
+			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 			signedProofs[0])
 		require.ErrorContains(t, err, "invalid owner address")
 	})
@@ -158,6 +161,7 @@ func TestResignValidContractSig(t *testing.T) {
 			withdraw.Bytes(),
 			owner,
 			10,
+			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
@@ -216,6 +220,7 @@ func TestResignInvalidContractSig(t *testing.T) {
 			withdraw.Bytes(),
 			owner,
 			10,
+			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 			signedProofs[0])
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}

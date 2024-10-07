@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
@@ -144,6 +145,7 @@ func TestDKGInit(t *testing.T) {
 		Fork:                  [4]byte{0, 0, 0, 0},
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),
+		Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 	}
 	uid := spec.NewID()
 	exch := map[uint64]*wire2.Transport{}
@@ -179,7 +181,7 @@ func TestDKGInit(t *testing.T) {
 	for _, res := range ts.results {
 		validatorPK, err := spec.RecoverValidatorPKFromResults(res)
 		require.NoError(t, err)
-		_, _, _, err = spec.ValidateResults(opsarr, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, uid, res)
+		_, _, _, err = spec.ValidateResults(opsarr, init.WithdrawalCredentials, validatorPK, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount), uid, res)
 		require.NoError(t, err)
 	}
 	ts.mu.Unlock()

@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
@@ -49,6 +50,7 @@ var (
 	Network           string
 	OwnerAddress      common.Address
 	Nonce             uint64
+	Amount            uint64
 	Validators        uint
 	ClientCACertPath  []string
 )
@@ -173,6 +175,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ValidatorsFlag(cmd)
@@ -195,6 +198,7 @@ func SetVerifyFlags(cmd *cobra.Command) {
 	flags.AddPersistentIntFlag(cmd, "validators", 1, "Number of validators", true)
 	flags.AddPersistentStringFlag(cmd, "withdrawAddress", "", "Withdrawal address", true)
 	flags.AddPersistentIntFlag(cmd, "nonce", 0, "Owner nonce", true)
+	flags.AddPersistentIntFlag(cmd, "amount", 0, "Amount in Gwei", true)
 	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
 }
 
@@ -205,6 +209,7 @@ func SetGenerateResignMsgFlags(cmd *cobra.Command) {
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
@@ -222,6 +227,7 @@ func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
 	flags.WithdrawAddressFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ProofsStringFlag(cmd)
@@ -236,6 +242,7 @@ func SetResigningFlags(cmd *cobra.Command) {
 	flags.OperatorIDsFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.WithdrawAddressFlag(cmd)
 	flags.ProofsFilePath(cmd)
@@ -254,6 +261,7 @@ func SetReshareFlags(cmd *cobra.Command) {
 	flags.WithdrawAddressFlag(cmd)
 	flags.OwnerAddressFlag(cmd)
 	flags.NonceFlag(cmd)
+	flags.AmountFlag(cmd)
 	flags.NetworkFlag(cmd)
 	flags.ProofsFilePath(cmd)
 	flags.ProofsStringFlag(cmd)
@@ -324,6 +332,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
 		return err
 	}
@@ -351,6 +362,10 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	owner := viper.GetString("owner")
 	if owner == "" {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
+	}
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
@@ -416,6 +431,9 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
 		return err
 	}
@@ -457,6 +475,10 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to get owner address flag value")
 	}
 	Nonce = viper.GetUint64("nonce")
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(filepath.Clean(certPath), "..") {
@@ -543,6 +565,9 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
 		return err
 	}
@@ -607,6 +632,10 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
 	for _, certPath := range ClientCACertPath {
 		if strings.Contains(filepath.Clean(certPath), "..") {
@@ -702,6 +731,9 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
 		return err
 	}
+	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
+		return err
+	}
 	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
 		return err
 	}
@@ -719,6 +751,10 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
+	Amount = viper.GetUint64("amount")
+	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
+		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+	}
 	WithdrawAddress, err = utils.HexToAddress(viper.GetString("withdrawAddress"))
 	if err != nil {
 		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err)
