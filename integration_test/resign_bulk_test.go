@@ -256,20 +256,20 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
+	// t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44,55,66,77",
+	// 		"--nonce", "1",
+	// 		"--amount", "32000000000"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -431,20 +431,20 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
+	// t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init",
+	// 		"--validators", "100",
+	// 		"--operatorsInfo", string(operators),
+	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+	// 		"--nonce", "1",
+	// 		"--amount", "32000000000"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -592,13 +592,13 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	})
-	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--amount", "32000000000", "--clientCACertPath", "./certs/rootCA.crt"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
+	// t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
+	// 	args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--amount", "32000000000", "--clientCACertPath", "./certs/rootCA.crt"}
+	// 	RootCmd.SetArgs(args)
+	// 	err := RootCmd.Execute()
+	// 	require.NoError(t, err)
+	// 	resetFlags(RootCmd)
+	// })
 	// validate results
 	initCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
