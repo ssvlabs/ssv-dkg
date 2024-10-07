@@ -127,6 +127,7 @@ func TestInitInstance(t *testing.T) {
 		Operators:             ops,
 		Owner:                 common.HexToAddress("0x0000001"),
 		Nonce:                 1,
+		Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		T:                     3,
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	}
@@ -222,6 +223,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Operators:             ops,
 		Owner:                 common.HexToAddress("0x0000001"),
 		Nonce:                 1,
+		Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		WithdrawalCredentials: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		T:                     3,
 	}
