@@ -69,7 +69,7 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1), "--amount", "32000000000", "--amount", "32000000000"}
+		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--nonce", strconv.Itoa(1),  "--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
