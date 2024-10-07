@@ -43,7 +43,7 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 	cli_initiator.StartDKG.Version = version
 	cli_verify.Verify.Version = version
 	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--amount", "32000000000", "--amount", "32000000000", "--clientCACertPath", "./certs/rootCA.crt"}
+		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44", "--nonce", "1", "--amount", "32000000000",  "--clientCACertPath", "./certs/rootCA.crt"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
