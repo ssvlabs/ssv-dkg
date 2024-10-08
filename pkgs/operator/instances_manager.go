@@ -88,7 +88,7 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	s.Logger.Info("🚀 Initializing Init instance")
 	init := &spec.Init{}
 	if err := init.UnmarshalSSZ(initMsg.Data); err != nil {
-		return nil, fmt.Errorf("init: failed to unmarshal init message: %s", err.Error())
+		return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	if err := spec.ValidateInitMessage(init); err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "resign":
 		signedResign := &wire.SignedResign{}
 		if err := signedResign.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal signed resign message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		allOps = signedResign.Messages[0].Operators
 
@@ -203,7 +203,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	case "reshare":
 		signedReshare := &wire.SignedReshare{}
 		if err := signedReshare.UnmarshalSSZ(transportMsg.Data); err != nil {
-			return nil, fmt.Errorf("%s: failed to unmarshal signed reshare message: %s", operationType, err.Error())
+			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		if len(signedReshare.Messages) == 0 {
 			return nil, fmt.Errorf("%s: no reshare messages", operationType)

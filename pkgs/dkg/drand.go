@@ -318,7 +318,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, err
 func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 	kyberMsg := &wire.KyberMessage{}
 	if err := kyberMsg.UnmarshalSSZ(msg.Data); err != nil {
-		return err
+		return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
 	o.Logger.Debug("operator: received kyber msg", zap.String("type", kyberMsg.Type.String()), zap.Uint64("from", from))
 	switch kyberMsg.Type {
@@ -372,7 +372,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ExchangeMessageType:
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		if _, ok := o.exchanges[from]; ok {
 			return fmt.Errorf("error at init exchange message processing: %w", ErrAlreadyExists)
@@ -389,7 +389,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ReshareExchangeMessageType:
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		if _, ok := o.exchanges[from]; ok {
 			return fmt.Errorf("error at reshare exchange message processing: %w, from %d", ErrAlreadyExists, from)
@@ -439,7 +439,7 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	case wire.ReshareKyberMessageType:
 		kyberMsg := &wire.ReshareKyberMessage{}
 		if err := kyberMsg.UnmarshalSSZ(st.Message.Data); err != nil {
-			return err
+			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
 		b, err := wire.DecodeDealBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
