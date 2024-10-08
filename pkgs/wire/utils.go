@@ -1,15 +1,15 @@
 package wire
 
 import (
-	"errors"
+	"fmt"
 )
 
 // parseAsError parses the error from an operator
-func ParseAsError(msg []byte) (parsedErr, err error) {
+func ParseAsError(msg []byte) (string, error) {
 	sszerr := &ErrSSZ{}
-	err = sszerr.UnmarshalSSZ(msg)
+	err := sszerr.UnmarshalSSZ(msg)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 	}
-	return errors.New(string(sszerr.Error)), nil
+	return string(sszerr.Error), nil
 }

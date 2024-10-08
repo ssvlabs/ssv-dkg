@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -148,7 +149,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 
 		pkBytes, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
 		if err != nil {
-			return nil, fmt.Errorf("can't encode public key err: %v", err)
+			return nil, fmt.Errorf("can't encode public key err: %w", err)
 		}
 		ops[i] = &spec.Operator{
 			ID:     op.ID,
@@ -569,7 +570,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	}
 	depositDataJson, err := crypto.BuildDepositDataCLI(network, depositData, wire.DepositCliVersion)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create deposit data json: %v", err)
+		return nil, nil, fmt.Errorf("failed to create deposit data json: %w", err)
 	}
 	c.Logger.Info("✅ deposit data was successfully reconstructed")
 	keyshares, err := c.generateSSVKeysharesPayload(ops, dkgResults, masterSigOwnerNonce, ownerAddress, nonce)
@@ -774,11 +775,15 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	}
 	signedPongMsg := &wire.SignedTransport{}
 	if err := signedPongMsg.UnmarshalSSZ(res.Result); err != nil {
-		errmsg, parseErr := wire.ParseAsError(res.Result)
-		if parseErr == nil {
-			return fmt.Errorf("operator returned err: %v", errmsg)
+		if strings.Contains(err.Error(), "incorrect offset") {
+			return fmt.Errorf("%w, operator probably of old version, please upgrade", err)
 		}
-		return err
+		// in case we received error message, try unmarshall
+		errString, err := wire.ParseAsError(res.Result)
+		if err == nil {
+			return fmt.Errorf("cant parse error message: %w", err)
+		}
+		return fmt.Errorf("operator returned error: %s", errString)
 	}
 	// Validate that incoming message is an pong message
 	if signedPongMsg.Message.Type != wire.PongMessageType {
@@ -896,6 +901,9 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 	var finalErr error
 	for _, op := range newOperators {
 		if err, ok := errs[op.ID]; ok {
+			if strings.Contains(err.Error(), "invalid ssz encoding") {
+				err = fmt.Errorf("%w, operator probably of old version 1.*.*, please upgrade", err)
+			}
 			finalErr = errors.Join(finalErr, fmt.Errorf("error: %w", err))
 		}
 	}

@@ -14,11 +14,11 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	spec "github.com/ssvlabs/dkg-spec"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
@@ -86,7 +86,6 @@ func GetThreshold[S ~[]E, E any](ids S) int {
 }
 
 func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err error, statusCode int) {
-	logger.Error("request error: " + err.Error())
 	writer.WriteHeader(statusCode)
 	presentedErr := err
 
@@ -98,7 +97,7 @@ func WriteErrorResponse(logger *zap.Logger, writer http.ResponseWriter, err erro
 
 	_, writeErr := writer.Write(wire.MakeErr(presentedErr))
 	if writeErr != nil {
-		logger.Error("error writing error response: " + writeErr.Error())
+		logger.Error("error writing error response", zap.Error(writeErr))
 	}
 }
 

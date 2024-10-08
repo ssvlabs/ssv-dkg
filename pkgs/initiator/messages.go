@@ -31,12 +31,12 @@ func verifyMessageSignatures(id [24]byte, messages map[uint64][]byte, verify Ver
 	for _, msg := range messages {
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := wire.ParseAsError(msg)
-			if parseErr == nil {
-				errs = errors.Join(errs, fmt.Errorf("%v", errmsg))
-				continue
+			errString, err := wire.ParseAsError(msg)
+			if err != nil {
+				return fmt.Errorf("cant parse error message: %w", err)
 			}
-			return err
+			errs = errors.Join(errs, fmt.Errorf("%s", errString))
+			continue
 		}
 		signedBytes, err := tsp.Message.MarshalSSZ()
 		if err != nil {
@@ -70,11 +70,11 @@ func makeMultipleSignedTransports(privateKey *rsa.PrivateKey, id [24]byte, messa
 	for i, msg := range messages {
 		tsp := &wire.SignedTransport{}
 		if err := tsp.UnmarshalSSZ(msg); err != nil {
-			errmsg, parseErr := wire.ParseAsError(msg)
-			if parseErr == nil {
-				return nil, fmt.Errorf("operator %d returned: %v", i, errmsg)
+			errString, err := wire.ParseAsError(msg)
+			if err != nil {
+				return nil, fmt.Errorf("cant parse error message: %w", err)
 			}
-			return nil, err
+			return nil, fmt.Errorf("operator %d returned: %s", i, errString)
 		}
 		// Verify that incoming messages have valid DKG ceremony ID
 		if !bytes.Equal(id[:], tsp.Message.Identifier[:]) {

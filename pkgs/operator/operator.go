@@ -9,10 +9,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-chi/chi/v5"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 // request limits
@@ -77,15 +77,15 @@ func (s *Server) Start(port uint16, cert, key string) error {
 func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, request *http.Request, reqMessageType wire.TransportType, operatorID uint64) (*wire.SignedTransport, error) {
 	rawdata, err := io.ReadAll(request.Body)
 	if err != nil {
-		return nil, fmt.Errorf("operator %d, failed to read request body, err: %v", operatorID, err)
+		return nil, fmt.Errorf("operator %d, failed to read request body, err: %w", operatorID, err)
 	}
 	signedMsg := &wire.SignedTransport{}
 	if err := signedMsg.UnmarshalSSZ(rawdata); err != nil {
-		return nil, fmt.Errorf("operator %d, failed to unmarshal SSZ, err: %v", operatorID, err)
+		return nil, fmt.Errorf("operator %d, failed to unmarshal SSZ, err: probably an upgrade to latest version needed: %w", operatorID, err)
 	}
 	// Validate that incoming message has requested type
 	if signedMsg.Message.Type != reqMessageType {
-		return nil, fmt.Errorf("operator %d, received wrong message typec", operatorID)
+		return nil, fmt.Errorf("operator %d, received wrong message type: want %s, got: %s", operatorID, reqMessageType, signedMsg.Message.Type)
 	}
 	return signedMsg, nil
 }
