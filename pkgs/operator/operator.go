@@ -85,7 +85,7 @@ func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, requ
 	}
 	// Validate that incoming message has requested type
 	if signedMsg.Message.Type != reqMessageType {
-		return nil, fmt.Errorf("operator %d, received wrong message type: want %s, got: %s", reqMessageType, signedMsg.Message.Type, operatorID)
+		return nil, fmt.Errorf("operator %d, received wrong message type: want %s, got: %s", operatorID, reqMessageType, signedMsg.Message.Type)
 	}
 	return signedMsg, nil
 }

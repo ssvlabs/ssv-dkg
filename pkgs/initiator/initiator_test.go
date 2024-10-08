@@ -285,7 +285,7 @@ func TestValidateDKGParams(t *testing.T) {
 					t.Errorf("expected error message %q but got %q", tt.errMsg, err.Error())
 				}
 			case err != nil:
-				t.Errorf("unexpected error: %w", err)
+				t.Errorf("unexpected error: %s", err)
 			default:
 				// verify list is ok
 				need := len(tt.ids)
