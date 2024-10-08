@@ -64,6 +64,7 @@ require (
 	github.com/wealdtech/go-bytesutil v1.2.1 // indirect
 	github.com/wealdtech/go-eth2-types/v2 v2.8.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
+	go.dedis.ch/fixbuf v1.0.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
 	go.uber.org/mock v0.4.0 // indirect
