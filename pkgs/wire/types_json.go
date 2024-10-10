@@ -674,7 +674,7 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	r.Reshare.WithdrawalCredentials = withdrawalCredentials
 	owner, err := hex.DecodeString(resJSON.Reshare.Owner)
 	if err != nil {
-		return fmt.Errorf("invalid owner %s", err.Error())
+		return fmt.Errorf("invalid owner %w", err)
 	}
 	copy(r.Reshare.Owner[:], owner)
 	r.Reshare.Nonce = resJSON.Reshare.Nonce
