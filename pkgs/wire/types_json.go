@@ -659,7 +659,7 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	r.Reshare = &spec.Reshare{}
 	val, err := hex.DecodeString(resJSON.Reshare.ValidatorPubKey)
 	if err != nil {
-		return fmt.Errorf("invalid validator public key %s", err.Error())
+		return fmt.Errorf("invalid validator public key %w", err)
 	}
 	r.Reshare.ValidatorPubKey = val
 	fork, err := hex.DecodeString(resJSON.Reshare.Fork)
