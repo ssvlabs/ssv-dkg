@@ -573,7 +573,7 @@ func (r *ResignMessage) UnmarshalJSON(data []byte) error {
 	r.Resign = &spec.Resign{}
 	val, err := hex.DecodeString(resJSON.Resign.ValidatorPubKey)
 	if err != nil {
-		return fmt.Errorf("invalid validator public key %s", err.Error())
+		return fmt.Errorf("invalid validator public key %w", err)
 	}
 	r.Resign.ValidatorPubKey = val
 	fork, err := hex.DecodeString(resJSON.Resign.Fork)
