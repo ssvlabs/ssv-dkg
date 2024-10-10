@@ -664,7 +664,7 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	r.Reshare.ValidatorPubKey = val
 	fork, err := hex.DecodeString(resJSON.Reshare.Fork)
 	if err != nil {
-		return fmt.Errorf("invalid fork %s", err.Error())
+		return fmt.Errorf("invalid fork %w", err)
 	}
 	copy(r.Reshare.Fork[:], fork)
 	withdrawalCredentials, err := hex.DecodeString(resJSON.Reshare.WithdrawalCredentials)
