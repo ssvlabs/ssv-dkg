@@ -669,7 +669,7 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	copy(r.Reshare.Fork[:], fork)
 	withdrawalCredentials, err := hex.DecodeString(resJSON.Reshare.WithdrawalCredentials)
 	if err != nil {
-		return fmt.Errorf("invalid withdrawal credentials %s", err.Error())
+		return fmt.Errorf("invalid withdrawal credentials %w", err)
 	}
 	r.Reshare.WithdrawalCredentials = withdrawalCredentials
 	owner, err := hex.DecodeString(resJSON.Reshare.Owner)
