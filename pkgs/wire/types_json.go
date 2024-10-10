@@ -583,7 +583,7 @@ func (r *ResignMessage) UnmarshalJSON(data []byte) error {
 	copy(r.Resign.Fork[:], fork)
 	withdrawalCredentials, err := hex.DecodeString(resJSON.Resign.WithdrawalCredentials)
 	if err != nil {
-		return fmt.Errorf("invalid withdrawal credentials %s", err.Error())
+		return fmt.Errorf("invalid withdrawal credentials %w", err)
 	}
 	r.Resign.WithdrawalCredentials = withdrawalCredentials
 	owner, err := hex.DecodeString(resJSON.Resign.Owner)
