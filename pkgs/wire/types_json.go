@@ -693,7 +693,7 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	for i, sp := range resJSON.Proofs {
 		sig, err := hex.DecodeString(sp.Signature)
 		if err != nil {
-			return fmt.Errorf("cant decode hex at proof signature %s", err.Error())
+			return fmt.Errorf("cant decode hex at proof signature %w", err)
 		}
 		r.Proofs[i] = &spec.SignedProof{
 			Proof:     &sp.Proof.Proof,
