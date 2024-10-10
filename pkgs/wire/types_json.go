@@ -578,7 +578,7 @@ func (r *ResignMessage) UnmarshalJSON(data []byte) error {
 	r.Resign.ValidatorPubKey = val
 	fork, err := hex.DecodeString(resJSON.Resign.Fork)
 	if err != nil {
-		return fmt.Errorf("invalid fork %s", err.Error())
+		return fmt.Errorf("invalid fork %w", err)
 	}
 	copy(r.Resign.Fork[:], fork)
 	withdrawalCredentials, err := hex.DecodeString(resJSON.Resign.WithdrawalCredentials)
