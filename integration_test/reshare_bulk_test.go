@@ -730,6 +730,8 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 	}
 }
 
+// NOTE: Example below how to generate EOA signature
+
 // func TestSignReshare(t *testing.T) {
 // 	msg_path := "../examples/initiator/output/reshare.json"
 // 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
