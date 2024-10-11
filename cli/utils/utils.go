@@ -21,6 +21,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
@@ -28,7 +30,6 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 // global base flags
@@ -529,7 +530,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 	}
 	Signatures = viper.GetString("signatures")
 	if Signatures == "" {
-		return fmt.Errorf("😥 Failed to get signature flag value")
+		return fmt.Errorf("😥 Failed to get --signatures flag value")
 	}
 	return nil
 }
@@ -655,7 +656,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	}
 	Signatures = viper.GetString("signatures")
 	if Signatures == "" {
-		return fmt.Errorf("😥 Failed to get signature flag value")
+		return fmt.Errorf("😥 Failed to get --signatures flag value")
 	}
 	return nil
 }
