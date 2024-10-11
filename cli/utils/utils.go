@@ -824,12 +824,20 @@ func SignaturesStringToBytes(signatures string) ([]byte, error) {
 }
 
 func DecodeProofsString(proofsString string) ([][]*spec.SignedProof, error) {
-	allProofs := make([][]*spec.SignedProof, 0)
+	allProofs := make([][]*wire.SignedProof, 0)
 	err := json.Unmarshal([]byte(proofsString), &allProofs)
 	if err != nil {
 		return nil, fmt.Errorf("😥 Failed to unmarshal proofs: %s", err)
 	}
-	return allProofs, nil
+	allSpecProofs := make([][]*spec.SignedProof, len(allProofs))
+	for i, sp := range allProofs {
+		specProofs := make([]*spec.SignedProof, len(sp))
+		for j, p := range sp {
+			specProofs[j] = &p.SignedProof
+		}
+		allSpecProofs[i] = specProofs
+	}
+	return allSpecProofs, nil
 }
 
 func WriteResults(
