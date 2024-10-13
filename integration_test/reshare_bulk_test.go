@@ -11,12 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/spf13/cobra"
-	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
-	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
+	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestBulkReshareHappyFlows4Ops(t *testing.T) {
@@ -729,3 +729,27 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 		srv.HttpSrv.Close()
 	}
 }
+
+// NOTE: Example below how to generate EOA signature
+
+// func TestSignReshare(t *testing.T) {
+// 	msg_path := "../examples/initiator/output/reshare.json"
+// 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
+// 	password_path := "../examples/initiator/password"
+
+// 	msgBytes, err := os.ReadFile(msg_path)
+// 	require.NoError(t, err)
+// 	reshareMsg := make([]*wire.ReshareMessage, 0)
+// 	err = json.Unmarshal(msgBytes, &reshareMsg)
+// 	require.NoError(t, err)
+
+// 	jsonBytes, err := os.ReadFile(sk_path)
+// 	require.NoError(t, err)
+// 	keyStorePassword, err := os.ReadFile(filepath.Clean(password_path))
+// 	require.NoError(t, err)
+// 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+// 	require.NoError(t, err)
+// 	signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+// 	require.NoError(t, err)
+// 	t.Log(signature)
+// }

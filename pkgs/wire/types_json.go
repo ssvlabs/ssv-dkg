@@ -537,10 +537,10 @@ func (r *ResignMessage) MarshalJSON() ([]byte, error) {
 	}
 	result.Operators = specOperators
 	result.Resign = ResignJSON{
-		ValidatorPubKey:       hex.EncodeToString(r.Resign.ValidatorPubKey),
-		Fork:                  hex.EncodeToString(r.Resign.Fork[:]),
-		WithdrawalCredentials: hex.EncodeToString(r.Resign.WithdrawalCredentials),
-		Owner:                 hex.EncodeToString(r.Resign.Owner[:]),
+		ValidatorPubKey:       "0x" + hex.EncodeToString(r.Resign.ValidatorPubKey),
+		Fork:                  "0x" + hex.EncodeToString(r.Resign.Fork[:]),
+		WithdrawalCredentials: "0x" + hex.EncodeToString(r.Resign.WithdrawalCredentials),
+		Owner:                 "0x" + hex.EncodeToString(r.Resign.Owner[:]),
 		Nonce:                 r.Resign.Nonce,
 		Amount:                r.Resign.Amount,
 	}
@@ -571,22 +571,22 @@ func (r *ResignMessage) UnmarshalJSON(data []byte) error {
 		r.Operators[i] = op.ToSpecOperator()
 	}
 	r.Resign = &spec.Resign{}
-	val, err := hex.DecodeString(resJSON.Resign.ValidatorPubKey)
+	val, err := hex.DecodeString(strings.TrimPrefix(resJSON.Resign.ValidatorPubKey, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid validator public key %w", err)
 	}
 	r.Resign.ValidatorPubKey = val
-	fork, err := hex.DecodeString(resJSON.Resign.Fork)
+	fork, err := hex.DecodeString(strings.TrimPrefix(resJSON.Resign.Fork, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid fork %w", err)
 	}
 	copy(r.Resign.Fork[:], fork)
-	withdrawalCredentials, err := hex.DecodeString(resJSON.Resign.WithdrawalCredentials)
+	withdrawalCredentials, err := hex.DecodeString(strings.TrimPrefix(resJSON.Resign.WithdrawalCredentials, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid withdrawal credentials %w", err)
 	}
 	r.Resign.WithdrawalCredentials = withdrawalCredentials
-	owner, err := hex.DecodeString(resJSON.Resign.Owner)
+	owner, err := hex.DecodeString(strings.TrimPrefix(resJSON.Resign.Owner, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid owner %w", err)
 	}
@@ -623,14 +623,14 @@ func (r *ReshareMessage) MarshalJSON() ([]byte, error) {
 		specNewOperators[i] = NewOperatorFromSpec(*op)
 	}
 	result.Reshare = ReshareJSON{
-		ValidatorPubKey:       hex.EncodeToString(r.Reshare.ValidatorPubKey),
+		ValidatorPubKey:       "0x" + hex.EncodeToString(r.Reshare.ValidatorPubKey),
 		OldOperators:          specOldOperators,
 		NewOperators:          specNewOperators,
 		OldT:                  r.Reshare.OldT,
 		NewT:                  r.Reshare.NewT,
-		Fork:                  hex.EncodeToString(r.Reshare.Fork[:]),
-		WithdrawalCredentials: hex.EncodeToString(r.Reshare.WithdrawalCredentials),
-		Owner:                 hex.EncodeToString(r.Reshare.Owner[:]),
+		Fork:                  "0x" + hex.EncodeToString(r.Reshare.Fork[:]),
+		WithdrawalCredentials: "0x" + hex.EncodeToString(r.Reshare.WithdrawalCredentials),
+		Owner:                 "0x" + hex.EncodeToString(r.Reshare.Owner[:]),
 		Nonce:                 r.Reshare.Nonce,
 		Amount:                r.Reshare.Amount,
 	}
@@ -657,22 +657,22 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	r.Reshare = &spec.Reshare{}
-	val, err := hex.DecodeString(resJSON.Reshare.ValidatorPubKey)
+	val, err := hex.DecodeString(strings.TrimPrefix(resJSON.Reshare.ValidatorPubKey, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid validator public key %w", err)
 	}
 	r.Reshare.ValidatorPubKey = val
-	fork, err := hex.DecodeString(resJSON.Reshare.Fork)
+	fork, err := hex.DecodeString(strings.TrimPrefix(resJSON.Reshare.Fork, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid fork %w", err)
 	}
 	copy(r.Reshare.Fork[:], fork)
-	withdrawalCredentials, err := hex.DecodeString(resJSON.Reshare.WithdrawalCredentials)
+	withdrawalCredentials, err := hex.DecodeString(strings.TrimPrefix(resJSON.Reshare.WithdrawalCredentials, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid withdrawal credentials %w", err)
 	}
 	r.Reshare.WithdrawalCredentials = withdrawalCredentials
-	owner, err := hex.DecodeString(resJSON.Reshare.Owner)
+	owner, err := hex.DecodeString(strings.TrimPrefix(resJSON.Reshare.Owner, "0x"))
 	if err != nil {
 		return fmt.Errorf("invalid owner %w", err)
 	}
