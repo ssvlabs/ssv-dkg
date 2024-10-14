@@ -92,7 +92,7 @@ var GenerateReshareMsg = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				logger.Fatal("😥 Failed to construct reshare message hash: ", zap.Error(err))
+				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}

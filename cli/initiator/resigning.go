@@ -87,7 +87,7 @@ var GenerateResignMsg = &cobra.Command{
 				signedProofs[i],
 			)
 			if err != nil {
-				logger.Fatal("😥 Failed to construct resign message hash:", zap.Error(err))
+				logger.Fatal("😥 Failed to construct resign message:", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
