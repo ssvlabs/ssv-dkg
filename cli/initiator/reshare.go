@@ -1,7 +1,7 @@
 package initiator
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
@@ -23,7 +24,7 @@ func init() {
 
 var GenerateReshareMsg = &cobra.Command{
 	Use:   "generate-reshare-msg",
-	Short: "Generate reshare message for one or multiple ceremonies",
+	Short: "Generate reshare message hash for one or multiple ceremonies",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := cli_utils.SetViperConfig(cmd); err != nil {
 			return err
@@ -86,26 +87,27 @@ var GenerateReshareMsg = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonce, 
+				nonce,
 				cli_utils.Amount,
 				signedProofs[i],
 			)
 			if err != nil {
-				logger.Fatal("😥 Failed to construct reshare message: ", zap.Error(err))
+				logger.Fatal("😥 Failed to construct reshare message hash: ", zap.Error(err))
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
 		// write bulk reshare message to file
-		rMsgBytes, err := json.Marshal(rMsgs)
+		hash, err := utils.GetMessageHash(rMsgs)
 		if err != nil {
-			logger.Fatal("😥 Failed to marshal reshare messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to marshal reshare message hash:", zap.Error(err))
 		}
-		finalPath := fmt.Sprintf("%s/reshare.json", cli_utils.OutputPath)
-		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
+		data := fmt.Sprintf("0x%s", hex.EncodeToString(hash[:]))
+		finalPath := fmt.Sprintf("%s/reshare.txt", cli_utils.OutputPath)
+		err = os.WriteFile(finalPath, []byte(data), 0o600)
 		if err != nil {
-			logger.Fatal("😥 Failed to save reshare messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to save reshare message hash:", zap.Error(err))
 		}
-		logger.Info("🚀 Reshare message generated", zap.String("path", finalPath))
+		logger.Info("🚀 Reshare message hash generated", zap.String("path", finalPath))
 		return nil
 	},
 }
@@ -192,7 +194,7 @@ var StartReshare = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonce, 
+				nonce,
 				cli_utils.Amount,
 				signedProofs[i],
 			)
