@@ -147,12 +147,12 @@ func (op *Operator) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewReshareFromSpec(r spec.Reshare) *Reshare {
-	return &Reshare{r}
+func NewReshareFromSpec(r *spec.Reshare) *Reshare {
+	return &Reshare{*r}
 }
 
-func NewResignFromSpec(r spec.Resign) *Resign {
-	return &Resign{r}
+func NewResignFromSpec(r *spec.Resign) *Resign {
+	return &Resign{*r}
 }
 
 func (r *Reshare) ToSpecReshare() *spec.Reshare {
@@ -300,7 +300,7 @@ type SignedBulkResignJSON struct {
 func (br *SignedBulkResign) MarshalJSON() ([]byte, error) {
 	resignMsgs := make([]*Resign, len(br.ResignMsgs))
 	for i, r := range br.ResignMsgs {
-		resignMsgs[i] = NewResignFromSpec(*r)
+		resignMsgs[i] = NewResignFromSpec(r)
 	}
 	return json.Marshal(&SignedBulkResignJSON{
 		ResignMsgs: resignMsgs,
@@ -328,7 +328,7 @@ func (br *SignedBulkResign) UnmarshalJSON(data []byte) error {
 func (br *SignedBulkResign) MarshalResignMessagesJSON() ([]byte, error) {
 	resignMsgs := make([]*Resign, len(br.ResignMsgs))
 	for i, r := range br.ResignMsgs {
-		resignMsgs[i] = NewResignFromSpec(*r)
+		resignMsgs[i] = NewResignFromSpec(r)
 	}
 	return json.Marshal(resignMsgs)
 }
@@ -397,7 +397,7 @@ type SignedBulkReshareJSON struct {
 func (br *SignedBulkReshare) MarshalJSON() ([]byte, error) {
 	reshareMsgs := make([]*Reshare, len(br.ReshareMsgs))
 	for i, r := range br.ReshareMsgs {
-		reshareMsgs[i] = NewReshareFromSpec(*r)
+		reshareMsgs[i] = NewReshareFromSpec(r)
 	}
 	return json.Marshal(&SignedBulkReshareJSON{
 		ReshareMsgs: reshareMsgs,
@@ -425,7 +425,7 @@ func (br *SignedBulkReshare) UnmarshalJSON(data []byte) error {
 func (br *SignedBulkReshare) MarshalReshareMessagesJSON() ([]byte, error) {
 	reshareMsgs := make([]*Reshare, len(br.ReshareMsgs))
 	for i, r := range br.ReshareMsgs {
-		reshareMsgs[i] = NewReshareFromSpec(*r)
+		reshareMsgs[i] = NewReshareFromSpec(r)
 	}
 	return json.Marshal(reshareMsgs)
 }

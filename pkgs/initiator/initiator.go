@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -813,7 +812,7 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	return nil
 }
 
-func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
+func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 proofs are empty")
 	}
@@ -856,7 +855,7 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 	}, nil
 }
 
-func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork e2m_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
+func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}
@@ -918,7 +917,7 @@ func checkThreshold(responses map[uint64][]byte, errs map[uint64]error, oldOpera
 	return nil
 }
 
-func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg interface{}, msgIDMap interface{}) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
+func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg, msgIDMap interface{}) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
 	bulkDepositData := []*wire.DepositDataCLI{}
 	bulkKeyShares := []*wire.KeySharesCLI{}
 	bulkProofs := [][]*wire.SignedProof{}

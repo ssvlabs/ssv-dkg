@@ -11,7 +11,6 @@ import (
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
 	kyber_share "github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all
 	"github.com/drand/kyber/util/random"
@@ -738,7 +737,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		coefs = append(coefs, p)
 	}
 	suite := kyber_bls12381.NewBLS12381Suite()
-	exp := kyber_share.NewPubPoly(suite.G1().(dkg.Suite), suite.G1().(dkg.Suite).Point().Base(), coefs)
+	exp := kyber_share.NewPubPoly(suite.G1().(kyber_dkg.Suite), suite.G1().(kyber_dkg.Suite).Point().Base(), coefs)
 	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("could not marshal share %w", err)
