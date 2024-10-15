@@ -56,42 +56,44 @@ func (s *Switch) getPublicCommitsAndSecretShare(reshareMsg *wire.ReshareMessage)
 	}
 	var distKeyShare *kyber_dkg.DistKeyShare
 	for i, op := range reshareMsg.Reshare.OldOperators {
-		if op.ID == s.OperatorID {
-			op := &spec.Operator{
-				ID:     s.OperatorID,
-				PubKey: s.PubKeyBytes,
-			}
-			if err := spec.ValidateReshareMessage(reshareMsg.Reshare, op, reshareMsg.Proofs[i]); err != nil {
-				return nil, nil, err
-			}
-			secretShare, err := crypto.GetSecretShareFromProofs(reshareMsg.Proofs[i], s.PrivateKey, s.OperatorID)
-			if err != nil {
-				return nil, nil, err
-			}
-			if secretShare == nil {
-				return nil, nil, fmt.Errorf("cant decrypt incoming private share")
-			}
-			distKeyShare = &kyber_dkg.DistKeyShare{
-				Commits: commits,
-				Share:   secretShare,
-			}
-			suite := kyber_bls12381.NewBLS12381Suite()
-			valPK, err := crypto.ResultToValidatorPK(distKeyShare, suite.G1().(kyber_dkg.Suite))
-			if err != nil {
-				return nil, nil, err
-			}
-			if !bytes.Equal(valPK.Serialize(), reshareMsg.Reshare.ValidatorPubKey) {
-				return nil, nil, fmt.Errorf("validator pub key recovered from proofs not equal validator pub key at reshare msg")
-			}
-			secretKeyBLS, err := crypto.ResultToShareSecretKey(distKeyShare)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
-			}
-			if !bytes.Equal(secretKeyBLS.GetPublicKey().Serialize(), reshareMsg.Proofs[i].Proof.SharePubKey) {
-				return nil, nil, fmt.Errorf("share pub key recovered from proofs not equal share pub key at reshare msg")
-			}
-			s.Logger.Info("Successfully recovered secret share from proofs")
+		if op.ID != s.OperatorID {
+			continue
 		}
+		op := &spec.Operator{
+			ID:     s.OperatorID,
+			PubKey: s.PubKeyBytes,
+		}
+		if err := spec.ValidateReshareMessage(reshareMsg.Reshare, op, reshareMsg.Proofs[i]); err != nil {
+			return nil, nil, err
+		}
+		secretShare, err := crypto.GetSecretShareFromProofs(reshareMsg.Proofs[i], s.PrivateKey, s.OperatorID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if secretShare == nil {
+			return nil, nil, fmt.Errorf("cant decrypt incoming private share")
+		}
+		distKeyShare = &kyber_dkg.DistKeyShare{
+			Commits: commits,
+			Share:   secretShare,
+		}
+		suite := kyber_bls12381.NewBLS12381Suite()
+		valPK, err := crypto.ResultToValidatorPK(distKeyShare, suite.G1().(kyber_dkg.Suite))
+		if err != nil {
+			return nil, nil, err
+		}
+		if !bytes.Equal(valPK.Serialize(), reshareMsg.Reshare.ValidatorPubKey) {
+			return nil, nil, fmt.Errorf("validator pub key recovered from proofs not equal validator pub key at reshare msg")
+		}
+		secretKeyBLS, err := crypto.ResultToShareSecretKey(distKeyShare)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get BLS partial secret key share: %w", err)
+		}
+		if !bytes.Equal(secretKeyBLS.GetPublicKey().Serialize(), reshareMsg.Proofs[i].Proof.SharePubKey) {
+			return nil, nil, fmt.Errorf("share pub key recovered from proofs not equal share pub key at reshare msg")
+		}
+		s.Logger.Info("Successfully recovered secret share from proofs")
+
 	}
 	return commits, distKeyShare, err
 }

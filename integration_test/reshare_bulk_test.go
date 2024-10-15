@@ -1,10 +1,12 @@
 package integration_test
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -16,7 +18,6 @@ import (
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestBulkReshareHappyFlows4Ops(t *testing.T) {
@@ -133,10 +134,9 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			reshareMsg := make([]*wire.ReshareMessage, 0)
-			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -146,7 +146,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -171,7 +171,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/reshare.json")
+	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
 	reshareCeremonies, err := os.ReadDir("./output")
@@ -311,10 +311,9 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			reshareMsg := make([]*wire.ReshareMessage, 0)
-			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -324,7 +323,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -349,7 +348,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/reshare.json")
+	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
 	reshareCeremonies, err := os.ReadDir("./output")
@@ -489,10 +488,9 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			reshareMsg := make([]*wire.ReshareMessage, 0)
-			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -502,7 +500,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -527,7 +525,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/reshare.json")
+	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
 	reshareCeremonies, err := os.ReadDir("./output")
@@ -667,10 +665,9 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.json")
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			reshareMsg := make([]*wire.ReshareMessage, 0)
-			err = json.Unmarshal(reshareMsgBytes, &reshareMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -680,7 +677,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignReshare(reshareMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -705,7 +702,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/reshare.json")
+	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
 	reshareCeremonies, err := os.ReadDir("./output")
@@ -733,7 +730,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 // NOTE: Example below how to generate EOA signature
 
 // func TestSignReshare(t *testing.T) {
-// 	msg_path := "../examples/initiator/output/reshare.json"
+// 	msg_path := "../examples/initiator/output/reshare.txt"
 // 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
 // 	password_path := "../examples/initiator/password"
 

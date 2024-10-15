@@ -1080,12 +1080,12 @@ func Sync(logger *zap.Logger) error {
 
 func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 	for _, op := range ops {
-		url, err := url.Parse(op.Addr)
+		addr, err := url.Parse(op.Addr)
 		if err != nil {
 			return fmt.Errorf("parsing IP address: %s, err: %w", op.Addr, err)
 		}
-		if url.Scheme != "https" {
-			return fmt.Errorf("only HTTPS scheme is allowed at operator address %s, got: %s", op.Addr, url.Scheme)
+		if addr.Scheme != "https" {
+			return fmt.Errorf("only HTTPS scheme is allowed at operator address %s, got: %s", op.Addr, addr.Scheme)
 		}
 	}
 	return nil

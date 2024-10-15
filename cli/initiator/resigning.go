@@ -1,7 +1,7 @@
 package initiator
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"go.uber.org/zap"
 
@@ -23,7 +24,7 @@ func init() {
 
 var GenerateResignMsg = &cobra.Command{
 	Use:   "generate-resign-msg",
-	Short: "Generate resign message for one or multiple ceremonies",
+	Short: "Generate resign message hash for one or multiple ceremonies",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := cli_utils.SetViperConfig(cmd); err != nil {
 			return err
@@ -81,7 +82,7 @@ var GenerateResignMsg = &cobra.Command{
 				ethNetwork,
 				cli_utils.WithdrawAddress[:],
 				cli_utils.OwnerAddress,
-				nonce, 
+				nonce,
 				cli_utils.Amount,
 				signedProofs[i],
 			)
@@ -91,16 +92,17 @@ var GenerateResignMsg = &cobra.Command{
 			rMsgs = append(rMsgs, rMsg)
 		}
 		// Save the resign messages
-		rMsgBytes, err := json.Marshal(rMsgs)
+		hash, err := utils.GetMessageHash(rMsgs)
 		if err != nil {
-			logger.Fatal("😥 Failed to marshal resign messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to marshal resign message hash:", zap.Error(err))
 		}
-		finalPath := fmt.Sprintf("%s/resign.json", cli_utils.OutputPath)
-		err = os.WriteFile(finalPath, rMsgBytes, 0o600)
+		data := fmt.Sprintf("0x%s", hex.EncodeToString(hash[:]))
+		finalPath := fmt.Sprintf("%s/resign.txt", cli_utils.OutputPath)
+		err = os.WriteFile(finalPath, []byte(data), 0o600)
 		if err != nil {
-			logger.Fatal("😥 Failed to save resign messages:", zap.Error(err))
+			logger.Fatal("😥 Failed to save resign message hash:", zap.Error(err))
 		}
-		logger.Info("🚀 Resign message generated", zap.String("path", finalPath))
+		logger.Info("🚀 Resign message hash generated", zap.String("path", finalPath))
 		return nil
 	},
 }

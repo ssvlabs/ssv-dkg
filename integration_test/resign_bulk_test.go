@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -137,10 +138,9 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			resignMsg := make([]*wire.ResignMessage, 0)
-			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign resign message
@@ -150,7 +150,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -174,7 +174,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/resign.json")
+	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
@@ -312,10 +312,9 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			resignMsg := make([]*wire.ResignMessage, 0)
-			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign resign message
@@ -325,7 +324,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -349,7 +348,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/resign.json")
+	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
@@ -487,10 +486,9 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			resignMsg := make([]*wire.ResignMessage, 0)
-			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign resign message
@@ -500,7 +498,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -524,7 +522,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/resign.json")
+	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
@@ -635,10 +633,9 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.json")
+			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			resignMsg := make([]*wire.ResignMessage, 0)
-			err = json.Unmarshal(resignMsgBytes, &resignMsg)
+			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
 			require.NoError(t, err)
 
 			// sign resign message
@@ -648,7 +645,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignResign(resignMsg, sk.PrivateKey)
+			signature, err := SignHash(hash, sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -672,7 +669,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// remove resign message
-	err = os.Remove("./output/resign.json")
+	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
 	resignCeremonies, err := os.ReadDir("./output")
@@ -712,10 +709,21 @@ func SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (string, error)
 	return signature, nil
 }
 
+func SignHash(hash []byte, sk *ecdsa.PrivateKey) (string, error) {
+	// Sign message root
+	ownerSigBytes, err := eth_crypto.Sign(hash, sk)
+	if err != nil {
+		return "", err
+	}
+	signature := hex.EncodeToString(ownerSigBytes)
+
+	return signature, nil
+}
+
 // NOTE: Example below how to generate EOA signature
 
 // func TestSignResign(t *testing.T) {
-// 	msg_path := "../examples/initiator/output/resign.json"
+// 	msg_path := "../examples/initiator/output/resign.txt"
 // 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
 // 	password_path := "../examples/initiator/password"
 

@@ -40,7 +40,7 @@ type Server struct {
 const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 
 // New creates Server structure using operator's RSA private key
-func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath string, ethEndpointURL string) (*Server, error) {
+func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath, ethEndpointURL string) (*Server, error) {
 	r := chi.NewRouter()
 	operatorPubKey := key.Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
