@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -121,73 +122,73 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 	})
 }
 
-// func TestVerifyMultisigSignedBulkReshareOffChain(t *testing.T) {
-// 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
-// 		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
-// 		ethBackend, err := ethclient.Dial(EthRPC)
-// 		require.NoError(t, err)
+func TestVerifyMultisigSignedOffChain(t *testing.T) {
+	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
+		gnosisAddress := common.HexToAddress("0x43908b5794da9A8f714f001567D8dA1523e68bDb")
+		ethBackend, err := ethclient.Dial(EthRPC)
+		require.NoError(t, err)
 
-// 		reshareBytes, err := os.ReadFile(filepath.Clean("./stubs/reshare/bulk_reshare_msgs.json"))
-// 		require.NoError(t, err)
-// 		var signedBulkReshare wire.SignedBulkReshare
-// 		err = json.Unmarshal(reshareBytes, &signedBulkReshare)
-// 		require.NoError(t, err)
+		msg := "932ab87aee23606dd0c085cab46322ffed345a3aa028673c25f72b5d486e14e2"
 
-// 		bulkReshareMsgs, err := signedBulkReshare.MarshalReshareMessagesJSON()
-// 		require.NoError(t, err)
+		var finalMsg []byte
+		prefix := []byte("\x19Ethereum Signed Message:\n")
+		msgLen := []byte(strconv.Itoa(len(msg)))
 
-// 		var finalMsg []byte
-// 		prefix := []byte("\x19Ethereum Signed Message:\n")
-// 		msgLen := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+		finalMsg = append(finalMsg, prefix...)
+		finalMsg = append(finalMsg, msgLen...)
+		finalMsg = append(finalMsg, msg...)
+		var hash [32]byte
+		keccak256 := eth_crypto.Keccak256(finalMsg)
+		copy(hash[:], keccak256)
+		// signed with TS script here utils/gnosis_multisig_examples/safe_off_chain
+		sig, err := hex.DecodeString("5b931ab4702f3712cfc791cf9bb88ce5b888ac6e3d9037e9867d926d696dd5d61831d98008f0a0b7d990ad8f049fe964e44ac5b8b800dd924354699d27ef6fa61ce5ce47d802cecc1e4158cb6a32159c60d2cbcdd29f5c811a5c389fc5e8b36fba3fb5c5284fb4ea3625b79e5f11396ad21a047d8c60ffc4076bf0e0f65e9ec6951c")
+		require.NoError(t, err)
+		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
+			gnosisAddress,
+			hash,
+			sig))
+	})
+}
 
-// 		finalMsg = append(finalMsg, prefix...)
-// 		finalMsg = append(finalMsg, msgLen...)
-// 		finalMsg = append(finalMsg, bulkReshareMsgs...)
-// 		var hash [32]byte
-// 		keccak256 := eth_crypto.Keccak256(finalMsg)
-// 		copy(hash[:], keccak256)
-// 		t.Log("Hash", hex.EncodeToString(hash[:]))
-// 		require.NoError(t, err)
-// 		t.Log("Signature", hex.EncodeToString(signedBulkReshare.Signature))
-// 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
-// 			gnosisAddress,
-// 			hash,
-// 			signedBulkReshare.Signature))
-// 	})
-// }
+func TestVerifyEOASigned(t *testing.T) {
+	t.Run("valid EOA signatures", func(t *testing.T) {
+		gnosisAddress := common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9")
+		ethBackend, err := ethclient.Dial(EthRPC)
+		require.NoError(t, err)
 
-// func TestVerifyMultisigSignedBulkResignOffChain(t *testing.T) {
-// 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
-// 		gnosisAddress := common.HexToAddress("0xC4D860871fb983d17eC665a305e98F1B3035a817")
-// 		ethBackend, err := ethclient.Dial(EthRPC)
-// 		require.NoError(t, err)
+		msg := "a3703ef95414e008f95e9d0adb6e0122e70ea2a71459eeafe3382dd24ae03706"
 
-// 		bulkResignBytes, err := os.ReadFile(filepath.Clean("./stubs/resign/bulk_resign_msgs.json"))
-// 		require.NoError(t, err)
-// 		var signedBulkResign wire.SignedBulkResign
-// 		err = json.Unmarshal(bulkResignBytes, &signedBulkResign)
-// 		require.NoError(t, err)
+		var finalMsg []byte
+		prefix := []byte("\x19Ethereum Signed Message:\n")
+		msgLen := []byte(strconv.Itoa(len(msg)))
 
-// 		bulkReshareMsgs, err := signedBulkResign.MarshalResignMessagesJSON()
-// 		require.NoError(t, err)
-// 		t.Log("Marshaled resign messages", string(bulkReshareMsgs))
+		finalMsg = append(finalMsg, prefix...)
+		finalMsg = append(finalMsg, msgLen...)
+		finalMsg = append(finalMsg, msg...)
+		var hash [32]byte
+		keccak256 := eth_crypto.Keccak256([]byte(finalMsg))
+		copy(hash[:], keccak256)
 
-// 		var finalMsg []byte
-// 		prefix := []byte("\x19Ethereum Signed Message:\n")
-// 		msgLen := []byte(strconv.Itoa(len(bulkReshareMsgs)))
+		t.Log("Hash :", hex.EncodeToString(hash[:]))
 
-// 		finalMsg = append(finalMsg, prefix...)
-// 		finalMsg = append(finalMsg, msgLen...)
-// 		finalMsg = append(finalMsg, bulkReshareMsgs...)
-// 		var hash [32]byte
-// 		keccak256 := eth_crypto.Keccak256(finalMsg)
-// 		copy(hash[:], keccak256)
-// 		t.Log("Hash", hex.EncodeToString(hash[:]))
-// 		require.NoError(t, err)
-// 		t.Log("Signature", hex.EncodeToString(signedBulkResign.Signature))
-// 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
-// 			gnosisAddress,
-// 			hash,
-// 			signedBulkResign.Signature))
-// 	})
-// }
+		sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
+		password_path := "../examples/initiator/password"
+
+		jsonBytes, err := os.ReadFile(sk_path)
+		require.NoError(t, err)
+		keyStorePassword, err := os.ReadFile(filepath.Clean(password_path))
+		require.NoError(t, err)
+		sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+		require.NoError(t, err)
+
+		ownerSigBytes, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+		require.NoError(t, err)
+
+		t.Log("Sig :", hex.EncodeToString(ownerSigBytes[:]))
+
+		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
+			gnosisAddress,
+			hash,
+			ownerSigBytes))
+	})
+}

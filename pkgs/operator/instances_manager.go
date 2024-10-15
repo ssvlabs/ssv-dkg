@@ -183,7 +183,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			hash,
 			signedResign.Signature,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to verify signed message by owner: %w", err)
 		}
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
@@ -230,7 +230,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			hash,
 			signedReshare.Signature,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to verify signed message by owner: %w", err)
 		}
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))

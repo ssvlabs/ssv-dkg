@@ -1,20 +1,19 @@
 package initiator
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+
+	spec "github.com/ssvlabs/dkg-spec"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
-
-	spec "github.com/ssvlabs/dkg-spec"
 )
 
 func init() {
@@ -96,12 +95,12 @@ var GenerateReshareMsg = &cobra.Command{
 			}
 			rMsgs = append(rMsgs, rMsg)
 		}
-		// write bulk reshare message to file
-		hash, err := utils.GetMessageHash(rMsgs)
+		// write bulk reshare message hex to file
+		msgHex, err := utils.GetMessageString(rMsgs)
 		if err != nil {
 			logger.Fatal("😥 Failed to marshal reshare message hash:", zap.Error(err))
 		}
-		data := fmt.Sprintf("0x%s", hex.EncodeToString(hash[:]))
+		data := fmt.Sprintf("%s", msgHex)
 		finalPath := fmt.Sprintf("%s/reshare.txt", cli_utils.OutputPath)
 		err = os.WriteFile(finalPath, []byte(data), 0o600)
 		if err != nil {
