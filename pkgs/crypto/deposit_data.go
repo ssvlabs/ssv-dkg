@@ -10,10 +10,10 @@ import (
 	"github.com/bloxapp/eth2-key-manager/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
-	spec "github.com/ssvlabs/dkg-spec"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
@@ -122,7 +122,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 		return fmt.Errorf("resulting deposit data json has wrong fields length")
 	}
 	// check the deposit amount
-	if d.Amount != 32000000000 {
+	if !spec.ValidAmountSet(phase0.Gwei(d.Amount)) {
 		return fmt.Errorf("resulting deposit data json has wrong amount")
 	}
 	v, err := version.NewVersion(d.DepositCliVersion)

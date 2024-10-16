@@ -587,7 +587,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 			"--nonce", "1",
-			"--amount", "32000000000"}
+			"--amount", "2048000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -602,7 +602,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 			"--nonce", "1",
-			"--amount", "32000000000"}
+			"--amount", "2048000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -633,7 +633,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--nonce", strconv.Itoa(1),
-			"--amount", "32000000000"}
+			"--amount", "2048000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -658,7 +658,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--newOperatorIDs", "11,22,33,44",
 				"--nonce", "10",
-				"--amount", "32000000000"}
+				"--amount", "2048000000000"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -688,7 +688,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
 				"--newOperatorIDs", "11,22,33,44",
 				"--nonce", "10",
-				"--amount", "32000000000",
+				"--amount", "2048000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -714,7 +714,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 			"--nonce", strconv.Itoa(10),
-			"--amount", "32000000000"}
+			"--amount", "2048000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
