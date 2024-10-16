@@ -1,7 +1,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>E2E Test Dapp</title>
+    <title>Test signature</title>
     <link rel="icon" type="image/svg" href="metamask-fox.svg" />
     <link
       rel="stylesheet"
@@ -23,7 +23,7 @@
       <header>
         <div id="logo-container">
           <h1 id="logo-text" class="text-center">
-            E2E Test Dapp
+            Test signature
           </h1>
 
           <img id="mm-logo" src="metamask-fox.svg" />
@@ -1118,9 +1118,12 @@
             <div class="card full-width">
               <div class="card-body">
                 <h4>
-                  Personal Sign
+                  Sign Resign/Reshare
                 </h4>
-
+                <input type="text" 
+                class="info-text alert alert-warning" 
+                id="msgToSign"
+                default="message here">  </input>
                 <button
                   class="btn btn-primary btn-lg btn-block mb-3"
                   id="personalSign"

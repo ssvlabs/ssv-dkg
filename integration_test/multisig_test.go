@@ -190,5 +190,11 @@ func TestVerifyEOASigned(t *testing.T) {
 			gnosisAddress,
 			hash,
 			ownerSigBytes))
+		sigFromMetamask, err := hex.DecodeString("ccb1866d30562f25cfb3d7001008667eba5fd76de2270cc32dc037ff7cd204f67c9f4fbfd47834bedb69a5907d8ef428dbb6fc706938866a01fe96763052758200")
+		require.NoError(t, err)
+		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
+			gnosisAddress,
+			hash,
+			sigFromMetamask))
 	})
 }

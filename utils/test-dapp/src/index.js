@@ -7,6 +7,9 @@ import {
 } from '@metamask/eth-sig-util';
 import { ethers } from 'ethers';
 import { toChecksumAddress } from 'ethereumjs-util';
+import { fromRpcSig, setLengthLeft, toRpcSig } from '@ethereumjs/util';
+import { secp256k1 } from 'ethereum-cryptography/secp256k1';
+
 import {
   handleSdkConnect,
   handleWalletConnect,
@@ -112,24 +115,24 @@ const multisigContractStatus = document.getElementById(
 );
 
 // NFTs Section
-const deployNFTsButton = document.getElementById('deployNFTsButton');
-const mintButton = document.getElementById('mintButton');
-const watchNFTsButton = document.getElementById('watchNFTsButton');
-const watchNFTButtons = document.getElementById('watchNFTButtons');
+// const deployNFTsButton = document.getElementById('deployNFTsButton');
+// const mintButton = document.getElementById('mintButton');
+// const watchNFTsButton = document.getElementById('watchNFTsButton');
+// const watchNFTButtons = document.getElementById('watchNFTButtons');
 
-const mintAmountInput = document.getElementById('mintAmountInput');
-const approveTokenInput = document.getElementById('approveTokenInput');
-const approveButton = document.getElementById('approveButton');
-const watchNFTInput = document.getElementById('watchNFTInput');
-const watchNFTButton = document.getElementById('watchNFTButton');
-const setApprovalForAllButton = document.getElementById(
-  'setApprovalForAllButton',
-);
-const revokeButton = document.getElementById('revokeButton');
-const transferTokenInput = document.getElementById('transferTokenInput');
-const transferFromButton = document.getElementById('transferFromButton');
-const nftsStatus = document.getElementById('nftsStatus');
-const erc721TokenAddresses = document.getElementById('erc721TokenAddresses');
+// const mintAmountInput = document.getElementById('mintAmountInput');
+// const approveTokenInput = document.getElementById('approveTokenInput');
+// const approveButton = document.getElementById('approveButton');
+// const watchNFTInput = document.getElementById('watchNFTInput');
+// const watchNFTButton = document.getElementById('watchNFTButton');
+// const setApprovalForAllButton = document.getElementById(
+//   'setApprovalForAllButton',
+// );
+// const revokeButton = document.getElementById('revokeButton');
+// const transferTokenInput = document.getElementById('transferTokenInput');
+// const transferFromButton = document.getElementById('transferFromButton');
+// const nftsStatus = document.getElementById('nftsStatus');
+// const erc721TokenAddresses = document.getElementById('erc721TokenAddresses');
 
 // ERC 1155 Section
 
@@ -211,6 +214,7 @@ const ciphertextDisplay = document.getElementById('ciphertextDisplay');
 const cleartextDisplay = document.getElementById('cleartextDisplay');
 
 // Ethereum Signature Section
+const exampleMessage = document.getElementById('msgToSign');
 const ethSign = document.getElementById('ethSign');
 const ethSignResult = document.getElementById('ethSignResult');
 const personalSign = document.getElementById('personalSign');
@@ -820,7 +824,7 @@ const closeProvider = () => {
 // Must be called after the active provider changes
 // Initializes active provider and adds any listeners
 const initializeProvider = async () => {
-  initializeContracts();
+  // initializeContracts();
   updateFormElements();
 
   if (isMetaMaskInstalled()) {
@@ -2165,16 +2169,28 @@ const initializeFormElements = () => {
   /**
    * Personal Sign
    */
+  function calculateSigRecovery(v, chainId) {
+    if (v === 0n || v === 1n) return v;
+
+    if (BigInt(chainId) === undefined) {
+      return v - 27n;
+    }
+    return v - (BigInt(chainId) * 2n + 35n);
+  }
+
   personalSign.onclick = async () => {
-    const exampleMessage = 'Example `personal_sign` message';
     try {
       const from = accounts[0];
-      const msg = `0x${Buffer.from(exampleMessage, 'utf8').toString('hex')}`;
+      const msg = `0x${Buffer.from(exampleMessage.value, 'utf8').toString(
+        'hex',
+      )}`;
       const sign = await provider.request({
         method: 'personal_sign',
         params: [msg, from, 'Example password'],
       });
-      personalSignResult.innerHTML = sign;
+      const sigParams = fromRpcSig(sign);
+      const sig = toRpcSig(sigParams.v - 27n, sigParams.r, sigParams.s);
+      personalSignResult.innerHTML = sig;
       personalSignVerify.disabled = false;
     } catch (err) {
       console.error(err);
@@ -2255,10 +2271,11 @@ const initializeFormElements = () => {
    * Personal Sign Verify
    */
   personalSignVerify.onclick = async () => {
-    const exampleMessage = 'Example `personal_sign` message';
     try {
       const from = accounts[0];
-      const msg = `0x${Buffer.from(exampleMessage, 'utf8').toString('hex')}`;
+      const msg = `0x${Buffer.from(exampleMessage.value, 'utf8').toString(
+        'hex',
+      )}`;
       const sign = personalSignResult.innerHTML;
       const recoveredAddr = recoverPersonalSignature({
         data: msg,
