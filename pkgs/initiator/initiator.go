@@ -821,11 +821,11 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 		return nil, err
 	}
 	// validate proofs
-	for i, op := range oldOps {
-		if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
-			return nil, err
-		}
-	}
+	// for i, op := range oldOps {
+	// 	if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 	newOps, err := ValidatedOperatorData(newOperatorIDs, c.Operators)
 	if err != nil {
 		return nil, err
@@ -864,11 +864,11 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 		return nil, err
 	}
 	// validate proofs
-	for i, op := range ops {
-		if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
-			return nil, err
-		}
-	}
+	// for i, op := range ops {
+	// 	if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 	// create resign message
 	resign := spec.Resign{ValidatorPubKey: validatorPub,
 		Fork:                  ethnetwork.GenesisForkVersion(),

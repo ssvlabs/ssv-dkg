@@ -257,9 +257,9 @@ func getOwner(message interface{}) [20]byte {
 	var owner [20]byte
 	switch msg := message.(type) {
 	case *wire.ResignMessage:
-		copy(owner[:], msg.Resign.Owner[:])
+		copy(owner[:], msg.Proofs[0].Proof.Owner[:])
 	case *wire.ReshareMessage:
-		copy(owner[:], msg.Reshare.Owner[:])
+		copy(owner[:], msg.Proofs[0].Proof.Owner[:])
 	}
 	return owner
 }

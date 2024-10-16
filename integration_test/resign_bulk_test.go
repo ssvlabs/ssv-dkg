@@ -722,24 +722,20 @@ func SignHash(hash []byte, sk *ecdsa.PrivateKey) (string, error) {
 
 // NOTE: Example below how to generate EOA signature
 
-// func TestSignResign(t *testing.T) {
-// 	msg_path := "../examples/initiator/output/resign.txt"
-// 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
-// 	password_path := "../examples/initiator/password"
-
-// 	msgBytes, err := os.ReadFile(msg_path)
-// 	require.NoError(t, err)
-// 	reshareMsg := make([]*wire.ResignMessage, 0)
-// 	err = json.Unmarshal(msgBytes, &reshareMsg)
-// 	require.NoError(t, err)
-
-// 	jsonBytes, err := os.ReadFile(sk_path)
-// 	require.NoError(t, err)
-// 	keyStorePassword, err := os.ReadFile(filepath.Clean(password_path))
-// 	require.NoError(t, err)
-// 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-// 	require.NoError(t, err)
-// 	signature, err := SignResign(reshareMsg, sk.PrivateKey)
-// 	require.NoError(t, err)
-// 	t.Log(signature)
-// }
+func TestSignResign(t *testing.T) {
+	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
+	password_path := "../examples/initiator/password"
+	hash, err := hex.DecodeString("4150512abb0c5ccc8ea649380195f85d366ffc21f1025b857cfb6b3e338080d7")
+	require.NoError(t, err)
+	jsonBytes, err := os.ReadFile(sk_path)
+	require.NoError(t, err)
+	keyStorePassword, err := os.ReadFile(filepath.Clean(password_path))
+	require.NoError(t, err)
+	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
+	require.NoError(t, err)
+	ownerSigBytes, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
+	require.NoError(t, err)
+	signature := hex.EncodeToString(ownerSigBytes)
+	require.NoError(t, err)
+	t.Log(signature)
+}
