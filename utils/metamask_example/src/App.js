@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { hashMessage as performMessageHash } from 'viem'
+import { hashMessage as performMessageHash } from "viem";
+import { stripHexPrefix } from "@ethereumjs/util";
 import {
   MetaMaskButton,
   useAccount,
@@ -9,7 +10,7 @@ import {
 import "./App.css";
 
 function AppReady() {
-  const [messageToSign, setMessageToSign] = useState("");
+  const [messageToSign, setMessageToSign] = useState("some hash");
   const {
     data: signData,
     isError: isSignError,
@@ -17,7 +18,7 @@ function AppReady() {
     isSuccess: isSignSuccess,
     signMessage,
   } = useSignMessage({
-    message: performMessageHash(messageToSign),
+    message: stripHexPrefix(performMessageHash(messageToSign)),
   });
   const { isConnected } = useAccount();
   return (
@@ -30,7 +31,8 @@ function AppReady() {
         <MetaMaskButton theme={"light"} color="white"></MetaMaskButton>
         {isConnected && (
           <>
-            <form>
+            <form style={{ marginTop: 20 }}>
+              <div>Please enter hash to sign</div>
               <input
                 value={messageToSign}
                 onChange={(e) => setMessageToSign(e.target.value)}
