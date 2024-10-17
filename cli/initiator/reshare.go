@@ -100,9 +100,8 @@ var GenerateReshareMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to marshal reshare message hash:", zap.Error(err))
 		}
-		data := fmt.Sprintf("%s", msgHex)
 		finalPath := fmt.Sprintf("%s/reshare.txt", cli_utils.OutputPath)
-		err = os.WriteFile(finalPath, []byte(data), 0o600)
+		err = os.WriteFile(finalPath, []byte(msgHex), 0o600)
 		if err != nil {
 			logger.Fatal("😥 Failed to save reshare message hash:", zap.Error(err))
 		}

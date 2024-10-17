@@ -1,12 +1,10 @@
 package integration_test
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -136,8 +134,6 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			// load reshare message
 			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -146,7 +142,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -313,8 +309,6 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			// load reshare message
 			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -323,7 +317,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -490,8 +484,6 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			// load reshare message
 			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -500,7 +492,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
@@ -667,8 +659,6 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			// load reshare message
 			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(reshareMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -677,7 +667,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"reshare",
