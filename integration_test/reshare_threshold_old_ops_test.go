@@ -12,15 +12,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
-	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
-	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
+	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestReshareThresholdOldValidators4Ops(t *testing.T) {
@@ -76,7 +76,8 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -137,7 +138,8 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -203,7 +205,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -265,7 +268,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -331,7 +335,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -394,7 +399,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -460,7 +466,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(1)}
+			"--nonce", strconv.Itoa(1),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -524,7 +531,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--nonce", strconv.Itoa(10)}
+			"--nonce", strconv.Itoa(10),
+			"--amount", "32000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
