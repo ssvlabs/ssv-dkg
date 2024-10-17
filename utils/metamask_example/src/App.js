@@ -50,8 +50,17 @@ function AppReady() {
         {isConnected && (
           <>
             <form style={{ marginTop: 20 }}>
-              <div>Please enter msg to sign</div>
-              <input
+              <div style={{ marginBottom: 20 }}>Please enter msg to sign</div>
+              <textarea
+                style={{
+                  padding: "10px 20px",
+                  textAlign: "center",
+                  maxWidth: "100%",
+                  minWidth: "60%",
+                  width: "600px",
+                  height: '20px',
+                  margin: "0 auto",
+                }}
                 value={messageToSign}
                 onChange={(e) => setMessageToSign(e.target.value)}
               />
@@ -74,7 +83,7 @@ function AppReady() {
                           textAlign: "center",
                           maxWidth: "80%",
                           minWidth: "60%",
-                          width:  "600px" ,
+                          width: "600px",
                           margin: "0 auto",
                         }}
                       />
