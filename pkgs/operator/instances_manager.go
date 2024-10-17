@@ -165,11 +165,15 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			return nil, fmt.Errorf("%s: failed to unmarshal signed resign message: %s", operationType, err.Error())
 		}
 		allOps = signedResign.Messages[0].Operators
-
+		hexString, err := utils.GetMessageString(signedResign.Messages)
+		if err != nil {
+			return nil, err
+		}
 		s.Logger.Info("Incoming resign request fields",
 			zap.String("network", hex.EncodeToString(signedResign.Messages[0].Resign.Fork[:])),
 			zap.String("withdrawal", hex.EncodeToString(signedResign.Messages[0].Resign.WithdrawalCredentials)),
 			zap.String("owner", hex.EncodeToString(signedResign.Messages[0].Resign.Owner[:])),
+			zap.String("resign message hash", hexString),
 			zap.String("EIP1271 owner signature", hex.EncodeToString(signedResign.Signature)))
 
 		// verify EIP1271 signature
@@ -183,7 +187,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			hash,
 			signedResign.Signature,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to verify signed message by owner: %w", err)
 		}
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
@@ -210,13 +214,17 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		allOps = append(allOps, signedReshare.Messages[0].Reshare.OldOperators...)
 		allOps = append(allOps, signedReshare.Messages[0].Reshare.NewOperators...)
-
+		hexString, err := utils.GetMessageString(signedReshare.Messages)
+		if err != nil {
+			return nil, err
+		}
 		s.Logger.Info("Incoming reshare request fields",
 			zap.Any("Old operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.OldOperators)),
 			zap.Any("New operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.NewOperators)),
 			zap.String("network", hex.EncodeToString(signedReshare.Messages[0].Reshare.Fork[:])),
 			zap.String("withdrawal", hex.EncodeToString(signedReshare.Messages[0].Reshare.WithdrawalCredentials)),
 			zap.String("owner", hex.EncodeToString(signedReshare.Messages[0].Reshare.Owner[:])),
+			zap.String("reshare message hash", hexString),
 			zap.String("EIP1271 owner signature", hex.EncodeToString(signedReshare.Signature)))
 
 		// verify EIP1271 signature
@@ -230,7 +238,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			hash,
 			signedReshare.Signature,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to verify signed message by owner: %w", err)
 		}
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))

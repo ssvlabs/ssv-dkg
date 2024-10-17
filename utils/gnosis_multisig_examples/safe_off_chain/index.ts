@@ -32,10 +32,13 @@ interface Config {
 const config: Config = {
   RPC_URL:
     "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz",
-  OWNER1_PRIVATE_KEY: "",
-  OWNER2_PRIVATE_KEY: "",
-  OWNER3_PRIVATE_KEY: "",
-  SAFE_ADDRESS: "0xC4D860871fb983d17eC665a305e98F1B3035a817",
+  OWNER1_PRIVATE_KEY:
+    "",
+  OWNER2_PRIVATE_KEY:
+    "",
+  OWNER3_PRIVATE_KEY:
+    "",
+  SAFE_ADDRESS: "0x43908b5794da9A8f714f001567D8dA1523e68bDb",
   CHAIN_ID: 11155111n,
 };
 
@@ -59,14 +62,8 @@ async function main() {
   console.log(" - Version: ", version);
   console.log(" - Threshold: ", await protocolKit1.getThreshold(), "\n");
 
-  var reshareBulk = JSON.parse(
-    fs.readFileSync(
-      "../../../integration_test/stubs/reshare/reshare_msgs.json",
-      "utf-8"
-    )
-  );
-
-  const MESSAGE = JSON.stringify(reshareBulk);
+  const MESSAGE =
+    "a20beb9b6520db317bb4555d0c0d889519808166352348883e91e28eb91124c2";
   var safeMessage = protocolKit1.createMessage(MESSAGE);
   const messageHash = hashSafeMessage(MESSAGE);
   const signedMessage = await protocolKit1.signMessage(safeMessage);
