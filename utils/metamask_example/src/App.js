@@ -1,6 +1,10 @@
-import { useState } from "react";
-import { hashMessage as performMessageHash } from "viem";
-import { stripHexPrefix } from "@ethereumjs/util";
+import { useState, useRef } from "react";
+import {
+  stripHexPrefix,
+  fromRpcSig,
+  setLengthLeft,
+  toRpcSig,
+} from "@ethereumjs/util";
 import {
   MetaMaskButton,
   useAccount,
@@ -10,7 +14,10 @@ import {
 import "./App.css";
 
 function AppReady() {
-  const [messageToSign, setMessageToSign] = useState("some hash");
+  const [messageToSign, setMessageToSign] = useState("reshare/resign msg here");
+  const [copySuccess, setCopySuccess] = useState("");
+  const textAreaRef = useRef(null);
+
   const {
     data: signData,
     isError: isSignError,
@@ -18,9 +25,20 @@ function AppReady() {
     isSuccess: isSignSuccess,
     signMessage,
   } = useSignMessage({
-    message: stripHexPrefix(performMessageHash(messageToSign)),
+    message: stripHexPrefix(messageToSign),
   });
   const { isConnected } = useAccount();
+  const processSig = (signData) => {
+    const sigParams = fromRpcSig(signData);
+    const sig = toRpcSig(sigParams.v - 27n, sigParams.r, sigParams.s);
+    return stripHexPrefix(sig);
+  };
+  function copyToClipboard(e) {
+    textAreaRef.current.select();
+    document.execCommand("copy");
+    e.target.focus();
+    setCopySuccess("Copied!");
+  }
   return (
     <div className="App">
       <header className="App-header">
@@ -32,7 +50,7 @@ function AppReady() {
         {isConnected && (
           <>
             <form style={{ marginTop: 20 }}>
-              <div>Please enter hash to sign</div>
+              <div>Please enter msg to sign</div>
               <input
                 value={messageToSign}
                 onChange={(e) => setMessageToSign(e.target.value)}
@@ -42,7 +60,38 @@ function AppReady() {
               <button disabled={isSignLoading} onClick={(msg) => signMessage()}>
                 Sign message
               </button>
-              {isSignSuccess && <div>Signature: {signData}</div>}
+              {isSignSuccess && (
+                <div>
+                  <h4>Signature:</h4>
+
+                  <div>
+                    <form>
+                      <textarea
+                        ref={textAreaRef}
+                        value={processSig(signData)}
+                        style={{
+                          padding: "10px 20px",
+                          textAlign: "center",
+                          maxWidth: "80%",
+                          minWidth: "60%",
+                          width:  "600px" ,
+                          margin: "0 auto",
+                        }}
+                      />
+                    </form>
+                    {
+                      /* Logical shortcut for only displaying the 
+          button if the copy command exists */
+                      document.queryCommandSupported("copy") && (
+                        <div>
+                          <button onClick={copyToClipboard}>Copy</button>
+                          {copySuccess}
+                        </div>
+                      )
+                    }
+                  </div>
+                </div>
+              )}
               {isSignError && <div>Error signing message</div>}
             </div>
           </>
