@@ -184,7 +184,7 @@ func TestVerifyEOASigned(t *testing.T) {
 		ownerSigBytes, err := eth_crypto.Sign(hash[:], sk.PrivateKey)
 		require.NoError(t, err)
 
-		t.Log("Sig :", hex.EncodeToString(ownerSigBytes[:]))
+		t.Log("Sig :", hex.EncodeToString(ownerSigBytes))
 
 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
 			gnosisAddress,
