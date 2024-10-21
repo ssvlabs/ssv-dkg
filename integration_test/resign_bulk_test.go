@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/bloxapp/ssv/logging"
@@ -95,8 +94,6 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			// load resign message
 			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign resign message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -105,7 +102,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(resignMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -220,8 +217,6 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			// load resign message
 			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign resign message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -230,7 +225,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(resignMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -345,8 +340,6 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			// load resign message
 			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign resign message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -355,7 +348,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+			signature, err := SignHash(string(resignMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -470,8 +463,6 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			// load resign message
 			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
 			require.NoError(t, err)
-			hash, err := hex.DecodeString(strings.TrimPrefix(string(resignMsgBytes), "0x"))
-			require.NoError(t, err)
 
 			// sign resign message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
@@ -480,7 +471,8 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			signature, err := SignHash(hash, sk.PrivateKey)
+
+			signature, err := SignHash(string(resignMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 
 			args := []string{"resign",
@@ -539,9 +531,17 @@ func SignResign(msg []*wire.ResignMessage, sk *ecdsa.PrivateKey) (string, error)
 	return signature, nil
 }
 
-func SignHash(hash []byte, sk *ecdsa.PrivateKey) (string, error) {
+func SignHash(hexString string, sk *ecdsa.PrivateKey) (string, error) {
+	hash := [32]byte{}
+	var finalMsg []byte
+	prefix := []byte("\x19Ethereum Signed Message:\n")
+	msgLen := []byte(strconv.Itoa(len(hexString)))
+	finalMsg = append(finalMsg, prefix...)
+	finalMsg = append(finalMsg, msgLen...)
+	finalMsg = append(finalMsg, hexString...)
+	copy(hash[:], eth_crypto.Keccak256(finalMsg))
 	// Sign message root
-	ownerSigBytes, err := eth_crypto.Sign(hash, sk)
+	ownerSigBytes, err := eth_crypto.Sign(hash[:], sk)
 	if err != nil {
 		return "", err
 	}
@@ -549,27 +549,3 @@ func SignHash(hash []byte, sk *ecdsa.PrivateKey) (string, error) {
 
 	return signature, nil
 }
-
-// NOTE: Example below how to generate EOA signature
-
-// func TestSignResign(t *testing.T) {
-// 	msg_path := "../examples/initiator/output/resign.txt"
-// 	sk_path := "../examples/initiator/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"
-// 	password_path := "../examples/initiator/password"
-
-// 	msgBytes, err := os.ReadFile(msg_path)
-// 	require.NoError(t, err)
-// 	reshareMsg := make([]*wire.ResignMessage, 0)
-// 	err = json.Unmarshal(msgBytes, &reshareMsg)
-// 	require.NoError(t, err)
-
-// 	jsonBytes, err := os.ReadFile(sk_path)
-// 	require.NoError(t, err)
-// 	keyStorePassword, err := os.ReadFile(filepath.Clean(password_path))
-// 	require.NoError(t, err)
-// 	sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
-// 	require.NoError(t, err)
-// 	signature, err := SignResign(reshareMsg, sk.PrivateKey)
-// 	require.NoError(t, err)
-// 	t.Log(signature)
-// }
