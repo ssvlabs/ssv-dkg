@@ -35,7 +35,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperators(t, version, stubClient)
+	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -44,65 +44,20 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-
-	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./stubs/bulk/4")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./stubs/bulk/4/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -116,11 +71,11 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 	// re-sign
 	t.Run("test 4 operators bulk resign", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./stubs/bulk/4/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./stubs/bulk/4/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./stubs/bulk/4/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate resign message for signing
@@ -168,11 +123,6 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
 	// remove resign message
 	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
@@ -210,7 +160,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperators(t, version, stubClient)
+	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -219,64 +169,20 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44,55,66,77",
-	// 		"--nonce", "1",
-	// 		"--amount", "32000000000"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./stubs/bulk/7")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./stubs/bulk/7/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -290,11 +196,11 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 	// re-sign
 	t.Run("test 7 operators bulk resign", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./stubs/bulk/7/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./stubs/bulk/7/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./stubs/bulk/7/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate reshare message for signing
@@ -342,11 +248,6 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
 	// remove resign message
 	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
@@ -384,7 +285,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperators(t, version, stubClient)
+	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -393,64 +294,20 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init",
-	// 		"--validators", "100",
-	// 		"--operatorsInfo", string(operators),
-	// 		"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
-	// 		"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-	// 		"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-	// 		"--nonce", "1",
-	// 		"--amount", "32000000000"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./stubs/bulk/10")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./stubs/bulk/10/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -464,20 +321,20 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 	// re-sign
 	t.Run("test 10 operators bulk resign", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./stubs/bulk/10/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./stubs/bulk/10/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./stubs/bulk/10/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
-			// generate reshare message for signing
+			// generate resign message for signing
 			generateResignMsgArgs := []string{"generate-resign-msg",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", "10",
 				"--amount", "32000000000"}
 			RootCmd.SetArgs(generateResignMsgArgs)
@@ -506,7 +363,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", "10",
 				"--amount", "32000000000",
 				"--signatures", signature}
@@ -516,11 +373,6 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
 	// remove resign message
 	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
@@ -558,7 +410,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, ops := createOperators(t, version, stubClient)
+	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
 	operators, err := json.Marshal(ops)
 	require.NoError(t, err)
 	RootCmd := &cobra.Command{
@@ -567,42 +419,25 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
 	RootCmd.AddCommand(cli_initiator.GenerateResignMsg)
 	RootCmd.AddCommand(cli_initiator.StartResigning)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
 	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
 	cli_initiator.StartResigning.Version = version
 	cli_verify.Verify.Version = version
-	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "1", "--operatorsInfo", string(operators), "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--amount", "2048000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init", "--validators", "10", "--operatorsInfo", string(operators), "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--amount", "2048000000000", "--clientCACertPath", "./certs/rootCA.crt"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-	// 	args := []string{"init", "--validators", "100", "--operatorsInfo", string(operators), "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133", "--nonce", "1", "--amount", "32000000000", "--clientCACertPath", "./certs/rootCA.crt"}
-	// 	RootCmd.SetArgs(args)
-	// 	err := RootCmd.Execute()
-	// 	require.NoError(t, err)
-	// 	resetFlags(RootCmd)
-	// })
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./stubs/bulk/13")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
-		args := []string{"verify", "--ceremonyDir", "./output/" + c.Name(), "--validators", strconv.Itoa(validators[i]), "--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494", "--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9", "--nonce", strconv.Itoa(1), "--amount", "2048000000000"}
+		args := []string{"verify", "--ceremonyDir",
+			"./stubs/bulk/13/" + c.Name(),
+			"--validators", strconv.Itoa(validators[i]),
+			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+			"--nonce", strconv.Itoa(1),
+			"--amount", "2048000000000"}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -611,20 +446,20 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 	// re-sign
 	t.Run("test 13 operators bulk resign", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./stubs/bulk/13/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./stubs/bulk/13/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./stubs/bulk/13/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
-			// generate reshare message for signing
+			// generate resign message for signing
 			generateResignMsgArgs := []string{"generate-resign-msg",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", "10",
 				"--amount", "2048000000000"}
 			RootCmd.SetArgs(generateResignMsgArgs)
@@ -653,7 +488,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-				"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", "10",
 				"--amount", "2048000000000",
 				"--signatures", signature}
@@ -663,11 +498,6 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
 	// remove resign message
 	err = os.Remove("./output/resign.txt")
 	require.NoError(t, err)
