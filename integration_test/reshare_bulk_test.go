@@ -116,7 +116,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove resign message
+	// remove reshare message
 	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
@@ -243,7 +243,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove resign message
+	// remove reshare message
 	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
@@ -371,12 +371,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
-	// remove init ceremonies
-	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
-		require.NoError(t, err)
-	}
-	// remove resign message
+	// remove reshare message
 	err = os.Remove("./output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results

@@ -10,17 +10,12 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
 	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestReshareThresholdOldValidators4Ops(t *testing.T) {
@@ -43,6 +38,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -79,30 +75,45 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./stubs/bulk/4/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
-			signedProof, err := wire.LoadProofs(proofsFilePath)
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44",
+				"--newOperatorIDs", "55,66,77,88",
+				"--nonce", "10",
+				"--amount", "32000000000"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
 			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			require.NoError(t, err)
+
+			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 			require.NoError(t, err)
 			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44}, []uint64{22, 33, 44, 55}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
-			require.NoError(t, err)
-			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
-			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
 				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44",
-				"--newOperatorIDs", "22,33,44,55",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--newOperatorIDs", "55,66,77,88",
+				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -110,6 +121,9 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
+	// remove reshare message
+	err = os.Remove("./output/reshare.txt")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -153,6 +167,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -190,21 +205,35 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./stubs/bulk/7/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
-			signedProof, err := wire.LoadProofs(proofsFilePath)
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77",
+				"--newOperatorIDs", "44,55,66,77,88,99,110",
+				"--nonce", "10",
+				"--amount", "32000000000"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
 			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			require.NoError(t, err)
+
+			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 			require.NoError(t, err)
 			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77}, []uint64{44, 55, 66, 77, 88, 99, 110}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
-			require.NoError(t, err)
-			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
-			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -212,8 +241,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--newOperatorIDs", "44,55,66,77,88,99,110",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -221,6 +250,9 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
+	// remove reshare message
+	err = os.Remove("./output/reshare.txt")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -264,6 +296,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -302,21 +335,36 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./stubs/bulk/10/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
-			signedProof, err := wire.LoadProofs(proofsFilePath)
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
+				"--newOperatorIDs", "77,88,99,110,111,112,113",
+				"--nonce", "10",
+				"--amount", "32000000000"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
 			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			require.NoError(t, err)
+
+			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 			require.NoError(t, err)
 			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
-			require.NoError(t, err)
-			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
-			require.NoError(t, err)
+
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
 				"--operatorsInfo", string(operators),
@@ -324,8 +372,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -333,6 +381,9 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
+	// remove reshare message
+	err = os.Remove("./output/reshare.txt")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
@@ -376,6 +427,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
+	RootCmd.AddCommand(cli_initiator.GenerateReshareMsg)
 	RootCmd.AddCommand(cli_initiator.StartReshare)
 	RootCmd.AddCommand(cli_verify.Verify)
 	RootCmd.Short = "ssv-dkg-test"
@@ -415,20 +467,34 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				require.NoError(t, err)
 				proofsFilePath = "./stubs/bulk/13/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
-			signedProof, err := wire.LoadProofs(proofsFilePath)
+
+			// generate reshare message for signing
+			generateReshareMsgArgs := []string{"generate-reshare-msg",
+				"--proofsFilePath", proofsFilePath,
+				"--operatorsInfo", string(operators),
+				"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
+				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
+				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
+				"--newOperatorIDs", "77,88,99,110,111,112,113",
+				"--nonce", "10",
+				"--amount", "32000000000"}
+			RootCmd.SetArgs(generateReshareMsgArgs)
+			err = RootCmd.Execute()
 			require.NoError(t, err)
+			resetFlags(RootCmd)
+
+			// load reshare message
+			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			require.NoError(t, err)
+
+			// sign reshare message
 			jsonBytes, err := os.ReadFile("./stubs/UTC--2024-06-14T14-05-12.366668334Z--dcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 			require.NoError(t, err)
 			keyStorePassword, err := os.ReadFile(filepath.Clean("./stubs/password"))
 			require.NoError(t, err)
 			sk, err := keystore.DecryptKey(jsonBytes, string(keyStorePassword))
 			require.NoError(t, err)
-			logger := zap.L().Named("integration-tests")
-			clnt, err := initiator.New(ops, logger, version, rootCert)
-			require.NoError(t, err)
-			reshareMsg, err := clnt.ConstructReshareMessage([]uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113}, []uint64{77, 88, 99, 110, 111, 112, 113}, signedProof[0][0].Proof.ValidatorPubKey, "holesky", common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes(), common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9"), 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProof[0])
-			require.NoError(t, err)
-			signature, err := SignReshare([]*wire.ReshareMessage{reshareMsg}, sk.PrivateKey)
+			signature, err := SignHash(string(reshareMsgBytes), sk.PrivateKey)
 			require.NoError(t, err)
 			args := []string{"reshare",
 				"--proofsFilePath", proofsFilePath,
@@ -437,8 +503,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
-				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
+				"--nonce", "10",
+				"--amount", "32000000000",
 				"--signatures", signature}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
@@ -446,6 +512,9 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 		}
 	})
+	// remove reshare message
+	err = os.Remove("./output/reshare.txt")
+	require.NoError(t, err)
 	// validate reshare results
 	resignCeremonies, err := os.ReadDir("./output")
 	require.NoError(t, err)
