@@ -114,7 +114,8 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 				"--newOperatorIDs", "55,66,77,88",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -243,7 +244,8 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 				"--newOperatorIDs", "44,55,66,77,88,99,110",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -374,7 +376,8 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -505,7 +508,8 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 				"--newOperatorIDs", "77,88,99,110,111,112,113",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)

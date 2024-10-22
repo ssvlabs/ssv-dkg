@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -30,6 +31,7 @@ const (
 	validators        = "validators"
 	operatorID        = "operatorID"
 	clientCACertPath  = "clientCACertPath"
+	tlsInsecure       = "tlsInsecure"
 	serverTLSCertPath = "serverTLSCertPath"
 	serverTLSKeyPath  = "serverTLSKeyPath"
 	proofsFilePath    = "proofsFilePath"
@@ -134,12 +136,12 @@ func ClientCACertPathFlag(c *cobra.Command) {
 }
 
 // ServerTLSCertPath sets path to server TLS certificate
-func ServerTLSCertPath(c *cobra.Command) {
+func SetServerTLSCertPath(c *cobra.Command) {
 	AddPersistentStringFlag(c, serverTLSCertPath, "/ssl/tls.crt", "Path to server TLS certificate", false)
 }
 
 // ServerTLSKeyPath sets path to server server TLS private key
-func ServerTLSKeyPath(c *cobra.Command) {
+func SetServerTLSKeyPath(c *cobra.Command) {
 	AddPersistentStringFlag(c, serverTLSKeyPath, "/ssl/tls.key", "Path to server TLS private key", false)
 }
 
@@ -154,7 +156,7 @@ func OperatorIDFlag(c *cobra.Command) {
 }
 
 // ProofsFilePath add file path to proofs flag to the command
-func ProofsFilePath(c *cobra.Command) {
+func SetProofsFilePath(c *cobra.Command) {
 	AddPersistentStringFlag(c, proofsFilePath, "", "Path to proofs file, provide this OR a stringified proofs", false)
 }
 
@@ -168,9 +170,14 @@ func SignaturesFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, signatures, "", "Stringified signature(s) for the resign/reshare message", false)
 }
 
-// EthEndpointURL
-func EthEndpointURL(c *cobra.Command) {
+// SetEthEndpointURL
+func SetEthEndpointURL(c *cobra.Command) {
 	AddPersistentStringFlag(c, ethEndpointURL, "http://127.0.0.1:8545", "Ethereum node endpoint URL", false)
+}
+
+// SetTLSInsecureFlag add signatures flag to the command
+func SetTLSInsecureFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, tlsInsecure, false, "TLS 'InsecureSkipVerify' option. If true, allow any TLS certs to accept", false)
 }
 
 // AddPersistentStringFlag adds a string flag to the command
@@ -209,6 +216,20 @@ func AddPersistentStringSliceFlag(c *cobra.Command, flag string, value []string,
 	}
 
 	c.PersistentFlags().StringSlice(flag, value, fmt.Sprintf("%s%s", description, req))
+
+	if isRequired {
+		_ = c.MarkPersistentFlagRequired(flag)
+	}
+}
+
+// AddPersistentBoolFlag adds a bool flag to the command
+func AddPersistentBoolFlag(c *cobra.Command, flag string, value bool, description string, isRequired bool) {
+	req := ""
+	if isRequired {
+		req = " (required)"
+	}
+
+	c.PersistentFlags().Bool(flag, value, fmt.Sprintf("%s%s", description, req))
 
 	if isRequired {
 		_ = c.MarkPersistentFlagRequired(flag)

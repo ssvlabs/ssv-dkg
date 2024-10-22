@@ -113,7 +113,8 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -236,7 +237,8 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -359,7 +361,8 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", "10",
 				"--amount", "32000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -483,7 +486,8 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", "10",
 				"--amount", "2048000000000",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)

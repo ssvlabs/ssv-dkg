@@ -98,13 +98,14 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 }
 
 // New creates a main initiator structure
-func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string) (*Initiator, error) {
+func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string, tlsInsecure bool) (*Initiator, error) {
 	client := req.C()
-	// set CA certificates if any
-	if len(certs) > 0 {
-		client.SetRootCertsFromFile(certs...)
-	} else {
+	// set CA certificates
+	if tlsInsecure {
+		logger.Warn("Dangerous, not secure!!! No CA certificates provided at 'clientCACertPath'. TLS 'InsecureSkipVerify' is set to true, accepting any TLS certificates authorities.")
 		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	} else {
+		client.SetRootCertsFromFile(certs...)
 	}
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)

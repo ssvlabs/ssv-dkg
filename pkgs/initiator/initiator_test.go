@@ -14,17 +14,17 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
-	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/utils/test_utils"
-	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/utils/test_utils"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 var (
@@ -81,7 +81,7 @@ func TestStartDKG(t *testing.T) {
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
 	t.Run("happy flow", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "test.version", rootCert)
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
 		depositData, keyshares, proofs, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
@@ -90,21 +90,21 @@ func TestStartDKG(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("test wrong amount of opeators < 4", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "test.version", rootCert)
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "test.version", rootCert)
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
-		intr, err := initiator.New(ops, logger, "test.version", rootCert)
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
 		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
