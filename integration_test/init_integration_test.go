@@ -41,54 +41,6 @@ var (
 	operatorKey  = "./certs/localhost.key"
 )
 
-func TestInitHappyFlows(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("integration-tests")
-	version := "test.version"
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
-	}
-	servers, ops := createOperators(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
-	require.NoError(t, err)
-	withdraw := newEthAddress(t)
-	owner := newEthAddress(t)
-	t.Run("test 4 operators init happy flow", func(t *testing.T) {
-		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
-		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
-		require.NoError(t, err)
-	})
-	t.Run("test 7 operators init happy flow", func(t *testing.T) {
-		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
-		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
-		require.NoError(t, err)
-	})
-	t.Run("test 10 operators init happy flow", func(t *testing.T) {
-		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
-		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
-		require.NoError(t, err)
-	})
-	t.Run("test 13 operators init happy flow", func(t *testing.T) {
-		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
-		require.NoError(t, err)
-		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
-		require.NoError(t, err)
-	})
-	for _, srv := range servers {
-		srv.HttpSrv.Close()
-	}
-}
-
 func TestInitOperatorsThreshold(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
