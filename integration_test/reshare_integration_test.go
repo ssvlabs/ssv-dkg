@@ -246,8 +246,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--operatorIDs", "11,22,33,44",
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
-				"--network", "holesky",
-				"--clientCACertPath", rootCert[0]}
+				"--network", "holesky"}
 			RootCmd.SetArgs(generateReshareMsgArgs)
 			err = RootCmd.Execute()
 			require.NoError(t, err)

@@ -30,3 +30,4 @@ logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
+clientCACertPath: /data/initiator/rootCA.crt

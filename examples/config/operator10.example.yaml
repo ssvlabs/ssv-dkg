@@ -7,6 +7,6 @@ logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/operator10/output/operator10_logs_debug.log
 outputPath: /data/operator10/output
-# serverTLSCertPath: /data/operator8/operator8.crt
-# serverTLSKeyPath: /data/operator8/operator8.key
+# serverTLSCertPath: /data/operator10/operator10.crt
+# serverTLSKeyPath: /data/operator10/operator10.key
 ethEndpointURL: http://ethnode:8545

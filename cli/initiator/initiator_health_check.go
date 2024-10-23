@@ -41,7 +41,7 @@ var HealthCheck = &cobra.Command{
 			ips[i] = strings.TrimRight(s, "/")
 		}
 
-		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, flags.ClientCACertPath, flags.TLSInsecure)
+		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, nil, true)
 		if err != nil {
 			logger.Fatal("😥", zap.Error(err))
 		}

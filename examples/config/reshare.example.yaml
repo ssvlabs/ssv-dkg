@@ -13,3 +13,4 @@ logFormat: json
 logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
 signatures: 0d9b2279bcbdd0dd9fe5acdbdff0ff436a106d560dc87204eb14839c05d937f3680c27028ad2bc17aa67b30890075f271eb6e74492da90b1b1348d65afdb0f0000
+clientCACertPath: /data/initiator/rootCA.crt

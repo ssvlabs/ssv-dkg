@@ -130,9 +130,9 @@ func ResultPathFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
 }
 
-// ClientCACertPathFlag sets path to client CA certificates
+// ClientCACertPathFlag sets path to client CA certificates. For Ubuntu use `sudo apt install ca-certificates`
 func ClientCACertPathFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, clientCACertPath, []string{}, "Path to client CA certificates", false)
+	AddPersistentStringSliceFlag(c, clientCACertPath, []string{"/etc/ssl/certs/ca-certificates.crt"}, "Path to client CA certificates", false)
 }
 
 // ServerTLSCertPath sets path to server TLS certificate

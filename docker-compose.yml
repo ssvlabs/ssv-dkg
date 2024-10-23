@@ -24,6 +24,10 @@ services:
       - shared_network
     ports:
       - "3030:3030"
+    environment:
+      - CN=operator1
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
     volumes:
@@ -35,6 +39,10 @@ services:
       - shared_network
     ports:
       - "3031:3030"
+    environment:
+      - CN=operator2
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
     volumes:
@@ -46,6 +54,10 @@ services:
       - shared_network
     ports:
       - "3032:3030"
+    environment:
+      - CN=operator3
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
     volumes:
@@ -57,6 +69,10 @@ services:
       - shared_network
     ports:
       - "3033:3030"
+    environment:
+      - CN=operator4
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
     volumes:
@@ -68,6 +84,10 @@ services:
       - shared_network
     ports:
       - "3034:3030"
+    environment:
+      - CN=operator5
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator5.example.yaml"]
     volumes:
@@ -79,6 +99,10 @@ services:
       - shared_network
     ports:
       - "3035:3030"
+    environment:
+      - CN=operator6
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator6.example.yaml"]
     volumes:
@@ -90,6 +114,10 @@ services:
       - shared_network
     ports:
       - "3036:3030"
+    environment:
+      - CN=operator7
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator7.example.yaml"]
     volumes:
@@ -101,6 +129,10 @@ services:
       - shared_network
     ports:
       - "3037:3030"
+    environment:
+      - CN=operator8
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator8.example.yaml"]
     volumes:
@@ -112,6 +144,10 @@ services:
       - shared_network
     ports:
       - "3038:3030"
+    environment:
+      - CN=operator9
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator9.example.yaml"]
     volumes:
@@ -123,6 +159,10 @@ services:
       - shared_network
     ports:
       - "3039:3030"
+    environment:
+      - CN=operator10
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator10.example.yaml"]
     volumes:
@@ -134,6 +174,10 @@ services:
       - shared_network
     ports:
       - "3041:3030"
+    environment:
+      - CN=operator11
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator11.example.yaml"]
     volumes:
@@ -145,6 +189,10 @@ services:
       - shared_network
     ports:
       - "3042:3030"
+    environment:
+      - CN=operator12
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator12.example.yaml"]
     volumes:
@@ -156,6 +204,10 @@ services:
       - shared_network
     ports:
       - "3043:3030"
+    environment:
+      - CN=operator13
+      - CA=/data/initiator/rootCA.crt
+      - CAkey=/data/initiator/rootCA.key
     command:
       ["start-operator", "--configPath", "/data/config/operator13.example.yaml"]
     volumes:
@@ -178,7 +230,12 @@ services:
     image: ssv-dkg:latest
     networks:
       - shared_network
-    command: ["generate-resign-msg", "--configPath", "/data/config/resign.example.yaml"]
+    command:
+      [
+        "generate-resign-msg",
+        "--configPath",
+        "/data/config/resign.example.yaml",
+      ]
     volumes:
       - ./examples:/data
 
@@ -199,7 +256,12 @@ services:
     image: ssv-dkg:latest
     networks:
       - shared_network
-    command: ["generate-reshare-msg", "--configPath", "/data/config/reshare.example.yaml"]
+    command:
+      [
+        "generate-reshare-msg",
+        "--configPath",
+        "/data/config/reshare.example.yaml",
+      ]
     volumes:
       - ./examples:/data
 
