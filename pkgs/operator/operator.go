@@ -49,7 +49,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 	}
 	ethBackend, err := ethclient.Dial(ethEndpointURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to Ethereum backend, err: %v", err)
 	}
 	swtch := NewSwitch(key, logger, ver, pkBytes, id, ethBackend)
 	s := &Server{
