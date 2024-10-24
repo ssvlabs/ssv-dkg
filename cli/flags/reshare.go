@@ -13,6 +13,14 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 )
 
+// Flag names.
+const (
+	newOperatorIDs = "newOperatorIDs"
+	proofsFilePath = "proofsFilePath"
+	proofsString   = "proofsString"
+	signatures     = "signatures"
+)
+
 // resigning/reshare flags
 var (
 	ProofsFilePath string
@@ -183,4 +191,24 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		ClientCACertPath = []string{}
 	}
 	return nil
+}
+
+// newOperatorIDsFlag adds new operators IDs flag to the command
+func NewOperatorIDsFlag(c *cobra.Command) {
+	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs for resharing ceremony", false)
+}
+
+// ProofsFilePath add file path to proofs flag to the command
+func SetProofsFilePath(c *cobra.Command) {
+	AddPersistentStringFlag(c, proofsFilePath, "", "Path to proofs file, provide this OR a stringified proofs", false)
+}
+
+// ProofsStringFlag add proofs string flag to the command
+func ProofsStringFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, proofsString, "", "Stringified proofs, provide this OR a path to proofs file", false)
+}
+
+// SignaturesFlag add signatures flag to the command
+func SignaturesFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, signatures, "", "Stringified signature(s) for the resign/reshare message", false)
 }

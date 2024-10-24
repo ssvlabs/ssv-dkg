@@ -11,6 +11,16 @@ import (
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 )
 
+// Flag names.
+const (
+	logLevel       = "logLevel"
+	logFormat      = "logFormat"
+	logLevelFormat = "logLevelFormat"
+	logFilePath    = "logFilePath"
+	configPath     = "configPath"
+	outputPath     = "outputPath"
+)
+
 // global base flags
 var (
 	ConfigPath     string
@@ -22,7 +32,7 @@ var (
 )
 
 func SetBaseFlags(cmd *cobra.Command) {
-	ResultPathFlag(cmd)
+	OutputPathFlag(cmd)
 	ConfigPathFlag(cmd)
 	LogLevelFlag(cmd)
 	LogFormatFlag(cmd)
@@ -68,4 +78,34 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 logFilePath cant contain traversal")
 	}
 	return nil
+}
+
+// LogLevelFlag logger's log level flag to the command
+func LogLevelFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevel, "debug", "Defines logger's log level", false)
+}
+
+// LogFormatFlag logger's  logger's encoding flag to the command
+func LogFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFormat, "json", "Defines logger's encoding, valid values are 'json' (default) and 'console'", false)
+}
+
+// LogLevelFormatFlag logger's level format flag to the command
+func LogLevelFormatFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logLevelFormat, "capitalColor", "Defines logger's level format, valid values are 'capitalColor' (default), 'capital' or 'lowercase'", false)
+}
+
+// LogFilePathFlag file path to write logs into
+func LogFilePathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, logFilePath, "debug.log", "Defines a file path to write logs into", false)
+}
+
+// ConfigPathFlag config path flag to the command
+func ConfigPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, configPath, "", "Path to config file", false)
+}
+
+// OutputPathFlag sets the path to store resulting files
+func OutputPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
 }

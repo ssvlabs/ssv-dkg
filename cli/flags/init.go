@@ -12,7 +12,23 @@ import (
 	"github.com/spf13/viper"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
+)
+
+// Flag names.
+const (
+	withdrawAddress   = "withdrawAddress"
+	operatorIDs       = "operatorIDs"
+	operatorsInfo     = "operatorsInfo"
+	operatorsInfoPath = "operatorsInfoPath"
+	owner             = "owner"
+	nonce             = "nonce"
+	amount            = "amount"
+	network           = "network"
+	validators        = "validators"
+	clientCACertPath  = "clientCACertPath"
+	tlsInsecure       = "tlsInsecure"
 )
 
 // init flags
@@ -179,4 +195,59 @@ func SetViperConfig(cmd *cobra.Command) error {
 		}
 	}
 	return nil
+}
+
+// WithdrawAddressFlag  adds withdraw address flag to the command
+func WithdrawAddressFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, withdrawAddress, "", "Withdrawal address", false)
+}
+
+// operatorIDsFlag adds operators IDs flag to the command
+func OperatorIDsFlag(c *cobra.Command) {
+	AddPersistentStringSliceFlag(c, operatorIDs, []string{"1", "2", "3"}, "Operator IDs", false)
+}
+
+// OperatorsInfoFlag  adds path to operators' ifo file flag to the command
+func OperatorsInfoFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfo, "", "Raw JSON string operators' public keys, IDs and IPs file e.g. `'[{\"id\":1,\"public_key\":\"xxx\",\"ip\":\"10.0.0.1:3033\"},...]'`", false)
+}
+
+// OperatorsInfoFlag  adds path to operators' ifo file flag to the command
+func OperatorsInfoPathFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, operatorsInfoPath, "", "Path to a file containing operators' public keys, IDs and IPs file e.g. [{\"id\":1,\"public_key\":\"xxx\",\"ip\":\"10.0.0.1:3033\"},...]", false)
+}
+
+// OwnerAddressFlag  adds owner address flag to the command
+func OwnerAddressFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, owner, "", "Owner address", false)
+}
+
+// NonceFlag adds nonce flag to the command
+func NonceFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, nonce, 0, "Owner nonce", false)
+}
+
+// AmountFlag adds amount in Gwei flag to the command (https://eips.ethereum.org/EIPS/eip-7251)
+func AmountFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, amount, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), "Amount in Gwei", false)
+}
+
+// NetworkFlag  adds the fork version of the network flag to the command
+func NetworkFlag(c *cobra.Command) {
+	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, holesky", false)
+}
+
+// ClientCACertPathFlag sets path to client CA certificates. For Ubuntu use `sudo apt install ca-certificates`
+func ClientCACertPathFlag(c *cobra.Command) {
+	AddPersistentStringSliceFlag(c, clientCACertPath, []string{"/etc/ssl/certs/ca-certificates.crt"}, "Path to client CA certificates", false)
+}
+
+// ValidatorsFlag add number of validators to create flag to the command
+func ValidatorsFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, validators, 1, "Number of validators", false)
+}
+
+// SetTLSInsecureFlag add signatures flag to the command
+func SetTLSInsecureFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, tlsInsecure, false, "TLS 'InsecureSkipVerify' option. If true, allow any TLS certs to accept", false)
 }
