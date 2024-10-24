@@ -147,22 +147,6 @@ func (op *Operator) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewReshareFromSpec(r *spec.Reshare) *Reshare {
-	return &Reshare{*r}
-}
-
-func NewResignFromSpec(r *spec.Resign) *Resign {
-	return &Resign{*r}
-}
-
-func (r *Reshare) ToSpecReshare() *spec.Reshare {
-	return &r.Reshare
-}
-
-func (r *Resign) ToSpecResign() *spec.Resign {
-	return &r.Resign
-}
-
 func NewOperatorFromSpec(op spec.Operator) *Operator {
 	return &Operator{op}
 }
@@ -345,6 +329,14 @@ type ResignJSON struct {
 	Amount                uint64 `json:"amount"`
 }
 
+func (r *Resign) ToSpecResign() *spec.Resign {
+	return &r.Resign
+}
+
+func NewResignFromSpec(r *spec.Resign) *Resign {
+	return &Resign{*r}
+}
+
 func (r *Resign) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ResignJSON{
 		ValidatorPubKey:       hex.EncodeToString(r.ValidatorPubKey),
@@ -432,6 +424,14 @@ func (br *SignedBulkReshare) MarshalReshareMessagesJSON() ([]byte, error) {
 
 type Reshare struct {
 	spec.Reshare
+}
+
+func NewReshareFromSpec(r *spec.Reshare) *Reshare {
+	return &Reshare{*r}
+}
+
+func (r *Reshare) ToSpecReshare() *spec.Reshare {
+	return &r.Reshare
 }
 
 func (r *Reshare) MarshalJSON() ([]byte, error) {

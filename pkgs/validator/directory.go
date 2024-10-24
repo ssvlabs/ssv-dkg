@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -224,7 +225,7 @@ func jsonEqual(a, b any) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal b: %w", err)
 	}
-	if string(ja) != string(jb) {
+	if !bytes.Equal(ja, jb) {
 		return fmt.Errorf("json does not match: %s != %s", ja, jb)
 	}
 	return nil

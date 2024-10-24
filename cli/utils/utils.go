@@ -376,16 +376,16 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.O
 }
 
 // LoadOperators loads operators data from raw json or file path
-func LoadOperators(logger *zap.Logger, OperatorsInfo, OperatorsInfoPath string) (wire.OperatorsCLI, error) {
+func LoadOperators(logger *zap.Logger, operatorsInfo, operatorsInfoPath string) (wire.OperatorsCLI, error) {
 	var operators wire.OperatorsCLI
 	var err error
-	if OperatorsInfo != "" {
-		err = json.Unmarshal([]byte(OperatorsInfo), &operators)
+	if operatorsInfo != "" {
+		err = json.Unmarshal([]byte(operatorsInfo), &operators)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		operators, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
+		operators, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -401,13 +401,13 @@ func LoadOperators(logger *zap.Logger, OperatorsInfo, OperatorsInfoPath string) 
 }
 
 // SetGlobalLogger creates a logger
-func SetGlobalLogger(cmd *cobra.Command, name string, LogFilePath, LogLevel, LogFormat, LogLevelFormat string) (*zap.Logger, error) {
+func SetGlobalLogger(cmd *cobra.Command, name, logFilePath, logLevel, logFormat, logLevelFormat string) (*zap.Logger, error) {
 	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(filepath.Clean(LogFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	_, err := os.OpenFile(filepath.Clean(logFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
-	if err := logging.SetGlobalLogger(LogLevel, LogFormat, LogLevelFormat, &logging.LogFileOptions{FileName: LogFilePath}); err != nil {
+	if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
 		return nil, fmt.Errorf("logging.SetGlobalLogger: %w", err)
 	}
 	logger := zap.L().Named(name)

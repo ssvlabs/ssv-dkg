@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	spec "github.com/ssvlabs/dkg-spec"
 	"go.uber.org/zap"
 
+	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
@@ -58,8 +58,8 @@ func (c *Initiator) GetAndCollect(op wire.OperatorCLI, method string) ([]byte, e
 }
 
 // SendToAll sends http messages to all operators. Makes sure that all responses are received
-func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator) (map[uint64][]byte, map[uint64]error) {
-	errs := make(map[uint64]error, 0)
+func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Operator) (responses map[uint64][]byte, errs map[uint64]error) {
+	errs = make(map[uint64]error, 0)
 	resc := make(chan opReqResult, len(operators))
 	for _, op := range operators {
 		operator := c.Operators.ByID(op.ID)
@@ -75,7 +75,7 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Opera
 			}
 		}()
 	}
-	responses := make(map[uint64][]byte)
+	responses = make(map[uint64][]byte)
 	for i := 0; i < len(operators); i++ {
 		res := <-resc
 		if res.err != nil {

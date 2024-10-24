@@ -177,10 +177,10 @@ func TestUnhappyFlows(t *testing.T) {
 		},
 	}
 	servers, ops := createOperators(t, version, stubClient)
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
 	clnt, err := initiator.New(ops, logger, "test.version", rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
