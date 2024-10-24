@@ -31,3 +31,4 @@ logLevelFormat: capitalColor
 logFilePath: /data/initiator/output/initiator_debug.log
 proofsFilePath: /data/initiator/output/ceremony-2024-10-11--10-12-28.715/proofs.json
 signatures: 26509ac521bc180336ac8e6d1d023bf9377e6f99963622e0bcd2313867e34cb374b61b0289500b83bf4431609ccf4fc0590d7e8fdcf57b8e27f17191743398e901
+clientCACertPath: /data/initiator/rootCA.crt

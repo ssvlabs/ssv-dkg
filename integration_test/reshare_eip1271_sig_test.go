@@ -45,7 +45,7 @@ func TestReshareValidEOASig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
@@ -85,7 +85,7 @@ func TestReshareInvalidEOASig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
@@ -126,7 +126,7 @@ func TestReshareValidContractSig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}
@@ -178,7 +178,7 @@ func TestReshareInvalidContractSig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test reshare 4 new operators", func(t *testing.T) {
 		ids := []uint64{11, 22, 33, 44}

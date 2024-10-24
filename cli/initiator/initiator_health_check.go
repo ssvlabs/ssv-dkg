@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/bloxapp/ssv/logging"
-	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
+	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 )
 
 func init() {
-	cli_utils.SetHealthCheckFlags(HealthCheck)
+	flags.SetHealthCheckFlags(HealthCheck)
 }
 
 var HealthCheck = &cobra.Command{
@@ -41,7 +41,7 @@ var HealthCheck = &cobra.Command{
 			ips[i] = strings.TrimRight(s, "/")
 		}
 
-		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, cli_utils.ClientCACertPath)
+		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, nil, true)
 		if err != nil {
 			logger.Fatal("😥", zap.Error(err))
 		}

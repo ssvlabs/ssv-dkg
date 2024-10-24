@@ -7,12 +7,13 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/operator"
 )
 
 func init() {
-	cli_utils.SetOperatorFlags(StartDKGOperator)
+	flags.SetOperatorFlags(StartDKGOperator)
 }
 
 var StartDKGOperator = &cobra.Command{
@@ -26,13 +27,13 @@ var StartDKGOperator = &cobra.Command{
 		██║  ██║██╔═██╗ ██║   ██║    ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := cli_utils.SetViperConfig(cmd); err != nil {
+		if err := flags.SetViperConfig(cmd); err != nil {
 			return err
 		}
-		if err := cli_utils.BindOperatorFlags(cmd); err != nil {
+		if err := flags.BindOperatorFlags(cmd); err != nil {
 			return err
 		}
-		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator")
+		logger, err := cli_utils.SetGlobalLogger(cmd, "dkg-operator", flags.LogFilePath, flags.LogLevel, flags.LogFormat, flags.LogLevelFormat)
 		if err != nil {
 			return err
 		}
@@ -43,16 +44,16 @@ var StartDKGOperator = &cobra.Command{
 		}()
 		logger.Info("🪛 Operator`s", zap.String("Version", cmd.Version))
 		logger.Info("🔑 opening operator RSA private key file")
-		privateKey, err := cli_utils.OpenPrivateKey(cli_utils.PrivKeyPassword, cli_utils.PrivKey)
+		privateKey, err := cli_utils.OpenPrivateKey(flags.PrivKeyPassword, flags.PrivKey)
 		if err != nil {
 			logger.Fatal("😥 Failed to load private key: ", zap.Error(err))
 		}
-		srv, err := operator.New(privateKey, logger, []byte(cmd.Version), cli_utils.OperatorID, cli_utils.OutputPath, cli_utils.EthEndpointURL)
+		srv, err := operator.New(privateKey, logger, []byte(cmd.Version), flags.OperatorID, flags.OutputPath, flags.EthEndpointURL)
 		if err != nil {
 			logger.Fatal("😥 Failed to create new operator instance: ", zap.Error(err))
 		}
-		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", cli_utils.Port))
-		if err := srv.Start(uint16(cli_utils.Port), cli_utils.ServerTLSCertPath, cli_utils.ServerTLSKeyPath); err != nil {
+		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", flags.Port))
+		if err := srv.Start(uint16(flags.Port), flags.ServerTLSCertPath, flags.ServerTLSKeyPath); err != nil {
 			log.Fatalf("Error in operator %v", err)
 		}
 		return nil

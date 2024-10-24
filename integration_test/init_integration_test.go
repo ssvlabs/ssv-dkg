@@ -52,7 +52,7 @@ func TestInitOperatorsThreshold(t *testing.T) {
 		},
 	}
 	servers, ops := createOperators(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -78,7 +78,7 @@ func TestThreshold(t *testing.T) {
 		},
 	}
 	servers, ops := createOperators(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -177,11 +177,11 @@ func TestUnhappyFlows(t *testing.T) {
 		},
 	}
 	servers, ops := createOperators(t, version, stubClient)
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey})
-	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "test.version", rootCert)
+	ops = append(ops, wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 133, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 0, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 144, PubKey: &servers[12].PrivKey.PublicKey},
+		wire.OperatorCLI{Addr: servers[12].HttpSrv.URL, ID: 155, PubKey: &servers[12].PrivKey.PublicKey})
+	clnt, err := initiator.New(ops, logger, "test.version", rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -336,7 +336,7 @@ func TestLargeOperatorIDs(t *testing.T) {
 	ops = append(ops, wire.OperatorCLI{Addr: srv12.HttpSrv.URL, ID: 12222, PubKey: &srv12.PrivKey.PublicKey})
 	srv13 := test_utils.CreateTestOperator(t, 13333, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv13.HttpSrv.URL, ID: 13333, PubKey: &srv13.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "test.version", rootCert)
+	clnt, err := initiator.New(ops, logger, "test.version", rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -378,7 +378,7 @@ func TestWrongInitiatorVersion(t *testing.T) {
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
 	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "v1.0.0", rootCert)
+	clnt, err := initiator.New(ops, logger, "v1.0.0", rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)
@@ -409,7 +409,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 	ops = append(ops, wire.OperatorCLI{Addr: srv3.HttpSrv.URL, ID: 3, PubKey: &srv3.PrivKey.PublicKey})
 	srv4 := test_utils.CreateTestOperator(t, 4, "test.version", operatorCert, operatorKey, stubClient)
 	ops = append(ops, wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey})
-	clnt, err := initiator.New(ops, logger, "test.version", rootCert)
+	clnt, err := initiator.New(ops, logger, "test.version", rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	owner := newEthAddress(t)

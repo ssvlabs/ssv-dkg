@@ -7,15 +7,15 @@ import (
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
-	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestInitResignHappyFlows(t *testing.T) {
@@ -29,7 +29,7 @@ func TestInitResignHappyFlows(t *testing.T) {
 		},
 	}
 	servers, ops := createOperators(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	withdraw := newEthAddress(t)
 	sk, err := eth_crypto.GenerateKey()

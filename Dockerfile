@@ -31,7 +31,8 @@ FROM alpine:3.20
 WORKDIR /ssv-dkg
 
 # Install openssl
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl 
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 
 # Copy the built binary and entry-point script from the previous stage/build context
 COPY --from=build /bin/ssv-dkg /bin/ssv-dkg

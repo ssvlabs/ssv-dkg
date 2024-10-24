@@ -16,756 +16,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
-	"github.com/ssvlabs/ssv-dkg/cli/flags"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
-
-// global base flags
-var (
-	ConfigPath     string
-	OutputPath     string
-	LogLevel       string
-	LogFormat      string
-	LogLevelFormat string
-	LogFilePath    string
-)
-
-// init flags
-var (
-	OperatorsInfo     string
-	OperatorsInfoPath string
-	OperatorIDs       []string
-	WithdrawAddress   common.Address
-	Network           string
-	OwnerAddress      common.Address
-	Nonce             uint64
-	Amount            uint64
-	Validators        uint
-	ClientCACertPath  []string
-)
-
-// operator flags
-var (
-	PrivKey           string
-	PrivKeyPassword   string
-	Port              uint64
-	OperatorID        uint64
-	ServerTLSCertPath string
-	ServerTLSKeyPath  string
-	EthEndpointURL    string
-)
-
-// verify flags
-var (
-	CeremonyDir string
-)
-
-// resigning/reshare flags
-var (
-	ProofsFilePath string
-	ProofsString   string
-	NewOperatorIDs []string
-	Signatures     string
-)
-
-// SetViperConfig reads a yaml config file if provided
-func SetViperConfig(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
-	ConfigPath = viper.GetString("configPath")
-	if ConfigPath != "" && filepath.Clean(ConfigPath) != "" && !strings.Contains(ConfigPath, "..") {
-		stat, err := os.Stat(ConfigPath)
-		if err != nil {
-			return err
-		}
-		if stat.IsDir() {
-			return fmt.Errorf("configPath flag should be a path to a *.yaml file, but dir provided")
-		}
-		viper.SetConfigType("yaml")
-		viper.SetConfigFile(ConfigPath)
-		if err := viper.ReadInConfig(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// SetGlobalLogger creates a logger
-func SetGlobalLogger(cmd *cobra.Command, name string) (*zap.Logger, error) {
-	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(filepath.Clean(LogFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil, err
-	}
-	if err := logging.SetGlobalLogger(LogLevel, LogFormat, LogLevelFormat, &logging.LogFileOptions{FileName: LogFilePath}); err != nil {
-		return nil, fmt.Errorf("logging.SetGlobalLogger: %w", err)
-	}
-	logger := zap.L().Named(name)
-	return logger, nil
-}
-
-// OpenPrivateKey reads an RSA key from file.
-// If passwordFilePath is provided, treats privKeyPath as encrypted
-func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
-	// check if a password string a valid path, then read password from the file
-	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
-	}
-	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
-	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
-	}
-	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
-	if err != nil {
-		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
-	}
-	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
-	if err != nil {
-		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
-	}
-	return privateKey, nil
-}
-
-// ReadOperatorsInfoFile reads operators data from path
-func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.OperatorsCLI, error) {
-	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
-	_, err := os.Stat(operatorsInfoPath)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-	}
-	logger.Info("📖 reading operators info JSON file")
-	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
-	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
-	}
-	var operators wire.OperatorsCLI
-	err = json.Unmarshal(operatorsInfoJSON, &operators)
-	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
-	}
-	return operators, nil
-}
-
-func SetBaseFlags(cmd *cobra.Command) {
-	flags.ResultPathFlag(cmd)
-	flags.ConfigPathFlag(cmd)
-	flags.LogLevelFlag(cmd)
-	flags.LogFormatFlag(cmd)
-	flags.LogLevelFormatFlag(cmd)
-	flags.LogFilePathFlag(cmd)
-
-}
-
-func SetInitFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.AmountFlag(cmd)
-	flags.NetworkFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.ValidatorsFlag(cmd)
-	flags.ClientCACertPathFlag(cmd)
-}
-
-func SetOperatorFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.PrivateKeyFlag(cmd)
-	flags.PrivateKeyPassFlag(cmd)
-	flags.OperatorPortFlag(cmd)
-	flags.OperatorIDFlag(cmd)
-	flags.ServerTLSCertPath(cmd)
-	flags.ServerTLSKeyPath(cmd)
-	flags.EthEndpointURL(cmd)
-}
-
-func SetVerifyFlags(cmd *cobra.Command) {
-	flags.AddPersistentStringFlag(cmd, "ceremonyDir", "", "Path to the ceremony directory", true)
-	flags.AddPersistentIntFlag(cmd, "validators", 1, "Number of validators", true)
-	flags.AddPersistentStringFlag(cmd, "withdrawAddress", "", "Withdrawal address", true)
-	flags.AddPersistentIntFlag(cmd, "nonce", 0, "Owner nonce", true)
-	flags.AddPersistentIntFlag(cmd, "amount", 0, "Amount in Gwei", true)
-	flags.AddPersistentStringFlag(cmd, "owner", "", "Owner address", true)
-}
-
-func SetGenerateResignMsgFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.AmountFlag(cmd)
-	flags.NetworkFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.ProofsFilePath(cmd)
-	flags.ProofsStringFlag(cmd)
-	flags.ClientCACertPathFlag(cmd)
-	flags.EthEndpointURL(cmd)
-}
-
-func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
-	flags.NewOperatorIDsFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.AmountFlag(cmd)
-	flags.NetworkFlag(cmd)
-	flags.ProofsFilePath(cmd)
-	flags.ProofsStringFlag(cmd)
-	flags.ClientCACertPathFlag(cmd)
-	flags.EthEndpointURL(cmd)
-}
-
-func SetResigningFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.AmountFlag(cmd)
-	flags.NetworkFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.ProofsFilePath(cmd)
-	flags.ProofsStringFlag(cmd)
-	flags.ClientCACertPathFlag(cmd)
-	flags.SignaturesFlag(cmd)
-	flags.EthEndpointURL(cmd)
-}
-
-func SetReshareFlags(cmd *cobra.Command) {
-	SetBaseFlags(cmd)
-	flags.OperatorsInfoFlag(cmd)
-	flags.OperatorsInfoPathFlag(cmd)
-	flags.OperatorIDsFlag(cmd)
-	flags.NewOperatorIDsFlag(cmd)
-	flags.WithdrawAddressFlag(cmd)
-	flags.OwnerAddressFlag(cmd)
-	flags.NonceFlag(cmd)
-	flags.AmountFlag(cmd)
-	flags.NetworkFlag(cmd)
-	flags.ProofsFilePath(cmd)
-	flags.ProofsStringFlag(cmd)
-	flags.ClientCACertPathFlag(cmd)
-	flags.SignaturesFlag(cmd)
-	flags.EthEndpointURL(cmd)
-}
-
-func SetHealthCheckFlags(cmd *cobra.Command) {
-	flags.AddPersistentStringSliceFlag(cmd, "ip", []string{}, "Operator ip:port", true)
-}
-
-// BindFlags binds flags to yaml config parameters
-func BindBaseFlags(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("outputPath", cmd.PersistentFlags().Lookup("outputPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("configPath", cmd.PersistentFlags().Lookup("configPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("logLevel", cmd.PersistentFlags().Lookup("logLevel")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("logFormat", cmd.PersistentFlags().Lookup("logFormat")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("logLevelFormat", cmd.PersistentFlags().Lookup("logLevelFormat")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("logFilePath", cmd.PersistentFlags().Lookup("logFilePath")); err != nil {
-		return err
-	}
-	OutputPath = viper.GetString("outputPath")
-	if OutputPath != "" {
-		OutputPath = filepath.Clean(OutputPath)
-	}
-	if strings.Contains(OutputPath, "..") {
-		return fmt.Errorf("😥 outputPath cant contain traversal")
-	}
-	if err := createDirIfNotExist(OutputPath); err != nil {
-		return err
-	}
-	LogLevel = viper.GetString("logLevel")
-	LogFormat = viper.GetString("logFormat")
-	LogLevelFormat = viper.GetString("logLevelFormat")
-	LogFilePath = viper.GetString("logFilePath")
-	if strings.Contains(LogFilePath, "..") {
-		return fmt.Errorf("😥 logFilePath cant contain traversal")
-	}
-	return nil
-}
-
-// BindInitiatorBaseFlags binds flags to yaml config parameters
-func BindInitiatorBaseFlags(cmd *cobra.Command) error {
-	var err error
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
-		return err
-	}
-	OperatorIDs = viper.GetStringSlice("operatorIDs")
-	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Operator IDs flag cant be empty")
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfoPath != "" {
-		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
-	owner := viper.GetString("owner")
-	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
-	}
-	Amount = viper.GetUint64("amount")
-	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
-		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
-	}
-	OwnerAddress, err = utils.HexToAddress(owner)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
-	}
-	Nonce = viper.GetUint64("nonce")
-	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-	for _, certPath := range ClientCACertPath {
-		if strings.Contains(filepath.Clean(certPath), "..") {
-			return fmt.Errorf("😥 wrong clientCACertPath flag")
-		}
-	}
-	return nil
-}
-
-// BindInitFlags binds flags to yaml config parameters for the initial DKG
-func BindInitFlags(cmd *cobra.Command) error {
-	if err := BindInitiatorBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("validators", cmd.Flags().Lookup("validators")); err != nil {
-		return err
-	}
-	withdrawAddr := viper.GetString("withdrawAddress")
-	if withdrawAddr == "" {
-		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
-	}
-	var err error
-	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
-	}
-	Network = viper.GetString("network")
-	if Network == "" {
-		return fmt.Errorf("😥 Failed to get fork version flag value")
-	}
-	Validators = viper.GetUint("validators")
-	if Validators > 100 || Validators == 0 {
-		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
-	}
-	return nil
-}
-
-func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
-		return err
-	}
-	OperatorIDs = viper.GetStringSlice("operatorIDs")
-	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Operator IDs flag cant be empty")
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfoPath != "" {
-		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
-	owner := viper.GetString("owner")
-	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
-	}
-	Nonce = viper.GetUint64("nonce")
-	Amount = viper.GetUint64("amount")
-	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
-		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
-	}
-	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-	for _, certPath := range ClientCACertPath {
-		if strings.Contains(filepath.Clean(certPath), "..") {
-			return fmt.Errorf("😥 worng clientCACertPath flag")
-		}
-	}
-	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath != "" {
-		ProofsFilePath = filepath.Clean(ProofsFilePath)
-	}
-	ProofsString = viper.GetString("proofsString")
-	if ProofsFilePath == "" && ProofsString == "" {
-		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
-	}
-	if ProofsFilePath != "" && ProofsString != "" {
-		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
-	}
-	if ProofsFilePath != "" && strings.Contains(ProofsFilePath, "..") {
-		return fmt.Errorf("😥 wrong proofsFilePath flag")
-	}
-	withdrawAddr := viper.GetString("withdrawAddress")
-	if withdrawAddr == "" {
-		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
-	}
-	var err error
-	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
-	}
-	Network = viper.GetString("network")
-	if Network == "" {
-		return fmt.Errorf("😥 Failed to get fork version flag value")
-	}
-	OwnerAddress, err = utils.HexToAddress(owner)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
-	}
-	return nil
-}
-
-// BindResigningFlags binds flags to yaml config parameters for the resigning of previous DKG result
-func BindResigningFlags(cmd *cobra.Command) error {
-	if err := BindGenerateResignMsgFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
-		return err
-	}
-	Signatures = viper.GetString("signatures")
-	if Signatures == "" {
-		return fmt.Errorf("😥 Failed to get --signatures flag value")
-	}
-	return nil
-}
-
-func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfo", cmd.PersistentFlags().Lookup("operatorsInfo")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorsInfoPath", cmd.PersistentFlags().Lookup("operatorsInfoPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorIDs", cmd.PersistentFlags().Lookup("operatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("newOperatorIDs", cmd.PersistentFlags().Lookup("newOperatorIDs")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("network", cmd.Flags().Lookup("network")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("proofsFilePath", cmd.PersistentFlags().Lookup("proofsFilePath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("proofsString", cmd.PersistentFlags().Lookup("proofsString")); err != nil {
-		return err
-	}
-	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
-	if OperatorsInfoPath != "" {
-		OperatorsInfoPath = filepath.Clean(OperatorsInfoPath)
-	}
-	OperatorsInfo = viper.GetString("operatorsInfo")
-	if OperatorsInfoPath != "" && OperatorsInfo != "" {
-		return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
-	}
-	if OperatorsInfoPath == "" && OperatorsInfo == "" {
-		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
-	}
-	if OperatorsInfoPath != "" && strings.Contains(OperatorsInfoPath, "..") {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
-	}
-	OperatorIDs = viper.GetStringSlice("operatorIDs")
-	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Old operator IDs flag cannot be empty")
-	}
-	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
-	if len(NewOperatorIDs) == 0 {
-		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
-	}
-	ProofsFilePath = viper.GetString("proofsFilePath")
-	if ProofsFilePath != "" {
-		ProofsFilePath = filepath.Clean(ProofsFilePath)
-	}
-	ProofsString = viper.GetString("proofsString")
-	if ProofsFilePath == "" && ProofsString == "" {
-		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
-	}
-	if ProofsFilePath != "" && ProofsString != "" {
-		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
-	}
-	if ProofsFilePath != "" && strings.Contains(ProofsFilePath, "..") {
-		return fmt.Errorf("😥 wrong proofsFilePath flag")
-	}
-	withdrawAddr := viper.GetString("withdrawAddress")
-	if withdrawAddr == "" {
-		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
-	}
-	var err error
-	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
-	}
-	Network = viper.GetString("network")
-	if Network == "" {
-		return fmt.Errorf("😥 Failed to get fork version flag value")
-	}
-	owner := viper.GetString("owner")
-	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
-	}
-	OwnerAddress, err = utils.HexToAddress(owner)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
-	}
-	Nonce = viper.GetUint64("nonce")
-	Amount = viper.GetUint64("amount")
-	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
-		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
-	}
-	ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-	for _, certPath := range ClientCACertPath {
-		if strings.Contains(filepath.Clean(certPath), "..") {
-			return fmt.Errorf("😥 wrong clientCACertPath flag")
-		}
-	}
-	return nil
-}
-
-// BindReshareFlags binds flags to yaml config parameters for the resharing ceremony of DKG
-func BindReshareFlags(cmd *cobra.Command) error {
-	if err := BindGenerateReshareMsgFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("signatures", cmd.PersistentFlags().Lookup("signatures")); err != nil {
-		return err
-	}
-	Signatures = viper.GetString("signatures")
-	if Signatures == "" {
-		return fmt.Errorf("😥 Failed to get --signatures flag value")
-	}
-	return nil
-}
-
-// BindOperatorFlags binds flags to yaml config parameters for the operator
-func BindOperatorFlags(cmd *cobra.Command) error {
-	if err := BindBaseFlags(cmd); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("privKey", cmd.PersistentFlags().Lookup("privKey")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("privKeyPassword", cmd.PersistentFlags().Lookup("privKeyPassword")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("port", cmd.PersistentFlags().Lookup("port")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("operatorID", cmd.PersistentFlags().Lookup("operatorID")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("serverTLSCertPath", cmd.PersistentFlags().Lookup("serverTLSCertPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("serverTLSKeyPath", cmd.PersistentFlags().Lookup("serverTLSKeyPath")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("ethEndpointURL", cmd.PersistentFlags().Lookup("ethEndpointURL")); err != nil {
-		return err
-	}
-	PrivKey = filepath.Clean(viper.GetString("privKey"))
-	PrivKeyPassword = filepath.Clean(viper.GetString("privKeyPassword"))
-	if strings.Contains(PrivKey, "..") {
-		return fmt.Errorf("😥 Failed to get private key path flag value")
-	}
-	if strings.Contains(PrivKeyPassword, "..") {
-		return fmt.Errorf("😥 Failed to get password for private key flag value")
-	}
-	Port = viper.GetUint64("port")
-	if Port == 0 {
-		return fmt.Errorf("😥 Wrong port provided")
-	}
-	OperatorID = viper.GetUint64("operatorID")
-	if OperatorID == 0 {
-		return fmt.Errorf("😥 Wrong operator ID provided")
-	}
-	ServerTLSCertPath = filepath.Clean(viper.GetString("serverTLSCertPath"))
-	if strings.Contains(ServerTLSCertPath, "..") {
-		return fmt.Errorf("😥 wrong serverTLSCertPath flag")
-	}
-	ServerTLSKeyPath = filepath.Clean(viper.GetString("serverTLSKeyPath"))
-	if strings.Contains(ServerTLSKeyPath, "..") {
-		return fmt.Errorf("😥 wrong serverTLSKeyPath flag")
-	}
-	EthEndpointURL = viper.GetString("ethEndpointURL")
-	if !IsUrl(EthEndpointURL) {
-		return fmt.Errorf("ethereum endpoint URL: %s - Invalid", EthEndpointURL)
-	}
-	return nil
-}
-
-// BindVerifyFlags binds flags to yaml config parameters for the verification
-func BindVerifyFlags(cmd *cobra.Command) error {
-	if err := viper.BindPFlag("ceremonyDir", cmd.PersistentFlags().Lookup("ceremonyDir")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("validators", cmd.Flags().Lookup("validators")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("withdrawAddress", cmd.PersistentFlags().Lookup("withdrawAddress")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("nonce", cmd.PersistentFlags().Lookup("nonce")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("amount", cmd.PersistentFlags().Lookup("amount")); err != nil {
-		return err
-	}
-	if err := viper.BindPFlag("owner", cmd.PersistentFlags().Lookup("owner")); err != nil {
-		return err
-	}
-	CeremonyDir = filepath.Clean(viper.GetString("ceremonyDir"))
-	if strings.Contains(CeremonyDir, "..") {
-		return fmt.Errorf("😥 wrong CeremonyDir flag")
-	}
-	owner := viper.GetString("owner")
-	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
-	}
-	var err error
-	OwnerAddress, err = utils.HexToAddress(owner)
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
-	}
-	Nonce = viper.GetUint64("nonce")
-	Amount = viper.GetUint64("amount")
-	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
-		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
-	}
-	WithdrawAddress, err = utils.HexToAddress(viper.GetString("withdrawAddress"))
-	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err)
-	}
-	Validators = viper.GetUint("validators")
-	if Validators == 0 {
-		return fmt.Errorf("😥 Failed to get validators flag value")
-	}
-	return nil
-}
 
 // StringSliceToUintArray converts the string slice to uint64 slice
 func StringSliceToUintArray(flagdata []string) ([]uint64, error) {
@@ -788,31 +50,6 @@ func StringSliceToUintArray(flagdata []string) ([]uint64, error) {
 		return nil, fmt.Errorf("slice isnt sorted")
 	}
 	return partsarr, nil
-}
-
-// LoadOperators loads operators data from raw json or file path
-func LoadOperators(logger *zap.Logger) (wire.OperatorsCLI, error) {
-	var operators wire.OperatorsCLI
-	var err error
-	if OperatorsInfo != "" {
-		err = json.Unmarshal([]byte(OperatorsInfo), &operators)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		operators, err = ReadOperatorsInfoFile(OperatorsInfoPath, logger)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if operators == nil {
-		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
-	}
-	// check that we use https
-	if err := checkIfOperatorHTTPS(operators); err != nil {
-		return nil, err
-	}
-	return operators, nil
 }
 
 func SignaturesStringToBytes(signatures string) ([]byte, error) {
@@ -1051,7 +288,7 @@ func WriteProofs(proofs []*wire.SignedProof, dir string) error {
 	return nil
 }
 
-func createDirIfNotExist(path string) error {
+func CreateDirIfNotExist(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			// Directory does not exist, try to create it
@@ -1078,7 +315,7 @@ func Sync(logger *zap.Logger) error {
 	return nil
 }
 
-func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
+func CheckIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 	for _, op := range ops {
 		addr, err := url.Parse(op.Addr)
 		if err != nil {
@@ -1094,4 +331,85 @@ func checkIfOperatorHTTPS(ops []wire.OperatorCLI) error {
 func IsUrl(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// OpenPrivateKey reads an RSA key from file.
+// If passwordFilePath is provided, treats privKeyPath as encrypted
+func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
+	// check if a password string a valid path, then read password from the file
+	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
+	}
+	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
+	}
+	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+	}
+	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
+	}
+	return privateKey, nil
+}
+
+// ReadOperatorsInfoFile reads operators data from path
+func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.OperatorsCLI, error) {
+	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
+	_, err := os.Stat(operatorsInfoPath)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+	}
+	logger.Info("📖 reading operators info JSON file")
+	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+	}
+	var operators wire.OperatorsCLI
+	err = json.Unmarshal(operatorsInfoJSON, &operators)
+	if err != nil {
+		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
+	}
+	return operators, nil
+}
+
+// LoadOperators loads operators data from raw json or file path
+func LoadOperators(logger *zap.Logger, operatorsInfo, operatorsInfoPath string) (wire.OperatorsCLI, error) {
+	var operators wire.OperatorsCLI
+	var err error
+	if operatorsInfo != "" {
+		err = json.Unmarshal([]byte(operatorsInfo), &operators)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		operators, err = ReadOperatorsInfoFile(operatorsInfoPath, logger)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if operators == nil {
+		return nil, fmt.Errorf("no information about operators is provided. Please use or raw JSON, or file")
+	}
+	// check that we use https
+	if err := CheckIfOperatorHTTPS(operators); err != nil {
+		return nil, err
+	}
+	return operators, nil
+}
+
+// SetGlobalLogger creates a logger
+func SetGlobalLogger(cmd *cobra.Command, name, logFilePath, logLevel, logFormat, logLevelFormat string) (*zap.Logger, error) {
+	// If the log file doesn't exist, create it
+	_, err := os.OpenFile(filepath.Clean(logFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
+		return nil, fmt.Errorf("logging.SetGlobalLogger: %w", err)
+	}
+	logger := zap.L().Named(name)
+	return logger, nil
 }

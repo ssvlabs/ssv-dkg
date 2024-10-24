@@ -55,7 +55,8 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
-			"--network", "holesky"}
+			"--network", "holesky",
+			"--clientCACertPath", rootCert[0]}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -127,7 +128,8 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 				"--newOperatorIDs", "55,66,77,88",
 				"--network", "holesky",
 				"--nonce", strconv.Itoa(10),
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -201,7 +203,8 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
-			"--network", "holesky"}
+			"--network", "holesky",
+			"--clientCACertPath", rootCert[0]}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -272,7 +275,8 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -346,7 +350,8 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
-			"--network", "holesky"}
+			"--network", "holesky",
+			"--clientCACertPath", rootCert[0]}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -417,7 +422,8 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)
@@ -491,7 +497,8 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--operatorIDs", "11,22,33,44",
 			"--nonce", "1",
-			"--network", "holesky"}
+			"--network", "holesky",
+			"--clientCACertPath", rootCert[0]}
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
@@ -562,7 +569,8 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 				"--newOperatorIDs", "11,22,33,44,55,66,77,88,99,110,111,112,113",
 				"--nonce", strconv.Itoa(10),
 				"--network", "holesky",
-				"--signatures", signature}
+				"--signatures", signature,
+				"--clientCACertPath", rootCert[0]}
 			RootCmd.SetArgs(args)
 			err = RootCmd.Execute()
 			require.NoError(t, err)

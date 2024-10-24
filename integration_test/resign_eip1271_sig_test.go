@@ -43,7 +43,7 @@ func TestResignValidEOASig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
@@ -91,7 +91,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	c, err := initiator.New(ops, logger, version, rootCert)
+	c, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
@@ -147,7 +147,7 @@ func TestResignValidContractSig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
@@ -206,7 +206,7 @@ func TestResignInvalidContractSig(t *testing.T) {
 		},
 	}
 	servers, ops := createOperatorsFromExamplesFolder(t, version, stubClient)
-	clnt, err := initiator.New(ops, logger, version, rootCert)
+	clnt, err := initiator.New(ops, logger, version, rootCert, false)
 	require.NoError(t, err)
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
