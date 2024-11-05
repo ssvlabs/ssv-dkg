@@ -138,7 +138,7 @@ func TestResignValidContractSig(t *testing.T) {
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			ret := make([]byte, 32) // needs to be 32 byte for packing
-			copy(ret[:4], eip1271.MAGIC_VALUE[:])
+			copy(ret[:4], eip1271.MAGIC_VALUE_ETH_SIGN[:])
 
 			return ret, nil
 		},
