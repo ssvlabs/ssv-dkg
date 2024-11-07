@@ -183,7 +183,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			getOwner(signedResign.Messages[0]),
+			signedResign.Messages[0].Proofs[0].Proof.Owner,
 			hash,
 			signedResign.Signature,
 		); err != nil {
@@ -234,7 +234,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			getOwner(signedReshare.Messages[0]),
+			signedReshare.Messages[0].Proofs[0].Proof.Owner,
 			hash,
 			signedReshare.Signature,
 		); err != nil {
@@ -261,17 +261,6 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 }
 
 // Helper functions to abstract out common behavior
-func getOwner(message interface{}) [20]byte {
-	var owner [20]byte
-	switch msg := message.(type) {
-	case *wire.ResignMessage:
-		copy(owner[:], msg.Resign.Owner[:])
-	case *wire.ReshareMessage:
-		copy(owner[:], msg.Reshare.Owner[:])
-	}
-	return owner
-}
-
 func (s *Switch) validateInstances(reqID InstanceID) error {
 	s.Mtx.Lock()
 	l := len(s.Instances)
