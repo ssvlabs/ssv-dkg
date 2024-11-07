@@ -17,7 +17,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/ssvlabs/dkg-spec v0.0.0-20241030104221-a3c32d12bdc4
+	github.com/ssvlabs/dkg-spec v0.0.0-20241107133152-4527d6deed5c
 	github.com/stretchr/testify v1.9.0
 	github.com/wealdtech/go-eth2-util v1.8.1
 	go.uber.org/zap v1.24.0

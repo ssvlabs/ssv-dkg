@@ -83,7 +83,6 @@ func TestResignInvalidEOASig(t *testing.T) {
 	version := "test.version"
 	ids := []uint64{11, 22, 33, 44}
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
-	owner := common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	nonce := 0
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -100,7 +99,7 @@ func TestResignInvalidEOASig(t *testing.T) {
 		require.NoError(t, err)
 		// validate proofs
 		for i, op := range ops {
-			if err := spec.ValidateCeremonyProof(owner, signedProofs[0][0].Proof.ValidatorPubKey, op, *signedProofs[0][i]); err != nil {
+			if err := spec.ValidateCeremonyProof(signedProofs[0][0].Proof.ValidatorPubKey, op, *signedProofs[0][i]); err != nil {
 				require.NoError(t, err)
 			}
 		}

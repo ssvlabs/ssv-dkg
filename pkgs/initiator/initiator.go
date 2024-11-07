@@ -828,7 +828,7 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 	}
 	// validate proofs
 	for i, op := range oldOps {
-		if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
+		if err := spec.ValidateCeremonyProof(proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -871,7 +871,7 @@ func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []
 	}
 	// validate proofs
 	for i, op := range ops {
-		if err := spec.ValidateCeremonyProof(owner, proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
+		if err := spec.ValidateCeremonyProof(proofsData[0].Proof.ValidatorPubKey, op, *proofsData[i]); err != nil {
 			return nil, err
 		}
 	}
