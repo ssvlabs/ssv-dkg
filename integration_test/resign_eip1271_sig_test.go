@@ -95,6 +95,8 @@ func TestResignInvalidEOASig(t *testing.T) {
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
 		require.NoError(t, err)
+		invalidSignedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/invalid_proofs.json")
+		require.NoError(t, err)
 		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
 		require.NoError(t, err)
 		// validate proofs
@@ -106,14 +108,14 @@ func TestResignInvalidEOASig(t *testing.T) {
 		// Construct resign message
 		_, err = c.ConstructResignMessage(
 			ids,
-			signedProofs[0][0].Proof.ValidatorPubKey,
+			invalidSignedProofs[0][0].Proof.ValidatorPubKey,
 			"mainnet",
 			withdraw.Bytes(),
 			[20]byte{},
 			uint64(nonce),
 			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
-			signedProofs[0])
-		require.ErrorContains(t, err, "invalid owner address")
+			invalidSignedProofs[0])
+		require.ErrorContains(t, err, "crypto/rsa: verification error")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
