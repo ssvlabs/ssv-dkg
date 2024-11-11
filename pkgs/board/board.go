@@ -60,6 +60,9 @@ func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
 }
 
 // PushResponses implements a kyber DKG Board interface to broadcast responses
+
+// A response bundle is returned if there is any invalid or
+// missing deals.
 func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
 	b.logger.Info("Pushing response bundle: ", zap.Int("num of responses", len(bundle.Responses)))
 	byts, err := wire2.EncodeResponseBundle(bundle)

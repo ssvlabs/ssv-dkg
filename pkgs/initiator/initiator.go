@@ -590,53 +590,8 @@ func (c *Initiator) parseDKGResultsFromBytes(responseResult [][]byte) (dkgResult
 			finalErr = errors.Join(finalErr, err)
 			continue
 		}
-		ops, err := c.Operators.ToSpecOperators()
-		if err != nil {
+		if err := verifyMessageType(tsp, wire.OutputMessageType); err != nil {
 			finalErr = errors.Join(finalErr, err)
-			continue
-		}
-		from, err := spec.OperatorIDByPubKey(ops, tsp.Signer)
-		if err != nil {
-			finalErr = errors.Join(finalErr, fmt.Errorf("cant find operator ID message from operator ID %d: %w", from, err))
-			continue
-		}
-		if tsp.Message.Type == wire.ErrorMessageType {
-			finalErr = errors.Join(finalErr, fmt.Errorf("%s", string(tsp.Message.Data)))
-			continue
-		}
-		if tsp.Message.Type != wire.OutputMessageType {
-			// check if response/justification bundle received
-			if tsp.Message.Type == wire.KyberMessageType {
-				kyberMsg := &wire.KyberMessage{}
-				if err := kyberMsg.UnmarshalSSZ(tsp.Message.Data); err != nil {
-					finalErr = errors.Join(finalErr, err)
-					continue
-				}
-				switch kyberMsg.Type {
-				case wire.KyberResponseBundleMessageType:
-					response, err := wire.DecodeResponseBundle(kyberMsg.Data)
-					if err != nil {
-						finalErr = errors.Join(finalErr, err)
-						continue
-					} else {
-						finalErr = errors.Join(finalErr, fmt.Errorf("received response message: from %d, %v", from, response))
-						continue
-					}
-				case wire.KyberJustificationBundleMessageType:
-					justification, err := wire.DecodeJustificationBundle(kyberMsg.Data, kyber_bls12381.NewBLS12381Suite().G1().(kyber_dkg.Suite))
-					if err != nil {
-						finalErr = errors.Join(finalErr, err)
-						continue
-					} else {
-						finalErr = errors.Join(finalErr, fmt.Errorf("received justification message: from %d, %v", from, justification))
-						continue
-					}
-				default:
-					finalErr = errors.Join(finalErr, fmt.Errorf("received message: from %d, but wrong type %s ", from, kyberMsg.Type))
-					continue
-				}
-			}
-			finalErr = errors.Join(finalErr, fmt.Errorf("wrong DKG result message type from oprator ID %d: exp %s, got %s ", from, wire.OutputMessageType.String(), tsp.Message.Type.String()))
 			continue
 		}
 		result := &spec.Result{}
@@ -829,8 +784,8 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 		return fmt.Errorf("operator returned error: %s", errString)
 	}
 	// Validate that incoming message is an pong message
-	if signedPongMsg.Message.Type != wire.PongMessageType {
-		return fmt.Errorf("wrong incoming message type from operator")
+	if err := verifyMessageType(signedPongMsg, wire.PongMessageType); err != nil {
+		return err
 	}
 	pong := &wire.Pong{}
 	if err := pong.UnmarshalSSZ(signedPongMsg.Message.Data); err != nil {
@@ -1012,4 +967,36 @@ func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg, msgIDM
 		bulkProofs = append(bulkProofs, Proofs)
 	}
 	return bulkDepositData, bulkKeyShares, bulkProofs, nil
+}
+
+func verifyMessageType(tsp *wire.SignedTransport, expectedType wire.TransportType) error {
+	if tsp.Message.Type != expectedType {
+		if tsp.Message.Type == wire.ErrorMessageType {
+			return fmt.Errorf("dkg protocol failed with %s", string(tsp.Message.Data))
+		}
+		if tsp.Message.Type == wire.KyberMessageType {
+			kyberMsg := &wire.KyberMessage{}
+			if err := kyberMsg.UnmarshalSSZ(tsp.Message.Data); err != nil {
+				return err
+			}
+			switch kyberMsg.Type {
+			// if we are not in fastsync, we expect only complaints
+			case wire.KyberResponseBundleMessageType:
+				bundle, err := wire.DecodeResponseBundle(kyberMsg.Data)
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("dkg protocol failed with response complaints: %v", bundle)
+			case wire.KyberJustificationBundleMessageType:
+				bundle, err := wire.DecodeJustificationBundle(kyberMsg.Data, kyber_bls12381.NewBLS12381Suite().G1().(kyber_dkg.Suite))
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("dkg protocol failed with justification message, which is unexpected: %v", bundle)
+			default:
+				return fmt.Errorf("received message with wrong type %s ", kyberMsg.Type)
+			}
+		}
+	}
+	return nil
 }
