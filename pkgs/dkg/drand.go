@@ -12,7 +12,7 @@ import (
 	"github.com/drand/kyber/pairing"
 	kyber_share "github.com/drand/kyber/share"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
-	drand_bls "github.com/drand/kyber/sign/bls" //nolint:all //deprecated: use only NewSchemeOnG2 func
+	drand_bls "github.com/drand/kyber/sign/bdn"
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
