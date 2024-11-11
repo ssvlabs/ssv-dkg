@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	spec "github.com/ssvlabs/dkg-spec"
-	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // Proof for a DKG ceremony
@@ -190,21 +189,6 @@ func (o OperatorsCLI) Clone() OperatorsCLI {
 	clone := make(OperatorsCLI, len(o))
 	copy(clone, o)
 	return clone
-}
-
-func (o OperatorsCLI) ToSpecOperators() ([]*spec.Operator, error) {
-	specOps := make([]*spec.Operator, 0)
-	for _, op := range o {
-		pub, err := spec_crypto.EncodeRSAPublicKey(op.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		specOps = append(specOps, &spec.Operator{
-			ID:     op.ID,
-			PubKey: pub,
-		})
-	}
-	return specOps, nil
 }
 
 type operatorCLIJSON struct {
