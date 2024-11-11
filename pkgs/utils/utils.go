@@ -264,14 +264,15 @@ func GetMessageHash(msg interface{}) ([32]byte, error) {
 	return hash, nil
 }
 
-func GetReqIDfromMsg(instance interface{}) ([24]byte, error) {
+func GetReqIDfromMsg(instance interface{}, id [24]byte) ([24]byte, error) {
 	// make a unique ID for each reshare using the instance hash
 	reqID := [24]byte{}
 	instanceHash, err := GetMessageHash(instance)
 	if err != nil {
 		return reqID, fmt.Errorf("failed to get reqID: %w", err)
 	}
-	copy(reqID[:], instanceHash[:])
+	copy(reqID[:12], id[:12])
+	copy(reqID[12:24], instanceHash[:12])
 	return reqID, nil
 }
 

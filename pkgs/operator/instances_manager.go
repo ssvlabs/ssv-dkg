@@ -183,7 +183,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			getOwner(signedResign.Messages[0]),
+			signedResign.Messages[0].Proofs[0].Proof.Owner,
 			hash,
 			signedResign.Signature,
 		); err != nil {
@@ -195,7 +195,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedResign.Messages {
-			resp, err := s.runInstance(instance, allOps, initiatorPubKey, operationType)
+			resp, err := s.runInstance(reqID, instance, allOps, initiatorPubKey, operationType)
 			if err != nil {
 				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
 			}
@@ -234,7 +234,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			getOwner(signedReshare.Messages[0]),
+			signedReshare.Messages[0].Proofs[0].Proof.Owner,
 			hash,
 			signedReshare.Signature,
 		); err != nil {
@@ -246,7 +246,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedReshare.Messages {
-			resp, err := s.runInstance(instance, allOps, initiatorPubKey, operationType)
+			resp, err := s.runInstance(reqID, instance, allOps, initiatorPubKey, operationType)
 			if err != nil {
 				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
 			}
@@ -261,17 +261,6 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 }
 
 // Helper functions to abstract out common behavior
-func getOwner(message interface{}) [20]byte {
-	var owner [20]byte
-	switch msg := message.(type) {
-	case *wire.ResignMessage:
-		copy(owner[:], msg.Resign.Owner[:])
-	case *wire.ReshareMessage:
-		copy(owner[:], msg.Reshare.Owner[:])
-	}
-	return owner
-}
-
 func (s *Switch) validateInstances(reqID InstanceID) error {
 	s.Mtx.Lock()
 	l := len(s.Instances)
@@ -296,23 +285,23 @@ func (s *Switch) validateInstances(reqID InstanceID) error {
 	return nil
 }
 
-func (s *Switch) runInstance(instance interface{}, allOps []*spec.Operator, initiatorPubKey *rsa.PublicKey, operationType string) ([]byte, error) {
-	reqID, err := utils.GetReqIDfromMsg(instance)
+func (s *Switch) runInstance(reqID [24]byte, instance interface{}, allOps []*spec.Operator, initiatorPubKey *rsa.PublicKey, operationType string) ([]byte, error) {
+	instanceID, err := utils.GetReqIDfromMsg(instance, reqID)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateInstances(reqID); err != nil {
+	if err := s.validateInstances(instanceID); err != nil {
 		return nil, err
 	}
 
-	inst, resp, err := s.CreateInstance(reqID, allOps, instance, initiatorPubKey)
+	inst, resp, err := s.CreateInstance(instanceID, allOps, instance, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to create instance: %w", operationType, err)
 	}
 
 	s.Mtx.Lock()
-	s.Instances[reqID] = inst
-	s.InstanceInitTime[reqID] = time.Now()
+	s.Instances[instanceID] = inst
+	s.InstanceInitTime[instanceID] = time.Now()
 	s.Mtx.Unlock()
 
 	return resp, nil

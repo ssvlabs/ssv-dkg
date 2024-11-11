@@ -83,7 +83,6 @@ func TestResignInvalidEOASig(t *testing.T) {
 	version := "test.version"
 	ids := []uint64{11, 22, 33, 44}
 	withdraw := common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")
-	owner := common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9")
 	nonce := 0
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
@@ -96,25 +95,27 @@ func TestResignInvalidEOASig(t *testing.T) {
 	t.Run("test resign 4 operators", func(t *testing.T) {
 		signedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
 		require.NoError(t, err)
+		invalidSignedProofs, err := wire.LoadProofs("./stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/invalid_proofs.json")
+		require.NoError(t, err)
 		ops, err := initiator.ValidatedOperatorData(ids, c.Operators)
 		require.NoError(t, err)
 		// validate proofs
 		for i, op := range ops {
-			if err := spec.ValidateCeremonyProof(owner, signedProofs[0][0].Proof.ValidatorPubKey, op, *signedProofs[0][i]); err != nil {
+			if err := spec.ValidateCeremonyProof(signedProofs[0][0].Proof.ValidatorPubKey, op, *signedProofs[0][i]); err != nil {
 				require.NoError(t, err)
 			}
 		}
 		// Construct resign message
 		_, err = c.ConstructResignMessage(
 			ids,
-			signedProofs[0][0].Proof.ValidatorPubKey,
+			invalidSignedProofs[0][0].Proof.ValidatorPubKey,
 			"mainnet",
 			withdraw.Bytes(),
 			[20]byte{},
 			uint64(nonce),
 			uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
-			signedProofs[0])
-		require.ErrorContains(t, err, "invalid owner address")
+			invalidSignedProofs[0])
+		require.ErrorContains(t, err, "crypto/rsa: verification error")
 	})
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -138,7 +139,7 @@ func TestResignValidContractSig(t *testing.T) {
 	stubClient := &stubs.Client{
 		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 			ret := make([]byte, 32) // needs to be 32 byte for packing
-			copy(ret[:4], eip1271.MAGIC_VALUE[:])
+			copy(ret[:4], eip1271.MAGIC_VALUE_ETH_SIGN[:])
 
 			return ret, nil
 		},

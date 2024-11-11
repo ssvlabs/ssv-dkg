@@ -266,9 +266,14 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 // Init function creates an interface for DKG (board) which process protocol messages
 // Here we randomly create a point at G1 as a DKG public key for the node
 func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, error) {
-	o.data = &DKGdata{}
-	o.data.init = init
-	o.data.reqID = reqID
+	// sanity check
+	if o.data != nil {
+		return nil, fmt.Errorf("data already exist at local instance: %v", o.data)
+	}
+	o.data = &DKGdata{
+		reqID: reqID,
+		init:  init,
+	}
 	kyberLogger := o.Logger.With(zap.String("reqid", fmt.Sprintf("%x", o.data.reqID[:])))
 	o.board = board.NewBoard(
 		kyberLogger,
@@ -369,6 +374,10 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 	o.Logger.Info("✅ Successfully verified incoming DKG", zap.String("message type", st.Message.Type.String()), zap.Uint64("from", from))
 	switch st.Message.Type {
 	case wire.ExchangeMessageType:
+		// check that reshare object is set at owner
+		if o.data.init == nil {
+			return fmt.Errorf("failed to get init object at owner")
+		}
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
 			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
@@ -386,6 +395,10 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 		}
 
 	case wire.ReshareExchangeMessageType:
+		// check that reshare object is set at owner
+		if o.data.reshare == nil {
+			return fmt.Errorf("failed to get reshare object at owner")
+		}
 		exchMsg := &wire.Exchange{}
 		if err := exchMsg.UnmarshalSSZ(st.Message.Data); err != nil {
 			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
@@ -436,6 +449,10 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			}
 		}
 	case wire.ReshareKyberMessageType:
+		// check that reshare object is set at owner
+		if o.data.reshare == nil {
+			return fmt.Errorf("failed to get reshare object at owner")
+		}
 		kyberMsg := &wire.ReshareKyberMessage{}
 		if err := kyberMsg.UnmarshalSSZ(st.Message.Data); err != nil {
 			return fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
@@ -611,7 +628,10 @@ func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoint
 	if o.data != nil {
 		return nil, fmt.Errorf("data already exist at local instance: %v", o.data)
 	}
-	o.data = &DKGdata{}
+	o.data = &DKGdata{
+		reqID:   reqID,
+		reshare: reshare,
+	}
 	var commits []byte
 	for _, point := range commitsPoints {
 		b, _ := point.MarshalBinary()
@@ -789,7 +809,8 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 	if o.data == nil || (o.data.init == nil && o.data.reshare == nil) || (o.data.init != nil && o.data.reshare != nil) {
 		return nil, fmt.Errorf("no init or reshare data at instance, or both are present")
 	}
-	if o.data.init != nil {
+	switch {
+	case o.data.init != nil:
 		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
 		for _, msg := range msgs {
 			id, err := spec.OperatorIDByPubKey(o.data.init.Operators, msg.Signer)
@@ -808,8 +829,7 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 			return nil, fmt.Errorf("at init all operators should send messages")
 		}
 		return opsAtMsgs, nil
-	}
-	if o.data.reshare != nil {
+	case o.data.reshare != nil:
 		opsAtMsgs := make(map[uint64]*spec.Operator, 0)
 		for _, msg := range msgs {
 			var allOps []*spec.Operator
@@ -843,8 +863,9 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 			return nil, fmt.Errorf("no init or reshare operators found at incoming messages")
 		}
 		return opsAtMsgs, nil
+	default:
+		return nil, fmt.Errorf("cant get init/reshare at LocalOwner")
 	}
-	return nil, nil
 }
 
 func FindOperatorsAtList(list map[uint64]*spec.Operator, ops []*spec.Operator) ([]*spec.Operator, error) {

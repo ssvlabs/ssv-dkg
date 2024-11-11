@@ -5,6 +5,8 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,39 +20,36 @@ import (
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
+	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/dkg"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-func singleOperatorKeys(t *testing.T) *rsa.PrivateKey {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+func singleOperatorKeys(t *testing.T, num int) *rsa.PrivateKey {
+	privKey, err := os.ReadFile(filepath.Clean("../../examples/operator" + strconv.Itoa(num) + "/encrypted_private_key.json"))
 	require.NoError(t, err)
-	return privateKey
+	pass, err := os.ReadFile(filepath.Clean("../../examples/operator" + strconv.Itoa(num) + "/password"))
+	require.NoError(t, err)
+	priv, err := crypto.DecryptRSAKeystore(privKey, string(pass))
+	require.NoError(t, err)
+	return priv
 }
 
-func generateOperatorsData(t *testing.T, numOps int) (*rsa.PrivateKey, []*spec.Operator) {
-	privateKey := singleOperatorKeys(t)
-	pkbytes, err := spec_crypto.EncodeRSAPublicKey(&privateKey.PublicKey)
-	require.NoError(t, err)
-
-	ops := make([]*spec.Operator, numOps)
-
-	ops[0] = &spec.Operator{
-		ID:     1,
-		PubKey: pkbytes,
-	}
-
-	for i := 1; i <= numOps-1; i++ {
-		priv := singleOperatorKeys(t)
+func generateOperatorsData(t *testing.T, numOps int) ([]*rsa.PrivateKey, []*spec.Operator) {
+	keys := make([]*rsa.PrivateKey, 0)
+	ops := make([]*spec.Operator, 0)
+	for i := 1; i <= numOps; i++ {
+		priv := singleOperatorKeys(t, i)
+		keys = append(keys, priv)
 		oppkbytes, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 		require.NoError(t, err)
-		ops[i] = &spec.Operator{
-			ID:     uint64(i + 1),
+		ops = append(ops, &spec.Operator{
+			ID:     uint64(i),
 			PubKey: oppkbytes,
-		}
+		})
 	}
-	return privateKey, ops
+	return keys, ops
 }
 
 func TestCreateInstance(t *testing.T) {
@@ -61,7 +60,7 @@ func TestCreateInstance(t *testing.T) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		tempDir, err := os.MkdirTemp("", "dkg")
 		require.NoError(t, err)
-		s, err := New(privateKey, logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
+		s, err := New(privateKey[0], logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
 		require.NoError(t, err)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -83,7 +82,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey.PublicKey))
+		require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 	}
 
 	testParams := []struct {
@@ -109,7 +108,7 @@ func TestInitInstance(t *testing.T) {
 	require.NoError(t, err)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
-	swtch, err := New(privateKey, logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
+	swtch, err := New(privateKey[0], logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
 	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
@@ -199,7 +198,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	err := logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
 	logger := zap.L().Named("state-tests")
-	operatorPubKey := privateKey.Public().(*rsa.PublicKey)
+	operatorPubKey := privateKey[0].Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
 	stubClient := &stubs.Client{
@@ -207,7 +206,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 			return nil, nil
 		},
 	}
-	swtch := NewSwitch(privateKey, logger, []byte("test.version"), pkBytes, 1, stubClient)
+	swtch := NewSwitch(privateKey[0], logger, []byte("test.version"), pkBytes, 1, stubClient)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 	_, pv, err := rsaencryption.GenerateKeys()
@@ -252,4 +251,135 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.Equal(t, swtch.cleanInstances(), 1)
 	require.Len(t, swtch.Instances, 0)
 
+}
+
+func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("state-tests")
+	privateKey, ops := generateOperatorsData(t, 12)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
+	s, err := New(privateKey[0], logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
+	require.NoError(t, err)
+	var reqID [24]byte
+	copy(reqID[:], "testRequestID1234567890") // Just a sample value
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	init := &spec.Init{
+		Operators: ops,
+		Owner:     common.HexToAddress("0x0000000"),
+		Nonce:     1,
+	}
+
+	inst, resp, err := s.State.CreateInstance(reqID, init.Operators, init, &priv.PublicKey)
+
+	require.NoError(t, err)
+	require.NotNil(t, inst)
+	require.NotNil(t, resp)
+
+	wrapper, ok := inst.(*instWrapper)
+	require.True(t, ok)
+	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+
+	// create multiple transport with wrong
+	exchMsg := wire.Exchange{
+		PK:      []byte{},
+		Commits: []byte{},
+	}
+	sszExch, err := exchMsg.MarshalSSZ()
+	require.NoError(t, err)
+	ts := &wire.Transport{
+		Type:       wire.ReshareExchangeMessageType,
+		Identifier: reqID,
+		Data:       sszExch,
+		Version:    []byte("test.version"),
+	}
+	tsssz, err := ts.MarshalSSZ()
+	require.NoError(t, err)
+
+	sig, err := spec_crypto.SignRSA(privateKey[0], tsssz)
+	require.NoError(t, err)
+
+	opPubBytes, err := spec_crypto.EncodeRSAPublicKey(&privateKey[0].PublicKey)
+	require.NoError(t, err)
+
+	signedTransportMsg := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    opPubBytes,
+		Signature: sig,
+	}
+	err = wrapper.Process(signedTransportMsg, ops)
+	require.ErrorContains(t, err, "failed to get reshare object at owner")
+}
+
+func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
+	err := logging.SetGlobalLogger("info", "capital", "console", nil)
+	require.NoError(t, err)
+	logger := zap.L().Named("state-tests")
+	privateKey, ops := generateOperatorsData(t, 12)
+	tempDir, err := os.MkdirTemp("", "dkg")
+	require.NoError(t, err)
+	s, err := New(privateKey[0], logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
+	require.NoError(t, err)
+	var reqID [24]byte
+	copy(reqID[:], "testRequestID1234567890") // Just a sample value
+	_, pv, err := rsaencryption.GenerateKeys()
+	require.NoError(t, err)
+	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	require.NoError(t, err)
+	signedProofs, err := wire.LoadProofs("../../integration_test/stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
+	require.NoError(t, err)
+	reshare := &wire.ReshareMessage{
+		Reshare: &spec.Reshare{
+			ValidatorPubKey: signedProofs[0][0].Proof.ValidatorPubKey,
+			NewOperators:    ops[:4],
+			OldOperators:    ops[4:8],
+			Owner:           common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"),
+			Nonce:           1,
+		},
+		Proofs: signedProofs[0],
+	}
+
+	inst, resp, err := s.State.CreateInstance(reqID, ops, reshare, &priv.PublicKey)
+
+	require.NoError(t, err)
+	require.NotNil(t, inst)
+	require.NotNil(t, resp)
+
+	wrapper, ok := inst.(*instWrapper)
+	require.True(t, ok)
+	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+
+	// create multiple transport with wrong
+	exchMsg := wire.Exchange{
+		PK:      []byte{},
+		Commits: []byte{},
+	}
+	sszExch, err := exchMsg.MarshalSSZ()
+	require.NoError(t, err)
+	ts := &wire.Transport{
+		Type:       wire.ExchangeMessageType,
+		Identifier: reqID,
+		Data:       sszExch,
+		Version:    []byte("test.version"),
+	}
+	tsssz, err := ts.MarshalSSZ()
+	require.NoError(t, err)
+
+	sig, err := spec_crypto.SignRSA(privateKey[0], tsssz)
+	require.NoError(t, err)
+
+	opPubBytes, err := spec_crypto.EncodeRSAPublicKey(&privateKey[0].PublicKey)
+	require.NoError(t, err)
+
+	signedTransportMsg := &wire.SignedTransport{
+		Message:   ts,
+		Signer:    opPubBytes,
+		Signature: sig,
+	}
+	err = wrapper.Process(signedTransportMsg, ops)
+	require.ErrorContains(t, err, "failed to get init object at owner")
 }
