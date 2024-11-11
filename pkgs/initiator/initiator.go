@@ -971,9 +971,3 @@ func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg, msgIDM
 	return bulkDepositData, bulkKeyShares, bulkProofs, nil
 }
 
-func getInstanceID(id, hash []byte) [24]byte {
-	msgID := [24]byte{}
-	copy(msgID[:12], id[:12])
-	copy(msgID[12:24], hash[:12])
-	return msgID
-}
