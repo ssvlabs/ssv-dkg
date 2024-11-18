@@ -48,7 +48,7 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	}
 	CeremonyDir = filepath.Clean(viper.GetString("ceremonyDir"))
 	if !filepath.IsLocal(CeremonyDir) {
-		return fmt.Errorf("😥 wrong CeremonyDir flag")
+		return fmt.Errorf("😥 wrong CeremonyDir flag, should be local")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
