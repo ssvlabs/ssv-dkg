@@ -3,7 +3,6 @@ package flags
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,26 +71,26 @@ func BindOperatorFlags(cmd *cobra.Command) error {
 	}
 	PrivKey = filepath.Clean(viper.GetString("privKey"))
 	PrivKeyPassword = filepath.Clean(viper.GetString("privKeyPassword"))
-	if strings.Contains(PrivKey, "..") {
-		return fmt.Errorf("😥 Failed to get private key path flag value")
+	if !filepath.IsLocal(PrivKey) {
+		return fmt.Errorf("😥 wrong key path flag value")
 	}
-	if strings.Contains(PrivKeyPassword, "..") {
-		return fmt.Errorf("😥 Failed to get password for private key flag value")
+	if !filepath.IsLocal(PrivKeyPassword) {
+		return fmt.Errorf("😥 wrong password for private key flag value")
 	}
 	Port = viper.GetUint64("port")
 	if Port == 0 {
-		return fmt.Errorf("😥 Wrong port provided")
+		return fmt.Errorf("😥 wrong port provided")
 	}
 	OperatorID = viper.GetUint64("operatorID")
 	if OperatorID == 0 {
-		return fmt.Errorf("😥 Wrong operator ID provided")
+		return fmt.Errorf("😥 wrong operator ID provided")
 	}
 	ServerTLSCertPath = filepath.Clean(viper.GetString("serverTLSCertPath"))
-	if strings.Contains(ServerTLSCertPath, "..") {
+	if !filepath.IsLocal(ServerTLSCertPath) {
 		return fmt.Errorf("😥 wrong serverTLSCertPath flag")
 	}
 	ServerTLSKeyPath = filepath.Clean(viper.GetString("serverTLSKeyPath"))
-	if strings.Contains(ServerTLSKeyPath, "..") {
+	if !filepath.IsLocal(ServerTLSKeyPath) {
 		return fmt.Errorf("😥 wrong serverTLSKeyPath flag")
 	}
 	EthEndpointURL = viper.GetString("ethEndpointURL")

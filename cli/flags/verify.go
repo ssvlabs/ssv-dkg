@@ -3,7 +3,6 @@ package flags
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/spf13/cobra"
@@ -48,7 +47,7 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 		return err
 	}
 	CeremonyDir = filepath.Clean(viper.GetString("ceremonyDir"))
-	if strings.Contains(CeremonyDir, "..") {
+	if !filepath.IsLocal(CeremonyDir) {
 		return fmt.Errorf("😥 wrong CeremonyDir flag")
 	}
 	owner := viper.GetString("owner")

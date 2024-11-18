@@ -3,7 +3,6 @@ package flags
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -64,8 +63,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	if OutputPath != "" {
 		OutputPath = filepath.Clean(OutputPath)
 	}
-	if strings.Contains(OutputPath, "..") {
-		return fmt.Errorf("😥 outputPath cant contain traversal")
+	if !filepath.IsLocal(OutputPath) {
+		return fmt.Errorf("😥 wrong OutputPath flag")
 	}
 	if err := cli_utils.CreateDirIfNotExist(OutputPath); err != nil {
 		return err
@@ -74,8 +73,8 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogFormat = viper.GetString("logFormat")
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
-	if strings.Contains(LogFilePath, "..") {
-		return fmt.Errorf("😥 logFilePath cant contain traversal")
+	if !filepath.IsLocal(LogFilePath) {
+		return fmt.Errorf("😥 wrong logFilePath flag")
 	}
 	return nil
 }
