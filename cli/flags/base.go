@@ -64,7 +64,7 @@ func BindBaseFlags(cmd *cobra.Command) error {
 		OutputPath = filepath.Clean(OutputPath)
 	}
 	if !filepath.IsLocal(OutputPath) {
-		return fmt.Errorf("😥 wrong OutputPath flag")
+		return fmt.Errorf("😥 wrong OutputPath flag, should be local")
 	}
 	if err := cli_utils.CreateDirIfNotExist(OutputPath); err != nil {
 		return err
@@ -74,7 +74,7 @@ func BindBaseFlags(cmd *cobra.Command) error {
 	LogLevelFormat = viper.GetString("logLevelFormat")
 	LogFilePath = viper.GetString("logFilePath")
 	if !filepath.IsLocal(LogFilePath) {
-		return fmt.Errorf("😥 wrong logFilePath flag")
+		return fmt.Errorf("😥 wrong logFilePath flag, should be local")
 	}
 	return nil
 }

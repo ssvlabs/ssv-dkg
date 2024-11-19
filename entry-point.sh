@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Setup directory for certificates
-CERT_DIR=/ssl
+CERT_DIR=./ssl
 mkdir -p "$CERT_DIR"
 
 # Paths to the certificate and key files

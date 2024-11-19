@@ -26,12 +26,12 @@ services:
       - "3030:3030"
     environment:
       - CN=operator1
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator1.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator1.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator2:
     image: ssv-dkg:latest
@@ -41,12 +41,12 @@ services:
       - "3031:3030"
     environment:
       - CN=operator2
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator2.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator2.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator3:
     image: ssv-dkg:latest
@@ -56,12 +56,12 @@ services:
       - "3032:3030"
     environment:
       - CN=operator3
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator3.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator3.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator4:
     image: ssv-dkg:latest
@@ -71,12 +71,12 @@ services:
       - "3033:3030"
     environment:
       - CN=operator4
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator4.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator4.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator5:
     image: ssv-dkg:latest
@@ -86,12 +86,12 @@ services:
       - "3034:3030"
     environment:
       - CN=operator5
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator5.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator5.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator6:
     image: ssv-dkg:latest
@@ -101,12 +101,12 @@ services:
       - "3035:3030"
     environment:
       - CN=operator6
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator6.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator6.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator7:
     image: ssv-dkg:latest
@@ -116,12 +116,12 @@ services:
       - "3036:3030"
     environment:
       - CN=operator7
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator7.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator7.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator8:
     image: ssv-dkg:latest
@@ -131,12 +131,12 @@ services:
       - "3037:3030"
     environment:
       - CN=operator8
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator8.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator8.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator9:
     image: ssv-dkg:latest
@@ -146,12 +146,12 @@ services:
       - "3038:3030"
     environment:
       - CN=operator9
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator9.example.yaml"]
+      ["start-operator", "--configPath", "./data/config/operator9.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator10:
     image: ssv-dkg:latest
@@ -161,12 +161,16 @@ services:
       - "3039:3030"
     environment:
       - CN=operator10
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator10.example.yaml"]
+      [
+        "start-operator",
+        "--configPath",
+        "./data/config/operator10.example.yaml",
+      ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator11:
     image: ssv-dkg:latest
@@ -176,12 +180,16 @@ services:
       - "3041:3030"
     environment:
       - CN=operator11
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator11.example.yaml"]
+      [
+        "start-operator",
+        "--configPath",
+        "./data/config/operator11.example.yaml",
+      ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator12:
     image: ssv-dkg:latest
@@ -191,12 +199,16 @@ services:
       - "3042:3030"
     environment:
       - CN=operator12
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator12.example.yaml"]
+      [
+        "start-operator",
+        "--configPath",
+        "./data/config/operator12.example.yaml",
+      ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   operator13:
     image: ssv-dkg:latest
@@ -206,12 +218,16 @@ services:
       - "3043:3030"
     environment:
       - CN=operator13
-      - CA=/data/initiator/rootCA.crt
-      - CAkey=/data/initiator/rootCA.key
+      - CA=/ssv-dkg/data/initiator/rootCA.crt
+      - CAkey=/ssv-dkg/data/initiator/rootCA.key
     command:
-      ["start-operator", "--configPath", "/data/config/operator13.example.yaml"]
+      [
+        "start-operator",
+        "--configPath",
+        "./data/config/operator13.example.yaml",
+      ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   initiator:
     image: ssv-dkg:latest
@@ -222,9 +238,9 @@ services:
       - operator4
     networks:
       - shared_network
-    command: ["init", "--configPath", "/data/config/initiator.example.yaml"]
+    command: ["init", "--configPath", "./data/config/initiator.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   generate-resign-msg:
     image: ssv-dkg:latest
@@ -234,10 +250,10 @@ services:
       [
         "generate-resign-msg",
         "--configPath",
-        "/data/config/resign.example.yaml",
+        "./data/config/resign.example.yaml",
       ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   resign:
     image: ssv-dkg:latest
@@ -248,9 +264,9 @@ services:
       - operator4
     networks:
       - shared_network
-    command: ["resign", "--configPath", "/data/config/resign.example.yaml"]
+    command: ["resign", "--configPath", "./data/config/resign.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   generate-reshare-msg:
     image: ssv-dkg:latest
@@ -260,10 +276,10 @@ services:
       [
         "generate-reshare-msg",
         "--configPath",
-        "/data/config/reshare.example.yaml",
+        "./data/config/reshare.example.yaml",
       ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   reshare:
     image: ssv-dkg:latest
@@ -279,9 +295,9 @@ services:
       - operator8
     networks:
       - shared_network
-    command: ["reshare", "--configPath", "/data/config/reshare.example.yaml"]
+    command: ["reshare", "--configPath", "./data/config/reshare.example.yaml"]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
   ping:
     image: ssv-dkg:latest
@@ -294,7 +310,7 @@ services:
         "https://operator9:3030,https://operator10:3030,https://operator11:3030,https://operator12:3030,https://operator13:3030",
       ]
     volumes:
-      - ./examples:/data
+      - ./examples:/ssv-dkg/data
 
 networks:
   shared_network:

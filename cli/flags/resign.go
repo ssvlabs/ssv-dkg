@@ -110,7 +110,7 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
 	if !filepath.IsLocal(ProofsFilePath) {
-		return fmt.Errorf("😥 wrong proofsFilePath flag")
+		return fmt.Errorf("😥 wrong proofsFilePath flag, should be local")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -158,7 +158,7 @@ func BindResigningFlags(cmd *cobra.Command) error {
 		} else {
 			for _, certPath := range ClientCACertPath {
 				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag")
+					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 				}
 			}
 		}

@@ -1,12 +1,12 @@
-privKey: /data/operator7/encrypted_private_key.json
-privKeyPassword: /data/operator7/password
+privKey: ./data/operator7/encrypted_private_key.json
+privKeyPassword: ./data/operator7/password
 port: 3030
 operatorID: 77
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/operator7/output/operator7_logs_debug.log
-outputPath: /data/operator7/output
+logFilePath: ./data/operator7/output/operator7_logs_debug.log
+outputPath: ./data/operator7/output
 # serverTLSCertPath: /data/operator7/operator7.crt
 # serverTLSKeyPath: /data/operator7/operator7.key
 ethEndpointURL: http://ethnode:8545

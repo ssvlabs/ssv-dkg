@@ -1,12 +1,12 @@
-privKey: /data/operator5/encrypted_private_key.json
-privKeyPassword: /data/operator5/password
+privKey: ./data/operator5/encrypted_private_key.json
+privKeyPassword: ./data/operator5/password
 port: 3030
 operatorID: 55
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/operator5/output/operator5_logs_debug.log
-outputPath: /data/operator5/output
+logFilePath: ./data/operator5/output/operator5_logs_debug.log
+outputPath: ./data/operator5/output
 # serverTLSCertPath: /data/operator5/operator5.crt
 # serverTLSKeyPath: /data/operator5/operator5.key
 ethEndpointURL: http://ethnode:8545

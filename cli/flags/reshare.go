@@ -103,7 +103,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
 	}
 	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag, should be local")
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
@@ -125,7 +125,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
 	if !filepath.IsLocal(ProofsFilePath) {
-		return fmt.Errorf("😥 wrong proofsFilePath flag")
+		return fmt.Errorf("😥 wrong proofsFilePath flag, should be local")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
@@ -182,7 +182,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 		} else {
 			for _, certPath := range ClientCACertPath {
 				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag")
+					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 				}
 			}
 		}

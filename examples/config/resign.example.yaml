@@ -23,12 +23,12 @@ network: "holesky"
 #   "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeFRWM2I5OHU4NmtzcEhQcWgrS2QKKzRHd0lSeEhwRHpEZjVlc3hjZytxaTlvbDRERmplUXMrbGloeUp5cGdOMXJwdTlQVnR5cXp2K3k5cEVNa0VXTgovYjBUQmdRMEp5TzdmNGliY1d5UUcrNGhVUS9XY3h1ZW5aUDA3S0VwTjh4Tk8xN3BzbmhRMXRqQVhybDNGN1lYCmlZdXl5Z0Rta2w0YjYrUDR6MjNhR01VSEtnTnJ5aFlZTFV4dWdycDVRTnJTV3lXNXFtb2EvYnJDenQ2RFJYb1UKU25JSkpSUVpPS2NnckdKMHVBYjJDRmtsL0xuaElxT2RZZ21aUG9oRmprVEorRnZNdkZsMjAwZ1BHbVpxUS9MMgpsM2ZBdmhZYlZRMlRVeUtmU2orYXZ1WUFZZnhKeG5OcWlmdkNkVGNmQzc3c0N0eFFERWVjY0pTVnVDbGZWeTFZCll3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
 #   "ip": "http://operator4:3030"
 #   }]'
-operatorsInfoPath: /data/initiator/operators_info.json
-outputPath: /data/initiator/output
+operatorsInfoPath: ./data/initiator/operators_info.json
+outputPath: ./data/initiator/output
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/initiator/output/initiator_debug.log
-proofsFilePath: /data/initiator/output/ceremony-2024-10-11--10-12-28.715/proofs.json
-signatures: 26509ac521bc180336ac8e6d1d023bf9377e6f99963622e0bcd2313867e34cb374b61b0289500b83bf4431609ccf4fc0590d7e8fdcf57b8e27f17191743398e901
-clientCACertPath: /data/initiator/rootCA.crt
+logFilePath: ./data/initiator/output/initiator_debug.log
+proofsFilePath: ./data/initiator/output/ceremony-2024-11-18--16-04-55.529/proofs.json
+signatures: 8eb5bce8a1bf52f106233954b096504c934d08962003c41eff1a29e05ddeeebe34133dd66c7fa9512ae74d3124a9f60ee270f312c08c60512a5009ac9bca78911b
+clientCACertPath: ./data/initiator/rootCA.crt

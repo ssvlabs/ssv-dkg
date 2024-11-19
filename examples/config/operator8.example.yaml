@@ -1,12 +1,12 @@
-privKey: /data/operator8/encrypted_private_key.json
-privKeyPassword: /data/operator8/password
+privKey: ./data/operator8/encrypted_private_key.json
+privKeyPassword: ./data/operator8/password
 port: 3030
 operatorID: 88
 logLevel: info
 logFormat: json
 logLevelFormat: capitalColor
-logFilePath: /data/operator8/output/operator8_logs_debug.log
-outputPath: /data/operator8/output
+logFilePath: ./data/operator8/output/operator8_logs_debug.log
+outputPath: ./data/operator8/output
 # serverTLSCertPath: /data/operator8/operator8.crt
 # serverTLSKeyPath: /data/operator8/operator8.key
 ethEndpointURL: http://ethnode:8545

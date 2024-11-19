@@ -103,7 +103,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
 	}
 	if OperatorsInfoPath != "" && !filepath.IsLocal(OperatorsInfoPath) {
-		return fmt.Errorf("😥 wrong operatorsInfoPath flag")
+		return fmt.Errorf("😥 wrong operatorsInfoPath flag, should be local")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
@@ -129,7 +129,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 		} else {
 			for _, certPath := range ClientCACertPath {
 				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag")
+					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 				}
 			}
 		}
@@ -179,7 +179,10 @@ func SetViperConfig(cmd *cobra.Command) error {
 		return err
 	}
 	ConfigPath = viper.GetString("configPath")
-	if ConfigPath != "" && filepath.Clean(ConfigPath) != "" && filepath.IsLocal(ConfigPath) {
+	if ConfigPath != "" && filepath.Clean(ConfigPath) != "" {
+		if !filepath.IsLocal(ConfigPath) {
+			return fmt.Errorf("😥 wrong configPath flag, should be local")
+		}
 		stat, err := os.Stat(ConfigPath)
 		if err != nil {
 			return err
