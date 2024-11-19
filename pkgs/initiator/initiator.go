@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
@@ -26,7 +27,6 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
-	"go.uber.org/zap"
 )
 
 type VerifyMessageSignatureFunc func(pub *rsa.PublicKey, msg, sig []byte) error
@@ -165,7 +165,7 @@ func ValidatedOperatorData(ids []uint64, operators wire.OperatorsCLI) ([]*spec.O
 }
 
 // messageFlowHandling main steps of DKG at initiator
-func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operators []*spec.Operator) ([][]byte, error) {
+func (c *Initiator) initMessageFlowHandling(init *spec.Init, id, instanceID [24]byte, operators []*spec.Operator) ([][]byte, error) {
 	c.Logger.Info("phase 1: sending init message to operators")
 	exchangeMsgs, errs, err := c.SendInitMsg(id, init, operators)
 	if err != nil {
@@ -175,33 +175,33 @@ func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operat
 	if err := checkThreshold(exchangeMsgs, errs, operators, operators, len(operators)); err != nil {
 		return nil, err
 	}
-	err = verifyMessageSignatures(id, exchangeMsgs, c.VerifyMessageSignature)
+	err = verifyMessageSignatures(instanceID, exchangeMsgs, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
 	c.Logger.Info("phase 1: ✅ verified operator init responses signatures")
 	c.Logger.Info("phase 2: ➡️ sending operator data (exchange messages) required for dkg")
-	kyberMsgs, errs, err := c.SendExchangeMsgs(id, exchangeMsgs, operators)
+	kyberMsgs, errs, err := c.SendExchangeMsgs(instanceID, exchangeMsgs, operators)
 	if err != nil {
 		return nil, err
 	}
 	if err := checkThreshold(kyberMsgs, errs, operators, operators, len(operators)); err != nil {
 		return nil, err
 	}
-	err = verifyMessageSignatures(id, kyberMsgs, c.VerifyMessageSignature)
+	err = verifyMessageSignatures(instanceID, kyberMsgs, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
 	c.Logger.Info("phase 2: ✅ verified operator responses (deal messages) signatures")
 	c.Logger.Info("phase 3: ➡️ sending deal dkg data to all operators")
-	dkgResult, errs, err := c.SendKyberMsgs(id, kyberMsgs, operators)
+	dkgResult, errs, err := c.SendKyberMsgs(instanceID, kyberMsgs, operators)
 	if err != nil {
 		return nil, err
 	}
 	if err := checkThreshold(dkgResult, errs, operators, operators, len(operators)); err != nil {
 		return nil, err
 	}
-	err = verifyMessageSignatures(id, dkgResult, c.VerifyMessageSignature)
+	err = verifyMessageSignatures(instanceID, dkgResult, c.VerifyMessageSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -215,9 +215,13 @@ func (c *Initiator) initMessageFlowHandling(init *spec.Init, id [24]byte, operat
 
 func (c *Initiator) ResignMessageFlowHandling(signedResign *wire.SignedResign, id [24]byte, operators []*spec.Operator) ([][][]byte, error) {
 	// reqIDtracker is used to track if all ceremony are in the responses in the expected order
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
 	reqIDs := make([][24]byte, 0)
 	for _, msg := range signedResign.Messages {
-		msgID, err := utils.GetReqIDfromMsg(msg, id)
+		msgID, err := utils.GetInstanceIDfromMsg(msg, id, pub)
 		if err != nil {
 			return nil, err
 		}
@@ -269,10 +273,14 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 	if err != nil {
 		return nil, err
 	}
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
 	// reqIDtracker is used to track if all ceremony are in the responses in the expected order
 	reqIDs := make([][24]byte, 0)
 	for _, msg := range signedReshare.Messages {
-		msgID, err := utils.GetReqIDfromMsg(msg, id)
+		msgID, err := utils.GetInstanceIDfromMsg(msg, id, pub)
 		if err != nil {
 			return nil, err
 		}
@@ -383,20 +391,32 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		zap.Uint64("nonce", init.Nonce),
 		zap.Any("operator IDs", ids))
 	c.Logger = c.Logger.With(instanceIDField)
-	dkgResultsBytes, err := c.initMessageFlowHandling(init, id, ops)
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return c.CreateCeremonyResults(dkgResultsBytes, id, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount))
+	instanceID, err := utils.GetInstanceIDfromMsg(init, id, pub)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	dkgResultsBytes, err := c.initMessageFlowHandling(init, id, instanceID, ops)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return c.CreateCeremonyResults(dkgResultsBytes, instanceID, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount))
 }
 
 func (c *Initiator) StartResigning(id [24]byte, signedResign *wire.SignedResign) ([]*wire.DepositDataCLI, []*wire.KeySharesCLI, [][]*wire.SignedProof, error) {
 	if len(signedResign.Messages) == 0 {
 		return nil, nil, nil, errors.New("no resign messages")
 	}
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	resignIDMap := make(map[[24]byte]*spec.Resign)
 	for _, msg := range signedResign.Messages {
-		msgID, err := utils.GetReqIDfromMsg(msg, id)
+		msgID, err := utils.GetInstanceIDfromMsg(msg, id, pub)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -511,9 +531,13 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 	if len(signedReshare.Messages) == 0 {
 		return nil, nil, nil, errors.New("no reshare messages")
 	}
+	pub, err := spec_crypto.EncodeRSAPublicKey(&c.PrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	reshareIDMap := make(map[[24]byte]*spec.Reshare)
 	for _, msg := range signedReshare.Messages {
-		msgID, err := utils.GetReqIDfromMsg(msg, id)
+		msgID, err := utils.GetInstanceIDfromMsg(msg, id, pub)
 		if err != nil {
 			return nil, nil, nil, err
 		}

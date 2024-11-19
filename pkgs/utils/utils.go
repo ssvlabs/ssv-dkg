@@ -264,15 +264,16 @@ func GetMessageHash(msg interface{}) ([32]byte, error) {
 	return hash, nil
 }
 
-func GetReqIDfromMsg(instance interface{}, id [24]byte) ([24]byte, error) {
+func GetInstanceIDfromMsg(instance interface{}, id [24]byte, initiatorPub []byte) ([24]byte, error) {
 	// make a unique ID for each reshare using the instance hash
 	reqID := [24]byte{}
 	instanceHash, err := GetMessageHash(instance)
 	if err != nil {
 		return reqID, fmt.Errorf("failed to get reqID: %w", err)
 	}
-	copy(reqID[:12], id[:12])
-	copy(reqID[12:24], instanceHash[:12])
+	copy(reqID[:8], eth_crypto.Keccak256(initiatorPub)[:8])
+	copy(reqID[8:16], instanceHash[:8])
+	copy(reqID[16:24], id[:8])
 	return reqID, nil
 }
 

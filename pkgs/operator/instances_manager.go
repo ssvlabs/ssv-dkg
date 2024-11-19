@@ -107,16 +107,20 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 		return nil, fmt.Errorf("init: initiator signature isn't valid: %w", err)
 	}
 	s.Logger.Info("✅ init message signature is successfully verified", zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
-	if err := s.validateInstances(reqID); err != nil {
+	instanceID, err := utils.GetInstanceIDfromMsg(init, reqID, initiatorPub)
+	if err != nil {
 		return nil, err
 	}
-	inst, resp, err := s.CreateInstance(reqID, init.Operators, init, initiatorPubKey)
+	if err := s.validateInstances(instanceID); err != nil {
+		return nil, err
+	}
+	inst, resp, err := s.CreateInstance(instanceID, init.Operators, init, initiatorPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("init: failed to create instance: %w", err)
 	}
 	s.Mtx.Lock()
-	s.Instances[reqID] = inst
-	s.InstanceInitTime[reqID] = time.Now()
+	s.Instances[instanceID] = inst
+	s.InstanceInitTime[instanceID] = time.Now()
 	s.Mtx.Unlock()
 	return resp, nil
 }
@@ -286,7 +290,11 @@ func (s *Switch) validateInstances(reqID InstanceID) error {
 }
 
 func (s *Switch) runInstance(reqID [24]byte, instance interface{}, allOps []*spec.Operator, initiatorPubKey *rsa.PublicKey, operationType string) ([]byte, error) {
-	instanceID, err := utils.GetReqIDfromMsg(instance, reqID)
+	pub, err := spec_crypto.EncodeRSAPublicKey(initiatorPubKey)
+	if err != nil {
+		return nil, err
+	}
+	instanceID, err := utils.GetInstanceIDfromMsg(instance, reqID, pub)
 	if err != nil {
 		return nil, err
 	}
