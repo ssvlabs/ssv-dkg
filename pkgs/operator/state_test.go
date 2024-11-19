@@ -240,13 +240,15 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	require.NoError(t, err)
 	sig, err := spec_crypto.SignRSA(priv, tsssz)
 	require.NoError(t, err)
+	instanceID, err := utils.GetInstanceIDfromMsg(init, reqID, encPubKey)
+	require.NoError(t, err)
 	resp, err := swtch.InitInstance(reqID, initMessage, encPubKey, sig)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, swtch.cleanInstances(), 0)
 
 	require.Len(t, swtch.Instances, 1)
-	swtch.InstanceInitTime[reqID] = time.Now().Add(-time.Minute * 6)
+	swtch.InstanceInitTime[instanceID] = time.Now().Add(-time.Minute * 6)
 
 	require.Equal(t, swtch.cleanInstances(), 1)
 	require.Len(t, swtch.Instances, 0)

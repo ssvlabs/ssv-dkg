@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv/logging"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
@@ -18,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
@@ -468,7 +468,11 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 
 		exchangeMsgs, _, err := intr.SendInitMsg(id, init, ops)
 		require.NoError(t, err)
-		kyberMsgs, _, err := intr.SendExchangeMsgs(id, exchangeMsgs, ops)
+		pub, err := spec_crypto.EncodeRSAPublicKey(&intr.PrivateKey.PublicKey)
+		require.NoError(t, err)
+		instanceID, err := utils.GetInstanceIDfromMsg(init, id, pub)
+		require.NoError(t, err)
+		kyberMsgs, _, err := intr.SendExchangeMsgs(instanceID, exchangeMsgs, ops)
 		require.NoError(t, err)
 
 		tsp := &wire.SignedTransport{}
@@ -508,7 +512,7 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 
 		trsp := &wire.Transport{
 			Type:       wire.KyberMessageType,
-			Identifier: id,
+			Identifier: instanceID,
 			Data:       byts,
 			Version:    intr.Version,
 		}
@@ -519,19 +523,19 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		sign, err := srv1.Srv.State.Sign(bts)
 		require.NoError(t, err)
 
-		pub, err := spec_crypto.EncodeRSAPublicKey(&srv1.Srv.State.PrivateKey.PublicKey)
+		pubOp, err := spec_crypto.EncodeRSAPublicKey(&srv1.Srv.State.PrivateKey.PublicKey)
 		require.NoError(t, err)
 
 		signed := &wire.SignedTransport{
 			Message:   trsp,
-			Signer:    pub,
+			Signer:    pubOp,
 			Signature: sign,
 		}
 		final, err := signed.MarshalSSZ()
 		kyberMsgs[srv1.ID] = final
 		require.NoError(t, err)
 
-		dkgResult, errs, err := intr.SendKyberMsgs(id, kyberMsgs, ops)
+		dkgResult, errs, err := intr.SendKyberMsgs(instanceID, kyberMsgs, ops)
 		require.NoError(t, err)
 
 		for _, err := range errs {
@@ -542,7 +546,7 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 			finalResults = append(finalResults, res)
 		}
 
-		_, _, _, err = intr.CreateCeremonyResults(finalResults, id, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount))
+		_, _, _, err = intr.CreateCeremonyResults(finalResults, instanceID, init.Operators, init.WithdrawalCredentials, nil, init.Fork, init.Owner, init.Nonce, phase0.Gwei(init.Amount))
 		require.ErrorContains(t, err, "protocol failed with response complaints")
 	})
 
