@@ -703,6 +703,17 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type InitJSON struct {
+	Operators             []OperatorCLI `json:"operatorsInfo"`
+	Validators            uint64        `json:"validators"`
+	OperatorIDs           []uint64      `json:"operatorIDs"`
+	WithdrawalCredentials string        `json:"withdrawAddress"`
+	Network               string        `json:"network"`
+	Owner                 string        `json:"owner"`
+	Nonce                 uint64        `json:"nonce"`
+	Amount                uint64        `json:"amount"`
+}
+
 // TODO: duplicate from crypto. Resolve
 func ParseRSAPublicKey(pk []byte) (*rsa.PublicKey, error) {
 	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))

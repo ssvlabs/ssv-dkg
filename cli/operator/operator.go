@@ -54,7 +54,7 @@ var StartDKGOperator = &cobra.Command{
 		}
 		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", flags.Port))
 		if err := srv.Start(uint16(flags.Port), flags.ServerTLSCertPath, flags.ServerTLSKeyPath); err != nil {
-			log.Fatalf("Error in operator %v", err)
+			logger.Fatal("error starting server at operator", zap.Error(err))
 		}
 		return nil
 	},

@@ -88,18 +88,6 @@ func (c *Initiator) generateSSVKeysharesPayload(operators []*spec.Operator, dkgR
 	return ks, nil
 }
 
-func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySharesCLI, error) {
-	var data []*wire.Data
-	for _, keyShares := range keySharesArr {
-		data = append(data, keyShares.Shares...)
-	}
-	ks := &wire.KeySharesCLI{}
-	ks.Version = "v1.2.0"
-	ks.Shares = data
-	ks.CreatedAt = time.Now().UTC()
-	return ks, nil
-}
-
 // New creates a main initiator structure
 func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string, tlsInsecure bool) (*Initiator, error) {
 	client := req.C()
@@ -383,6 +371,9 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 		Owner:                 owner,
 		Nonce:                 nonce,
 		Amount:                amount,
+	}
+	if err := spec.ValidateInitMessage(init); err != nil {
+		return nil, nil, nil, err
 	}
 	c.Logger.Info("Outgoing init request fields",
 		zap.String("network", hex.EncodeToString(init.Fork[:])),

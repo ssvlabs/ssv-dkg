@@ -36,7 +36,7 @@ func SetOperatorFlags(cmd *cobra.Command) {
 	SetBaseFlags(cmd)
 	PrivateKeyFlag(cmd)
 	PrivateKeyPassFlag(cmd)
-	OperatorPortFlag(cmd)
+	SetPortFlag(cmd)
 	OperatorIDFlag(cmd)
 	SetServerTLSCertPath(cmd)
 	SetServerTLSKeyPath(cmd)
@@ -110,9 +110,9 @@ func PrivateKeyPassFlag(c *cobra.Command) {
 	AddPersistentStringFlag(c, privKeyPassword, "", "Password to decrypt initiator`s Private Key file", false)
 }
 
-// OperatorPortFlag  adds operator listening port flag to the command
-func OperatorPortFlag(c *cobra.Command) {
-	AddPersistentIntFlag(c, operatorPort, 3030, "Operator Private Key hex", false)
+// SetPortFlag  adds operator listening port flag to the command
+func SetPortFlag(c *cobra.Command) {
+	AddPersistentIntFlag(c, operatorPort, 3030, "Port to listen", false)
 }
 
 // OperatorIDFlag add operator ID flag to the command

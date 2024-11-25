@@ -1,0 +1,6 @@
+port: 8080
+outputPath: /data/initiator/output
+logLevel: info
+logFormat: json
+logLevelFormat: capitalColor
+logFilePath: /data/initiator/output/initiator_debug.log

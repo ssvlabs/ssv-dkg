@@ -23,7 +23,6 @@ import (
 
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
-	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
@@ -241,7 +240,7 @@ func WriteAggregatedInitResults(dir string, depositDataArr []*wire.DepositDataCL
 	}
 	keysharesFinalPath := fmt.Sprintf("%s/keyshares.json", dir)
 	logger.Info("💾 Writing keyshares payload to file", zap.String("path", keysharesFinalPath))
-	aggrKeySharesArr, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
+	aggrKeySharesArr, err := GenerateAggregatesKeyshares(keySharesArr)
 	if err != nil {
 		return err
 	}
@@ -412,4 +411,16 @@ func SetGlobalLogger(cmd *cobra.Command, name, logFilePath, logLevel, logFormat,
 	}
 	logger := zap.L().Named(name)
 	return logger, nil
+}
+
+func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySharesCLI, error) {
+	var data []*wire.Data
+	for _, keyShares := range keySharesArr {
+		data = append(data, keyShares.Shares...)
+	}
+	ks := &wire.KeySharesCLI{}
+	ks.Version = "v1.2.0"
+	ks.Shares = data
+	ks.CreatedAt = time.Now().UTC()
+	return ks, nil
 }

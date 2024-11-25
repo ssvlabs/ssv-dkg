@@ -60,6 +60,11 @@ func SetInitFlags(cmd *cobra.Command) {
 	SetTLSInsecureFlag(cmd)
 }
 
+func SetInitServerFlags(cmd *cobra.Command) {
+	SetBaseFlags(cmd)
+	SetPortFlag(cmd)
+}
+
 // BindInitiatorBaseFlags binds flags to yaml config parameters
 func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	var err error
@@ -169,6 +174,20 @@ func BindInitFlags(cmd *cobra.Command) error {
 	Validators = viper.GetUint("validators")
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
+	}
+	return nil
+}
+
+func BindInitServerFlags(cmd *cobra.Command) error {
+	if err := BindBaseFlags(cmd); err != nil {
+		return err
+	}
+	if err := viper.BindPFlag("port", cmd.PersistentFlags().Lookup("port")); err != nil {
+		return err
+	}
+	Port = viper.GetUint64("port")
+	if Port == 0 {
+		return fmt.Errorf("😥 Wrong port provided")
 	}
 	return nil
 }
