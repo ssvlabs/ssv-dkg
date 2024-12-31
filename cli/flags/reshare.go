@@ -107,11 +107,11 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Old operator IDs flag cannot be empty")
+		return fmt.Errorf("😥 old operator IDs flag cannot be empty")
 	}
 	NewOperatorIDs = viper.GetStringSlice("newOperatorIDs")
 	if len(NewOperatorIDs) == 0 {
-		return fmt.Errorf("😥 New operator IDs flag cannot be empty")
+		return fmt.Errorf("😥 new operator IDs flag cannot be empty")
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
 	if ProofsFilePath != "" {
@@ -119,34 +119,35 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	}
 	ProofsString = viper.GetString("proofsString")
 	if ProofsFilePath == "" && ProofsString == "" {
-		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+		return fmt.Errorf("😥 failed to get proofs from proofs string or path to proofs flag value")
 	}
 	if ProofsFilePath != "" && ProofsString != "" {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
-	if !filepath.IsLocal(ProofsFilePath) {
+	if ProofsFilePath != "" && !filepath.IsLocal(ProofsFilePath) {
+		fmt.Println(ProofsFilePath)
 		return fmt.Errorf("😥 wrong proofsFilePath flag, should be local")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
-		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
+		return fmt.Errorf("😥 failed to get withdrawal address flag value")
 	}
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 failed to parse withdraw address: %s", err.Error())
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
-		return fmt.Errorf("😥 Failed to get fork version flag value")
+		return fmt.Errorf("😥 failed to get fork version flag value")
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
+		return fmt.Errorf("😥 failed to get owner address flag value")
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 failed to parse owner address: %s", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")
@@ -166,7 +167,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	}
 	Signatures = viper.GetString("signatures")
 	if Signatures == "" {
-		return fmt.Errorf("😥 Failed to get --signatures flag value")
+		return fmt.Errorf("😥 failed to get --signatures flag value")
 	}
 	if err := viper.BindPFlag("clientCACertPath", cmd.PersistentFlags().Lookup("clientCACertPath")); err != nil {
 		return err

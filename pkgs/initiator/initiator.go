@@ -553,8 +553,8 @@ func (c *Initiator) StartResharing(id [24]byte, signedReshare *wire.SignedReshar
 	}
 	c.Logger.Info("🚀 Starting resharing ceremony", zap.Uint64s("old operator IDs", oldOperatorIDs), zap.Uint64s("new operator IDs", newOperatorIDs))
 	c.Logger.Info("Outgoing reshare request fields",
-		zap.Any("Old operator IDs", oldOperatorIDs),
-		zap.Any("New operator IDs", newOperatorIDs),
+		zap.Any("old operator IDs", oldOperatorIDs),
+		zap.Any("new operator IDs", newOperatorIDs),
 		zap.String("network", hex.EncodeToString(signedReshare.Messages[0].Reshare.Fork[:])),
 		zap.String("withdrawal", hex.EncodeToString(signedReshare.Messages[0].Reshare.WithdrawalCredentials)),
 		zap.String("owner", hex.EncodeToString(signedReshare.Messages[0].Reshare.Owner[:])),

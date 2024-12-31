@@ -223,8 +223,8 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			return nil, err
 		}
 		s.Logger.Info("Incoming reshare request fields",
-			zap.Any("Old operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.OldOperators)),
-			zap.Any("New operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.NewOperators)),
+			zap.Any("old operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.OldOperators)),
+			zap.Any("new operator IDs", utils.GetOpIDs(signedReshare.Messages[0].Reshare.NewOperators)),
 			zap.String("network", hex.EncodeToString(signedReshare.Messages[0].Reshare.Fork[:])),
 			zap.String("withdrawal", hex.EncodeToString(signedReshare.Messages[0].Reshare.WithdrawalCredentials)),
 			zap.String("owner", hex.EncodeToString(signedReshare.Messages[0].Reshare.Owner[:])),
