@@ -73,7 +73,7 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	}
 	OperatorIDs = viper.GetStringSlice("operatorIDs")
 	if len(OperatorIDs) == 0 {
-		return fmt.Errorf("😥 Operator IDs flag cant be empty")
+		return fmt.Errorf("😥 operator IDs flag cant be empty")
 	}
 	OperatorsInfoPath = viper.GetString("operatorsInfoPath")
 	if OperatorsInfoPath != "" {
@@ -91,12 +91,12 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	}
 	owner := viper.GetString("owner")
 	if owner == "" {
-		return fmt.Errorf("😥 Failed to get owner address flag value")
+		return fmt.Errorf("😥 failed to get owner address flag value")
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")
 	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
-		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
+		return fmt.Errorf("🚨 amount should be in range between 32 ETH and 2048 ETH")
 	}
 	ProofsFilePath = viper.GetString("proofsFilePath")
 	if ProofsFilePath != "" {
@@ -104,30 +104,30 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	}
 	ProofsString = viper.GetString("proofsString")
 	if ProofsFilePath == "" && ProofsString == "" {
-		return fmt.Errorf("😥 Failed to get proofs from proofs string or path to proofs flag value")
+		return fmt.Errorf("😥 failed to get proofs from proofs string or path to proofs flag value")
 	}
 	if ProofsFilePath != "" && ProofsString != "" {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
-	if !filepath.IsLocal(ProofsFilePath) {
+	if ProofsFilePath != "" && !filepath.IsLocal(ProofsFilePath) {
 		return fmt.Errorf("😥 wrong proofsFilePath flag, should be local")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
 	if withdrawAddr == "" {
-		return fmt.Errorf("😥 Failed to get withdrawal address flag value")
+		return fmt.Errorf("😥 failed to get withdrawal address flag value")
 	}
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 failed to parse withdraw address: %s", err.Error())
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
-		return fmt.Errorf("😥 Failed to get fork version flag value")
+		return fmt.Errorf("😥 failed to get fork version flag value")
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 failed to parse owner address: %s", err)
 	}
 	return nil
 }
