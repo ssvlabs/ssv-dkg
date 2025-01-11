@@ -24,7 +24,7 @@ import (
 )
 
 func TestBulkResignHappyFlows4Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
+			resignMsgBytes, err := os.ReadFile("./data/output/resign.txt")
 			require.NoError(t, err)
 
 			// sign resign message
@@ -122,14 +122,14 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		}
 	})
 	// remove resign message
-	err = os.Remove("./output/resign.txt")
+	err = os.Remove("./data/output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -140,7 +140,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -148,7 +148,7 @@ func TestBulkResignHappyFlows4Ops(t *testing.T) {
 }
 
 func TestBulkResignHappyFlows7Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
+			resignMsgBytes, err := os.ReadFile("./data/output/resign.txt")
 			require.NoError(t, err)
 
 			// sign resign message
@@ -246,14 +246,14 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		}
 	})
 	// remove resign message
-	err = os.Remove("./output/resign.txt")
+	err = os.Remove("./data/output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -264,7 +264,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -272,7 +272,7 @@ func TestBulkResignHappyFlows7Ops(t *testing.T) {
 }
 
 func TestBulkResignHappyFlows10Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -340,7 +340,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
+			resignMsgBytes, err := os.ReadFile("./data/output/resign.txt")
 			require.NoError(t, err)
 
 			// sign resign message
@@ -370,14 +370,14 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		}
 	})
 	// remove resign message
-	err = os.Remove("./output/resign.txt")
+	err = os.Remove("./data/output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -388,7 +388,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -396,7 +396,7 @@ func TestBulkResignHappyFlows10Ops(t *testing.T) {
 }
 
 func TestBulkResingHappyFlows13Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -464,7 +464,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load resign message
-			resignMsgBytes, err := os.ReadFile("./output/resign.txt")
+			resignMsgBytes, err := os.ReadFile("./data/output/resign.txt")
 			require.NoError(t, err)
 
 			// sign resign message
@@ -495,14 +495,14 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		}
 	})
 	// remove resign message
-	err = os.Remove("./output/resign.txt")
+	err = os.Remove("./data/output/resign.txt")
 	require.NoError(t, err)
 	// validate resign results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -513,7 +513,7 @@ func TestBulkResingHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()

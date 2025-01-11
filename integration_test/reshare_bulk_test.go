@@ -19,7 +19,7 @@ import (
 )
 
 func TestBulkReshareHappyFlows4Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -118,14 +118,14 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	reshareCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range reshareCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -136,7 +136,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -144,7 +144,7 @@ func TestBulkReshareHappyFlows4Ops(t *testing.T) {
 }
 
 func TestBulkReshareHappyFlows7Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -246,14 +246,14 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	reshareCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range reshareCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -264,7 +264,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -272,7 +272,7 @@ func TestBulkReshareHappyFlows7Ops(t *testing.T) {
 }
 
 func TestBulkReshareHappyFlows10Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -344,7 +344,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -375,14 +375,14 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	reshareCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range reshareCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -393,7 +393,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -401,7 +401,7 @@ func TestBulkReshareHappyFlows10Ops(t *testing.T) {
 }
 
 func TestBulkReshareHappyFlows13Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -473,7 +473,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -504,14 +504,14 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 		}
 	})
 	// remove resign message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	reshareCeremonies, err := os.ReadDir("./output")
+	reshareCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range reshareCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -522,7 +522,7 @@ func TestBulkReshareHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()

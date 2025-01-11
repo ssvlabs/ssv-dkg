@@ -19,7 +19,7 @@ import (
 )
 
 func TestReshareThresholdOldValidators4Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -123,14 +123,14 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -141,7 +141,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -149,7 +149,7 @@ func TestReshareThresholdOldValidators4Ops(t *testing.T) {
 }
 
 func TestReshareThresholdOldValidators7Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -253,14 +253,14 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -271,7 +271,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -279,7 +279,7 @@ func TestReshareThresholdOldValidators7Ops(t *testing.T) {
 }
 
 func TestReshareThresholdOldValidators10Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -385,14 +385,14 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -403,7 +403,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -411,7 +411,7 @@ func TestReshareThresholdOldValidators10Ops(t *testing.T) {
 }
 
 func TestReshareThresholdOldValidators13Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -487,7 +487,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -517,14 +517,14 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 		}
 	})
 	// remove reshare message
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -535,7 +535,7 @@ func TestReshareThresholdOldValidators13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()

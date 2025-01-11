@@ -19,7 +19,7 @@ import (
 )
 
 func TestReshareHappyFlows4Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -64,12 +64,12 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	})
 
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -82,11 +82,11 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	// re-share
 	t.Run("test 4 operators reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./data/output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./data/output/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./data/output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate reshare message for signing
@@ -105,7 +105,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -138,18 +138,18 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 	})
 	// remove init ceremonies
 	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
+		err = os.RemoveAll("./data/output/" + c.Name())
 		require.NoError(t, err)
 	}
 	// remove reshare file
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -159,7 +159,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -167,7 +167,7 @@ func TestReshareHappyFlows4Ops(t *testing.T) {
 }
 
 func TestReshareHappyFlows7Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -212,12 +212,12 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	})
 
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -230,11 +230,11 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	// re-share
 	t.Run("test 7 operators reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./data/output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./data/output/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./data/output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate reshare message for signing
@@ -253,7 +253,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -285,18 +285,18 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 	})
 	// remove init ceremonies
 	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
+		err = os.RemoveAll("./data/output/" + c.Name())
 		require.NoError(t, err)
 	}
 	// remove reshare file
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -306,7 +306,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -314,7 +314,7 @@ func TestReshareHappyFlows7Ops(t *testing.T) {
 }
 
 func TestReshareHappyFlows10Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -359,12 +359,12 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	})
 
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -377,11 +377,11 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	// re-share
 	t.Run("test 7 operators reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./data/output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./data/output/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./data/output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate reshare message for signing
@@ -400,7 +400,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -432,18 +432,18 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 	})
 	// remove init ceremonies
 	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
+		err = os.RemoveAll("./data/output/" + c.Name())
 		require.NoError(t, err)
 	}
 	// remove reshare file
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -453,7 +453,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -461,7 +461,7 @@ func TestReshareHappyFlows10Ops(t *testing.T) {
 }
 
 func TestReshareHappyFlows13Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -506,12 +506,12 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 	})
 
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -524,11 +524,11 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 	// re-share
 	t.Run("test 13 operators reshare", func(t *testing.T) {
 		for i, c := range initCeremonies {
-			proofsFilePath := "./output/" + c.Name() + "/proofs.json"
+			proofsFilePath := "./data/output/" + c.Name() + "/proofs.json"
 			if validators[i] == 1 {
-				ceremonyDir, err := os.ReadDir("./output/" + c.Name())
+				ceremonyDir, err := os.ReadDir("./data/output/" + c.Name())
 				require.NoError(t, err)
-				proofsFilePath = "./output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
+				proofsFilePath = "./data/output/" + c.Name() + "/" + ceremonyDir[0].Name() + "/proofs.json"
 			}
 
 			// generate reshare message for signing
@@ -547,7 +547,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 			resetFlags(RootCmd)
 
 			// load reshare message
-			reshareMsgBytes, err := os.ReadFile("./output/reshare.txt")
+			reshareMsgBytes, err := os.ReadFile("./data/output/reshare.txt")
 			require.NoError(t, err)
 
 			// sign reshare message
@@ -579,18 +579,18 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 	})
 	// remove init ceremonies
 	for _, c := range initCeremonies {
-		err = os.RemoveAll("./output/" + c.Name())
+		err = os.RemoveAll("./data/output/" + c.Name())
 		require.NoError(t, err)
 	}
 	// remove reshare file
-	err = os.Remove("./output/reshare.txt")
+	err = os.Remove("./data/output/reshare.txt")
 	require.NoError(t, err)
 	// validate reshare results
-	resignCeremonies, err := os.ReadDir("./output")
+	resignCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	for i, c := range resignCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9",
@@ -600,7 +600,7 @@ func TestReshareHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()

@@ -17,7 +17,7 @@ import (
 )
 
 func TestBulkHappyFlows4Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -89,12 +89,12 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	})
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
@@ -105,7 +105,7 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -113,7 +113,7 @@ func TestBulkHappyFlows4Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows7Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -184,12 +184,12 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	})
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
@@ -200,7 +200,7 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -208,7 +208,7 @@ func TestBulkHappyFlows7Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows10Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -279,12 +279,12 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	})
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
@@ -295,7 +295,7 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
@@ -303,7 +303,7 @@ func TestBulkHappyFlows10Ops(t *testing.T) {
 }
 
 func TestBulkHappyFlows13Ops(t *testing.T) {
-	err := os.RemoveAll("./output/")
+	err := os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	err = logging.SetGlobalLogger("info", "capital", "console", nil)
 	require.NoError(t, err)
@@ -374,12 +374,12 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		resetFlags(RootCmd)
 	})
 	// validate results
-	initCeremonies, err := os.ReadDir("./output")
+	initCeremonies, err := os.ReadDir("./data/output")
 	require.NoError(t, err)
 	validators := []int{1, 10, 100}
 	for i, c := range initCeremonies {
 		args := []string{"verify",
-			"--ceremonyDir", "./output/" + c.Name(),
+			"--ceremonyDir", "./data/output/" + c.Name(),
 			"--validators", strconv.Itoa(validators[i]),
 			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
 			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
@@ -390,7 +390,7 @@ func TestBulkHappyFlows13Ops(t *testing.T) {
 		require.NoError(t, err)
 		resetFlags(RootCmd)
 	}
-	err = os.RemoveAll("./output/")
+	err = os.RemoveAll("./data/output/")
 	require.NoError(t, err)
 	for _, srv := range servers {
 		srv.HttpSrv.Close()
