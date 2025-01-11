@@ -106,5 +106,5 @@ func ConfigPathFlag(c *cobra.Command) {
 
 // OutputPathFlag sets the path to store resulting files
 func OutputPathFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, outputPath, "./output", "Path to store results", false)
+	AddPersistentStringFlag(c, outputPath, "./data/output", "Path to store results", false)
 }
