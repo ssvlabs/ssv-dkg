@@ -195,7 +195,7 @@ func BindReshareFlags(cmd *cobra.Command) error {
 
 // newOperatorIDsFlag adds new operators IDs flag to the command
 func NewOperatorIDsFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{"1", "2", "3"}, "New operator IDs for resharing ceremony", false)
+	AddPersistentStringSliceFlag(c, newOperatorIDs, []string{}, "New operator IDs for resharing ceremony", false)
 }
 
 // ProofsFilePath add file path to proofs flag to the command
