@@ -125,7 +125,6 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("😥 proofs can be provided either as a string, or path to a file, not both")
 	}
 	if ProofsFilePath != "" && !filepath.IsLocal(ProofsFilePath) {
-		fmt.Println(ProofsFilePath)
 		return fmt.Errorf("😥 wrong proofsFilePath flag, should be local")
 	}
 	withdrawAddr := viper.GetString("withdrawAddress")
