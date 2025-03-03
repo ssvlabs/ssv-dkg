@@ -478,6 +478,12 @@ func (c *Initiator) CreateCeremonyResults(
 	c.Logger.Info("🏁 DKG ceremony completed, validating results...")
 	// only for resigning and resharing
 	if validatorPK != nil {
+		for _, result := range dkgResults {
+			c.Logger.Info("results",
+				zap.String("pub key from validatorPK", hex.EncodeToString(validatorPK)),
+				zap.String("pub key from proof", hex.EncodeToString(result.SignedProof.Proof.ValidatorPubKey)),
+			)
+		}
 		_, _, _, err = spec.ValidateResults(
 			ops,
 			withdrawalCredentials,
