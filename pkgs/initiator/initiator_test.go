@@ -11,7 +11,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv/logging"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -484,7 +484,7 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		require.NoError(t, err)
 
 		// decode deal bundle
-		d, err := wire.DecodeDealBundle(kyberMsg.Data, kyber_bls12381.NewBLS12381Suite().G1().(kyber_dkg.Suite))
+		d, err := wire.DecodeDealBundle(kyberMsg.Data, kyber_bls12381.NewSuiteBLS12381().G1().(kyber_dkg.Suite))
 		require.NoError(t, err)
 
 		// try to cheat

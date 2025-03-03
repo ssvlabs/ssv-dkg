@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
@@ -40,7 +40,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
-		Suite:              kyber_bls12381.NewBLS12381Suite(),
+		Suite:              kyber_bls12381.NewSuiteBLS12381(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
 		OperatorSecretKey:  s.PrivateKey,

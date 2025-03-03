@@ -8,8 +8,8 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	kyber_share "github.com/drand/kyber/share"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bdn"
@@ -756,7 +756,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		}
 		coefs = append(coefs, p)
 	}
-	suite := kyber_bls12381.NewBLS12381Suite()
+	suite := kyber_bls12381.NewSuiteBLS12381()
 	exp := kyber_share.NewPubPoly(suite.G1().(kyber_dkg.Suite), suite.G1().(kyber_dkg.Suite).Point().Base(), coefs)
 	bytsPK, err := exp.Commit().MarshalBinary()
 	if err != nil {

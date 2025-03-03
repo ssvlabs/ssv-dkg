@@ -15,7 +15,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/logging"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -347,7 +347,7 @@ var testKeyshares = []byte(`{
 func TestRecoverSharesData(t *testing.T) {
 	var ks *wire.KeySharesCLI
 	var keys []*rsa.PrivateKey
-	suite := kyber_bls12381.NewBLS12381Suite()
+	suite := kyber_bls12381.NewSuiteBLS12381()
 	err := json.Unmarshal(testKeyshares, &ks)
 	require.NoError(t, err)
 

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/kyber"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
@@ -77,7 +77,7 @@ func (s *Switch) getPublicCommitsAndSecretShare(reshareMsg *wire.ReshareMessage)
 			Commits: commits,
 			Share:   secretShare,
 		}
-		suite := kyber_bls12381.NewBLS12381Suite()
+		suite := kyber_bls12381.NewSuiteBLS12381()
 		valPK, err := crypto.ResultToValidatorPK(distKeyShare, suite.G1().(kyber_dkg.Suite))
 		if err != nil {
 			return nil, nil, err

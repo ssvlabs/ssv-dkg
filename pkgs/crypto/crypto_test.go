@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/drand/kyber"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	drand_bls "github.com/drand/kyber/sign/bdn"
@@ -22,7 +22,7 @@ import (
 func TestDKGFull(t *testing.T) {
 	n := 4
 	thr := n - 1
-	suite := kyber_bls12381.NewBLS12381Suite()
+	suite := kyber_bls12381.NewSuiteBLS12381()
 	tns := GenerateTestNodes(suite.G1().(dkg.Suite), n)
 	list := NodesFromTest(tns)
 	conf := dkg.Config{
@@ -86,7 +86,7 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 	require.True(t, public.Equal(expKey))
 
 	// Test Threshold Kyber message signing
-	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewBLS12381Suite())
+	scheme := tbls.NewThresholdSchemeOnG2(kyber_bls12381.NewSuiteBLS12381())
 
 	for _, x := range shares {
 		sig, err := scheme.Sign(x, []byte("Hello World!"))

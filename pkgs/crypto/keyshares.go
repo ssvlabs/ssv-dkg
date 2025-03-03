@@ -11,7 +11,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -133,7 +133,7 @@ func VerifyValidatorAtSharesData(ids []uint64, keyShares, expValPubKey []byte) e
 }
 
 func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedProof, threshold int) ([]kyber.Point, error) {
-	suite := kyber_bls12381.NewBLS12381Suite()
+	suite := kyber_bls12381.NewSuiteBLS12381()
 	// try to recover commits
 	var kyberPubShares []*share.PubShare
 	for i, proof := range proofs {
@@ -162,7 +162,7 @@ func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedPr
 }
 
 func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey, operatorID uint64) (*share.PriShare, error) {
-	suite := kyber_bls12381.NewBLS12381Suite()
+	suite := kyber_bls12381.NewSuiteBLS12381()
 	secret, err := decryptBLSKeyFromProof(proof, opPrivateKey)
 	if err != nil {
 		return nil, err

@@ -14,7 +14,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
-	kyber_bls12381 "github.com/drand/kyber-bls12381"
+	kyber_bls12381 "github.com/drand/kyber/pairing/circl_bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
@@ -1019,7 +1019,7 @@ func verifyMessageType(tsp *wire.SignedTransport, expectedType wire.TransportTyp
 				}
 				return fmt.Errorf("dkg protocol failed with response complaints: %v", bundle)
 			case wire.KyberJustificationBundleMessageType:
-				bundle, err := wire.DecodeJustificationBundle(kyberMsg.Data, kyber_bls12381.NewBLS12381Suite().G1().(kyber_dkg.Suite))
+				bundle, err := wire.DecodeJustificationBundle(kyberMsg.Data, kyber_bls12381.NewSuiteBLS12381().G1().(kyber_dkg.Suite))
 				if err != nil {
 					return err
 				}

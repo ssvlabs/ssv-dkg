@@ -9,7 +9,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
-	kyber_bls "github.com/drand/kyber-bls12381"
+	kyber_bls "github.com/drand/kyber/pairing/circl_bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	wire2 "github.com/ssvlabs/ssv-dkg/pkgs/wire"
@@ -94,7 +94,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 	return &LocalOwner{
 		Logger:    logger,
 		ID:        id,
-		Suite:     kyber_bls.NewBLS12381Suite(),
+		Suite:     kyber_bls.NewSuiteBLS12381(),
 		exchanges: make(map[uint64]*wire2.Exchange),
 		broadcastF: func(bytes []byte) error {
 			return ts.Broadcast(id, bytes)
