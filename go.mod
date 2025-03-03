@@ -19,6 +19,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/ssvlabs/dkg-spec v1.0.1-0.20250303141033-d1bf24b09a8c
+	github.com/ssvlabs/eth2-key-manager v1.5.1
 	github.com/stretchr/testify v1.10.0
 	github.com/wealdtech/go-eth2-util v1.8.2
 	go.uber.org/zap v1.24.0
@@ -57,7 +58,6 @@ require (
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/ssvlabs/eth2-key-manager v1.5.1 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
@@ -78,7 +78,6 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/bloxapp/eth2-key-manager v1.4.0
 	github.com/bloxapp/ssv v1.0.0-rc.2
 	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-chi/httprate v0.7.4

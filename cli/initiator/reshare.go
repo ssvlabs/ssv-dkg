@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/spf13/cobra"
+	e2m_core "github.com/ssvlabs/eth2-key-manager/core"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
