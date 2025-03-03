@@ -12,6 +12,7 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
+	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
 )
@@ -131,6 +132,8 @@ func ValidateSignedProofs(keyshare *wire.KeySharesCLI, proofs []*wire.SignedProo
 		if !bytes.Equal(sharePub, proofs[i].Proof.SharePubKey) {
 			return fmt.Errorf("encrypted share doesnt match it at proof")
 		}
+
+		fmt.Println("proofs", zap.String("pub key from keyshare", keyshare.Shares[0].ShareData.PublicKey), zap.String("pub key from valShares", hex.EncodeToString(valShares)), zap.String("pub key from proof", hex.EncodeToString(proofs[i].SignedProof.Proof.ValidatorPubKey)))
 		// validate proof
 		if err := spec.ValidateCeremonyProof(valShares, keyshare.Shares[0].ShareData.Operators[i], proofs[i].SignedProof); err != nil {
 			return err

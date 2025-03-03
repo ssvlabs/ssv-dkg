@@ -26,7 +26,7 @@ clean:
 # Recipe to compile the Go program
 build:
 	@echo "Building Go binary..."
-	go build -o $(BINARY_NAME) -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)`" ./cmd/ssv-dkg/ssv-dkg.go
+	go build -o $(BINARY_NAME) -ldflags "-X main.Version=v3.0.1" ./cmd/ssv-dkg/ssv-dkg.go
 
 # Recipe to run tests
 test:
