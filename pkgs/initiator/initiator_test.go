@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	e2m_core "github.com/bloxapp/eth2-key-manager/core"
 	"github.com/bloxapp/ssv/logging"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
+	e2m_core "github.com/ssvlabs/eth2-key-manager/core"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 

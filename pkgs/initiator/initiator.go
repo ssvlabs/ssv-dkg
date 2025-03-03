@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2_key_manager_core "github.com/bloxapp/eth2-key-manager/core"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/imroc/req/v3"
+	eth2_key_manager_core "github.com/ssvlabs/eth2-key-manager/core"
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
