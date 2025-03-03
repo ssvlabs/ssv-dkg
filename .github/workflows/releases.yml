@@ -1,0 +1,132 @@
+on:
+  push:
+    tags:
+      - 'v[0-9]+.*'
+
+jobs:
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag: ${{ github.ref_name }}
+    steps:
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: DKG ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  release_assets:
+    name: Release assets
+    needs: create_release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            execname: "ssv-dkg"
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            execname: "ssv-dkg"
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            execname: "ssv-dkg"
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            execname: "ssv-dkg"
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            execname: "ssv-dkg.exe"
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set ZIP Filename (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: echo "ZIP_NAME=ssvdkg-${{ needs.create_release.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip" >> $GITHUB_ENV
+
+      - name: Set ZIP Filename (Windows)
+        if: runner.os == 'Windows'
+        run: echo "ZIP_NAME=ssvdkg-${{ needs.create_release.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Install ARM64 Cross Compiler (Linux)
+        if: runner.os == 'Linux' && matrix.goarch == 'arm64'
+        run: |
+          sudo apt update
+          sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install ARM64 Cross Compiler (macOS)
+        if: runner.os == 'macOS' && matrix.goarch == 'arm64'
+        run: |
+          brew install llvm
+
+      - name: Install Dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install mingw --version=8.1.0
+
+      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p bin
+          if [ "${{ matrix.goarch }}" = "arm64" ]; then
+            export CC=aarch64-linux-gnu-gcc
+            export CXX=aarch64-linux-gnu-g++
+          fi
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ./bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+
+      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p bin
+          export CC=clang
+          export CXX=clang++
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ./bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+
+      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir bin
+          $env:CGO_ENABLED="1"
+          $env:GOOS="${{ matrix.goos }}"
+          $env:GOARCH="${{ matrix.goarch }}"
+          go build -o bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+
+      - name: Create ZIP archive (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          zip -r ./bin/${{ env.ZIP_NAME }} ./bin/${{ matrix.execname }}
+
+      - name: Create ZIP archive (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -Command "Compress-Archive -Path bin\${{ matrix.execname }} -DestinationPath bin\${{ env.ZIP_NAME }}"
+
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_name: ${{ env.ZIP_NAME }}
+          asset_path: ./bin/${{ env.ZIP_NAME }}
+          asset_content_type: application/octet-stream
