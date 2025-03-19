@@ -236,7 +236,7 @@ func AmountFlag(c *cobra.Command) {
 
 // NetworkFlag  adds the fork version of the network flag to the command
 func NetworkFlag(c *cobra.Command) {
-	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, holesky", false)
+	AddPersistentStringFlag(c, network, "mainnet", "Network name: mainnet, prater, sepolia, holesky, hoodi", false)
 }
 
 // ClientCACertPathFlag sets path to client CA certificates. For Ubuntu use `sudo apt install ca-certificates`

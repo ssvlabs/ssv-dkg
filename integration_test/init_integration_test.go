@@ -59,7 +59,7 @@ func TestInitOperatorsThreshold(t *testing.T) {
 	servers[0].HttpSrv.Close()
 	t.Run("test 4 operators init unhappy flow, 1 not reachable", func(t *testing.T) {
 		id := spec.NewID()
-		_, _, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		_, _, _, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "hoodi", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "some new operators returned errors, cant continue")
 	})
 	for _, srv := range servers {
