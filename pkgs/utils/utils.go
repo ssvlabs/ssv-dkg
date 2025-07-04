@@ -41,7 +41,12 @@ func WriteJSON(filePth string, data any) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			fmt.Printf("Failed to close file: %v", err)
+		}
+	}()
 	return json.NewEncoder(file).Encode(data)
 }
 

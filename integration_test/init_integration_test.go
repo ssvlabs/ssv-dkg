@@ -457,7 +457,7 @@ func testSharesData(ops wire.OperatorsCLI, operatorCount int, keys []*rsa.Privat
 		// Find operator ID by PubKey
 		var operatorID uint64
 		for _, op := range ops {
-			if bytes.Equal(priv.PublicKey.N.Bytes(), op.PubKey.N.Bytes()) {
+			if bytes.Equal(priv.N.Bytes(), op.PubKey.N.Bytes()) {
 				operatorID = op.ID
 				break
 			}

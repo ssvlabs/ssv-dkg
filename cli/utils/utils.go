@@ -93,7 +93,7 @@ func WriteResults(
 		return fmt.Errorf("expectedValidatorCount is 0")
 	}
 	if len(depositDataArr) != len(keySharesArr) || len(depositDataArr) != len(proofs) {
-		return fmt.Errorf("Incoming result arrays have inconsistent length")
+		return fmt.Errorf("incoming result arrays have inconsistent length")
 	}
 	if len(depositDataArr) == 0 {
 		return fmt.Errorf("no results to write")

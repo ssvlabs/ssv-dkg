@@ -47,7 +47,8 @@ func TestHealthCheck(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
-		w.Close()
+		err = w.Close()
+		require.NoError(t, err)
 		out, _ := io.ReadAll(r)
 		os.Stdout = rescueStdout
 		t.Log(string(out))
@@ -63,7 +64,8 @@ func TestHealthCheck(t *testing.T) {
 		RootCmd.SetArgs(args)
 		err := RootCmd.Execute()
 		require.NoError(t, err)
-		w.Close()
+		err = w.Close()
+		require.NoError(t, err)
 		out, _ := io.ReadAll(r)
 		os.Stdout = rescueStdout
 		t.Log(string(out))
