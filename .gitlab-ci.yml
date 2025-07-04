@@ -20,7 +20,7 @@ variables:
 # |     Prod      |
 # +---------------+
 Build prod Docker image:
-  image: docker:20.10.23
+  image: docker:20.10.23@sha256:a464827b7d394e266e51f76e58602296f2a60a26b7fae3d9d995df1d67690a32
   stage: build
   tags:
     - blox-infra-prod
