@@ -11,7 +11,7 @@ require (
 	github.com/drand/kyber-bls12381 v0.3.1
 	github.com/ethereum/go-ethereum v1.15.4
 	github.com/ferranbt/fastssz v0.1.4
-	github.com/go-chi/chi/v5 v5.0.10
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/httprate v0.7.4
 	github.com/hashicorp/go-version v1.6.0
 	github.com/herumi/bls-eth-go-binary v1.36.4
