@@ -456,11 +456,13 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		ops, err := initiator.ValidatedOperatorData(ids, intr.Operators)
 		require.NoError(t, err)
 		threshold := utils.GetThreshold(ids)
+		fork, err := e2m_core.NetworkFromString("mainnet")
+		require.NoError(t, err)
 		init := &spec.Init{
 			Operators:             ops,
 			T:                     uint64(threshold),
 			WithdrawalCredentials: withdraw.Bytes(),
-			Fork:                  e2m_core.NetworkFromString("mainnet").GenesisForkVersion(),
+			Fork:                  fork.GenesisForkVersion(),
 			Owner:                 owner,
 			Nonce:                 0,
 			Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
