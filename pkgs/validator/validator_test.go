@@ -91,7 +91,7 @@ func TestDepositDataJSON(t *testing.T) {
 		{
 			filename:                      "testdata/depositdata--invalid-fork.json",
 			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
-			expectedErr:                   "failed to get network by fork: unknown network",
+			expectedErr:                   "network not found for the given fork version",
 		},
 	}
 

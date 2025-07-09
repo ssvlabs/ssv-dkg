@@ -2,7 +2,7 @@ module github.com/ssvlabs/ssv-dkg
 
 go 1.24
 
-toolchain go1.24.0
+toolchain go1.24.5
 
 require (
 	github.com/aquasecurity/table v1.8.0
@@ -21,8 +21,8 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.16.0
-	github.com/ssvlabs/dkg-spec v1.0.2
-	github.com/ssvlabs/eth2-key-manager v1.5.3
+	github.com/ssvlabs/dkg-spec v1.0.3-0.20250709083546-e795d8f9f6a0
+	github.com/ssvlabs/eth2-key-manager v1.5.4
 	github.com/ssvlabs/ssv-spec v1.1.3
 	github.com/stretchr/testify v1.10.0
 	github.com/wealdtech/go-eth2-util v1.8.2
@@ -49,7 +49,6 @@ require (
 	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/goccy/go-yaml v1.15.23 // indirect

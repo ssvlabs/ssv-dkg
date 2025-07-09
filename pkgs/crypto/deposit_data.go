@@ -9,14 +9,14 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
-	"github.com/ssvlabs/eth2-key-manager/core"
+	e2m_core "github.com/ssvlabs/eth2-key-manager/core"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
+func BuildDepositDataCLI(network e2m_core.Network, depositData *phase0.DepositData, depositCLIVersion string) (*wire.DepositDataCLI, error) {
 	depositMsg := &phase0.DepositMessage{
 		WithdrawalCredentials: depositData.WithdrawalCredentials,
 		Amount:                depositData.Amount,
@@ -160,7 +160,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	if len(fork) != 4 {
 		return fmt.Errorf("fork version has wrong length")
 	}
-	network, err := spec_crypto.GetNetworkByFork([4]byte(fork))
+	network, err := e2m_core.NetworkFromForkVersion([4]byte(fork))
 	if err != nil {
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}

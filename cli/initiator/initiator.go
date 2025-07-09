@@ -63,9 +63,9 @@ var StartDKG = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operators: ", zap.Error(err))
 		}
-		ethNetwork := e2m_core.NetworkFromString(flags.Network)
-		if ethNetwork == "" {
-			logger.Fatal("😥 Cant recognize eth network")
+		ethNetwork, err := e2m_core.NetworkFromString(flags.Network)
+		if err != nil {
+			logger.Fatal("😥 Cant recognize eth network: ", zap.Error(err))
 		}
 		// start the ceremony
 		ctx := context.Background()

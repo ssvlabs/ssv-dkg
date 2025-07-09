@@ -597,7 +597,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := spec_crypto.GetNetworkByFork(fork)
+	network, err := eth2_key_manager_core.NetworkFromForkVersion(fork)
 	if err != nil {
 		return nil, nil, err
 	}
