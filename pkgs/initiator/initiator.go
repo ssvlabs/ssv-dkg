@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -332,9 +333,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 			return nil, err
 		}
 		// merge errors from init phase
-		for k, v := range initErrs {
-			errs[k] = v
-		}
+		maps.Copy(errs, initErrs)
 		// check that all new operators and threshold of old operators replied without errors
 		if err := checkThreshold(kyberMsgs, errs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil {
 			return nil, err
