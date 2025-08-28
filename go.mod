@@ -2,7 +2,7 @@ module github.com/ssvlabs/ssv-dkg
 
 go 1.24
 
-toolchain go1.24.0
+toolchain go1.25.0
 
 require (
 	github.com/aquasecurity/table v1.8.0
