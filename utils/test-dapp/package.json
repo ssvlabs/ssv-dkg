@@ -44,7 +44,7 @@
     "@metamask/eslint-config": "^6.0.0",
     "@metamask/eslint-config-nodejs": "^6.0.0",
     "@metamask/eth-sig-util": "^7.0.3",
-    "ethereum-cryptography": "^2.1.2",
+    "ethereum-cryptography": "^2.2.1",
     "@metamask/onboarding": "^1.0.0",
     "@metamask/sdk": "^0.27.0",
     "@openzeppelin/contracts": "4.9.6",
