@@ -6,7 +6,7 @@ toolchain go1.25.0
 
 require (
 	github.com/aquasecurity/table v1.8.0
-	github.com/attestantio/go-eth2-client v0.24.1
+	github.com/attestantio/go-eth2-client v0.27.0
 	github.com/drand/kyber v1.3.1
 	github.com/drand/kyber-bls12381 v0.3.3
 	github.com/ethereum/go-ethereum v1.15.4
@@ -22,7 +22,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.16.0
 	github.com/ssvlabs/dkg-spec v1.0.2
-	github.com/ssvlabs/eth2-key-manager v1.5.3
+	github.com/ssvlabs/eth2-key-manager v1.5.6
 	github.com/ssvlabs/ssv-spec v1.1.3
 	github.com/stretchr/testify v1.10.0
 	github.com/wealdtech/go-eth2-util v1.8.2
