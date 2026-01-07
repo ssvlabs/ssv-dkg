@@ -6,6 +6,8 @@ variables:
   #GLOBAL
   IMAGE_NAME: ssv-dkg
   DOCKER_BUILDKIT: 1
+  # Multi-architecture platforms
+  DOCKER_PLATFORMS: "linux/amd64,linux/arm64"
 
   #PRODUCTION
   ACCOUNT_ID_INFRA_PROD: 764289642555
@@ -20,19 +22,28 @@ variables:
 # |     Prod      |
 # +---------------+
 Build prod Docker image:
-  image: docker:20.10.23
+  image: docker:24-dind
   stage: build
   tags:
     - blox-infra-prod
-  script:
-    - apk add --no-cache py-pip
+  services:
+    - docker:24-dind
+  before_script:
+    - apk add --no-cache py-pip aws-cli
     - pip install pyyaml==5.3.1
-    - pip install awscli
-    - docker build -t $IMAGE_NAME:$CI_COMMIT_SHA -f Dockerfile .
-    - DOCKER_LOGIN_TO_INFRA_PROD_REPO=`$ECRLOGIN_INFRA_PROD`
-    - docker tag $IMAGE_NAME:$CI_COMMIT_SHA $DOCKER_REPO_INFRA_PROD:$CI_COMMIT_SHA
-    - $DOCKER_LOGIN_TO_INFRA_PROD_REPO && docker push $DOCKER_REPO_INFRA_PROD:$CI_COMMIT_SHA
-
+    # Setup buildx for multi-architecture builds
+    - docker buildx create --name multiarch-builder --use --bootstrap || docker buildx use multiarch-builder
+    # Login to ECR
+    - aws ecr get-login-password --region $AWS_REGION_INFRA_PROD | docker login --username AWS --password-stdin $ACCOUNT_ID_INFRA_PROD.dkr.ecr.$AWS_REGION_INFRA_PROD.amazonaws.com
+  script:
+    # Build and push multi-architecture image
+    - |
+      docker buildx build \
+        --platform $DOCKER_PLATFORMS \
+        -t $DOCKER_REPO_INFRA_PROD:$CI_COMMIT_SHA \
+        -t $DOCKER_REPO_INFRA_PROD:latest \
+        --push \
+        -f Dockerfile .
   only:
     - main
 
