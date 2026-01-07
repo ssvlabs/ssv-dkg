@@ -3,6 +3,7 @@ bin/
 .vscode/
 examples/*/output/*
 integration_test/output
+integration_test/data
 
 ######## Node
 # Logs
@@ -109,7 +110,6 @@ dist
 
 # vuepress v2.x temp and cache directory
 .temp
-.cache
 
 # Docusaurus cache and generated files
 .docusaurus
