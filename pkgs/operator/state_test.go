@@ -82,7 +82,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+		require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 	}
 
 	testParams := []struct {
@@ -284,7 +284,7 @@ func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
 
 	wrapper, ok := inst.(*instWrapper)
 	require.True(t, ok)
-	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+	require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 
 	// create multiple transport with wrong
 	exchMsg := wire.Exchange{
@@ -353,7 +353,7 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 
 	wrapper, ok := inst.(*instWrapper)
 	require.True(t, ok)
-	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+	require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 
 	// create multiple transport with wrong
 	exchMsg := wire.Exchange{
