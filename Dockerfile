@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     ./cmd/ssv-dkg
 
 # Final stage
-FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1  
+FROM alpine:3.22@sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2  
 WORKDIR /ssv-dkg
 
 # Install openssl
