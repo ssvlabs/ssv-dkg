@@ -106,9 +106,10 @@ func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []st
 	if tlsInsecure {
 		logger.Warn("Dangerous, not secure!!! No CA certificates provided at 'clientCACertPath'. TLS 'InsecureSkipVerify' is set to true, accepting any TLS certificates authorities.")
 		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}) //nolint:gosec // intentional for dev/testing
-	} else {
+	} else if len(certs) > 0 {
 		client.SetRootCertsFromFile(certs...)
 	}
+	// else: Go's default TLS config uses system CA bundle (works on all platforms)
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := spec_crypto.GenerateRSAKeys()
