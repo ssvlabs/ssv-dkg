@@ -21,6 +21,7 @@ import (
 const EthRPC string = "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz"
 
 func TestReshareBulkJSONPArsing(t *testing.T) {
+	t.Parallel()
 	reshareBytes, err := os.ReadFile(filepath.Clean("./stubs/reshare/bulk_reshare_msgs.json"))
 	require.NoError(t, err)
 	var bulkReshare wire.SignedBulkReshare
@@ -45,6 +46,7 @@ func TestReshareBulkJSONPArsing(t *testing.T) {
 }
 
 func TestResignBulkJSONPArsing(t *testing.T) {
+	t.Parallel()
 	bulkResignBytes, err := os.ReadFile(filepath.Clean("./stubs/resign/bulk_resign_msgs.json"))
 	require.NoError(t, err)
 	var signedBulkResign wire.SignedBulkResign
@@ -68,6 +70,7 @@ func TestResignBulkJSONPArsing(t *testing.T) {
 }
 
 func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
+	t.Parallel()
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
 		ethBackend, err := ethclient.Dial(EthRPC)
@@ -96,6 +99,7 @@ func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
 }
 
 func TestVerifyMultisigSignedOnChain(t *testing.T) {
+	t.Parallel()
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
 		ethBackend, err := ethclient.Dial(EthRPC)
@@ -123,6 +127,7 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 }
 
 func TestVerifyMultisigSignedOffChain(t *testing.T) {
+	t.Parallel()
 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x43908b5794da9A8f714f001567D8dA1523e68bDb")
 		ethBackend, err := ethclient.Dial(EthRPC)
@@ -151,6 +156,7 @@ func TestVerifyMultisigSignedOffChain(t *testing.T) {
 }
 
 func TestVerifyEOASigned(t *testing.T) {
+	t.Parallel()
 	t.Run("valid EOA signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9")
 		ethBackend, err := ethclient.Dial(EthRPC)
@@ -166,7 +172,7 @@ func TestVerifyEOASigned(t *testing.T) {
 		finalMsg = append(finalMsg, msgLen...)
 		finalMsg = append(finalMsg, msg...)
 		var hash [32]byte
-		keccak256 := eth_crypto.Keccak256([]byte(finalMsg))
+		keccak256 := eth_crypto.Keccak256(finalMsg)
 		copy(hash[:], keccak256)
 
 		t.Log("Hash :", hex.EncodeToString(hash[:]))

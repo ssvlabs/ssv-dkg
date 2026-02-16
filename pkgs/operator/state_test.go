@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -45,7 +43,7 @@ func generateOperatorsData(t *testing.T, numOps int) ([]*rsa.PrivateKey, []*spec
 		oppkbytes, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 		require.NoError(t, err)
 		ops = append(ops, &spec.Operator{
-			ID:     uint64(i),
+			ID:     uint64(i), //nolint:gosec // test values
 			PubKey: oppkbytes,
 		})
 	}
@@ -53,9 +51,7 @@ func generateOperatorsData(t *testing.T, numOps int) ([]*rsa.PrivateKey, []*spec
 }
 
 func TestCreateInstance(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("state-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("state-tests")
 	testCreateInstance := func(t *testing.T, numOps int) {
 		privateKey, ops := generateOperatorsData(t, numOps)
 		tempDir, err := os.MkdirTemp("", "dkg")
@@ -64,9 +60,7 @@ func TestCreateInstance(t *testing.T) {
 		require.NoError(t, err)
 		var reqID [24]byte
 		copy(reqID[:], "testRequestID1234567890") // Just a sample value
-		_, pv, err := rsaencryption.GenerateKeys()
-		require.NoError(t, err)
-		priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+		priv, _, err := spec_crypto.GenerateRSAKeys()
 		require.NoError(t, err)
 		init := &spec.Init{
 			Operators: ops,
@@ -82,7 +76,7 @@ func TestCreateInstance(t *testing.T) {
 
 		wrapper, ok := inst.(*instWrapper)
 		require.True(t, ok)
-		require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+		require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 	}
 
 	testParams := []struct {
@@ -101,11 +95,8 @@ func TestCreateInstance(t *testing.T) {
 }
 
 func TestInitInstance(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("state-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 4)
-	require.NoError(t, err)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
 	swtch, err := New(privateKey[0], logger, []byte("test.version"), 1, tempDir, "http://ethnode:8545")
@@ -113,9 +104,7 @@ func TestInitInstance(t *testing.T) {
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
 
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	priv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	encPubKey, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
@@ -167,7 +156,7 @@ func TestInitInstance(t *testing.T) {
 				return nil, err
 			}
 			if err != nil {
-				return nil, fmt.Errorf("init: failed to create instance: %s", err.Error())
+				return nil, fmt.Errorf("init: create instance: %w", err)
 			}
 			swtch.State.Mtx.Lock()
 			swtch.State.Instances[reqID] = &instWrapper{&dkg.LocalOwner{}, initiatorPubKey, make(chan []byte, 1)}
@@ -195,9 +184,7 @@ func TestInitInstance(t *testing.T) {
 
 func TestSwitch_cleanInstances(t *testing.T) {
 	privateKey, ops := generateOperatorsData(t, 4)
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("state-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("state-tests")
 	operatorPubKey := privateKey[0].Public().(*rsa.PublicKey)
 	pkBytes, err := spec_crypto.EncodeRSAPublicKey(operatorPubKey)
 	require.NoError(t, err)
@@ -209,9 +196,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 	swtch := NewSwitch(privateKey[0], logger, []byte("test.version"), pkBytes, 1, stubClient)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	priv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	encPubKey, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
@@ -256,9 +241,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 }
 
 func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("state-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 12)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
@@ -266,9 +249,7 @@ func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
 	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	priv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	init := &spec.Init{
 		Operators: ops,
@@ -284,7 +265,7 @@ func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
 
 	wrapper, ok := inst.(*instWrapper)
 	require.True(t, ok)
-	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+	require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 
 	// create multiple transport with wrong
 	exchMsg := wire.Exchange{
@@ -318,9 +299,7 @@ func TestCrashByMaliciousOperatorAtInit(t *testing.T) {
 }
 
 func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("state-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("state-tests")
 	privateKey, ops := generateOperatorsData(t, 12)
 	tempDir, err := os.MkdirTemp("", "dkg")
 	require.NoError(t, err)
@@ -328,9 +307,7 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 	require.NoError(t, err)
 	var reqID [24]byte
 	copy(reqID[:], "testRequestID1234567890") // Just a sample value
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	priv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	signedProofs, err := wire.LoadProofs("../../integration_test/stubs/bulk/4/ceremony-2024-10-21--09-56-54.375/000001-0x801bca4e379a2e240ed004acbe8f905a0a43f3322faa251fbb9c8d4d49af8ba9c669e930ea7caa234cb7d537d600e9ee/proofs.json")
 	require.NoError(t, err)
@@ -353,7 +330,7 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 
 	wrapper, ok := inst.(*instWrapper)
 	require.True(t, ok)
-	require.True(t, wrapper.LocalOwner.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
+	require.True(t, wrapper.OperatorSecretKey.PublicKey.Equal(&privateKey[0].PublicKey))
 
 	// create multiple transport with wrong
 	exchMsg := wire.Exchange{

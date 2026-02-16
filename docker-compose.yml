@@ -1,9 +1,27 @@
-version: "3"
+x-operator: &operator
+  build: .
+  image: ssv-dkg:latest
+  networks:
+    - shared_network
+  restart: unless-stopped
+  environment: &operator-env
+    CA: /ssv-dkg/data/initiator/rootCA.crt
+    CAkey: /ssv-dkg/data/initiator/rootCA.key
+  volumes:
+    - ./examples:/ssv-dkg/data
+  healthcheck:
+    test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://localhost:3030/health_check"]
+    interval: 5s
+    timeout: 3s
+    retries: 3
+    start_period: 10s
+
 services:
   ethnode:
     image: ethereum/client-go:stable
     networks:
       - shared_network
+    restart: unless-stopped
     ports:
       - "8545:8545"
       - "30303:30303"
@@ -18,299 +36,192 @@ services:
         "8545",
         "--http.vhosts=*",
       ]
+
   operator1:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3030:3030"
     environment:
-      - CN=operator1
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator1.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator1
+    command: ["start-operator", "--configPath", "./data/config/operator1.example.yaml"]
 
   operator2:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3031:3030"
     environment:
-      - CN=operator2
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator2.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator2
+    command: ["start-operator", "--configPath", "./data/config/operator2.example.yaml"]
 
   operator3:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3032:3030"
     environment:
-      - CN=operator3
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator3.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator3
+    command: ["start-operator", "--configPath", "./data/config/operator3.example.yaml"]
 
   operator4:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3033:3030"
     environment:
-      - CN=operator4
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator4.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator4
+    command: ["start-operator", "--configPath", "./data/config/operator4.example.yaml"]
 
   operator5:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3034:3030"
     environment:
-      - CN=operator5
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator5.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator5
+    command: ["start-operator", "--configPath", "./data/config/operator5.example.yaml"]
 
   operator6:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3035:3030"
     environment:
-      - CN=operator6
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator6.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator6
+    command: ["start-operator", "--configPath", "./data/config/operator6.example.yaml"]
 
   operator7:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3036:3030"
     environment:
-      - CN=operator7
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator7.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator7
+    command: ["start-operator", "--configPath", "./data/config/operator7.example.yaml"]
 
   operator8:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3037:3030"
     environment:
-      - CN=operator8
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator8.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator8
+    command: ["start-operator", "--configPath", "./data/config/operator8.example.yaml"]
 
   operator9:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3038:3030"
     environment:
-      - CN=operator9
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      ["start-operator", "--configPath", "./data/config/operator9.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator9
+    command: ["start-operator", "--configPath", "./data/config/operator9.example.yaml"]
 
   operator10:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3039:3030"
     environment:
-      - CN=operator10
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      [
-        "start-operator",
-        "--configPath",
-        "./data/config/operator10.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator10
+    command: ["start-operator", "--configPath", "./data/config/operator10.example.yaml"]
 
   operator11:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3041:3030"
     environment:
-      - CN=operator11
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      [
-        "start-operator",
-        "--configPath",
-        "./data/config/operator11.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator11
+    command: ["start-operator", "--configPath", "./data/config/operator11.example.yaml"]
 
   operator12:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3042:3030"
     environment:
-      - CN=operator12
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      [
-        "start-operator",
-        "--configPath",
-        "./data/config/operator12.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator12
+    command: ["start-operator", "--configPath", "./data/config/operator12.example.yaml"]
 
   operator13:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
     ports:
       - "3043:3030"
     environment:
-      - CN=operator13
-      - CA=/ssv-dkg/data/initiator/rootCA.crt
-      - CAkey=/ssv-dkg/data/initiator/rootCA.key
-    command:
-      [
-        "start-operator",
-        "--configPath",
-        "./data/config/operator13.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+      <<: *operator-env
+      CN: operator13
+    command: ["start-operator", "--configPath", "./data/config/operator13.example.yaml"]
 
   initiator:
-    image: ssv-dkg:latest
+    <<: *operator
     depends_on:
-      - operator1
-      - operator2
-      - operator3
-      - operator4
-    networks:
-      - shared_network
+      operator1:
+        condition: service_healthy
+      operator2:
+        condition: service_healthy
+      operator3:
+        condition: service_healthy
+      operator4:
+        condition: service_healthy
     command: ["init", "--configPath", "./data/config/initiator.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
 
   generate-resign-msg:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
-    command:
-      [
-        "generate-resign-msg",
-        "--configPath",
-        "./data/config/resign.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+    <<: *operator
+    restart: "no"
+    command: ["generate-resign-msg", "--configPath", "./data/config/resign.example.yaml"]
 
   resign:
-    image: ssv-dkg:latest
+    <<: *operator
     depends_on:
-      - operator1
-      - operator2
-      - operator3
-      - operator4
-    networks:
-      - shared_network
+      operator1:
+        condition: service_healthy
+      operator2:
+        condition: service_healthy
+      operator3:
+        condition: service_healthy
+      operator4:
+        condition: service_healthy
     command: ["resign", "--configPath", "./data/config/resign.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
 
   generate-reshare-msg:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
-    command:
-      [
-        "generate-reshare-msg",
-        "--configPath",
-        "./data/config/reshare.example.yaml",
-      ]
-    volumes:
-      - ./examples:/ssv-dkg/data
+    <<: *operator
+    restart: "no"
+    command: ["generate-reshare-msg", "--configPath", "./data/config/reshare.example.yaml"]
 
   reshare:
-    image: ssv-dkg:latest
+    <<: *operator
     depends_on:
-      - ethnode
-      - operator1
-      - operator2
-      - operator3
-      - operator4
-      - operator5
-      - operator6
-      - operator7
-      - operator8
-    networks:
-      - shared_network
+      ethnode:
+        condition: service_started
+      operator1:
+        condition: service_healthy
+      operator2:
+        condition: service_healthy
+      operator3:
+        condition: service_healthy
+      operator4:
+        condition: service_healthy
+      operator5:
+        condition: service_healthy
+      operator6:
+        condition: service_healthy
+      operator7:
+        condition: service_healthy
+      operator8:
+        condition: service_healthy
     command: ["reshare", "--configPath", "./data/config/reshare.example.yaml"]
-    volumes:
-      - ./examples:/ssv-dkg/data
 
   ping:
-    image: ssv-dkg:latest
-    networks:
-      - shared_network
+    <<: *operator
+    restart: "no"
     command:
       [
         "ping",
         "--ip",
         "https://operator9:3030,https://operator10:3030,https://operator11:3030,https://operator12:3030,https://operator13:3030",
       ]
-    volumes:
-      - ./examples:/ssv-dkg/data
 
 networks:
   shared_network:

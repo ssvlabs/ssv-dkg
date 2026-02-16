@@ -41,7 +41,7 @@ func WriteJSON(filePth string, data any) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return json.NewEncoder(file).Encode(data)
 }
 
@@ -283,7 +283,7 @@ func FlattenReponseMsgs(responses [][]byte) []byte {
 	for _, response := range responses {
 		// in front of each response there is a prefix that stores the length of the response
 		prefix := make([]byte, 4)
-		binary.BigEndian.PutUint32(prefix, uint32(len(response)))
+		binary.BigEndian.PutUint32(prefix, uint32(len(response))) //nolint:gosec // DKG messages are well under 4GB
 		buffer.Write(prefix)
 		buffer.Write(response)
 	}

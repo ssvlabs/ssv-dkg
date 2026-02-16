@@ -102,7 +102,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 		return fmt.Errorf("resulting deposit data json has wrong format")
 	}
 	// check type of values
-	if reflect.TypeOf(d.PubKey).String() != "string" ||
+	if reflect.TypeOf(d.PubKey).String() != "string" || //nolint:goconst
 		reflect.TypeOf(d.WithdrawalCredentials).String() != "string" ||
 		reflect.TypeOf(d.Amount).String() != "uint64" ||
 		reflect.TypeOf(d.Signature).String() != "string" ||

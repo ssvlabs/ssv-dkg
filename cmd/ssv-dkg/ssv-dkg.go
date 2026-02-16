@@ -1,17 +1,17 @@
 package main
 
-import (
-	"github.com/ssvlabs/ssv-dkg/cli"
-)
+import "github.com/ssvlabs/ssv-dkg/cli"
 
-var (
-	// AppName is the application name
-	AppName = "ssv-dkg"
+// Version is the app version, set via -ldflags at build time.
+var Version = "dev"
 
-	// Version is the app version
-	Version = "latest"
-)
+// BuildTime is the UTC timestamp of the build, set via -ldflags at build time.
+var BuildTime = "unknown"
 
 func main() {
-	cli.Execute(AppName, Version)
+	version := Version
+	if BuildTime != "unknown" {
+		version += " (built " + BuildTime + ")"
+	}
+	cli.Execute("ssv-dkg", version)
 }

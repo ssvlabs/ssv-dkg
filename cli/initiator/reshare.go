@@ -185,7 +185,7 @@ var StartReshare = &cobra.Command{
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
 			nonce := flags.Nonce + uint64(i)
-			// Contruct the reshare message
+			// Construct the reshare message
 			rMsg, err := dkgInitiator.ConstructReshareMessage(
 				oldOperatorIDs,
 				newOperatorIDs,

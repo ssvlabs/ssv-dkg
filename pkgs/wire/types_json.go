@@ -3,12 +3,8 @@ package wire
 import (
 	"bytes"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -16,6 +12,7 @@ import (
 	"strings"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 // Proof for a DKG ceremony
@@ -703,41 +700,11 @@ func (r *ReshareMessage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TODO: duplicate from crypto. Resolve
-func ParseRSAPublicKey(pk []byte) (*rsa.PublicKey, error) {
-	operatorKeyByte, err := base64.StdEncoding.DecodeString(string(pk))
-	if err != nil {
-		return nil, err
-	}
-	pemblock, _ := pem.Decode(operatorKeyByte)
-	if pemblock == nil {
-		return nil, errors.New("decode PEM block")
-	}
-	pbkey, err := x509.ParsePKIXPublicKey(pemblock.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	return pbkey.(*rsa.PublicKey), nil
-}
+// ParseRSAPublicKey delegates to dkg-spec/crypto.
+var ParseRSAPublicKey = spec_crypto.ParseRSAPublicKey
 
-// TODO: duplicate from crypto. Resolve
-func EncodeRSAPublicKey(pk *rsa.PublicKey) ([]byte, error) {
-	pkBytes, err := x509.MarshalPKIXPublicKey(pk)
-	if err != nil {
-		return nil, err
-	}
-	pemByte := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PUBLIC KEY",
-			Bytes: pkBytes,
-		},
-	)
-	if pemByte == nil {
-		return nil, fmt.Errorf("failed to encode pub key to pem")
-	}
-
-	return []byte(base64.StdEncoding.EncodeToString(pemByte)), nil
-}
+// EncodeRSAPublicKey delegates to dkg-spec/crypto.
+var EncodeRSAPublicKey = spec_crypto.EncodeRSAPublicKey
 
 func LoadJSONFile(file string, v interface{}) error {
 	data, err := os.ReadFile(filepath.Clean(file))

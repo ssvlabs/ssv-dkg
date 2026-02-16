@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv/logging"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum"
@@ -60,9 +59,7 @@ var jsonStr = []byte(`[
 ]`)
 
 func TestStartDKG(t *testing.T) {
-	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("operator-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -423,9 +420,7 @@ func must[T any](v T, err error) T {
 }
 
 func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
-	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("operator-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -458,7 +453,7 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		threshold := utils.GetThreshold(ids)
 		init := &spec.Init{
 			Operators:             ops,
-			T:                     uint64(threshold),
+			T:                     uint64(threshold), //nolint:gosec // threshold is always a small positive int
 			WithdrawalCredentials: withdraw.Bytes(),
 			Fork:                  e2m_core.NetworkFromString("mainnet").GenesisForkVersion(),
 			Owner:                 owner,

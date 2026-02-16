@@ -191,11 +191,11 @@ Due to Windows operating system's [limitation](https://learn.microsoft.com/en-us
 
 #### Build from source
 
-To build from source you'll need to have Go version 1.20 installed on your system
+To build from source you'll need to have Go version 1.25 installed on your system
 
 ##### Build
 
-A prerequisite for this is to have `go` version 1.20 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
+A prerequisite for this is to have `go` version 1.25 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
 
 ```sh
 make install
@@ -422,11 +422,11 @@ You can, of course, change the configuration above to one that suits you better,
 
 #### Build from source
 
-To build from source you'll need to have Go version 1.20 installed on your system
+To build from source you'll need to have Go version 1.25 installed on your system
 
 ##### Build
 
-A prerequisite for this is to have `go` version 1.20 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
+A prerequisite for this is to have `go` version 1.25 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
 
 ```sh
 make install

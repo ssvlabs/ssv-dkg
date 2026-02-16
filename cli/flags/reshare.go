@@ -134,7 +134,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -146,7 +146,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")

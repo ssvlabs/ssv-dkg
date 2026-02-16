@@ -15,7 +15,7 @@ import (
 // DecryptRSAKeystore reads an encrypted RSA private key using the given password.
 func DecryptRSAKeystore(keyData []byte, password string) (*rsa.PrivateKey, error) {
 	if strings.TrimSpace(password) == "" {
-		return nil, errors.New("Password required for encrypted PEM block")
+		return nil, errors.New("password required for encrypted PEM block")
 	}
 
 	// Unmarshal the JSON-encoded data
