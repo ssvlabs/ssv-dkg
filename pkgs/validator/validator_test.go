@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
@@ -70,28 +71,28 @@ func TestKeysharesJSON(t *testing.T) {
 func TestDepositDataJSON(t *testing.T) {
 	tests := []struct {
 		filename                      string
-		expectedWithdrawalCredentials common.Address
+		expectedWithdrawalCredentials []byte
 		expectedErr                   string
 	}{
 		{
 			filename:                      "testdata/depositdata--valid.json",
-			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
 			expectedErr:                   "",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-pubkey.json",
-			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
 			expectedErr:                   "err blsPublicKeyDeserialize",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-signature.json",
-			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
 			expectedErr:                   "err blsSignatureDeserialize",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-fork.json",
-			expectedWithdrawalCredentials: common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494"),
-			expectedErr:                   "failed to get network by fork: unknown network",
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
+			expectedErr:                   "failed to get network by fork: network not found for the given fork version",
 		},
 	}
 

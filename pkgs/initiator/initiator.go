@@ -368,10 +368,9 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 	return finalResults, nil
 }
 
-// StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
-	if len(withdraw) != len(common.Address{}) {
-		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
+func (c *Initiator) StartDKG(id [24]byte, withdrawCreds []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
+	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
+		return nil, nil, nil, err
 	}
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
@@ -385,7 +384,7 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	init := &spec.Init{
 		Operators:             ops,
 		T:                     uint64(threshold), //nolint:gosec // threshold is always small (max 9)
-		WithdrawalCredentials: withdraw,
+		WithdrawalCredentials: withdrawCreds,
 		Fork:                  network.GenesisForkVersion(),
 		Owner:                 owner,
 		Nonce:                 nonce,
@@ -497,7 +496,7 @@ func (c *Initiator) CreateCeremonyResults(
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
-	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdrawalCredentials)); err != nil {
+	if err := crypto.ValidateDepositDataCLI(depositDataJson, withdrawalCredentials); err != nil {
 		return nil, nil, nil, err
 	}
 	if err := crypto.ValidateKeysharesCLI(keyshares, ops, ownerAddress, nonce, depositDataJson.PubKey); err != nil {
@@ -597,7 +596,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := spec_crypto.GetNetworkByFork(fork)
+	network, err := eth2_key_manager_core.NetworkFromForkVersion(fork)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -835,6 +834,9 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 }
 
 func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
+	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
+		return nil, err
+	}
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 proofs are empty")
 	}
@@ -878,6 +880,9 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 }
 
 func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
+	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
+		return nil, err
+	}
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}

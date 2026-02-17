@@ -140,7 +140,7 @@ func TestDKGInit(t *testing.T) {
 	init := &spec.Init{
 		Operators:             opsarr,
 		T:                     3,
-		WithdrawalCredentials: []byte("0x0000"),
+		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x1234").Bytes()),
 		Fork:                  [4]byte{0, 0, 0, 0},
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),

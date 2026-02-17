@@ -44,7 +44,7 @@ func runBulkInit(t *testing.T, ops wire.OperatorsCLI, opIDs []uint64, owner, wit
 				return nil, err
 			}
 			id := spec.NewID()
-			depositData, ks, proofs, err := clnt.StartDKG(id, withdraw[:], opIDs, "mainnet", owner, uint64(1+i), uint64(spec_crypto.MIN_ACTIVATION_BALANCE)) //nolint:gosec // test values
+			depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), opIDs, "mainnet", owner, uint64(1+i), uint64(spec_crypto.MIN_ACTIVATION_BALANCE)) //nolint:gosec // test values
 			if err != nil {
 				return nil, err
 			}
