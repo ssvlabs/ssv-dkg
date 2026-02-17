@@ -216,10 +216,10 @@ func (s *Switch) SaveResultData(incMsg *wire.SignedTransport, outputPath string)
 	if err != nil {
 		return fmt.Errorf("failed to decode withdrawal credentials: %w", err)
 	}
-	withdrawPrefix, withdrawAddress := crypto.ParseWithdrawalCredentials(withdrawCreds)
-	if withdrawPrefix != spec_crypto.ETH1WithdrawalPrefixByte {
-		return fmt.Errorf("invalid withdrawal prefix: %x", withdrawPrefix)
+	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
+		return fmt.Errorf("invalid withdrawal credentials: %w", err)
 	}
+	_, withdrawAddress := crypto.ParseWithdrawalCredentials(withdrawCreds)
 	if len(keySharesArr) == 0 || len(keySharesArr[0].Shares) == 0 {
 		return fmt.Errorf("empty keyshares result")
 	}

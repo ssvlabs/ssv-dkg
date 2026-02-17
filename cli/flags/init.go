@@ -28,6 +28,7 @@ const (
 	validators        = "validators"
 	clientCACertPath  = "clientCACertPath"
 	tlsInsecure       = "tlsInsecure"
+	compounding       = "compounding"
 )
 
 // init flags
@@ -43,6 +44,7 @@ var (
 	Validators        uint
 	ClientCACertPath  []string
 	TLSInsecure       bool
+	Compounding       bool
 )
 
 func SetInitFlags(cmd *cobra.Command) {
@@ -58,6 +60,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	ValidatorsFlag(cmd)
 	ClientCACertPathFlag(cmd)
 	SetTLSInsecureFlag(cmd)
+	CompoundingFlag(cmd)
 }
 
 // BindInitiatorBaseFlags binds flags to yaml config parameters
@@ -166,6 +169,10 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
+	if err := viper.BindPFlag(compounding, cmd.PersistentFlags().Lookup(compounding)); err != nil {
+		return err
+	}
+	Compounding = viper.GetBool(compounding)
 	return nil
 }
 
@@ -248,4 +255,18 @@ func ValidatorsFlag(c *cobra.Command) {
 // SetTLSInsecureFlag add signatures flag to the command
 func SetTLSInsecureFlag(c *cobra.Command) {
 	AddPersistentBoolFlag(c, tlsInsecure, false, "TLS 'InsecureSkipVerify' option. If true, allow any TLS certs to accept", false)
+}
+
+// CompoundingFlag adds a compounding flag to the command
+func CompoundingFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, compounding, false, "Use 0x02 compounding withdrawal credentials instead of 0x01", false)
+}
+
+// WithdrawalCredentials returns 32-byte withdrawal credentials based on the --compounding flag.
+func WithdrawalCredentials() []byte {
+	prefix := spec_crypto.ETH1WithdrawalPrefix
+	if Compounding {
+		prefix = spec_crypto.CompoundingWithdrawalPrefix
+	}
+	return spec_crypto.WithdrawalCredentials(prefix, WithdrawAddress.Bytes())
 }

@@ -81,7 +81,7 @@ func TestBulkReshareHappyFlows(t *testing.T) {
 				require.NoError(t, err)
 				rMsg, err := clnt.ConstructReshareMessage(
 					tc.oldIDs, tc.newIDs,
-					signedProofs[0][0].Proof.ValidatorPubKey, "mainnet", env.withdraw.Bytes(),
+					signedProofs[0][0].Proof.ValidatorPubKey, "mainnet", eth1Creds(env.withdraw),
 					env.owner, 10, tc.amount, signedProofs[0],
 				)
 				require.NoError(t, err)

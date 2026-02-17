@@ -32,7 +32,7 @@ func TestReshareHappyFlows(t *testing.T) {
 			clnt, err := initiator.New(env.ops.Clone(), env.logger, testVersion, rootCert, false)
 			require.NoError(t, err)
 			id := spec.NewID()
-			depositData, ks, proofs, err := clnt.StartDKG(id, env.withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", env.owner, 1, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+			depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(env.withdraw), []uint64{11, 22, 33, 44}, "holesky", env.owner, 1, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 			require.NoError(t, err)
 			err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, env.owner, 1, env.withdraw)
 			require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestReshareHappyFlows(t *testing.T) {
 			require.NoError(t, err)
 			rMsg, err := clnt.ConstructReshareMessage(
 				[]uint64{11, 22, 33, 44}, tc.newIDs,
-				signedProofs[0].Proof.ValidatorPubKey, "holesky", env.withdraw.Bytes(),
+				signedProofs[0].Proof.ValidatorPubKey, "holesky", eth1Creds(env.withdraw),
 				env.owner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
 			)
 			require.NoError(t, err)

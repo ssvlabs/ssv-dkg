@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
@@ -163,4 +164,9 @@ func setupEIP1271Test(t *testing.T, keystoreDir string, makeClient func(owner co
 	clnt, err := initiator.New(ops, zap.L().Named("integration-tests"), testVersion, rootCert, false)
 	require.NoError(t, err)
 	return &eip1271TestEnv{withdraw: withdraw, owner: owner, sk: sk.PrivateKey, clnt: clnt, ops: ops}
+}
+
+// eth1Creds constructs 32-byte 0x01 withdrawal credentials from a 20-byte address.
+func eth1Creds(addr common.Address) []byte {
+	return spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, addr.Bytes())
 }

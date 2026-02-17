@@ -19,8 +19,8 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
-	github.com/ssvlabs/dkg-spec v1.0.2
-	github.com/ssvlabs/eth2-key-manager v1.5.3
+	github.com/ssvlabs/dkg-spec v1.0.3-0.20260217083021-874e4e5bc7cd
+	github.com/ssvlabs/eth2-key-manager v1.5.4
 	github.com/stretchr/testify v1.11.1
 	github.com/wealdtech/go-eth2-util v1.8.2
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.4.1
