@@ -78,7 +78,7 @@ jobs:
           fi
           CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o ./bin/${{ matrix.execname }} \
-            -ldflags "-X main.Version=${{ github.ref_name }} -X main.BuildTime=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            -ldflags "-X main.Version=${{ github.ref_name }}" \
             ./cmd/ssv-dkg/ssv-dkg.go
 
       - name: Build (macOS)
@@ -86,7 +86,7 @@ jobs:
         run: |
           CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o ./bin/${{ matrix.execname }} \
-            -ldflags "-X main.Version=${{ github.ref_name }} -X main.BuildTime=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            -ldflags "-X main.Version=${{ github.ref_name }}" \
             ./cmd/ssv-dkg/ssv-dkg.go
 
       - name: Build (Windows)
@@ -95,9 +95,8 @@ jobs:
           $env:CGO_ENABLED="1"
           $env:GOOS="${{ matrix.goos }}"
           $env:GOARCH="${{ matrix.goarch }}"
-          $buildTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
           go build -o bin/${{ matrix.execname }} `
-            -ldflags "-X main.Version=${{ github.ref_name }} -X main.BuildTime=$buildTime" `
+            -ldflags "-X main.Version=${{ github.ref_name }}" `
             ./cmd/ssv-dkg/ssv-dkg.go
 
       - name: Create ZIP (Linux/macOS)

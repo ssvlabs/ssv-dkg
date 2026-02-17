@@ -23,9 +23,8 @@ ENV GOOS=linux
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,mode=0755,target=/go/pkg \
-    BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ') && \
     go build -trimpath -o /bin/ssv-dkg \
-    -ldflags "-s -w -X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -linkmode external -extldflags \"-static -lm\"" \
+    -ldflags "-s -w -X main.Version=$VERSION -linkmode external -extldflags \"-static -lm\"" \
     ./cmd/ssv-dkg
 
 # Final stage

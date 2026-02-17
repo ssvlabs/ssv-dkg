@@ -7,8 +7,7 @@
 BINARY_NAME     = ./bin/ssv-dkg
 DOCKER_IMAGE    = ssv-dkg
 GIT_VERSION     = $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_TIME      = $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS         = -s -w -X main.Version=$(GIT_VERSION) -X main.BuildTime=$(BUILD_TIME)
+LDFLAGS         = -s -w -X main.Version=$(GIT_VERSION)
 
 install:
 	go install -trimpath -v -ldflags "$(LDFLAGS)" ./cmd/ssv-dkg/ssv-dkg.go
