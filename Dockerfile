@@ -38,14 +38,8 @@ LABEL org.opencontainers.image.title="SSV DKG" \
 
 RUN apk add --no-cache openssl ca-certificates && update-ca-certificates
 
-# Run as non-root user
-RUN addgroup -g 1000 ssv && adduser -u 1000 -G ssv -D ssv && \
-    chown ssv:ssv /ssv-dkg
-
 COPY --from=build /bin/ssv-dkg /bin/ssv-dkg
 COPY --chmod=755 entry-point.sh /entry-point.sh
-
-USER ssv
 
 ENTRYPOINT ["/entry-point.sh"]
 
