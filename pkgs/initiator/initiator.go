@@ -369,9 +369,6 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 }
 
 func (c *Initiator) StartDKG(id [24]byte, withdrawCreds []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
-	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
-		return nil, nil, nil, err
-	}
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
@@ -834,9 +831,6 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 }
 
 func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ReshareMessage, error) {
-	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
-		return nil, err
-	}
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 proofs are empty")
 	}
@@ -880,9 +874,6 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 }
 
 func (c *Initiator) ConstructResignMessage(operatorIDs []uint64, validatorPub []byte, ethnetwork eth2_key_manager_core.Network, withdrawCreds []byte, owner common.Address, nonce, amount uint64, proofsData []*spec.SignedProof) (*wire.ResignMessage, error) {
-	if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
-		return nil, err
-	}
 	if len(proofsData) == 0 {
 		return nil, fmt.Errorf("🤖 unmarshaled proofs object is empty")
 	}

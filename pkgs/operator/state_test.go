@@ -313,11 +313,12 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 	require.NoError(t, err)
 	reshare := &wire.ReshareMessage{
 		Reshare: &spec.Reshare{
-			ValidatorPubKey: signedProofs[0][0].Proof.ValidatorPubKey,
-			NewOperators:    ops[:4],
-			OldOperators:    ops[4:8],
-			Owner:           common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"),
-			Nonce:           1,
+			ValidatorPubKey:       signedProofs[0][0].Proof.ValidatorPubKey,
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, make([]byte, 20)),
+			NewOperators:          ops[:4],
+			OldOperators:          ops[4:8],
+			Owner:                 common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"),
+			Nonce:                 1,
 		},
 		Proofs: signedProofs[0],
 	}
