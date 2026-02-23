@@ -22,6 +22,10 @@ test-output.log
 # Test output
 integration_test/data/
 
+# Runtime data (ceremony output, operator storage)
+data/
+dkg_output*/
+
 # Example output
 examples/*/output/*
 
