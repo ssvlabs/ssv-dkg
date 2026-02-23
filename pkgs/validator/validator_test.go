@@ -76,22 +76,22 @@ func TestDepositDataJSON(t *testing.T) {
 	}{
 		{
 			filename:                      "testdata/depositdata--valid.json",
-			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")),
 			expectedErr:                   "",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-pubkey.json",
-			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")),
 			expectedErr:                   "err blsPublicKeyDeserialize",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-signature.json",
-			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")),
 			expectedErr:                   "err blsSignatureDeserialize",
 		},
 		{
 			filename:                      "testdata/depositdata--invalid-fork.json",
-			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494").Bytes()),
+			expectedWithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x81592c3de184a3e2c0dcb5a261bc107bfa91f494")),
 			expectedErr:                   "failed to get network by fork: network not found for the given fork version",
 		},
 	}

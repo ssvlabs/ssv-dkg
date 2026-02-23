@@ -117,7 +117,7 @@ func TestInitInstance(t *testing.T) {
 		Nonce:                 1,
 		Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		T:                     3,
-		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000001").Bytes()),
+		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000001")),
 	}
 
 	initmsg, err := init.MarshalSSZ()
@@ -208,7 +208,7 @@ func TestSwitch_cleanInstances(t *testing.T) {
 		Owner:                 common.HexToAddress("0x0000001"),
 		Nonce:                 1,
 		Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
-		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000001").Bytes()),
+		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000001")),
 		T:                     3,
 	}
 
@@ -314,7 +314,7 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 	reshare := &wire.ReshareMessage{
 		Reshare: &spec.Reshare{
 			ValidatorPubKey:       signedProofs[0][0].Proof.ValidatorPubKey,
-			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, make([]byte, 20)),
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, [20]byte{}),
 			NewOperators:          ops[:4],
 			OldOperators:          ops[4:8],
 			Owner:                 common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"),

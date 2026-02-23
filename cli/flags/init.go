@@ -268,5 +268,5 @@ func WithdrawalCredentials() []byte {
 	if Compounding {
 		prefix = spec_crypto.CompoundingWithdrawalPrefix
 	}
-	return spec_crypto.WithdrawalCredentials(prefix, WithdrawAddress.Bytes())
+	return spec_crypto.WithdrawalCredentials(prefix, WithdrawAddress)
 }

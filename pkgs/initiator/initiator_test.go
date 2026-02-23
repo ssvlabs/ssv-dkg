@@ -80,7 +80,7 @@ func TestStartDKG(t *testing.T) {
 	)
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
-	withdrawCreds := spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw.Bytes())
+	withdrawCreds := spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw)
 	t.Run("happy flow", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestStartDKG(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
-		compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw.Bytes())
+		compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw)
 		depositData, keyshares, proofs, err := intr.StartDKG(id, compoundingCreds, []uint64{1, 2, 3, 4}, "mainnet", owner, 1, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, keyshares, [][]*wire.SignedProof{proofs}, 1, owner, 1, withdraw)
@@ -138,7 +138,7 @@ func TestStartDKG(t *testing.T) {
 		id := spec.NewID()
 		badCreds := make([]byte, 32)
 		badCreds[0] = 0x03
-		copy(badCreds[12:], withdraw.Bytes())
+		copy(badCreds[12:], withdraw[:])
 		_, _, _, err = intr.StartDKG(id, badCreds, []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "invalid withdrawal credential prefix")
 	})
@@ -486,7 +486,7 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		init := &spec.Init{
 			Operators:             ops,
 			T:                     uint64(threshold), //nolint:gosec // threshold is always a small positive int
-			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw.Bytes()),
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw),
 			Fork:                  e2m_core.MainNetwork.GenesisForkVersion(),
 			Owner:                 owner,
 			Nonce:                 0,

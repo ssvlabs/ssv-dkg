@@ -81,7 +81,7 @@ func TestRateLimit(t *testing.T) {
 		init := &spec.Init{
 			Operators:             parts,
 			T:                     3,
-			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes()),
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000009")),
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 			Nonce:                 0,
@@ -265,7 +265,7 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		init := &spec.Init{
 			Operators:             parts,
 			T:                     uint64(threshold), //nolint:gosec // threshold is always small
-			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw.Bytes()),
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw),
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 owner,
 			Nonce:                 0,

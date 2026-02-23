@@ -467,7 +467,7 @@ func TestCompoundingWithdrawalCredentials(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			id := spec.NewID()
 			// Pass 32-byte 0x02 compounding credentials
-			compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw.Bytes())
+			compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw)
 			depositData, ks, proofs, err := clnt.StartDKG(id, compoundingCreds, tc.ids, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 			require.NoError(t, err)
 			// Verify deposit data has 0x02 prefix in withdrawal credentials
@@ -497,7 +497,7 @@ func TestCompoundingVsETH1DifferentCredentials(t *testing.T) {
 	require.NoError(t, err)
 	// Run DKG with 0x02 credentials (32-byte compounding)
 	id2 := spec.NewID()
-	compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw.Bytes())
+	compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw)
 	dd02, _, _, err := clnt.StartDKG(id2, compoundingCreds, ids, "mainnet", owner, 1, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 	require.NoError(t, err)
 	// Verify they produce different withdrawal credentials

@@ -70,7 +70,7 @@ func ValidateResults(
 		if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
 			return fmt.Errorf("invalid withdrawal credentials in deposit data: %w", err)
 		}
-		expectedCreds := spec_crypto.WithdrawalCredentials(withdrawCreds[0], expectedWithdrawAddress.Bytes())
+		expectedCreds := spec_crypto.WithdrawalCredentials(withdrawCreds[0], expectedWithdrawAddress)
 		if err := crypto.ValidateDepositDataCLI(depositData, expectedCreds); err != nil {
 			return fmt.Errorf("err validating deposit data %w", err)
 		}

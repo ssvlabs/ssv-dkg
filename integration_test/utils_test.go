@@ -168,5 +168,5 @@ func setupEIP1271Test(t *testing.T, keystoreDir string, makeClient func(owner co
 
 // eth1Creds constructs 32-byte 0x01 withdrawal credentials from a 20-byte address.
 func eth1Creds(addr common.Address) []byte {
-	return spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, addr.Bytes())
+	return spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, addr)
 }
