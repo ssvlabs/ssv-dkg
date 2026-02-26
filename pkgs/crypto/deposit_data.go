@@ -50,6 +50,9 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	return depositDataJson, nil
 }
 
+// ValidateDepositDataCLI validates deposit data JSON encoding, field formatting, deposit roots,
+// signature, and withdrawal credentials match. expectedWithdrawalCredentials must be 32 bytes
+// with a valid prefix (0x01 or 0x02).
 func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredentials []byte) error {
 	return validateDepositDataCLI(d, expectedWithdrawalCredentials)
 }
