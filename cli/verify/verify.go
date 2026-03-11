@@ -32,7 +32,7 @@ var Verify = &cobra.Command{
 			flags.WithdrawAddress,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to validate ceremony directory: %w",err)
+			return fmt.Errorf("failed to validate ceremony directory: %w", err)
 		}
 
 		log.Printf("Ceremony is valid.")

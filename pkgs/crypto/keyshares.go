@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
@@ -78,7 +77,7 @@ func ValidateKeysharesCLI(ks *wire.KeySharesCLI, operators []*spec.Operator, own
 		return fmt.Errorf("shares data len is not correct")
 	}
 	signature := sharesData[:signatureOffset]
-	err = VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, uint16(ks.Shares[0].ShareData.OwnerNonce))
+	err = VerifyOwnerNonceSignature(signature, owner, validatorPublicKey, uint16(ks.Shares[0].ShareData.OwnerNonce)) //nolint:gosec // spec API takes uint16
 	if err != nil {
 		return fmt.Errorf("owner+nonce signature is invalid at keyshares json %w", err)
 	}
@@ -148,7 +147,7 @@ func GetPubCommitsFromProofs(operators []*spec.Operator, proofs []*spec.SignedPr
 			return nil, err
 		}
 		kyberPubshare := &share.PubShare{
-			I: int(operators[i].ID - 1),
+			I: int(operators[i].ID - 1), //nolint:gosec // operator IDs are small
 			V: v,
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubshare)
@@ -171,7 +170,7 @@ func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.Private
 	serialized := secret.Serialize()
 	v := suite.G1().Scalar().SetBytes(serialized)
 	kyberPrivShare = &share.PriShare{
-		I: int(operatorID - 1),
+		I: int(operatorID - 1), //nolint:gosec // operator IDs are small
 		V: v,
 	}
 	return kyberPrivShare, nil
@@ -179,7 +178,7 @@ func GetSecretShareFromProofs(proof *spec.SignedProof, opPrivateKey *rsa.Private
 
 func decryptBLSKeyFromProof(proof *spec.SignedProof, opPrivateKey *rsa.PrivateKey) (*bls.SecretKey, error) {
 	// try to decrypt private share
-	prShare, err := rsaencryption.DecodeKey(opPrivateKey, proof.Proof.EncryptedShare)
+	prShare, err := spec_crypto.Decrypt(opPrivateKey, proof.Proof.EncryptedShare)
 	if err != nil {
 		return nil, err
 	}

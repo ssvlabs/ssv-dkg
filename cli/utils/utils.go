@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	spec "github.com/ssvlabs/dkg-spec"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
@@ -55,7 +55,7 @@ func StringSliceToUintArray(flagdata []string) ([]uint64, error) {
 func SignaturesStringToBytes(signatures string) ([]byte, error) {
 	sig, err := hex.DecodeString(signatures)
 	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to parse signatures: %s", err)
+		return nil, fmt.Errorf("😥 Failed to parse signatures: %w", err)
 	}
 	return sig, nil
 }
@@ -64,7 +64,7 @@ func DecodeProofsString(proofsString string) ([][]*spec.SignedProof, error) {
 	allProofs := make([][]*wire.SignedProof, 0)
 	err := json.Unmarshal([]byte(proofsString), &allProofs)
 	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to unmarshal proofs: %s", err)
+		return nil, fmt.Errorf("😥 Failed to unmarshal proofs: %w", err)
 	}
 	allSpecProofs := make([][]*spec.SignedProof, len(allProofs))
 	for i, sp := range allProofs {
@@ -93,12 +93,12 @@ func WriteResults(
 		return fmt.Errorf("expectedValidatorCount is 0")
 	}
 	if len(depositDataArr) != len(keySharesArr) || len(depositDataArr) != len(proofs) {
-		return fmt.Errorf("Incoming result arrays have inconsistent length")
+		return fmt.Errorf("incoming result arrays have inconsistent length")
 	}
 	if len(depositDataArr) == 0 {
 		return fmt.Errorf("no results to write")
 	}
-	if len(depositDataArr) != int(expectedValidatorCount) {
+	if len(depositDataArr) != expectedValidatorCount {
 		return fmt.Errorf("expectedValidatorCount is not equal to the length of given results")
 	}
 
@@ -172,7 +172,7 @@ func WriteResults(
 		dirName = fmt.Sprintf("%s--%x", dirName, randomness)
 	}
 	dir := filepath.Join(outputPath, dirName)
-	err = os.Mkdir(dir, os.ModePerm)
+	err = os.Mkdir(dir, 0o750)
 	if os.IsExist(err) {
 		return fmt.Errorf("ceremony directory already exists: %w", err)
 	}
@@ -191,7 +191,7 @@ func WriteResults(
 
 	for i := 0; i < len(depositDataArr); i++ {
 		nestedDir := fmt.Sprintf("%s/%06d-0x%s", dir, keySharesArr[i].Shares[0].ShareData.OwnerNonce, depositDataArr[i].PubKey)
-		err := os.Mkdir(nestedDir, os.ModePerm)
+		err := os.Mkdir(nestedDir, 0o750)
 		if err != nil {
 			return fmt.Errorf("failed to create a validator key directory: %w", err)
 		}
@@ -292,13 +292,13 @@ func CreateDirIfNotExist(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			// Directory does not exist, try to create it
-			if err := os.MkdirAll(path, os.ModePerm); err != nil {
+			if err := os.MkdirAll(path, 0o750); err != nil {
 				// Failed to create the directory
 				return fmt.Errorf("😥 can't create %s: %w", path, err)
 			}
 		} else {
 			// Some other error occurred
-			return fmt.Errorf("😥 %s", err)
+			return fmt.Errorf("😥 %w", err)
 		}
 	}
 	return nil
@@ -338,19 +338,19 @@ func IsUrl(str string) bool {
 func OpenPrivateKey(passwordFilePath, privKeyPath string) (*rsa.PrivateKey, error) {
 	// check if a password string a valid path, then read password from the file
 	if _, err := os.Stat(passwordFilePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Password file doesn`t exist: %s", err)
+		return nil, fmt.Errorf("😥 Password file doesn`t exist: %w", err)
 	}
 	encryptedRSAJSON, err := os.ReadFile(filepath.Clean(privKeyPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Cant read operator's key file: %s", err)
+		return nil, fmt.Errorf("😥 Cant read operator's key file: %w", err)
 	}
 	keyStorePassword, err := os.ReadFile(filepath.Clean(passwordFilePath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Error reading password file: %s", err)
+		return nil, fmt.Errorf("😥 Error reading password file: %w", err)
 	}
 	privateKey, err := crypto.DecryptRSAKeystore(encryptedRSAJSON, string(keyStorePassword))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Error converting pem to priv key: %s", err)
+		return nil, fmt.Errorf("😥 Error converting pem to priv key: %w", err)
 	}
 	return privateKey, nil
 }
@@ -360,17 +360,17 @@ func ReadOperatorsInfoFile(operatorsInfoPath string, logger *zap.Logger) (wire.O
 	fmt.Printf("📖 looking operators info 'operators_info.json' file: %s \n", operatorsInfoPath)
 	_, err := os.Stat(operatorsInfoPath)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %w", err)
 	}
 	logger.Info("📖 reading operators info JSON file")
 	operatorsInfoJSON, err := os.ReadFile(filepath.Clean(operatorsInfoPath))
 	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to read operator info file: %s", err)
+		return nil, fmt.Errorf("😥 Failed to read operator info file: %w", err)
 	}
 	var operators wire.OperatorsCLI
 	err = json.Unmarshal(operatorsInfoJSON, &operators)
 	if err != nil {
-		return nil, fmt.Errorf("😥 Failed to load operators: %s", err)
+		return nil, fmt.Errorf("😥 Failed to load operators: %w", err)
 	}
 	return operators, nil
 }
@@ -400,16 +400,53 @@ func LoadOperators(logger *zap.Logger, operatorsInfo, operatorsInfoPath string) 
 	return operators, nil
 }
 
-// SetGlobalLogger creates a logger
-func SetGlobalLogger(cmd *cobra.Command, name, logFilePath, logLevel, logFormat, logLevelFormat string) (*zap.Logger, error) {
-	// If the log file doesn't exist, create it
-	_, err := os.OpenFile(filepath.Clean(logFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+// SetGlobalLogger creates a logger that writes to both stdout and a log file.
+func SetGlobalLogger(_ *cobra.Command, name, logFilePath, logLevel, logFormat, logLevelFormat string) (*zap.Logger, error) {
+	level, err := zapcore.ParseLevel(logLevel)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse log level: %w", err)
 	}
-	if err := logging.SetGlobalLogger(logLevel, logFormat, logLevelFormat, &logging.LogFileOptions{FileName: logFilePath}); err != nil {
-		return nil, fmt.Errorf("logging.SetGlobalLogger: %w", err)
+
+	f, err := os.OpenFile(filepath.Clean(logFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open log file: %w", err)
 	}
-	logger := zap.L().Named(name)
-	return logger, nil
+
+	encoderCfg := zapcore.EncoderConfig{
+		MessageKey:       "message",
+		LevelKey:         "level",
+		TimeKey:          "time",
+		CallerKey:        "caller",
+		NameKey:          "name",
+		EncodeDuration:   zapcore.StringDurationEncoder,
+		EncodeCaller:     zapcore.ShortCallerEncoder,
+		ConsoleSeparator: "\t",
+		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(t.UTC().Format("2006-01-02T15:04:05.000000Z"))
+		},
+	}
+
+	switch logLevelFormat {
+	case "capitalColor":
+		encoderCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	case "lowercase":
+		encoderCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
+	default:
+		encoderCfg.EncodeLevel = zapcore.CapitalLevelEncoder
+	}
+
+	var consoleEncoder zapcore.Encoder
+	if logFormat == "json" {
+		consoleEncoder = zapcore.NewJSONEncoder(encoderCfg)
+	} else {
+		consoleEncoder = zapcore.NewConsoleEncoder(encoderCfg)
+	}
+
+	consoleCore := zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level)
+	fileCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderCfg), zapcore.AddSync(f), zapcore.DebugLevel)
+
+	logger := zap.New(zapcore.NewTee(consoleCore, fileCore), zap.AddCaller())
+	zap.ReplaceGlobals(logger)
+
+	return logger.Named(name), nil
 }

@@ -134,7 +134,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -146,7 +146,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")
@@ -177,13 +177,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	TLSInsecure = viper.GetBool("tlsInsecure")
 	if !TLSInsecure {
 		ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-		if ClientCACertPath == nil {
-			return fmt.Errorf("😥 TLS CA certs path should be provided, overwise set 'TLSInsecure' flag to true")
-		} else {
-			for _, certPath := range ClientCACertPath {
-				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
-				}
+		for _, certPath := range ClientCACertPath {
+			if !filepath.IsLocal(certPath) {
+				return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 			}
 		}
 	} else {

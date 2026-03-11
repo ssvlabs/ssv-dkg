@@ -198,7 +198,7 @@ func ValidateKeyshare(keyshare *wire.KeySharesCLI, expectedValidatorPubkey, expe
 			return fmt.Errorf("shares data len is not correct")
 		}
 		signature := sharesData[:signatureOffset]
-		err = crypto.VerifyOwnerNonceSignature(signature, common.HexToAddress(share.ShareData.OwnerAddress), validatorPublicKey, uint16(share.ShareData.OwnerNonce))
+		err = crypto.VerifyOwnerNonceSignature(signature, common.HexToAddress(share.ShareData.OwnerAddress), validatorPublicKey, uint16(share.ShareData.OwnerNonce)) //nolint:gosec // spec API takes uint16
 		if err != nil {
 			return fmt.Errorf("owner+nonce signature is invalid at keyshares json %w", err)
 		}

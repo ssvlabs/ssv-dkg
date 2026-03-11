@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -91,14 +90,4 @@ func (c *Initiator) SendToAll(method string, msg []byte, operators []*spec.Opera
 		responses[res.operatorID] = res.result
 	}
 	return responses, errs
-}
-
-func ProcessError(err error) error {
-	if strings.Contains(err.Error(), "context deadline exceeded") {
-		return fmt.Errorf("the requested server is not responding, not a DKG endpoint: %w", err)
-	}
-	if strings.Contains(err.Error(), "no such host") {
-		return fmt.Errorf("the requested server IP is not reachable: %w", err)
-	}
-	return err
 }

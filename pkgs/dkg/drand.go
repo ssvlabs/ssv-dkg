@@ -110,7 +110,7 @@ func (o *LocalOwner) StartDKG() error {
 			return err
 		}
 		nodes = append(nodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(id - 1),
+			Index:  kyber_dkg.Index(id - 1), //nolint:gosec // operator IDs are small
 			Public: p,
 		})
 	}
@@ -121,8 +121,8 @@ func (o *LocalOwner) StartDKG() error {
 		Nonce:     utils.GetNonce(o.data.reqID[:]),
 		Suite:     o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:  nodes,
-		OldNodes:  nodes, // when initiating dkg we consider the old nodes the new nodes (taken from kyber)
-		Threshold: int(o.data.init.T),
+		OldNodes:  nodes,              // when initiating dkg we consider the old nodes the new nodes (taken from kyber)
+		Threshold: int(o.data.init.T), //nolint:gosec // threshold is always small
 		Auth:      drand_bls.NewSchemeOnG2(o.Suite),
 	}
 	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
@@ -565,7 +565,7 @@ func (o *LocalOwner) GetDKGNodes(ops []*spec.Operator) ([]kyber_dkg.Node, error)
 		}
 
 		nodes = append(nodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(op.ID - 1),
+			Index:  kyber_dkg.Index(op.ID - 1), //nolint:gosec // operator IDs are small
 			Public: p,
 		})
 	}
@@ -699,8 +699,8 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		Suite:        o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:     NewNodes,
 		OldNodes:     OldNodes,
-		Threshold:    int(o.data.reshare.NewT),
-		OldThreshold: int(o.data.reshare.OldT),
+		Threshold:    int(o.data.reshare.NewT), //nolint:gosec // threshold is always small
+		OldThreshold: int(o.data.reshare.OldT), //nolint:gosec // threshold is always small
 		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
 		Share:        o.SecretShare,
 	}
@@ -742,7 +742,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		}
 
 		OldNodes = append(OldNodes, kyber_dkg.Node{
-			Index:  kyber_dkg.Index(op.ID - 1),
+			Index:  kyber_dkg.Index(op.ID - 1), //nolint:gosec // operator IDs are small
 			Public: p,
 		})
 	}
@@ -773,8 +773,8 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		Suite:        o.Suite.G1().(kyber_dkg.Suite),
 		NewNodes:     NewNodes,
 		OldNodes:     OldNodes,
-		Threshold:    int(o.data.reshare.NewT),
-		OldThreshold: int(o.data.reshare.OldT),
+		Threshold:    int(o.data.reshare.NewT), //nolint:gosec // threshold is always small
+		OldThreshold: int(o.data.reshare.OldT), //nolint:gosec // threshold is always small
 		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
 		PublicCoeffs: coefs,
 	}
@@ -848,7 +848,7 @@ func (o *LocalOwner) CheckIncomingOperators(msgs []*wire.SignedTransport) (map[u
 			return nil, fmt.Errorf("cant find operators at list %w", err)
 		}
 		// check threshold
-		if len(foundOldOps) < int(o.data.reshare.OldT) {
+		if len(foundOldOps) < int(o.data.reshare.OldT) { //nolint:gosec // threshold is always small
 			return nil, fmt.Errorf("less than threshold of old operators at incoming messages: threshold %d, incoming old operator messages %d", o.data.reshare.OldT, len(foundOldOps))
 		}
 		foundNewOps, err := FindOperatorsAtList(opsAtMsgs, o.data.reshare.NewOperators)

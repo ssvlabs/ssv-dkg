@@ -115,7 +115,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 Failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	if err := viper.BindPFlag("tlsInsecure", cmd.PersistentFlags().Lookup("tlsInsecure")); err != nil {
@@ -124,13 +124,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	TLSInsecure = viper.GetBool("tlsInsecure")
 	if !TLSInsecure {
 		ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-		if ClientCACertPath == nil {
-			return fmt.Errorf("😥 TLS CA certs path should be provided, overwise set 'TLSInsecure' flag to true")
-		} else {
-			for _, certPath := range ClientCACertPath {
-				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
-				}
+		for _, certPath := range ClientCACertPath {
+			if !filepath.IsLocal(certPath) {
+				return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 			}
 		}
 	} else {
@@ -160,7 +156,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -241,7 +237,7 @@ func NetworkFlag(c *cobra.Command) {
 
 // ClientCACertPathFlag sets path to client CA certificates. For Ubuntu use `sudo apt install ca-certificates`
 func ClientCACertPathFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, clientCACertPath, []string{"/etc/ssl/certs/ca-certificates.crt"}, "Path to client CA certificates", false)
+	AddPersistentStringSliceFlag(c, clientCACertPath, []string{}, "Path to custom CA certificates (if empty, system CA bundle is used)", false)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command
