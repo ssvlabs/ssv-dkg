@@ -1,6 +1,6 @@
 module github.com/ssvlabs/ssv-dkg
 
-go 1.25.0
+go 1.25.8
 
 require (
 	github.com/aquasecurity/table v1.11.0
@@ -18,8 +18,8 @@ require (
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/ssvlabs/dkg-spec v1.0.2
-	github.com/ssvlabs/eth2-key-manager v1.5.3
+	github.com/ssvlabs/dkg-spec v1.1.0
+	github.com/ssvlabs/eth2-key-manager v1.5.4
 	github.com/stretchr/testify v1.11.1
 	github.com/wealdtech/go-eth2-util v1.8.2
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.4.1

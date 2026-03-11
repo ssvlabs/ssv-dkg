@@ -14,6 +14,7 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 
 	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
 func ValidateResults(
@@ -62,8 +63,15 @@ func ValidateResults(
 		if depositData.PubKey != strings.TrimPrefix(keyshares.Payload.PublicKey, "0x") {
 			return fmt.Errorf("validator doesnt match: %s in deposit-data, %s in keyshares", depositData.PubKey, strings.TrimPrefix(keyshares.Payload.PublicKey, "0x"))
 		}
-		err := crypto.ValidateDepositDataCLI(depositData, expectedWithdrawAddress)
+		withdrawCreds, err := hex.DecodeString(depositData.WithdrawalCredentials)
 		if err != nil {
+			return fmt.Errorf("decode withdrawal credentials: %w", err)
+		}
+		if err := spec_crypto.ValidateWithdrawalCredentials(withdrawCreds); err != nil {
+			return fmt.Errorf("invalid withdrawal credentials in deposit data: %w", err)
+		}
+		expectedCreds := spec_crypto.WithdrawalCredentials(withdrawCreds[0], expectedWithdrawAddress)
+		if err := crypto.ValidateDepositDataCLI(depositData, expectedCreds); err != nil {
 			return fmt.Errorf("err validating deposit data %w", err)
 		}
 		soloKeyshares := &wire.KeySharesCLI{

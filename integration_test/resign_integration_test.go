@@ -34,14 +34,14 @@ func TestInitResignHappyFlows(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			id := spec.NewID()
-			depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), tc.opIDs, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+			depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), tc.opIDs, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 			require.NoError(t, err)
 			err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 			require.NoError(t, err)
 			signedProofs := toSpecSignedProofs(proofs)
 			rMsg, err := clnt.ConstructResignMessage(
 				tc.opIDs, signedProofs[0].Proof.ValidatorPubKey, "mainnet",
-				withdraw.Bytes(), owner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
+				eth1Creds(withdraw), owner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
 			)
 			require.NoError(t, err)
 			rMsgs := []*wire.ResignMessage{rMsg}
@@ -67,14 +67,14 @@ func TestInitResignChangeOwnerHappyFlows(t *testing.T) {
 	newOwner := eth_crypto.PubkeyToAddress(skNewOwner.PublicKey)
 	t.Run("4 operators change owner", func(t *testing.T) {
 		id := spec.NewID()
-		depositData, ks, proofs, err := clnt.StartDKG(id, withdraw.Bytes(), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
 		signedProofs := toSpecSignedProofs(proofs)
 		rMsg, err := clnt.ConstructResignMessage(
 			[]uint64{11, 22, 33, 44}, signedProofs[0].Proof.ValidatorPubKey, "mainnet",
-			withdraw.Bytes(), newOwner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
+			eth1Creds(withdraw), newOwner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}

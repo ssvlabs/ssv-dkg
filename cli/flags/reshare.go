@@ -41,6 +41,7 @@ func SetBaseReshareFlags(cmd *cobra.Command) {
 	NetworkFlag(cmd)
 	SetProofsFilePath(cmd)
 	ProofsStringFlag(cmd)
+	CompoundingFlag(cmd)
 }
 
 func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
@@ -153,6 +154,10 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
 		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
 	}
+	if err := viper.BindPFlag(compounding, cmd.PersistentFlags().Lookup(compounding)); err != nil {
+		return err
+	}
+	Compounding = viper.GetBool(compounding)
 	return nil
 }
 

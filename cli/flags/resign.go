@@ -24,6 +24,7 @@ func SetBaseResignMsgFlags(cmd *cobra.Command) {
 	WithdrawAddressFlag(cmd)
 	SetProofsFilePath(cmd)
 	ProofsStringFlag(cmd)
+	CompoundingFlag(cmd)
 }
 
 func SetGenerateResignMsgFlags(cmd *cobra.Command) {
@@ -129,6 +130,10 @@ func BindGenerateResignMsgFlags(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("😥 failed to parse owner address: %w", err)
 	}
+	if err := viper.BindPFlag(compounding, cmd.PersistentFlags().Lookup(compounding)); err != nil {
+		return err
+	}
+	Compounding = viper.GetBool(compounding)
 	return nil
 }
 
