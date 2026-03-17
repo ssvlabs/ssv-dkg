@@ -94,6 +94,9 @@ func newHTTPServer(port uint16, handler http.Handler) *http.Server {
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    maxHeaderBytes,
 	}
 }
