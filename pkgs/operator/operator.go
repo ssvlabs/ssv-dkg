@@ -25,7 +25,9 @@ const (
 	dkgRouteLimit         = 500
 	healthCheckRouteLimit = 500
 	resultsRouteLimit     = 500
-	maxRequestBodyBytes   = 10 << 20
+	// maxRequestBodyBytes is set to accommodate the worst-case `/dkg` SSZ payload:
+	// up to 13 SignedTransports with 8 MiB Transport.Data each (~104 MiB total).
+	maxRequestBodyBytes   = 104 << 20
 	maxHeaderBytes        = 1 << 20
 	timePeriod            = time.Minute
 )
