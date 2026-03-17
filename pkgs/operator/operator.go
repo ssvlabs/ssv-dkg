@@ -2,6 +2,7 @@ package operator
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,8 @@ const (
 	dkgRouteLimit         = 500
 	healthCheckRouteLimit = 500
 	resultsRouteLimit     = 500
+	maxRequestBodyBytes   = 10 << 20
+	maxHeaderBytes        = 1 << 20
 	timePeriod            = time.Minute
 )
 
@@ -38,6 +41,14 @@ type Server struct {
 
 // TODO: either do all json or all SSZ
 const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
+
+type requestBodyTooLargeError struct {
+	limit int64
+}
+
+func (e *requestBodyTooLargeError) Error() string {
+	return fmt.Sprintf("request body exceeds limit of %d bytes", e.limit)
+}
 
 // New creates Server structure using operator's RSA private key
 func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath, ethEndpointURL string) (*Server, error) {
@@ -64,7 +75,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 
 // Start runs a http server to listen for incoming messages at specified port
 func (s *Server) Start(port uint16, cert, key string) error {
-	srv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: s.Router, ReadHeaderTimeout: 10_000 * time.Millisecond}
+	srv := newHTTPServer(port, s.Router)
 	s.HttpServer = srv
 	err := s.HttpServer.ListenAndServeTLS(cert, key)
 	if err != nil {
@@ -74,10 +85,40 @@ func (s *Server) Start(port uint16, cert, key string) error {
 	return nil
 }
 
-func processIncomingRequest(logger *zap.Logger, writer http.ResponseWriter, request *http.Request, reqMessageType wire.TransportType, operatorID uint64) (*wire.SignedTransport, error) {
+func newHTTPServer(port uint16, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              fmt.Sprintf(":%v", port),
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		MaxHeaderBytes:    maxHeaderBytes,
+	}
+}
+
+func readRequestBody(writer http.ResponseWriter, request *http.Request, operatorID uint64) ([]byte, error) {
+	request.Body = http.MaxBytesReader(writer, request.Body, maxRequestBodyBytes)
 	rawdata, err := io.ReadAll(request.Body)
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return nil, fmt.Errorf("operator %d, %w", operatorID, &requestBodyTooLargeError{limit: maxRequestBodyBytes})
+		}
 		return nil, fmt.Errorf("operator %d, failed to read request body, err: %w", operatorID, err)
+	}
+	return rawdata, nil
+}
+
+func requestReadStatusCode(err error) int {
+	var bodyTooLargeErr *requestBodyTooLargeError
+	if errors.As(err, &bodyTooLargeErr) {
+		return http.StatusRequestEntityTooLarge
+	}
+	return http.StatusBadRequest
+}
+
+func processIncomingRequest(writer http.ResponseWriter, request *http.Request, reqMessageType wire.TransportType, operatorID uint64) (*wire.SignedTransport, error) {
+	rawdata, err := readRequestBody(writer, request, operatorID)
+	if err != nil {
+		return nil, err
 	}
 	signedMsg := &wire.SignedTransport{}
 	if err := signedMsg.UnmarshalSSZ(rawdata); err != nil {

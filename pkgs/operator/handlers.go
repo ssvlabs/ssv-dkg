@@ -3,7 +3,6 @@ package operator
 import (
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -14,9 +13,9 @@ import (
 )
 
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
-	rawdata, err := io.ReadAll(request.Body)
+	rawdata, err := readRequestBody(writer, request, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
 		return
 	}
 	signedResultMsg := &wire.SignedTransport{}
@@ -55,9 +54,9 @@ func (s *Server) healthHandler(writer http.ResponseWriter, request *http.Request
 
 func (s *Server) dkgHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("received a dkg protocol message")
-	rawdata, err := io.ReadAll(request.Body)
+	rawdata, err := readRequestBody(writer, request, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %w", s.State.OperatorID, err), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
 		return
 	}
 	b, err := s.State.ProcessMessage(rawdata)
@@ -74,10 +73,10 @@ func (s *Server) dkgHandler(writer http.ResponseWriter, request *http.Request) {
 
 func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming INIT msg")
-	signedInitMsg, err := processIncomingRequest(s.Logger, writer, request, wire.InitMessageType, s.State.OperatorID)
+	signedInitMsg, err := processIncomingRequest(writer, request, wire.InitMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming init message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
 		return
 	}
 	reqid := signedInitMsg.Message.Identifier
@@ -100,10 +99,10 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 
 func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming RESIGN msg")
-	signedResignMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedResignMessageType, s.State.OperatorID)
+	signedResignMsg, err := processIncomingRequest(writer, request, wire.SignedResignMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming resign message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
 		return
 	}
 
@@ -126,10 +125,10 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 
 func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("incoming RESHARE msg")
-	signedReshareMsg, err := processIncomingRequest(s.Logger, writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
+	signedReshareMsg, err := processIncomingRequest(writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("operator %d, err: %w", s.State.OperatorID, err), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
 		return
 	}
 
