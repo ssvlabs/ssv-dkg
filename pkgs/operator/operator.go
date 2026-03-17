@@ -77,11 +77,15 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 func (s *Server) Start(port uint16, cert, key string) error {
 	srv := newHTTPServer(port, s.Router)
 	s.HttpServer = srv
+	s.Logger.Info("✅ Server is starting and listening for incoming requests", zap.Uint16("port", port))
 	err := s.HttpServer.ListenAndServeTLS(cert, key)
 	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			s.Logger.Info("HTTP server shut down gracefully", zap.Uint16("port", port))
+			return nil
+		}
 		return err
 	}
-	s.Logger.Info("✅ Server is listening for incoming requests", zap.Uint16("port", port))
 	return nil
 }
 
