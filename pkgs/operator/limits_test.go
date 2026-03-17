@@ -1,7 +1,7 @@
 package operator
 
 import (
-	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+// zeroReader is an io.Reader that fills the provided buffer with zeros.
+// It does not allocate memory proportional to the total number of bytes read.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
+}
 
 func TestHandlersRejectOversizedRequestBody(t *testing.T) {
 	server := &Server{
@@ -31,7 +42,8 @@ func TestHandlersRejectOversizedRequestBody(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/"+tc.name, bytes.NewReader(make([]byte, maxRequestBodyBytes+1)))
+			body := io.LimitReader(zeroReader{}, maxRequestBodyBytes+1)
+			req := httptest.NewRequest(http.MethodPost, "/"+tc.name, body)
 
 			tc.handler(recorder, req)
 

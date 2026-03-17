@@ -26,8 +26,9 @@ const (
 	healthCheckRouteLimit = 500
 	resultsRouteLimit     = 500
 	// maxRequestBodyBytes is set to accommodate the worst-case `/dkg` SSZ payload:
-	// up to 13 SignedTransports with 8 MiB Transport.Data each (~104 MiB total).
-	maxRequestBodyBytes   = 104 << 20
+	// up to 13 SignedTransports with 8 MiB Transport.Data each (~104 MiB total),
+	// plus SSZ container overhead and fixed fields (with an extra 1 MiB margin).
+	maxRequestBodyBytes   = 105 << 20
 	maxHeaderBytes        = 1 << 20
 	timePeriod            = time.Minute
 )
@@ -96,7 +97,7 @@ func newHTTPServer(port uint16, handler http.Handler) *http.Server {
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
+		ReadTimeout:       10 * time.Minute,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    maxHeaderBytes,
