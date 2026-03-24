@@ -28,9 +28,9 @@ const (
 	// maxRequestBodyBytes is set to accommodate the worst-case `/dkg` SSZ payload:
 	// up to 13 SignedTransports with 8 MiB Transport.Data each (~104 MiB total),
 	// plus SSZ container overhead and fixed fields (with an extra 1 MiB margin).
-	maxRequestBodyBytes   = 105 << 20
-	maxHeaderBytes        = 1 << 20
-	timePeriod            = time.Minute
+	maxRequestBodyBytes = 105 << 20
+	maxHeaderBytes      = 1 << 20
+	timePeriod          = time.Minute
 )
 
 // Server structure for operator to store http server and DKG ceremony instances
@@ -45,13 +45,7 @@ type Server struct {
 // TODO: either do all json or all SSZ
 const ErrTooManyRouteRequests = `{"error": "too many requests to /route"}`
 
-type requestBodyTooLargeError struct {
-	limit int64
-}
-
-func (e *requestBodyTooLargeError) Error() string {
-	return fmt.Sprintf("request body exceeds limit of %d bytes", e.limit)
-}
+var errRequestBodyTooLarge = fmt.Errorf("request body exceeds limit of %d bytes", maxRequestBodyBytes)
 
 // New creates Server structure using operator's RSA private key
 func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputPath, ethEndpointURL string) (*Server, error) {
@@ -80,7 +74,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 func (s *Server) Start(port uint16, cert, key string) error {
 	srv := newHTTPServer(port, s.Router)
 	s.HttpServer = srv
-	s.Logger.Info("✅ Server is starting and listening for incoming requests", zap.Uint16("port", port))
+	s.Logger.Info("✅ Server is starting", zap.Uint16("port", port))
 	err := s.HttpServer.ListenAndServeTLS(cert, key)
 	if err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
@@ -97,29 +91,31 @@ func newHTTPServer(port uint16, handler http.Handler) *http.Server {
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       10 * time.Minute,
-		WriteTimeout:      30 * time.Second,
+		ReadTimeout:       90 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    maxHeaderBytes,
 	}
 }
 
 func readRequestBody(writer http.ResponseWriter, request *http.Request, operatorID uint64) ([]byte, error) {
+	if request.ContentLength > maxRequestBodyBytes {
+		return nil, fmt.Errorf("operator %d, %w", operatorID, errRequestBodyTooLarge)
+	}
+
 	request.Body = http.MaxBytesReader(writer, request.Body, maxRequestBodyBytes)
 	rawdata, err := io.ReadAll(request.Body)
 	if err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			return nil, fmt.Errorf("operator %d, %w", operatorID, &requestBodyTooLargeError{limit: maxRequestBodyBytes})
+			return nil, fmt.Errorf("operator %d, %w", operatorID, errRequestBodyTooLarge)
 		}
 		return nil, fmt.Errorf("operator %d, failed to read request body, err: %w", operatorID, err)
 	}
 	return rawdata, nil
 }
 
-func requestReadStatusCode(err error) int {
-	var bodyTooLargeErr *requestBodyTooLargeError
-	if errors.As(err, &bodyTooLargeErr) {
+func badRequestStatusCode(err error) int {
+	if errors.Is(err, errRequestBodyTooLarge) {
 		return http.StatusRequestEntityTooLarge
 	}
 	return http.StatusBadRequest

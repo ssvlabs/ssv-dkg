@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
@@ -13,22 +12,12 @@ import (
 )
 
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
-	rawdata, err := readRequestBody(writer, request, s.State.OperatorID)
+	signedResultMsg, err := processIncomingRequest(writer, request, wire.ResultMessageType, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
-		return
-	}
-	signedResultMsg := &wire.SignedTransport{}
-	if err := signedResultMsg.UnmarshalSSZ(rawdata); err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
 		return
 	}
 
-	// Validate that incoming message is a result message
-	if signedResultMsg.Message.Type != wire.ResultMessageType {
-		utils.WriteErrorResponse(s.Logger, writer, errors.New("received wrong message type"), http.StatusBadRequest)
-		return
-	}
 	s.Logger.Debug("received a result message")
 	err = s.State.SaveResultData(signedResultMsg, s.OutputPath)
 	if err != nil {
@@ -56,7 +45,7 @@ func (s *Server) dkgHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("received a dkg protocol message")
 	rawdata, err := readRequestBody(writer, request, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
 		return
 	}
 	b, err := s.State.ProcessMessage(rawdata)
@@ -76,7 +65,7 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 	signedInitMsg, err := processIncomingRequest(writer, request, wire.InitMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming init message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
 		return
 	}
 	reqid := signedInitMsg.Message.Identifier
@@ -102,7 +91,7 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 	signedResignMsg, err := processIncomingRequest(writer, request, wire.SignedResignMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming resign message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
 		return
 	}
 
@@ -128,7 +117,7 @@ func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.
 	signedReshareMsg, err := processIncomingRequest(writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
 	if err != nil {
 		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, requestReadStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
 		return
 	}
 
