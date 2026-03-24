@@ -2,6 +2,7 @@ package operator
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -11,10 +12,19 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
+func sanitizeRequestError(err error) error {
+	if errors.Is(err, errRequestBodyTooLarge) {
+		return &utils.SensitiveError{Err: err, PresentedErr: "request body too large"}
+	}
+	return err
+}
+
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
 	signedResultMsg, err := processIncomingRequest(writer, request, wire.ResultMessageType, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
+		statusCode := badRequestStatusCode(err)
+		err = sanitizeRequestError(err)
+		utils.WriteErrorResponse(s.Logger, writer, err, statusCode)
 		return
 	}
 
@@ -45,7 +55,9 @@ func (s *Server) dkgHandler(writer http.ResponseWriter, request *http.Request) {
 	s.Logger.Debug("received a dkg protocol message")
 	rawdata, err := readRequestBody(writer, request, s.State.OperatorID)
 	if err != nil {
-		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
+		statusCode := badRequestStatusCode(err)
+		err = sanitizeRequestError(err)
+		utils.WriteErrorResponse(s.Logger, writer, err, statusCode)
 		return
 	}
 	b, err := s.State.ProcessMessage(rawdata)
@@ -64,8 +76,10 @@ func (s *Server) initHandler(writer http.ResponseWriter, request *http.Request) 
 	s.Logger.Debug("incoming INIT msg")
 	signedInitMsg, err := processIncomingRequest(writer, request, wire.InitMessageType, s.State.OperatorID)
 	if err != nil {
+		statusCode := badRequestStatusCode(err)
+		err = sanitizeRequestError(err)
 		s.Logger.Error("Error processing incoming init message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, statusCode)
 		return
 	}
 	reqid := signedInitMsg.Message.Identifier
@@ -90,8 +104,10 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 	s.Logger.Debug("incoming RESIGN msg")
 	signedResignMsg, err := processIncomingRequest(writer, request, wire.SignedResignMessageType, s.State.OperatorID)
 	if err != nil {
+		statusCode := badRequestStatusCode(err)
+		err = sanitizeRequestError(err)
 		s.Logger.Error("Error processing incoming resign message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, statusCode)
 		return
 	}
 
@@ -116,8 +132,10 @@ func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.
 	s.Logger.Debug("incoming RESHARE msg")
 	signedReshareMsg, err := processIncomingRequest(writer, request, wire.SignedReshareMessageType, s.State.OperatorID)
 	if err != nil {
+		statusCode := badRequestStatusCode(err)
+		err = sanitizeRequestError(err)
 		s.Logger.Error("Error processing incoming reshare message", zap.Error(err))
-		utils.WriteErrorResponse(s.Logger, writer, err, badRequestStatusCode(err))
+		utils.WriteErrorResponse(s.Logger, writer, err, statusCode)
 		return
 	}
 

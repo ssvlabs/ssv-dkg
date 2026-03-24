@@ -64,7 +64,7 @@ func TestHandlersRejectOversizedRequestBody(t *testing.T) {
 			errResponse := &wire.ErrSSZ{}
 			err := errResponse.UnmarshalSSZ(recorder.Body.Bytes())
 			require.NoError(t, err)
-			require.Contains(t, string(errResponse.Error), "request body exceeds limit")
+			require.Equal(t, "request body too large", string(errResponse.Error))
 		})
 	}
 }
