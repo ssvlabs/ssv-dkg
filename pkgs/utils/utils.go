@@ -22,9 +22,11 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-var ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
-var ErrAlreadyExists = errors.New("got init msg for existing instance")
-var ErrMaxInstances = errors.New("max number of instances ongoing, please wait")
+var (
+	ErrMissingInstance = errors.New("got message to instance that I don't have, send Init first")
+	ErrAlreadyExists   = errors.New("got init msg for existing instance")
+	ErrMaxInstances    = errors.New("max number of instances ongoing, please wait")
+)
 
 type SensitiveError struct {
 	Err          error
@@ -33,6 +35,10 @@ type SensitiveError struct {
 
 func (e *SensitiveError) Error() string {
 	return e.Err.Error()
+}
+
+func (e *SensitiveError) Unwrap() error {
+	return e.Err
 }
 
 // WriteJSON writes data to JSON file
