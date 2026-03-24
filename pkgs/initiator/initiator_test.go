@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv/logging"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
 	"github.com/ethereum/go-ethereum"
@@ -60,9 +59,7 @@ var jsonStr = []byte(`[
 ]`)
 
 func TestStartDKG(t *testing.T) {
-	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("operator-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -83,11 +80,12 @@ func TestStartDKG(t *testing.T) {
 	)
 	withdraw := common.HexToAddress("0x0000000000000000000000000000000000000009")
 	owner := common.HexToAddress("0x0000000000000000000000000000000000000007")
+	withdrawCreds := spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw)
 	t.Run("happy flow", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
-		depositData, keyshares, proofs, err := intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		depositData, keyshares, proofs, err := intr.StartDKG(id, withdrawCreds, []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
 		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, keyshares, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
 		require.NoError(t, err)
@@ -96,22 +94,53 @@ func TestStartDKG(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		_, _, _, err = intr.StartDKG(id, withdrawCreds, []uint64{1, 2, 3}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 3")
 	})
 	t.Run("test wrong amount of opeators > 13", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		_, _, _, err = intr.StartDKG(id, withdrawCreds, []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, "prater", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "amount of operators should be 4,7,10,13: got 14")
 	})
 	t.Run("test opeators not unique", func(t *testing.T) {
 		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
 		require.NoError(t, err)
 		id := spec.NewID()
-		_, _, _, err = intr.StartDKG(id, withdraw.Bytes(), []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		_, _, _, err = intr.StartDKG(id, withdrawCreds, []uint64{1, 2, 3, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.ErrorContains(t, err, "operator is not in given operator data list")
+	})
+	t.Run("happy flow with 0x02 compounding credentials", func(t *testing.T) {
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
+		require.NoError(t, err)
+		id := spec.NewID()
+		compoundingCreds := spec_crypto.WithdrawalCredentials(spec_crypto.CompoundingWithdrawalPrefix, withdraw)
+		depositData, keyshares, proofs, err := intr.StartDKG(id, compoundingCreds, []uint64{1, 2, 3, 4}, "mainnet", owner, 1, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, keyshares, [][]*wire.SignedProof{proofs}, 1, owner, 1, withdraw)
+		require.NoError(t, err)
+		// Verify the deposit data has 0x02 prefix
+		withdrawCreds, err := hex.DecodeString(depositData.WithdrawalCredentials)
+		require.NoError(t, err)
+		require.Equal(t, byte(0x02), withdrawCreds[0], "withdrawal credentials should have 0x02 prefix")
+	})
+	t.Run("invalid withdrawal credentials length", func(t *testing.T) {
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
+		require.NoError(t, err)
+		id := spec.NewID()
+		_, _, _, err = intr.StartDKG(id, []byte{0x01, 0x02, 0x03}, []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		require.ErrorContains(t, err, "withdrawal credentials must be 32 bytes")
+	})
+	t.Run("invalid 0x03 withdrawal credentials prefix", func(t *testing.T) {
+		intr, err := initiator.New(ops, logger, "test.version", rootCert, false)
+		require.NoError(t, err)
+		id := spec.NewID()
+		badCreds := make([]byte, 32)
+		badCreds[0] = 0x03
+		copy(badCreds[12:], withdraw[:])
+		_, _, _, err = intr.StartDKG(id, badCreds, []uint64{1, 2, 3, 4}, "mainnet", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		require.ErrorContains(t, err, "invalid withdrawal credential prefix")
 	})
 
 	srv1.HttpSrv.Close()
@@ -423,9 +452,7 @@ func must[T any](v T, err error) T {
 }
 
 func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
-	err := logging.SetGlobalLogger("debug", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("operator-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -458,9 +485,9 @@ func TestDKGFailWithOperatorsMisbehave(t *testing.T) {
 		threshold := utils.GetThreshold(ids)
 		init := &spec.Init{
 			Operators:             ops,
-			T:                     uint64(threshold),
-			WithdrawalCredentials: withdraw.Bytes(),
-			Fork:                  e2m_core.NetworkFromString("mainnet").GenesisForkVersion(),
+			T:                     uint64(threshold), //nolint:gosec // threshold is always a small positive int
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw),
+			Fork:                  e2m_core.MainNetwork.GenesisForkVersion(),
 			Owner:                 owner,
 			Nonce:                 0,
 			Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),

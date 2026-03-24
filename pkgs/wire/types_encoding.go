@@ -30,7 +30,6 @@ func (m *MultipleSignedTransports) MarshalSSZTo(buf []byte) (dst []byte, err err
 
 	// Offset (2) 'Signature'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(m.Signature)
 
 	// Field (1) 'Messages'
 	if size := len(m.Messages); size > 13 {
@@ -79,7 +78,7 @@ func (m *MultipleSignedTransports) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o1 < 32 {
+	if o1 != 32 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -201,7 +200,6 @@ func (e *ErrSSZ) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (0) 'Error'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(e.Error)
 
 	// Field (0) 'Error'
 	if size := len(e.Error); size > 512 {
@@ -229,7 +227,7 @@ func (e *ErrSSZ) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 4 {
+	if o0 != 4 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -309,7 +307,6 @@ func (t *Transport) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (3) 'Version'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(t.Version)
 
 	// Field (2) 'Data'
 	if size := len(t.Data); size > 8388608 {
@@ -350,7 +347,7 @@ func (t *Transport) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o2 < 40 {
+	if o2 != 40 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -469,7 +466,6 @@ func (s *SignedTransport) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (2) 'Signature'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(s.Signature)
 
 	// Field (0) 'Message'
 	if dst, err = s.Message.MarshalSSZTo(dst); err != nil {
@@ -509,7 +505,7 @@ func (s *SignedTransport) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 12 {
+	if o0 != 12 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -641,7 +637,6 @@ func (k *KyberMessage) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Data'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(k.Data)
 
 	// Field (1) 'Data'
 	if size := len(k.Data); size > 4096 {
@@ -672,7 +667,7 @@ func (k *KyberMessage) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o1 < 12 {
+	if o1 != 12 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -748,7 +743,6 @@ func (r *ReshareKyberMessage) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Data'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(r.Data)
 
 	// Field (1) 'Data'
 	if size := len(r.Data); size > 4096 {
@@ -779,7 +773,7 @@ func (r *ReshareKyberMessage) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o1 < 12 {
+	if o1 != 12 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -856,7 +850,6 @@ func (e *Exchange) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Commits'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(e.Commits)
 
 	// Field (0) 'PK'
 	if size := len(e.PK); size > 2048 {
@@ -891,7 +884,7 @@ func (e *Exchange) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 8 {
+	if o0 != 8 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -996,7 +989,6 @@ func (p *Pong) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'PubKey'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(p.PubKey)
 
 	// Field (2) 'Multisig'
 	dst = ssz.MarshalBool(dst, p.Multisig)
@@ -1033,7 +1025,7 @@ func (p *Pong) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o1 < 14 {
+	if o1 != 14 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -1136,7 +1128,6 @@ func (r *ResultData) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (4) 'Proofs'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(r.Proofs)
 
 	// Field (0) 'Operators'
 	if size := len(r.Operators); size > 13 {
@@ -1196,7 +1187,7 @@ func (r *ResultData) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 40 {
+	if o0 != 40 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -1399,10 +1390,6 @@ func (r *ResignMessage) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (2) 'Proofs'
 	dst = ssz.WriteOffset(dst, offset)
-	for ii := 0; ii < len(r.Proofs); ii++ {
-		offset += 4
-		offset += r.Proofs[ii].SizeSSZ()
-	}
 
 	// Field (0) 'Operators'
 	if size := len(r.Operators); size > 13 {
@@ -1464,7 +1451,7 @@ func (r *ResignMessage) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 12 {
+	if o0 != 12 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -1634,7 +1621,6 @@ func (s *SignedResign) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Signature'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(s.Signature)
 
 	// Field (0) 'Messages'
 	if size := len(s.Messages); size > 100 {
@@ -1680,7 +1666,7 @@ func (s *SignedResign) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 8 {
+	if o0 != 8 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -1806,10 +1792,6 @@ func (r *ReshareMessage) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Proofs'
 	dst = ssz.WriteOffset(dst, offset)
-	for ii := 0; ii < len(r.Proofs); ii++ {
-		offset += 4
-		offset += r.Proofs[ii].SizeSSZ()
-	}
 
 	// Field (0) 'Reshare'
 	if dst, err = r.Reshare.MarshalSSZTo(dst); err != nil {
@@ -1853,7 +1835,7 @@ func (r *ReshareMessage) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 8 {
+	if o0 != 8 {
 		return ssz.ErrInvalidVariableOffset
 	}
 
@@ -1974,7 +1956,6 @@ func (s *SignedReshare) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 
 	// Offset (1) 'Signature'
 	dst = ssz.WriteOffset(dst, offset)
-	offset += len(s.Signature)
 
 	// Field (0) 'Messages'
 	if size := len(s.Messages); size > 100 {
@@ -2020,7 +2001,7 @@ func (s *SignedReshare) UnmarshalSSZ(buf []byte) error {
 		return ssz.ErrOffset
 	}
 
-	if o0 < 8 {
+	if o0 != 8 {
 		return ssz.ErrInvalidVariableOffset
 	}
 

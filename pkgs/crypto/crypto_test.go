@@ -15,8 +15,6 @@ import (
 	"github.com/drand/kyber/util/random"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ssvlabs/ssv-spec/types"
 )
 
 func TestDKGFull(t *testing.T) {
@@ -40,7 +38,7 @@ func TestDKGFull(t *testing.T) {
 
 func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.Result) {
 	// test if all results are consistent
-	sharesBLS := make(map[types.OperatorID]*bls.SecretKey)
+	sharesBLS := make(map[uint64]*bls.SecretKey)
 	valPK := &bls.PublicKey{}
 	for i, res := range results {
 		require.Equal(t, thr, len(res.Key.Commitments()))
@@ -52,7 +50,7 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 		}
 		blsSecKey, err := ResultToShareSecretKey(res.Key)
 		require.NoError(t, err)
-		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey
+		sharesBLS[uint64(res.Key.Share.I+1)] = blsSecKey //nolint:gosec // test values
 		valPK, err = ResultToValidatorPK(res.Key, suite.G1().(dkg.Suite))
 		require.NoError(t, err)
 	}
@@ -101,8 +99,8 @@ func testResults(t *testing.T, suite pairing.Suite, thr, n int, results []*dkg.R
 	}
 	// Compute bls sigs
 	payloadToSign := "Hello World!"
-	pks := make(map[types.OperatorID]*bls.PublicKey)
-	sigs := make(map[types.OperatorID]*bls.Sign)
+	pks := make(map[uint64]*bls.PublicKey)
+	sigs := make(map[uint64]*bls.Sign)
 	for id, ps := range sharesBLS {
 		pks[id] = ps.GetPublicKey()
 		sigs[id] = ps.Sign(payloadToSign)
@@ -153,7 +151,7 @@ func NewTestNode(s dkg.Suite, index int) *TestNode {
 	private := s.Scalar().Pick(random.New())
 	public := s.Point().Mul(private, nil)
 	return &TestNode{
-		Index:   uint32(index),
+		Index:   uint32(index), //nolint:gosec // test values
 		Private: private,
 		Public:  public,
 	}

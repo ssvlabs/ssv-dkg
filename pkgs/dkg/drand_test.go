@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls "github.com/drand/kyber-bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ssvlabs/ssv-dkg/pkgs/crypto"
@@ -87,7 +86,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		return rsa.EncryptPKCS1v15(rand.Reader, pk, d)
 	}
 	decrypt := func(d []byte) ([]byte, error) {
-		return rsaencryption.DecodeKey(pv, d)
+		return spec_crypto.Decrypt(pv, d)
 	}
 	logger, _ := zap.NewDevelopment()
 	logger = logger.With(zap.Uint64("id", id))
@@ -122,7 +121,7 @@ func TestDKGInit(t *testing.T) {
 		results: make(map[uint64][]*spec.Result, 0),
 	}
 	for i := 1; i < 5; i++ {
-		op, priv := NewTestOperator(ts, uint64(i))
+		op, priv := NewTestOperator(ts, uint64(i)) //nolint:gosec // test values
 		ts.ops[op.ID] = op
 		ts.opsPriv[op.ID] = priv
 	}
@@ -141,7 +140,7 @@ func TestDKGInit(t *testing.T) {
 	init := &spec.Init{
 		Operators:             opsarr,
 		T:                     3,
-		WithdrawalCredentials: []byte("0x0000"),
+		WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x1234")),
 		Fork:                  [4]byte{0, 0, 0, 0},
 		Nonce:                 0,
 		Owner:                 common.HexToAddress("0x1234"),

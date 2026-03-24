@@ -1,31 +1,25 @@
+name: Release
+
 on:
   push:
     tags:
-      - 'v[0-9]+.*'
+      - "v[0-9]+.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.25.8"
 
 jobs:
-  create_release:
-    name: Create release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      tag: ${{ github.ref_name }}
-    steps:
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: DKG ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-  release_assets:
-    name: Release assets
-    needs: create_release
+  release:
+    name: Build and release
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -52,81 +46,68 @@ jobs:
             execname: "ssv-dkg.exe"
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set ZIP Filename (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: echo "ZIP_NAME=ssvdkg-${{ needs.create_release.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip" >> $GITHUB_ENV
-
-      - name: Set ZIP Filename (Windows)
-        if: runner.os == 'Windows'
-        run: echo "ZIP_NAME=ssvdkg-${{ needs.create_release.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
-
-      - name: Install ARM64 Cross Compiler (Linux)
+      - name: Install ARM64 cross-compiler (Linux)
         if: runner.os == 'Linux' && matrix.goarch == 'arm64'
-        run: |
-          sudo apt update
-          sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      - name: Install ARM64 Cross Compiler (macOS)
-        if: runner.os == 'macOS' && matrix.goarch == 'arm64'
-        run: |
-          brew install llvm
-
-      - name: Install Dependencies (Windows)
+      - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: |
-          choco install mingw --version=8.1.0
+        run: choco install mingw
 
-      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (Linux)
+      - name: Create bin directory (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: mkdir -p bin
+
+      - name: Create bin directory (Windows)
+        if: runner.os == 'Windows'
+        run: New-Item -ItemType Directory -Force -Path bin
+
+      - name: Build (Linux)
         if: runner.os == 'Linux'
         run: |
-          mkdir -p bin
           if [ "${{ matrix.goarch }}" = "arm64" ]; then
             export CC=aarch64-linux-gnu-gcc
             export CXX=aarch64-linux-gnu-g++
           fi
-          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ./bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o ./bin/${{ matrix.execname }} \
+            -ldflags "-X main.Version=${{ github.ref_name }}" \
+            ./cmd/ssv-dkg/ssv-dkg.go
 
-      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (macOS)
+      - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
-          mkdir -p bin
-          export CC=clang
-          export CXX=clang++
-          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ./bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o ./bin/${{ matrix.execname }} \
+            -ldflags "-X main.Version=${{ github.ref_name }}" \
+            ./cmd/ssv-dkg/ssv-dkg.go
 
-      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }} (Windows)
+      - name: Build (Windows)
         if: runner.os == 'Windows'
         run: |
-          mkdir bin
           $env:CGO_ENABLED="1"
           $env:GOOS="${{ matrix.goos }}"
           $env:GOARCH="${{ matrix.goarch }}"
-          go build -o bin/${{ matrix.execname }} -ldflags "-X main.Version=${{ needs.create_release.outputs.tag }}" ./cmd/ssv-dkg/ssv-dkg.go
+          go build -o bin/${{ matrix.execname }} `
+            -ldflags "-X main.Version=${{ github.ref_name }}" `
+            ./cmd/ssv-dkg/ssv-dkg.go
 
-      - name: Create ZIP archive (Linux/macOS)
+      - name: Create ZIP (Linux/macOS)
         if: runner.os != 'Windows'
-        run: |
-          zip -r ./bin/${{ env.ZIP_NAME }} ./bin/${{ matrix.execname }}
+        run: zip -j ./bin/ssv-dkg-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip ./bin/${{ matrix.execname }}
 
-      - name: Create ZIP archive (Windows)
+      - name: Create ZIP (Windows)
         if: runner.os == 'Windows'
-        run: |
-          powershell -Command "Compress-Archive -Path bin\${{ matrix.execname }} -DestinationPath bin\${{ env.ZIP_NAME }}"
+        run: Compress-Archive -Path bin\${{ matrix.execname }} -DestinationPath bin\ssv-dkg-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip
 
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_name: ${{ env.ZIP_NAME }}
-          asset_path: ./bin/${{ env.ZIP_NAME }}
-          asset_content_type: application/octet-stream
+          files: ./bin/ssv-dkg-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.zip

@@ -103,18 +103,18 @@ func GenerateAggregatesKeyshares(keySharesArr []*wire.KeySharesCLI) (*wire.KeySh
 // New creates a main initiator structure
 func New(operators wire.OperatorsCLI, logger *zap.Logger, ver string, certs []string, tlsInsecure bool) (*Initiator, error) {
 	client := req.C()
-	// set CA certificates
 	if tlsInsecure {
 		logger.Warn("Dangerous, not secure!!! No CA certificates provided at 'clientCACertPath'. TLS 'InsecureSkipVerify' is set to true, accepting any TLS certificates authorities.")
-		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-	} else {
+		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}) //nolint:gosec // intentional for dev/testing
+	} else if len(certs) > 0 {
 		client.SetRootCertsFromFile(certs...)
 	}
+	// else: Go's default TLS config uses system CA bundle (works on all platforms)
 	// Set timeout for operator responses
 	client.SetTimeout(30 * time.Second)
 	privKey, _, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate RSA keys: %s", err)
+		return nil, fmt.Errorf("failed to generate RSA keys: %w", err)
 	}
 	c := &Initiator{
 		Logger:                 logger,
@@ -296,7 +296,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 		allOps = filterOpsWithErrors(allOps, initErrs)
 	}
 	// check that all new operators and threshold of old operators replied without errors
-	if err := checkThreshold(exchangeMsgs, initErrs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil {
+	if err := checkThreshold(exchangeMsgs, initErrs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil { //nolint:gosec // threshold is always small
 		return nil, err
 	}
 	numOfCeremonies := len(signedReshare.Messages)
@@ -336,7 +336,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 			errs[k] = v
 		}
 		// check that all new operators and threshold of old operators replied without errors
-		if err := checkThreshold(kyberMsgs, errs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil {
+		if err := checkThreshold(kyberMsgs, errs, signedReshare.Messages[0].Reshare.OldOperators, signedReshare.Messages[0].Reshare.NewOperators, int(signedReshare.Messages[0].Reshare.OldT)); err != nil { //nolint:gosec // threshold is always small
 			return nil, err
 		}
 		err = verifyMessageSignatures(reqID, kyberMsgs, c.VerifyMessageSignature)
@@ -368,11 +368,7 @@ func (c *Initiator) ReshareMessageFlowHandling(id [24]byte, signedReshare *wire.
 	return finalResults, nil
 }
 
-// StartDKG starts DKG ceremony at initiator with requested parameters
-func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
-	if len(withdraw) != len(common.Address{}) {
-		return nil, nil, nil, fmt.Errorf("incorrect withdrawal address length")
-	}
+func (c *Initiator) StartDKG(id [24]byte, withdrawCreds []byte, ids []uint64, network eth2_key_manager_core.Network, owner common.Address, nonce, amount uint64) (*wire.DepositDataCLI, *wire.KeySharesCLI, []*wire.SignedProof, error) {
 	ops, err := ValidatedOperatorData(ids, c.Operators)
 	if err != nil {
 		return nil, nil, nil, err
@@ -384,8 +380,8 @@ func (c *Initiator) StartDKG(id [24]byte, withdraw []byte, ids []uint64, network
 	// make init message
 	init := &spec.Init{
 		Operators:             ops,
-		T:                     uint64(threshold),
-		WithdrawalCredentials: withdraw,
+		T:                     uint64(threshold), //nolint:gosec // threshold is always small (max 9)
+		WithdrawalCredentials: withdrawCreds,
 		Fork:                  network.GenesisForkVersion(),
 		Owner:                 owner,
 		Nonce:                 nonce,
@@ -497,7 +493,7 @@ func (c *Initiator) CreateCeremonyResults(
 		return nil, nil, nil, err
 	}
 	c.Logger.Info("✅ verified master signature for ssv contract data")
-	if err := crypto.ValidateDepositDataCLI(depositDataJson, common.BytesToAddress(withdrawalCredentials)); err != nil {
+	if err := crypto.ValidateDepositDataCLI(depositDataJson, withdrawalCredentials); err != nil {
 		return nil, nil, nil, err
 	}
 	if err := crypto.ValidateKeysharesCLI(keyshares, ops, ownerAddress, nonce, depositDataJson.PubKey); err != nil {
@@ -597,7 +593,7 @@ func (c *Initiator) processDKGResultResponse(dkgResults []*spec.Result,
 	if err != nil {
 		return nil, nil, err
 	}
-	network, err := spec_crypto.GetNetworkByFork(fork)
+	network, err := eth2_key_manager_core.NetworkFromForkVersion(fork)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -679,19 +675,6 @@ func (c *Initiator) SendReshareMsg(id [24]byte, reshare *wire.SignedReshare, ope
 
 // SendExchangeMsgs sends combined exchange messages to each operator participating in DKG ceremony
 func (c *Initiator) SendExchangeMsgs(id [24]byte, exchangeMsgs map[uint64][]byte, operators []*spec.Operator) (results map[uint64][]byte, errs map[uint64]error, err error) {
-	mltpl, err := makeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
-	if err != nil {
-		return nil, nil, err
-	}
-	mltplbyts, err := mltpl.MarshalSSZ()
-	if err != nil {
-		return nil, nil, err
-	}
-	results, errs = c.SendToAll(consts.API_DKG_URL, mltplbyts, operators)
-	return results, errs, nil
-}
-
-func (c *Initiator) SendExchangeMsgsReshare(id [24]byte, exchangeMsgs map[uint64][]byte, operators []*spec.Operator) (results map[uint64][]byte, errs map[uint64]error, err error) {
 	mltpl, err := makeMultipleSignedTransports(c.PrivateKey, id, exchangeMsgs)
 	if err != nil {
 		return nil, nil, err
@@ -876,8 +859,8 @@ func (c *Initiator) ConstructReshareMessage(oldOperatorIDs, newOperatorIDs []uin
 		ValidatorPubKey:       validatorPub,
 		OldOperators:          oldOps,
 		NewOperators:          newOps,
-		OldT:                  uint64(len(oldOperatorIDs) - ((len(oldOperatorIDs) - 1) / 3)),
-		NewT:                  uint64(len(newOperatorIDs) - ((len(newOperatorIDs) - 1) / 3)),
+		OldT:                  uint64(len(oldOperatorIDs) - ((len(oldOperatorIDs) - 1) / 3)), //nolint:gosec // operator count is always small
+		NewT:                  uint64(len(newOperatorIDs) - ((len(newOperatorIDs) - 1) / 3)), //nolint:gosec // operator count is always small
 		Fork:                  ethnetwork.GenesisForkVersion(),
 		WithdrawalCredentials: withdrawCreds,
 		Owner:                 owner,

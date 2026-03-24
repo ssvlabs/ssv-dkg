@@ -57,7 +57,7 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	var err error
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 Failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")
@@ -66,7 +66,7 @@ func BindVerifyFlags(cmd *cobra.Command) error {
 	}
 	WithdrawAddress, err = utils.HexToAddress(viper.GetString("withdrawAddress"))
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err)
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Validators = viper.GetUint("validators")
 	if Validators == 0 {

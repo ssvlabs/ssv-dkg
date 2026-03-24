@@ -72,9 +72,9 @@ var GenerateReshareMsg = &cobra.Command{
 				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
 			}
 		}
-		ethNetwork := e2m_core.NetworkFromString(flags.Network)
-		if ethNetwork == "" {
-			logger.Fatal("😥 Cant recognize eth network")
+		ethNetwork, err := e2m_core.NetworkFromString(flags.Network)
+		if err != nil {
+			logger.Fatal("😥 Cant recognize eth network", zap.Error(err))
 		}
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
@@ -85,7 +85,7 @@ var GenerateReshareMsg = &cobra.Command{
 				newOperatorIDs,
 				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
-				flags.WithdrawAddress[:],
+				flags.WithdrawalCredentials(),
 				flags.OwnerAddress,
 				nonce,
 				flags.Amount,
@@ -174,9 +174,9 @@ var StartReshare = &cobra.Command{
 				logger.Fatal("😥 Failed to read proofs string:", zap.Error(err))
 			}
 		}
-		ethNetwork := e2m_core.NetworkFromString(flags.Network)
-		if ethNetwork == "" {
-			logger.Fatal("😥 Cant recognize eth network")
+		ethNetwork, err := e2m_core.NetworkFromString(flags.Network)
+		if err != nil {
+			logger.Fatal("😥 Cant recognize eth network", zap.Error(err))
 		}
 		signatures, err := cli_utils.SignaturesStringToBytes(flags.Signatures)
 		if err != nil {
@@ -185,13 +185,13 @@ var StartReshare = &cobra.Command{
 		rMsgs := []*wire.ReshareMessage{}
 		for i := 0; i < len(signedProofs); i++ {
 			nonce := flags.Nonce + uint64(i)
-			// Contruct the reshare message
+			// Construct the reshare message
 			rMsg, err := dkgInitiator.ConstructReshareMessage(
 				oldOperatorIDs,
 				newOperatorIDs,
 				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
-				flags.WithdrawAddress[:],
+				flags.WithdrawalCredentials(),
 				flags.OwnerAddress,
 				nonce,
 				flags.Amount,

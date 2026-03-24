@@ -153,7 +153,8 @@ With this configuration, a typical configuration file would look like this:
 ```yaml
 validators: 10 # amount of validators to generate (nonce incrementing by 1) (default: 1)
 operatorIDs: [143, 219, 33, 34] # array of Operator IDs which will be used for a DKG ceremony
-withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # address where reward payments for the validator are sent
+withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # ETH1 withdrawal address for the validator
+# compounding: true # use 0x02 compounding withdrawal credentials instead of 0x01 (default: false)
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # owner nonce for the SSV contract (default: 0)
 network: "holesky" # network name (default: mainnet)
@@ -191,11 +192,11 @@ Due to Windows operating system's [limitation](https://learn.microsoft.com/en-us
 
 #### Build from source
 
-To build from source you'll need to have Go version 1.20 installed on your system
+To build from source you'll need to have Go version 1.25 installed on your system
 
 ##### Build
 
-A prerequisite for this is to have `go` version 1.20 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
+A prerequisite for this is to have `go` version 1.25 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
 
 ```sh
 make install
@@ -215,6 +216,7 @@ ssv-dkg init \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
+          --compounding \
           --network "holesky" \
           --outputPath ./output \
           --logLevel info \
@@ -233,8 +235,9 @@ Here's an explanation of each parameter:
 | `--operatorsInfoPath` | string                                    | Path to a file containing operators operators information. ID, base64(RSA pub key), endpoint   |
 | `--owner`             | address                                   | Owner address for the SSV contract                                                             |
 | `--nonce`             | int                                       | Owner nonce for the SSV contract (default: 0)                                                  |
-| `--withdrawAddress`   | address                                   | Address where reward payments for the validator are sent                                       |
-| `--network`           | mainnet / prater / holesky                | Network name (default: `mainnet`)                                                              |
+| `--withdrawAddress`   | address                                   | ETH1 withdrawal address for the validator                                                      |
+| `--compounding`       | bool                                      | Use 0x02 compounding withdrawal credentials instead of 0x01 (default: `false`)                 |
+| `--network`           | mainnet / prater / holesky / hoodi        | Network name (default: `mainnet`)                                                              |
 | `--outputPath`        | string                                    | Path to store the output files (default `./output`)                                            |
 | `--configPath`        | string                                    | Path to config file, i.e. `init.yaml`. If not supplied command line parameters are being used. |
 | `--logLevel`          | debug / info / warning / error / critical | Logger's log level (default: `debug`)                                                          |
@@ -422,11 +425,11 @@ You can, of course, change the configuration above to one that suits you better,
 
 #### Build from source
 
-To build from source you'll need to have Go version 1.20 installed on your system
+To build from source you'll need to have Go version 1.25 installed on your system
 
 ##### Build
 
-A prerequisite for this is to have `go` version 1.20 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
+A prerequisite for this is to have `go` version 1.25 installed on the system, and an optional requirement is to have the `make` tool installed as well (alternatively you could run the corresponding command defined in the `Makefile`).
 
 ```sh
 make install

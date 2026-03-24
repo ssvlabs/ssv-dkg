@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/ssv/logging"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/share"
 	"github.com/ethereum/go-ethereum"
@@ -63,9 +61,7 @@ func TestRateLimit(t *testing.T) {
 		wire.OperatorCLI{Addr: srv4.HttpSrv.URL, ID: 4, PubKey: &srv4.PrivKey.PublicKey},
 	)
 	// Initiator priv key
-	_, pv, err := rsaencryption.GenerateKeys()
-	require.NoError(t, err)
-	priv, err := rsaencryption.ConvertPemToPrivateKey(string(pv))
+	priv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	pubKey := priv.Public().(*rsa.PublicKey)
 	initPubBytes, err := spec_crypto.EncodeRSAPublicKey(pubKey)
@@ -85,7 +81,7 @@ func TestRateLimit(t *testing.T) {
 		init := &spec.Init{
 			Operators:             parts,
 			T:                     3,
-			WithdrawalCredentials: common.HexToAddress("0x0000000000000000000000000000000000000009").Bytes(),
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, common.HexToAddress("0x0000000000000000000000000000000000000009")),
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 common.HexToAddress("0x0000000000000000000000000000000000000007"),
 			Nonce:                 0,
@@ -221,9 +217,7 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestWrongInitiatorSignature(t *testing.T) {
-	err := logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	logger := zap.L().Named("operator-tests")
+	logger := zap.Must(zap.NewDevelopment()).Named("operator-tests")
 	ops := wire.OperatorsCLI{}
 	version := "test.version"
 	stubClient := &stubs.Client{
@@ -270,8 +264,8 @@ func TestWrongInitiatorSignature(t *testing.T) {
 		// make init message
 		init := &spec.Init{
 			Operators:             parts,
-			T:                     uint64(threshold),
-			WithdrawalCredentials: withdraw.Bytes(),
+			T:                     uint64(threshold), //nolint:gosec // threshold is always small
+			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, withdraw),
 			Fork:                  [4]byte{0, 0, 0, 0},
 			Owner:                 owner,
 			Nonce:                 0,
@@ -381,7 +375,7 @@ func TestRecoverSharesData(t *testing.T) {
 	var kyberPubShares []*share.PubShare
 	for i, enck := range encryptedKeys {
 		priv := keys[i]
-		prShare, err := rsaencryption.DecodeKey(priv, enck)
+		prShare, err := spec_crypto.Decrypt(priv, enck)
 		require.NoError(t, err)
 		secret := &bls.SecretKey{}
 		err = secret.SetHexString(string(prShare))
@@ -391,7 +385,7 @@ func TestRecoverSharesData(t *testing.T) {
 		for _, op := range ks.Shares[0].ShareData.Operators {
 			b, err := spec_crypto.EncodeRSAPublicKey(&priv.PublicKey)
 			require.NoError(t, err)
-			if bytes.Equal(b, []byte(op.PubKey)) {
+			if bytes.Equal(b, op.PubKey) {
 				operatorID = op.ID
 			}
 		}
@@ -399,12 +393,12 @@ func TestRecoverSharesData(t *testing.T) {
 		v := suite.G1().Scalar().SetBytes(secret.Serialize())
 		t.Logf("Recovered scalar %x", v)
 		kyberPrivShare := &share.PriShare{
-			I: int(i),
+			I: i,
 			V: v,
 		}
 		kyberPrivShares = append(kyberPrivShares, kyberPrivShare)
 		kyberPubShare := &share.PubShare{
-			I: int(i),
+			I: i,
 			V: suite.G1().Point().Mul(kyberPrivShare.V, nil),
 		}
 		kyberPubShares = append(kyberPubShares, kyberPubShare)
@@ -418,7 +412,7 @@ func TestRecoverSharesData(t *testing.T) {
 		err = v.UnmarshalBinary(blsPub.Serialize())
 		require.NoError(t, err)
 		kyberPubShare := &share.PubShare{
-			I: int(i),
+			I: i,
 			V: v,
 		}
 		kyberPubSharesFromPubs = append(kyberPubSharesFromPubs, kyberPubShare)

@@ -41,6 +41,7 @@ func SetBaseReshareFlags(cmd *cobra.Command) {
 	NetworkFlag(cmd)
 	SetProofsFilePath(cmd)
 	ProofsStringFlag(cmd)
+	CompoundingFlag(cmd)
 }
 
 func SetGenerateReshareMsgFlags(cmd *cobra.Command) {
@@ -134,7 +135,7 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -146,13 +147,17 @@ func BindGenerateReshareMsgFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	Amount = viper.GetUint64("amount")
 	if !spec.ValidAmountSet(phase0.Gwei(Amount)) {
 		return fmt.Errorf("🚨 Amount should be in range between 32 ETH and 2048 ETH")
 	}
+	if err := viper.BindPFlag(compounding, cmd.PersistentFlags().Lookup(compounding)); err != nil {
+		return err
+	}
+	Compounding = viper.GetBool(compounding)
 	return nil
 }
 
@@ -177,13 +182,9 @@ func BindReshareFlags(cmd *cobra.Command) error {
 	TLSInsecure = viper.GetBool("tlsInsecure")
 	if !TLSInsecure {
 		ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-		if ClientCACertPath == nil {
-			return fmt.Errorf("😥 TLS CA certs path should be provided, overwise set 'TLSInsecure' flag to true")
-		} else {
-			for _, certPath := range ClientCACertPath {
-				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
-				}
+		for _, certPath := range ClientCACertPath {
+			if !filepath.IsLocal(certPath) {
+				return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 			}
 		}
 	} else {

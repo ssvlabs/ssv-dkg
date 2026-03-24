@@ -1,398 +1,105 @@
 package integration_test
 
 import (
-	"encoding/json"
-	"os"
-	"strconv"
+	"context"
+	"fmt"
+	"runtime"
 	"testing"
 
-	"github.com/bloxapp/ssv/logging"
 	"github.com/ethereum/go-ethereum"
-	"github.com/spf13/cobra"
+	"github.com/sourcegraph/conc/pool"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
+	spec "github.com/ssvlabs/dkg-spec"
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
-	cli_initiator "github.com/ssvlabs/ssv-dkg/cli/initiator"
-	cli_verify "github.com/ssvlabs/ssv-dkg/cli/verify"
+	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/validator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-func TestBulkHappyFlows4Ops(t *testing.T) {
-	err := os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	err = logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	version := "test.version"
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
-	}
-	servers, ops := createOperators(t, version, stubClient)
-	operators, err := json.Marshal(ops)
-	require.NoError(t, err)
-	RootCmd := &cobra.Command{
-		Use:   "ssv-dkg",
-		Short: "CLI for running Distributed Key Generation protocol",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		},
-	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_verify.Verify)
-	RootCmd.Short = "ssv-dkg-test"
-	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
-	cli_verify.Verify.Version = version
-	t.Run("test 4 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-
-	t.Run("test 4 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 4 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// validate results
-	initCeremonies, err := os.ReadDir("./data/output")
-	require.NoError(t, err)
-	validators := []int{1, 10, 100}
-	for i, c := range initCeremonies {
-		args := []string{"verify",
-			"--ceremonyDir", "./data/output/" + c.Name(),
-			"--validators", strconv.Itoa(validators[i]),
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--nonce", strconv.Itoa(1),
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	}
-	err = os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	for _, srv := range servers {
-		srv.HttpSrv.Close()
-	}
+type bulkResult struct {
+	depositData *wire.DepositDataCLI
+	keyShares   *wire.KeySharesCLI
+	proofs      []*wire.SignedProof
 }
 
-func TestBulkHappyFlows7Ops(t *testing.T) {
-	err := os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	err = logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	version := "test.version"
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
+func runBulkInit(t *testing.T, ops wire.OperatorsCLI, opIDs []uint64, owner, withdraw [20]byte, valCount int) {
+	t.Helper()
+	logger := zap.L().Named("integration-tests")
+
+	ctx := context.Background()
+	// Scale concurrency to available CPUs: the DKG protocol uses a 10-second
+	// TimePhaser per phase, so deal round-trips must complete within that window.
+	// Under parallel test execution (4 test groups) with -race overhead, too many
+	// concurrent ceremonies saturate the CPU and cause spurious phase-timeout complaints.
+	maxGoroutines := max(2, runtime.GOMAXPROCS(0)/2)
+	p := pool.NewWithResults[*bulkResult]().WithContext(ctx).WithFirstError().WithMaxGoroutines(maxGoroutines)
+	for i := 0; i < valCount; i++ {
+		i := i
+		p.Go(func(ctx context.Context) (*bulkResult, error) {
+			clnt, err := initiator.New(ops.Clone(), logger, testVersion, rootCert, false)
+			if err != nil {
+				return nil, err
+			}
+			id := spec.NewID()
+			depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), opIDs, "mainnet", owner, uint64(1+i), uint64(spec_crypto.MIN_ACTIVATION_BALANCE)) //nolint:gosec // test values
+			if err != nil {
+				return nil, err
+			}
+			return &bulkResult{depositData: depositData, keyShares: ks, proofs: proofs}, nil
+		})
 	}
-	servers, ops := createOperators(t, version, stubClient)
-	operators, err := json.Marshal(ops)
+	results, err := p.Wait()
 	require.NoError(t, err)
-	RootCmd := &cobra.Command{
-		Use:   "ssv-dkg",
-		Short: "CLI for running Distributed Key Generation protocol",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		},
+
+	var depositDataArr []*wire.DepositDataCLI
+	var keySharesArr []*wire.KeySharesCLI
+	var proofsArr [][]*wire.SignedProof
+	for _, r := range results {
+		depositDataArr = append(depositDataArr, r.depositData)
+		keySharesArr = append(keySharesArr, r.keyShares)
+		proofsArr = append(proofsArr, r.proofs)
 	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_verify.Verify)
-	RootCmd.Short = "ssv-dkg-test"
-	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
-	cli_verify.Verify.Version = version
-	t.Run("test 7 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 7 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 7 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// validate results
-	initCeremonies, err := os.ReadDir("./data/output")
+	aggKs, err := initiator.GenerateAggregatesKeyshares(keySharesArr)
 	require.NoError(t, err)
-	validators := []int{1, 10, 100}
-	for i, c := range initCeremonies {
-		args := []string{"verify",
-			"--ceremonyDir", "./data/output/" + c.Name(),
-			"--validators", strconv.Itoa(validators[i]),
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--nonce", strconv.Itoa(1),
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	}
-	err = os.RemoveAll("./data/output/")
+	err = validator.ValidateResults(depositDataArr, aggKs, proofsArr, valCount, owner, 1, withdraw)
 	require.NoError(t, err)
-	for _, srv := range servers {
-		srv.HttpSrv.Close()
-	}
 }
 
-func TestBulkHappyFlows10Ops(t *testing.T) {
-	err := os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	err = logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	version := "test.version"
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
+func TestBulkHappyFlows(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		opIDs []uint64
+	}{
+		{"4 operators", []uint64{11, 22, 33, 44}},
+		{"7 operators", []uint64{11, 22, 33, 44, 55, 66, 77}},
+		{"10 operators", []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100}},
+		{"13 operators", []uint64{11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133}},
 	}
-	servers, ops := createOperators(t, version, stubClient)
-	operators, err := json.Marshal(ops)
-	require.NoError(t, err)
-	RootCmd := &cobra.Command{
-		Use:   "ssv-dkg",
-		Short: "CLI for running Distributed Key Generation protocol",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		},
-	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_verify.Verify)
-	RootCmd.Short = "ssv-dkg-test"
-	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
-	cli_verify.Verify.Version = version
-	t.Run("test 10 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 10 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 10 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// validate results
-	initCeremonies, err := os.ReadDir("./data/output")
-	require.NoError(t, err)
-	validators := []int{1, 10, 100}
-	for i, c := range initCeremonies {
-		args := []string{"verify",
-			"--ceremonyDir", "./data/output/" + c.Name(),
-			"--validators", strconv.Itoa(validators[i]),
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--nonce", strconv.Itoa(1),
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	}
-	err = os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	for _, srv := range servers {
-		srv.HttpSrv.Close()
-	}
-}
-
-func TestBulkHappyFlows13Ops(t *testing.T) {
-	err := os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	err = logging.SetGlobalLogger("info", "capital", "console", nil)
-	require.NoError(t, err)
-	version := "test.version"
-	stubClient := &stubs.Client{
-		CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
-			return nil, nil
-		},
-	}
-	servers, ops := createOperators(t, version, stubClient)
-	operators, err := json.Marshal(ops)
-	require.NoError(t, err)
-	RootCmd := &cobra.Command{
-		Use:   "ssv-dkg",
-		Short: "CLI for running Distributed Key Generation protocol",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		},
-	}
-	RootCmd.AddCommand(cli_initiator.StartDKG)
-	RootCmd.AddCommand(cli_verify.Verify)
-	RootCmd.Short = "ssv-dkg-test"
-	RootCmd.Version = version
-	cli_initiator.StartDKG.Version = version
-	cli_verify.Verify.Version = version
-	t.Run("test 13 operators 1 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "1",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 13 operators 10 validators bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "10",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	t.Run("test 13 operators 100 validator bulk happy flow", func(t *testing.T) {
-		args := []string{"init",
-			"--validators", "100",
-			"--operatorsInfo", string(operators),
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--operatorIDs", "11,22,33,44,55,66,77,88,99,100,111,122,133",
-			"--nonce", "1",
-			"--amount", "32000000000",
-			"--clientCACertPath", rootCert[0]}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	})
-	// validate results
-	initCeremonies, err := os.ReadDir("./data/output")
-	require.NoError(t, err)
-	validators := []int{1, 10, 100}
-	for i, c := range initCeremonies {
-		args := []string{"verify",
-			"--ceremonyDir", "./data/output/" + c.Name(),
-			"--validators", strconv.Itoa(validators[i]),
-			"--withdrawAddress", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--owner", "0x81592c3de184a3e2c0dcb5a261bc107bfa91f494",
-			"--nonce", strconv.Itoa(1),
-			"--amount", "32000000000"}
-		RootCmd.SetArgs(args)
-		err := RootCmd.Execute()
-		require.NoError(t, err)
-		resetFlags(RootCmd)
-	}
-	err = os.RemoveAll("./data/output/")
-	require.NoError(t, err)
-	for _, srv := range servers {
-		srv.HttpSrv.Close()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			stubClient := &stubs.Client{
+				CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
+					return nil, nil
+				},
+			}
+			servers, ops := createOperators(t, testVersion, stubClient)
+			t.Cleanup(func() {
+				for _, srv := range servers {
+					srv.HttpSrv.Close()
+				}
+			})
+			withdraw := newEthAddress(t)
+			owner := newEthAddress(t)
+			for _, valCount := range []int{1, 10, 30} {
+				t.Run(fmt.Sprintf("%d validators", valCount), func(t *testing.T) {
+					runBulkInit(t, ops, tc.opIDs, owner, withdraw, valCount)
+				})
+			}
+		})
 	}
 }

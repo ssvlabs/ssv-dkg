@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bloxapp/ssv/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -21,20 +20,21 @@ var HealthCheck = &cobra.Command{
 	Short: "Ping DKG operators",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(`
-		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗ 
+		█████╗ ██╗  ██╗ ██████╗     ██╗███╗   ██╗██╗████████╗██╗ █████╗ ████████╗ ██████╗ ██████╗
 		██╔══██╗██║ ██╔╝██╔════╝     ██║████╗  ██║██║╚══██╔══╝██║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
 		██║  ██║█████╔╝ ██║  ███╗    ██║██╔██╗ ██║██║   ██║   ██║███████║   ██║   ██║   ██║██████╔╝
 		██║  ██║██╔═██╗ ██║   ██║    ██║██║╚██╗██║██║   ██║   ██║██╔══██║   ██║   ██║   ██║██╔══██╗
 		██████╔╝██║  ██╗╚██████╔╝    ██║██║ ╚████║██║   ██║   ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
 		╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝`)
-		if err := logging.SetGlobalLogger("debug", "json", "capitalColor", nil); err != nil {
-			return fmt.Errorf("logging.SetGlobalLogger: %w", err)
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			return fmt.Errorf("create logger: %w", err)
 		}
-		logger := zap.L().Named("dkg-initiator")
+		logger = logger.Named("dkg-initiator")
 		logger.Info("🪛 Initiator`s", zap.String("Version", cmd.Version))
 		ips, err := cmd.Flags().GetStringSlice("ip")
 		if err != nil {
-			logger.Fatal("😥", zap.Error(err))
+			return fmt.Errorf("😥 %w", err)
 		}
 
 		for i, s := range ips {
@@ -43,11 +43,11 @@ var HealthCheck = &cobra.Command{
 
 		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, nil, true)
 		if err != nil {
-			logger.Fatal("😥", zap.Error(err))
+			return fmt.Errorf("😥 %w", err)
 		}
 		err = dkgInitiator.Ping(ips)
 		if err != nil {
-			logger.Fatal("😥 Error: ", zap.Error(err))
+			return fmt.Errorf("😥 Error: %w", err)
 		}
 		return nil
 	},

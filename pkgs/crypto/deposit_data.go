@@ -7,7 +7,6 @@ import (
 	"reflect"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-version"
 	"github.com/ssvlabs/eth2-key-manager/core"
 
@@ -51,8 +50,11 @@ func BuildDepositDataCLI(network core.Network, depositData *phase0.DepositData, 
 	return depositDataJson, nil
 }
 
-func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalAddress common.Address) error {
-	return validateDepositDataCLI(d, spec_crypto.ETH1WithdrawalCredentials(expectedWithdrawalAddress.Bytes()))
+// ValidateDepositDataCLI validates deposit data JSON encoding, field formatting, deposit roots,
+// signature, and withdrawal credentials match. expectedWithdrawalCredentials must be 32 bytes
+// with a valid prefix (0x01 or 0x02).
+func ValidateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredentials []byte) error {
+	return validateDepositDataCLI(d, expectedWithdrawalCredentials)
 }
 
 func ValidateDepositDataCLIBLS(d *wire.DepositDataCLI, expectedWithdrawalPubKey []byte) error {
@@ -84,7 +86,7 @@ func validateDepositDataCLI(d *wire.DepositDataCLI, expectedWithdrawalCredential
 	}
 	// 3. Verify withdrawal address
 	if d.WithdrawalCredentials != hex.EncodeToString(expectedWithdrawalCredentials) {
-		return fmt.Errorf("failed to verify withdrawal address (%s != %x)", d.WithdrawalCredentials, expectedWithdrawalCredentials)
+		return fmt.Errorf("failed to verify withdrawal credentials (%s != %x)", d.WithdrawalCredentials, expectedWithdrawalCredentials)
 	}
 	return nil
 }
@@ -102,7 +104,7 @@ func validateFieldFormatting(d *wire.DepositDataCLI) error {
 		return fmt.Errorf("resulting deposit data json has wrong format")
 	}
 	// check type of values
-	if reflect.TypeOf(d.PubKey).String() != "string" ||
+	if reflect.TypeOf(d.PubKey).String() != "string" || //nolint:goconst
 		reflect.TypeOf(d.WithdrawalCredentials).String() != "string" ||
 		reflect.TypeOf(d.Amount).String() != "uint64" ||
 		reflect.TypeOf(d.Signature).String() != "string" ||
@@ -160,7 +162,7 @@ func verifyDepositRoots(d *wire.DepositDataCLI) error {
 	if len(fork) != 4 {
 		return fmt.Errorf("fork version has wrong length")
 	}
-	network, err := spec_crypto.GetNetworkByFork([4]byte(fork))
+	network, err := core.NetworkFromForkVersion([4]byte(fork))
 	if err != nil {
 		return fmt.Errorf("failed to get network by fork: %w", err)
 	}

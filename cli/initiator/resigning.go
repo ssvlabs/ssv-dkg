@@ -50,9 +50,9 @@ var GenerateResignMsg = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load participants: ", zap.Error(err))
 		}
-		ethNetwork := e2m_core.NetworkFromString(flags.Network)
-		if ethNetwork == "" {
-			logger.Fatal("😥 Cant recognize eth network")
+		ethNetwork, err := e2m_core.NetworkFromString(flags.Network)
+		if err != nil {
+			logger.Fatal("😥 Cant recognize eth network", zap.Error(err))
 		}
 		var signedProofs [][]*spec.SignedProof
 		if flags.ProofsFilePath != "" {
@@ -80,7 +80,7 @@ var GenerateResignMsg = &cobra.Command{
 				operatorIDs,
 				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
-				flags.WithdrawAddress[:],
+				flags.WithdrawalCredentials(),
 				flags.OwnerAddress,
 				nonce,
 				flags.Amount,
@@ -144,9 +144,9 @@ var StartResigning = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to load operator IDs: ", zap.Error(err))
 		}
-		ethNetwork := e2m_core.NetworkFromString(flags.Network)
-		if ethNetwork == "" {
-			logger.Fatal("😥 Cant recognize eth network")
+		ethNetwork, err := e2m_core.NetworkFromString(flags.Network)
+		if err != nil {
+			logger.Fatal("😥 Cant recognize eth network", zap.Error(err))
 		}
 		var signedProofs [][]*spec.SignedProof
 		if flags.ProofsFilePath != "" {
@@ -180,7 +180,7 @@ var StartResigning = &cobra.Command{
 				operatorIDs,
 				signedProofs[i][0].Proof.ValidatorPubKey,
 				ethNetwork,
-				flags.WithdrawAddress[:],
+				flags.WithdrawalCredentials(),
 				flags.OwnerAddress,
 				nonce, flags.Amount,
 				signedProofs[i],

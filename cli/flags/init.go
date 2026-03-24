@@ -28,6 +28,7 @@ const (
 	validators        = "validators"
 	clientCACertPath  = "clientCACertPath"
 	tlsInsecure       = "tlsInsecure"
+	compounding       = "compounding"
 )
 
 // init flags
@@ -43,6 +44,7 @@ var (
 	Validators        uint
 	ClientCACertPath  []string
 	TLSInsecure       bool
+	Compounding       bool
 )
 
 func SetInitFlags(cmd *cobra.Command) {
@@ -58,6 +60,7 @@ func SetInitFlags(cmd *cobra.Command) {
 	ValidatorsFlag(cmd)
 	ClientCACertPathFlag(cmd)
 	SetTLSInsecureFlag(cmd)
+	CompoundingFlag(cmd)
 }
 
 // BindInitiatorBaseFlags binds flags to yaml config parameters
@@ -115,7 +118,7 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	}
 	OwnerAddress, err = utils.HexToAddress(owner)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse owner address: %s", err)
+		return fmt.Errorf("😥 Failed to parse owner address: %w", err)
 	}
 	Nonce = viper.GetUint64("nonce")
 	if err := viper.BindPFlag("tlsInsecure", cmd.PersistentFlags().Lookup("tlsInsecure")); err != nil {
@@ -124,13 +127,9 @@ func BindInitiatorBaseFlags(cmd *cobra.Command) error {
 	TLSInsecure = viper.GetBool("tlsInsecure")
 	if !TLSInsecure {
 		ClientCACertPath = viper.GetStringSlice("clientCACertPath")
-		if ClientCACertPath == nil {
-			return fmt.Errorf("😥 TLS CA certs path should be provided, overwise set 'TLSInsecure' flag to true")
-		} else {
-			for _, certPath := range ClientCACertPath {
-				if !filepath.IsLocal(certPath) {
-					return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
-				}
+		for _, certPath := range ClientCACertPath {
+			if !filepath.IsLocal(certPath) {
+				return fmt.Errorf("😥 wrong clientCACertPath flag, should be local")
 			}
 		}
 	} else {
@@ -160,7 +159,7 @@ func BindInitFlags(cmd *cobra.Command) error {
 	var err error
 	WithdrawAddress, err = utils.HexToAddress(withdrawAddr)
 	if err != nil {
-		return fmt.Errorf("😥 Failed to parse withdraw address: %s", err.Error())
+		return fmt.Errorf("😥 Failed to parse withdraw address: %w", err)
 	}
 	Network = viper.GetString("network")
 	if Network == "" {
@@ -170,6 +169,10 @@ func BindInitFlags(cmd *cobra.Command) error {
 	if Validators > 100 || Validators == 0 {
 		return fmt.Errorf("🚨 Amount of generated validators should be 1 to 100")
 	}
+	if err := viper.BindPFlag(compounding, cmd.PersistentFlags().Lookup(compounding)); err != nil {
+		return err
+	}
+	Compounding = viper.GetBool(compounding)
 	return nil
 }
 
@@ -241,7 +244,7 @@ func NetworkFlag(c *cobra.Command) {
 
 // ClientCACertPathFlag sets path to client CA certificates. For Ubuntu use `sudo apt install ca-certificates`
 func ClientCACertPathFlag(c *cobra.Command) {
-	AddPersistentStringSliceFlag(c, clientCACertPath, []string{"/etc/ssl/certs/ca-certificates.crt"}, "Path to client CA certificates", false)
+	AddPersistentStringSliceFlag(c, clientCACertPath, []string{}, "Path to custom CA certificates (if empty, system CA bundle is used)", false)
 }
 
 // ValidatorsFlag add number of validators to create flag to the command
@@ -252,4 +255,18 @@ func ValidatorsFlag(c *cobra.Command) {
 // SetTLSInsecureFlag add signatures flag to the command
 func SetTLSInsecureFlag(c *cobra.Command) {
 	AddPersistentBoolFlag(c, tlsInsecure, false, "TLS 'InsecureSkipVerify' option. If true, allow any TLS certs to accept", false)
+}
+
+// CompoundingFlag adds a compounding flag to the command
+func CompoundingFlag(c *cobra.Command) {
+	AddPersistentBoolFlag(c, compounding, false, "Use 0x02 compounding withdrawal credentials instead of 0x01", false)
+}
+
+// WithdrawalCredentials returns 32-byte withdrawal credentials based on the --compounding flag.
+func WithdrawalCredentials() []byte {
+	prefix := spec_crypto.ETH1WithdrawalPrefix
+	if Compounding {
+		prefix = spec_crypto.CompoundingWithdrawalPrefix
+	}
+	return spec_crypto.WithdrawalCredentials(prefix, WithdrawAddress)
 }

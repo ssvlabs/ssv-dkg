@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -20,5 +19,5 @@ func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
 
 // Decrypt with RSA private key private DKG share key
 func (s *Switch) Decrypt(ciphertext []byte) ([]byte, error) {
-	return rsaencryption.DecodeKey(s.PrivateKey, ciphertext)
+	return spec_crypto.Decrypt(s.PrivateKey, ciphertext)
 }
