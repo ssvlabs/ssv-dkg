@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: go build -trimpath -v ./...
@@ -28,8 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run unit tests with race detector
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run integration tests
@@ -50,8 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run golangci-lint
@@ -61,8 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run govulncheck
