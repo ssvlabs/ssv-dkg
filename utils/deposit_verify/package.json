@@ -17,10 +17,10 @@
     "ts-node": "^10.9.2"
   },
   "devDependencies": {
-    "@types/lodash.every": "^4.6.9",
-    "@types/node": "^20.11.18",
-    "tslib": "^2.6.2",
-    "typescript": "^5.3.3"
+    "@types/lodash.every": "4.6.9",
+    "@types/node": "20.19.37",
+    "tslib": "2.8.1",
+    "typescript": "5.9.3"
   },
   "main": "index.js",
   "keywords": [],
