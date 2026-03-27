@@ -1,7 +1,7 @@
 version: "3"
 services:
   ethnode:
-    image: ethereum/client-go:stable
+    image: ethereum/client-go:stable@sha256:f155537fe3b664130e1903db52f19c231c1c6681c3b9517d1b4fea66d6a7e62a
     networks:
       - shared_network
     ports:
