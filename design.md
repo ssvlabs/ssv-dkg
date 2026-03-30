@@ -8,7 +8,7 @@
 2. The operators upon receiving initial message check initiator message signature and create their DKG identity:
 
 - new DKG secrets created
-- if 5 mins pass after the last init message with ID [24]byte and new init message with the same ID is incoming the DKG instance is recreated
+- if `MaxInstanceTime` passes after the last init message with the same ID and a new init message with that ID is incoming the DKG instance is recreated
 - `Exchange` signed message containing the DKG identity is created
 - operator replies to init message with the created `Exchange` message
 

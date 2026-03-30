@@ -540,7 +540,7 @@ Results will be placed to `examples/[operator.../inititator]/output`
 2. Upon receiving initiation message, the Operators check Initiator message signature and create their own DKG identity:
 
 - new DKG secrets created
-- if a new `init` message with ID [24]byte is received and at least 5 minutes have passed from the last init message with the same ID, the DKG instance is recreated
+- if a new `init` message with the same ID is received and `MaxInstanceTime` has passed from the last init message with that ID, the DKG instance is recreated
 - Exchange signed message containing the DKG identity is created
 - Operator replies to init message with the created Exchange message
 
@@ -558,7 +558,7 @@ Results will be placed to `examples/[operator.../inititator]/output`
 
 ### Note on DKG instance management
 
-A DKG-operator can handle multiple DKG instances, it saves up to `MaxInstances` (1024) up to `MaxInstanceTime` (5 minutes). If a new `init` arrives the DKG-operator tries to clean instances older than `MaxInstanceTime` from the list. If any of them are found, they are removed and the incoming is added, otherwise it responds with an error, saying that the maximum number of instances is already running.
+A DKG-operator can handle multiple DKG instances. It saves up to `MaxInstances` for up to `MaxInstanceTime`. If a new `init` arrives the DKG-operator tries to clean instances older than `MaxInstanceTime` from the list. If any of them are found, they are removed and the incoming is added, otherwise it responds with an error, saying that the maximum number of instances is already running.
 
 ## Security notes
 
