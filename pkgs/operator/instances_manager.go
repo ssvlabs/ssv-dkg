@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
@@ -76,8 +77,17 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	res := <-bchan
-	return &instWrapper{owner, initiatorPublicKey, bchan}, res, nil
+	ctx, cancel := context.WithTimeout(context.Background(), MaxInstanceTime)
+	defer cancel()
+	select {
+	case res, ok := <-bchan:
+		if !ok {
+			return nil, nil, fmt.Errorf("create instance: response channel closed")
+		}
+		return &instWrapper{owner, initiatorPublicKey, bchan}, res, nil
+	case <-ctx.Done():
+		return nil, nil, fmt.Errorf("create instance: timed out waiting for initial response: %w", ctx.Err())
+	}
 }
 
 // InitInstance creates a LocalOwner instance and DKG public key message (Exchange)

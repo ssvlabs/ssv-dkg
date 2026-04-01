@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 
@@ -72,5 +73,15 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
-	return <-iw.respChan, nil
+	ctx, cancel := context.WithTimeout(context.Background(), MaxInstanceTime)
+	defer cancel()
+	select {
+	case resp, ok := <-iw.respChan:
+		if !ok {
+			return nil, fmt.Errorf("process message: response channel closed")
+		}
+		return resp, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("process message: timed out waiting for response: %w", ctx.Err())
+	}
 }

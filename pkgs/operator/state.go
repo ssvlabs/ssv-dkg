@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -131,7 +132,14 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if !ok {
 		return nil, utils.ErrMissingInstance
 	}
-	return inst.ProcessMessages(st)
+	resp, err := inst.ProcessMessages(st)
+	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+		s.Mtx.Lock()
+		delete(s.Instances, id)
+		delete(s.InstanceInitTime, id)
+		s.Mtx.Unlock()
+	}
+	return resp, err
 }
 
 func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
