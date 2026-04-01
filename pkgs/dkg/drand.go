@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
@@ -25,6 +26,8 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
+
+const kyberMessageStartWaitTimeout = 2 * time.Second
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGdata struct {
@@ -299,6 +302,7 @@ func (o *LocalOwner) Init(reqID [24]byte, init *spec.Init) (*wire.Transport, err
 
 			return nil
 		},
+		board.WithIncomingBufferSize(len(init.Operators)),
 	)
 	// Generate random k scalar (secret) and corresponding public key k*G where G is a G1 generator
 	eciesSK, pk := initsecret(o.Suite)
@@ -332,21 +336,27 @@ func (o *LocalOwner) processDKG(from uint64, msg *wire.Transport) error {
 			return err
 		}
 		o.Logger.Debug("operator: received deal bundle from", zap.Uint64("ID", from))
-		o.board.DealC <- *b
+		if err := o.board.EnqueueDeal(*b); err != nil {
+			return fmt.Errorf("failed to enqueue deal bundle from %d: %w", from, err)
+		}
 	case wire.KyberResponseBundleMessageType:
 		b, err := wire.DecodeResponseBundle(kyberMsg.Data)
 		if err != nil {
 			return err
 		}
 		o.Logger.Debug("operator: received response bundle from", zap.Uint64("ID", from))
-		o.board.ResponseC <- *b
+		if err := o.board.EnqueueResponse(*b); err != nil {
+			return fmt.Errorf("failed to enqueue response bundle from %d: %w", from, err)
+		}
 	case wire.KyberJustificationBundleMessageType:
 		b, err := wire.DecodeJustificationBundle(kyberMsg.Data, o.Suite.G1().(kyber_dkg.Suite))
 		if err != nil {
 			return err
 		}
 		o.Logger.Debug("operator: received justification bundle from", zap.Uint64("ID", from))
-		o.board.JustificationC <- *b
+		if err := o.board.EnqueueJustification(*b); err != nil {
+			return fmt.Errorf("failed to enqueue justification bundle from %d: %w", from, err)
+		}
 	default:
 		return fmt.Errorf("unknown kyber message type")
 	}
@@ -490,7 +500,13 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			}
 		}
 	case wire.KyberMessageType:
-		<-o.startedDKG
+		timer := time.NewTimer(kyberMessageStartWaitTimeout)
+		defer timer.Stop()
+		select {
+		case <-o.startedDKG:
+		case <-timer.C:
+			return fmt.Errorf("dkg not started: kyber message received before start timeout (%s)", kyberMessageStartWaitTimeout)
+		}
 		return o.processDKG(from, st.Message)
 	default:
 		return fmt.Errorf("unknown message type: %s", st.Message.Type.String())
@@ -665,6 +681,7 @@ func (o *LocalOwner) Reshare(reqID [24]byte, reshare *spec.Reshare, commitsPoint
 
 			return nil
 		},
+		board.WithIncomingBufferSize(len(reshare.OldOperators)+len(reshare.NewOperators)),
 	)
 
 	eciesSK, pk := initsecret(o.Suite)
@@ -784,7 +801,9 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 	}
 	for _, b := range o.deals {
 		o.Logger.Info("Pushing deal", zap.Any("Deal", *b))
-		o.board.DealC <- *b
+		if err := o.board.EnqueueDeal(*b); err != nil {
+			return fmt.Errorf("failed to enqueue stored deal bundle: %w", err)
+		}
 	}
 	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
 		res := <-p.WaitEnd()
@@ -799,7 +818,9 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 
 func (o *LocalOwner) PushDealsOldNodes() error {
 	for _, b := range o.deals {
-		o.board.DealC <- *b
+		if err := o.board.EnqueueDeal(*b); err != nil {
+			return fmt.Errorf("failed to enqueue stored deal bundle: %w", err)
+		}
 	}
 	return nil
 }
