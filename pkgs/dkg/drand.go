@@ -3,7 +3,6 @@ package dkg
 import (
 	"bytes"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -523,15 +522,16 @@ func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, err
 
 // broadcastError propagates the error at operator back to initiator
 func (o *LocalOwner) broadcastError(err error) {
-	errMsgEnc, err := json.Marshal(err.Error())
-	if err != nil {
-		o.Logger.Error("failed to marshal error message", zap.Error(err))
-		return
-	}
+	o.Logger.Error(
+		"dkg ceremony failed",
+		zap.Error(err),
+		zap.Uint64("operator_id", o.ID),
+		zap.String("reqid", fmt.Sprintf("%x", o.data.reqID[:])),
+	)
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,
-		Data:       errMsgEnc,
+		Data:       wire.EncodeInitiatorErrorCode(wire.InitiatorErrorCodeCeremonyFailed),
 		Version:    o.version,
 	}
 
