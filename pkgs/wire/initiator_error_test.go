@@ -1,18 +1,18 @@
 package wire
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestEncodeDecodeInitiatorErrorCode_RoundTrip(t *testing.T) {
-	encoded := EncodeInitiatorErrorCode(InitiatorErrorCodeCeremonyFailed)
-	decoded := DecodeInitiatorErrorMessage(encoded)
-	if decoded != string(InitiatorErrorCodeCeremonyFailed) {
-		t.Fatalf("expected %q, got %q", InitiatorErrorCodeCeremonyFailed, decoded)
-	}
+	encoded := InitiatorErrorCodeCeremonyFailed.Encode()
+	decoded := ParseInitiatorErrorMessage(encoded)
+	require.Equal(t, string(InitiatorErrorCodeCeremonyFailed), decoded)
 }
 
-func TestDecodeInitiatorErrorMessage_FallbackRawBytes(t *testing.T) {
-	decoded := DecodeInitiatorErrorMessage([]byte("CEREMONY_FAILED"))
-	if decoded != "CEREMONY_FAILED" {
-		t.Fatalf("expected %q, got %q", "CEREMONY_FAILED", decoded)
-	}
+func TestParseInitiatorErrorMessage_FallbackRawBytes(t *testing.T) {
+	decoded := ParseInitiatorErrorMessage([]byte("CEREMONY_FAILED"))
+	require.Equal(t, "CEREMONY_FAILED", decoded)
 }

@@ -531,7 +531,7 @@ func (o *LocalOwner) broadcastError(err error) {
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,
-		Data:       wire.EncodeInitiatorErrorCode(wire.InitiatorErrorCodeCeremonyFailed),
+		Data:       wire.InitiatorErrorCodeCeremonyFailed.Encode(),
 		Version:    o.version,
 	}
 

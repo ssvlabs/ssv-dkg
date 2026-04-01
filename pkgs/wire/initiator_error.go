@@ -11,17 +11,17 @@ const (
 	InitiatorErrorCodeCeremonyFailed InitiatorErrorCode = "CEREMONY_FAILED"
 )
 
-// EncodeInitiatorErrorCode JSON-marshals the error code for transport.
-func EncodeInitiatorErrorCode(code InitiatorErrorCode) []byte {
+// Encode JSON-marshals the error code for transport.
+func (code InitiatorErrorCode) Encode() []byte {
 	// Marshaling a string cannot fail; ignore the error for simplicity.
 	encoded, _ := json.Marshal(code)
 	return encoded
 }
 
-// DecodeInitiatorErrorMessage attempts to decode a JSON-marshaled string. If it
+// ParseInitiatorErrorMessage attempts to decode a JSON-marshaled string. If it
 // fails, it falls back to returning the raw payload as a string (backwards
 // compatible with any legacy non-JSON payloads).
-func DecodeInitiatorErrorMessage(data []byte) string {
+func ParseInitiatorErrorMessage(data []byte) string {
 	var decoded string
 	if err := json.Unmarshal(data, &decoded); err == nil {
 		return decoded
