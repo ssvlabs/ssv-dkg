@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
@@ -9,8 +11,10 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 	"github.com/ssvlabs/dkg-spec/testing/stubs"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
+	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -20,7 +24,7 @@ func TestHealthCheck(t *testing.T) {
 			return nil, nil
 		},
 	}
-	servers, _ := createOperators(t, testVersion, stubClient)
+	servers, ops := createOperators(t, testVersion, stubClient)
 	t.Cleanup(func() {
 		for _, srv := range servers {
 			srv.HttpSrv.Close()
@@ -32,7 +36,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 	t.Run("positive", func(t *testing.T) {
 		core, logs := observer.New(zap.DebugLevel)
-		dkgInitiator, err := initiator.New(nil, zap.New(core), testVersion, nil, true)
+		dkgInitiator, err := initiator.New(ops.Clone(), zap.New(core), testVersion, nil, true)
 		require.NoError(t, err)
 		err = dkgInitiator.Ping([]string{ips[0]})
 		require.NoError(t, err)
@@ -42,11 +46,78 @@ func TestHealthCheck(t *testing.T) {
 	t.Run("negative", func(t *testing.T) {
 		servers[0].HttpSrv.Close()
 		core, logs := observer.New(zap.DebugLevel)
-		dkgInitiator, err := initiator.New(nil, zap.New(core), testVersion, nil, true)
+		dkgInitiator, err := initiator.New(ops.Clone(), zap.New(core), testVersion, nil, true)
 		require.NoError(t, err)
 		err = dkgInitiator.Ping([]string{ips[0]})
 		require.NoError(t, err)
 		matches := logs.FilterLevelExact(zapcore.ErrorLevel).FilterMessageSnippet("operator not healthy")
 		require.GreaterOrEqual(t, matches.Len(), 1, "expected unhealthy operator log message")
+	})
+
+	t.Run("spoofed_identity_rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// Operator list contains the *expected* (known) public key for the endpoint.
+		expectedPrivKey, _, err := spec_crypto.GenerateRSAKeys()
+		require.NoError(t, err)
+		attackerPrivKey, _, err := spec_crypto.GenerateRSAKeys()
+		require.NoError(t, err)
+
+		attackerPubBytes, err := spec_crypto.EncodeRSAPublicKey(&attackerPrivKey.PublicKey)
+		require.NoError(t, err)
+
+		const operatorID uint64 = 11
+		pong := &wire.Pong{
+			ID:                 operatorID,
+			PubKey:             attackerPubBytes,
+			Multisig:           true,
+			EthClientConnected: true,
+		}
+		pongData, err := pong.MarshalSSZ()
+		require.NoError(t, err)
+
+		transport := &wire.Transport{
+			Type:       wire.PongMessageType,
+			Identifier: [24]byte{},
+			Data:       pongData,
+			Version:    []byte(testVersion),
+		}
+		transportBytes, err := transport.MarshalSSZ()
+		require.NoError(t, err)
+		sig, err := spec_crypto.SignRSA(attackerPrivKey, transportBytes)
+		require.NoError(t, err)
+
+		signed := &wire.SignedTransport{
+			Message:   transport,
+			Signer:    attackerPubBytes,
+			Signature: sig,
+		}
+		respBytes, err := signed.MarshalSSZ()
+		require.NoError(t, err)
+
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/health_check" {
+				http.NotFound(w, r)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respBytes)
+		}))
+		t.Cleanup(ts.Close)
+
+		core, logs := observer.New(zap.DebugLevel)
+		dkgInitiator, err := initiator.New(wire.OperatorsCLI{
+			{
+				Addr:   ts.URL,
+				ID:     operatorID,
+				PubKey: &expectedPrivKey.PublicKey,
+			},
+		}, zap.New(core), testVersion, nil, true)
+		require.NoError(t, err)
+
+		err = dkgInitiator.Ping([]string{ts.URL})
+		require.NoError(t, err)
+		matches := logs.FilterLevelExact(zapcore.ErrorLevel).FilterMessageSnippet("operator not healthy")
+		require.GreaterOrEqual(t, matches.Len(), 1, "expected spoofed identity to be rejected")
 	})
 }
