@@ -2,7 +2,6 @@ package board
 
 import (
 	"errors"
-	"time"
 
 	"github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
@@ -13,29 +12,19 @@ import (
 var ErrIncomingQueueFull = errors.New("incoming board queue full")
 
 type config struct {
-	incomingBufferSize  int
-	incomingSendTimeout time.Duration
+	incomingBufferSize int
 }
 
 type Option func(*config)
 
 // WithIncomingBufferSize sets the channel buffer size for incoming protocol messages
-// (deals/responses/justifications). Values <= 0 are treated as 1.
+// (deals/responses/justifications). Panics if size < 1.
 func WithIncomingBufferSize(size int) Option {
 	return func(c *config) {
 		if size < 1 {
 			panic("incoming buffer size must be >= 1")
 		}
 		c.incomingBufferSize = size
-	}
-}
-
-// WithIncomingSendTimeout controls how long Enqueue* methods wait for space in the
-// incoming queue. A value <= 0 makes the enqueue non-blocking (this is also the
-// default, to ensure the HTTP handler never blocks indefinitely).
-func WithIncomingSendTimeout(timeout time.Duration) Option {
-	return func(c *config) {
-		c.incomingSendTimeout = timeout
 	}
 }
 
@@ -50,8 +39,6 @@ type Board struct {
 	dealC          chan dkg.DealBundle
 	responseC      chan dkg.ResponseBundle
 	justificationC chan dkg.JustificationBundle
-
-	incomingSendTimeout time.Duration
 }
 
 // NewBoard creates a new instance of Board structure
@@ -61,8 +48,7 @@ func NewBoard(
 	opts ...Option,
 ) *Board {
 	cfg := config{
-		incomingBufferSize:  1,
-		incomingSendTimeout: 0,
+		incomingBufferSize: 1,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -73,8 +59,6 @@ func NewBoard(
 		dealC:          make(chan dkg.DealBundle, cfg.incomingBufferSize),
 		responseC:      make(chan dkg.ResponseBundle, cfg.incomingBufferSize),
 		justificationC: make(chan dkg.JustificationBundle, cfg.incomingBufferSize),
-
-		incomingSendTimeout: cfg.incomingSendTimeout,
 	}
 }
 
@@ -154,38 +138,26 @@ func (b *Board) IncomingJustification() <-chan dkg.JustificationBundle {
 	return b.justificationC
 }
 
-func enqueueWithTimeout[T any](ch chan<- T, v T, timeout time.Duration) error {
-	if timeout <= 0 {
-		select {
-		case ch <- v:
-			return nil
-		default:
-			return ErrIncomingQueueFull
-		}
-	}
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
+func enqueueNonBlocking[T any](ch chan<- T, v T) error {
 	select {
 	case ch <- v:
 		return nil
-	case <-timer.C:
+	default:
 		return ErrIncomingQueueFull
 	}
 }
 
 // EnqueueDeal delivers a deal bundle into the DKG protocol.
 func (b *Board) EnqueueDeal(bundle dkg.DealBundle) error {
-	return enqueueWithTimeout(b.dealC, bundle, b.incomingSendTimeout)
+	return enqueueNonBlocking(b.dealC, bundle)
 }
 
 // EnqueueResponse delivers a response bundle into the DKG protocol.
 func (b *Board) EnqueueResponse(bundle dkg.ResponseBundle) error {
-	return enqueueWithTimeout(b.responseC, bundle, b.incomingSendTimeout)
+	return enqueueNonBlocking(b.responseC, bundle)
 }
 
 // EnqueueJustification delivers a justification bundle into the DKG protocol.
 func (b *Board) EnqueueJustification(bundle dkg.JustificationBundle) error {
-	return enqueueWithTimeout(b.justificationC, bundle, b.incomingSendTimeout)
+	return enqueueNonBlocking(b.justificationC, bundle)
 }

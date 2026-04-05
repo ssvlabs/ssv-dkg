@@ -17,7 +17,6 @@ func TestBoard_EnqueueDeal_NonBlockingWhenFull(t *testing.T) {
 		zap.NewNop(),
 		func(*wire.KyberMessage) error { return nil },
 		WithIncomingBufferSize(1),
-		WithIncomingSendTimeout(0),
 	)
 
 	require.NoError(t, b.EnqueueDeal(kyber_dkg.DealBundle{}))
@@ -39,7 +38,6 @@ func TestBoard_EnqueueResponse_NonBlockingWhenFull(t *testing.T) {
 		zap.NewNop(),
 		func(*wire.KyberMessage) error { return nil },
 		WithIncomingBufferSize(1),
-		WithIncomingSendTimeout(0),
 	)
 
 	require.NoError(t, b.EnqueueResponse(kyber_dkg.ResponseBundle{}))
@@ -53,7 +51,6 @@ func TestBoard_EnqueueJustification_NonBlockingWhenFull(t *testing.T) {
 		zap.NewNop(),
 		func(*wire.KyberMessage) error { return nil },
 		WithIncomingBufferSize(1),
-		WithIncomingSendTimeout(0),
 	)
 
 	require.NoError(t, b.EnqueueJustification(kyber_dkg.JustificationBundle{}))
