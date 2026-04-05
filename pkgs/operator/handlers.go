@@ -27,6 +27,10 @@ func sanitizeCeremonyError(err error) error {
 	return err
 }
 
+func sanitizeReshareError(err error) error {
+	return &utils.SensitiveError{Err: err, PresentedErr: string(wire.InitiatorErrorCodeCeremonyFailed)}
+}
+
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
 	signedResultMsg, err := processIncomingRequest(writer, request, wire.ResultMessageType, s.State.OperatorID)
 	if err != nil {
@@ -157,7 +161,7 @@ func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.
 	if err != nil {
 		logger.Error("error resharing instance", zap.Error(err))
 		respErr := fmt.Errorf("operator %d, err: %w", s.State.OperatorID, err)
-		utils.WriteErrorResponse(s.Logger, writer, sanitizeCeremonyError(respErr), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, sanitizeReshareError(respErr), http.StatusBadRequest)
 		return
 	}
 	logger.Info("✅ Reshare instance created successfully")
