@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -138,8 +137,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if err != nil && errors.Is(err, context.DeadlineExceeded) {
 		s.Mtx.Lock()
 		current, ok := s.Instances[id]
-		instType := reflect.TypeOf(inst)
-		if ok && instType != nil && reflect.TypeOf(current) == instType && instType.Comparable() && current == inst {
+		if ok && current == inst {
 			delete(s.Instances, id)
 			delete(s.InstanceInitTime, id)
 		}
