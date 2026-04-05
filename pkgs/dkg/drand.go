@@ -500,11 +500,9 @@ func (o *LocalOwner) Process(st *wire.SignedTransport, incOperators []*spec.Oper
 			}
 		}
 	case wire.KyberMessageType:
-		timer := time.NewTimer(kyberMessageStartWaitTimeout)
-		defer timer.Stop()
 		select {
 		case <-o.startedDKG:
-		case <-timer.C:
+		case <-time.After(kyberMessageStartWaitTimeout):
 			return fmt.Errorf("dkg not started: kyber message received before start timeout (%s)", kyberMessageStartWaitTimeout)
 		}
 		return o.processDKG(from, st.Message)

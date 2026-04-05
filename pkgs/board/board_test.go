@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	kyber_dkg "github.com/drand/kyber/share/dkg"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
@@ -19,12 +20,8 @@ func TestBoard_EnqueueDeal_NonBlockingWhenFull(t *testing.T) {
 		WithIncomingSendTimeout(0),
 	)
 
-	if err := b.EnqueueDeal(kyber_dkg.DealBundle{}); err != nil {
-		t.Fatalf("expected first enqueue to succeed, got %v", err)
-	}
-	if err := b.EnqueueDeal(kyber_dkg.DealBundle{}); err != ErrIncomingQueueFull {
-		t.Fatalf("expected ErrIncomingQueueFull, got %v", err)
-	}
+	require.NoError(t, b.EnqueueDeal(kyber_dkg.DealBundle{}))
+	require.ErrorIs(t, b.EnqueueDeal(kyber_dkg.DealBundle{}), ErrIncomingQueueFull)
 
 	select {
 	case <-b.IncomingDeal():
@@ -32,9 +29,7 @@ func TestBoard_EnqueueDeal_NonBlockingWhenFull(t *testing.T) {
 		t.Fatalf("expected to be able to drain deal queue")
 	}
 
-	if err := b.EnqueueDeal(kyber_dkg.DealBundle{}); err != nil {
-		t.Fatalf("expected enqueue after drain to succeed, got %v", err)
-	}
+	require.NoError(t, b.EnqueueDeal(kyber_dkg.DealBundle{}))
 }
 
 func TestBoard_EnqueueResponse_NonBlockingWhenFull(t *testing.T) {
@@ -47,12 +42,8 @@ func TestBoard_EnqueueResponse_NonBlockingWhenFull(t *testing.T) {
 		WithIncomingSendTimeout(0),
 	)
 
-	if err := b.EnqueueResponse(kyber_dkg.ResponseBundle{}); err != nil {
-		t.Fatalf("expected first enqueue to succeed, got %v", err)
-	}
-	if err := b.EnqueueResponse(kyber_dkg.ResponseBundle{}); err != ErrIncomingQueueFull {
-		t.Fatalf("expected ErrIncomingQueueFull, got %v", err)
-	}
+	require.NoError(t, b.EnqueueResponse(kyber_dkg.ResponseBundle{}))
+	require.ErrorIs(t, b.EnqueueResponse(kyber_dkg.ResponseBundle{}), ErrIncomingQueueFull)
 }
 
 func TestBoard_EnqueueJustification_NonBlockingWhenFull(t *testing.T) {
@@ -65,11 +56,6 @@ func TestBoard_EnqueueJustification_NonBlockingWhenFull(t *testing.T) {
 		WithIncomingSendTimeout(0),
 	)
 
-	if err := b.EnqueueJustification(kyber_dkg.JustificationBundle{}); err != nil {
-		t.Fatalf("expected first enqueue to succeed, got %v", err)
-	}
-	if err := b.EnqueueJustification(kyber_dkg.JustificationBundle{}); err != ErrIncomingQueueFull {
-		t.Fatalf("expected ErrIncomingQueueFull, got %v", err)
-	}
+	require.NoError(t, b.EnqueueJustification(kyber_dkg.JustificationBundle{}))
+	require.ErrorIs(t, b.EnqueueJustification(kyber_dkg.JustificationBundle{}), ErrIncomingQueueFull)
 }
-

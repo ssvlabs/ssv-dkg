@@ -23,16 +23,16 @@ type Option func(*config)
 // (deals/responses/justifications). Values <= 0 are treated as 1.
 func WithIncomingBufferSize(size int) Option {
 	return func(c *config) {
-		if size <= 0 {
-			c.incomingBufferSize = 1
-			return
+		if size < 1 {
+			panic("incoming buffer size must be >= 1")
 		}
 		c.incomingBufferSize = size
 	}
 }
 
 // WithIncomingSendTimeout controls how long Enqueue* methods wait for space in the
-// incoming queue. A value <= 0 makes the enqueue non-blocking.
+// incoming queue. A value <= 0 makes the enqueue non-blocking (this is also the
+// default, to ensure the HTTP handler never blocks indefinitely).
 func WithIncomingSendTimeout(timeout time.Duration) Option {
 	return func(c *config) {
 		c.incomingSendTimeout = timeout
@@ -65,9 +65,6 @@ func NewBoard(
 		incomingSendTimeout: 0,
 	}
 	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
 		opt(&cfg)
 	}
 	return &Board{
