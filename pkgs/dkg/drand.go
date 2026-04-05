@@ -520,7 +520,8 @@ func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, err
 	return exchByts, &exch, nil
 }
 
-// broadcastError propagates the error at operator back to initiator
+// broadcastError logs the internal error and sends a generic error code back to
+// the initiator.
 func (o *LocalOwner) broadcastError(err error) {
 	o.Logger.Error(
 		"dkg ceremony failed",
