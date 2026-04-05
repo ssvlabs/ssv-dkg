@@ -73,7 +73,7 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), MaxInstanceTime)
+	ctx, cancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
 	defer cancel()
 	select {
 	case resp, ok := <-iw.respChan:

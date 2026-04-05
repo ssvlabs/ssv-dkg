@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 
 const MaxInstances = 1024
 const MaxInstanceTime = 1 * time.Minute
+const MaxInstancePhaseTimeout = MaxInstanceTime
 
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
 type InstanceID [24]byte
@@ -135,8 +137,12 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	resp, err := inst.ProcessMessages(st)
 	if err != nil && errors.Is(err, context.DeadlineExceeded) {
 		s.Mtx.Lock()
-		delete(s.Instances, id)
-		delete(s.InstanceInitTime, id)
+		current, ok := s.Instances[id]
+		instType := reflect.TypeOf(inst)
+		if ok && instType != nil && reflect.TypeOf(current) == instType && instType.Comparable() && current == inst {
+			delete(s.Instances, id)
+			delete(s.InstanceInitTime, id)
+		}
 		s.Mtx.Unlock()
 	}
 	return resp, err

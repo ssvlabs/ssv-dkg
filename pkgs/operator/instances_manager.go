@@ -41,6 +41,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
+		BoardChanTimeout:   MaxInstancePhaseTimeout,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
@@ -77,7 +78,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), MaxInstanceTime)
+	ctx, cancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
 	defer cancel()
 	select {
 	case res, ok := <-bchan:
