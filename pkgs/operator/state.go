@@ -25,7 +25,7 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-const MaxInstances = 1024 * 100
+const MaxInstances = 1024
 const MaxInstanceTime = 1 * time.Minute
 
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
