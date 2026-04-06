@@ -298,7 +298,7 @@ func TestWrongOperatorVersion(t *testing.T) {
 	require.ErrorContains(t, err, "wrong version")
 }
 
-func testSharesData(ops wire.OperatorsCLI, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint16) error {
+func testSharesData(ops wire.OperatorsCLI, operatorCount int, keys []*rsa.PrivateKey, sharesData, validatorPublicKey []byte, owner common.Address, nonce uint64) error {
 	signatureOffset := phase0.SignatureLength
 	pubKeysOffset := phase0.PublicKeyLength*operatorCount + signatureOffset
 	sharesExpectedLength := crypto.EncryptedKeyLength*operatorCount + pubKeysOffset
