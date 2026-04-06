@@ -1,0 +1,46 @@
+name: Docker Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.*"
+
+concurrency:
+  group: docker-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Build and push multi-arch Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: docker/setup-qemu-action@v4.0.0
+        with:
+          platforms: linux/arm64
+
+      - uses: docker/setup-buildx-action@v4.0.0
+
+      - uses: docker/login-action@v4.1.0
+        with:
+          username: ssvlabs
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7.0.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ssvlabs/ssv-dkg:${{ github.ref_name }}
+            ssvlabs/ssv-dkg:latest
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

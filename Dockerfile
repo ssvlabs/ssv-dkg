@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     ./cmd/ssv-dkg
 
 # Final stage
-FROM alpine:3.21@sha256:22e0ec13c0db6b3e1ba3280e831fc50ba7bffe58e81f31670a64b1afede247bc
+FROM alpine:3.21@sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
 WORKDIR /ssv-dkg
 
 LABEL org.opencontainers.image.title="SSV DKG" \
