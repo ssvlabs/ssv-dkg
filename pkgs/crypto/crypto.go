@@ -56,7 +56,7 @@ func ResultToValidatorPK(result *drand_dkg.DistKeyShare, suite drand_dkg.Suite) 
 }
 
 // VerifyOwnerNonceSignature check that owner + nonce correctly signed
-func VerifyOwnerNonceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint16) error {
+func VerifyOwnerNonceSignature(sig []byte, owner common.Address, pubKey []byte, nonce uint64) error {
 	data := fmt.Sprintf("%s:%d", owner.String(), nonce)
 	hash := eth_crypto.Keccak256([]byte(data))
 

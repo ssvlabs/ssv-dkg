@@ -1,11 +1,32 @@
 package board
 
 import (
+	"errors"
+
 	"github.com/drand/kyber/share/dkg"
 	"go.uber.org/zap"
 
 	wire2 "github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
+
+var ErrIncomingQueueFull = errors.New("incoming board queue full")
+
+type config struct {
+	incomingBufferSize int
+}
+
+type Option func(*config)
+
+// WithIncomingBufferSize sets the channel buffer size for incoming protocol messages
+// (deals/responses/justifications). Panics if size < 1.
+func WithIncomingBufferSize(size int) Option {
+	return func(c *config) {
+		if size < 1 {
+			panic("incoming buffer size must be >= 1")
+		}
+		c.incomingBufferSize = size
+	}
+}
 
 // Board is the interface between the dkg protocol and the external world. It
 // consists in pushing packets out to other nodes and receiving in packets from
@@ -15,22 +36,29 @@ import (
 type Board struct {
 	logger         *zap.Logger
 	broadcastF     func(msg *wire2.KyberMessage) error
-	DealC          chan dkg.DealBundle
-	ResponseC      chan dkg.ResponseBundle
-	JustificationC chan dkg.JustificationBundle
+	dealC          chan dkg.DealBundle
+	responseC      chan dkg.ResponseBundle
+	justificationC chan dkg.JustificationBundle
 }
 
 // NewBoard creates a new instance of Board structure
 func NewBoard(
 	logger *zap.Logger,
 	broadcastF func(msg *wire2.KyberMessage) error,
+	opts ...Option,
 ) *Board {
+	cfg := config{
+		incomingBufferSize: 1,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	return &Board{
 		broadcastF:     broadcastF,
 		logger:         logger,
-		DealC:          make(chan dkg.DealBundle),
-		ResponseC:      make(chan dkg.ResponseBundle),
-		JustificationC: make(chan dkg.JustificationBundle),
+		dealC:          make(chan dkg.DealBundle, cfg.incomingBufferSize),
+		responseC:      make(chan dkg.ResponseBundle, cfg.incomingBufferSize),
+		justificationC: make(chan dkg.JustificationBundle, cfg.incomingBufferSize),
 	}
 }
 
@@ -56,7 +84,7 @@ func (b *Board) PushDeals(bundle *dkg.DealBundle) {
 
 // IncomingDeal implements a kyber DKG Board interface function
 func (b *Board) IncomingDeal() <-chan dkg.DealBundle {
-	return b.DealC
+	return b.dealC
 }
 
 // PushResponses implements a kyber DKG Board interface to broadcast responses
@@ -83,7 +111,7 @@ func (b *Board) PushResponses(bundle *dkg.ResponseBundle) {
 
 // IncomingResponse implements a kyber DKG Board interface function
 func (b *Board) IncomingResponse() <-chan dkg.ResponseBundle {
-	return b.ResponseC
+	return b.responseC
 }
 
 // PushJustifications implements a kyber DKG interface to broadcast justifications
@@ -107,5 +135,29 @@ func (b *Board) PushJustifications(bundle *dkg.JustificationBundle) {
 
 // IncomingJustification implements a kyber DKG Board interface function
 func (b *Board) IncomingJustification() <-chan dkg.JustificationBundle {
-	return b.JustificationC
+	return b.justificationC
+}
+
+func enqueueNonBlocking[T any](ch chan<- T, v T) error {
+	select {
+	case ch <- v:
+		return nil
+	default:
+		return ErrIncomingQueueFull
+	}
+}
+
+// EnqueueDeal delivers a deal bundle into the DKG protocol.
+func (b *Board) EnqueueDeal(bundle dkg.DealBundle) error {
+	return enqueueNonBlocking(b.dealC, bundle)
+}
+
+// EnqueueResponse delivers a response bundle into the DKG protocol.
+func (b *Board) EnqueueResponse(bundle dkg.ResponseBundle) error {
+	return enqueueNonBlocking(b.responseC, bundle)
+}
+
+// EnqueueJustification delivers a justification bundle into the DKG protocol.
+func (b *Board) EnqueueJustification(bundle dkg.JustificationBundle) error {
+	return enqueueNonBlocking(b.justificationC, bundle)
 }
