@@ -93,27 +93,27 @@ Operators info file example:
   {
     "id": 143,
     "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBM2VyQk9IUTVJYkJmL3lxak1UMmYKNElQYWJBMkY4YmwzQWlJVStRQlBUd2s2UFRRZS9EZVZMVkx6cm5wWFdZemNTRUZVSnZZeU5WM3ZhYkxGN2VDZwpxNlptRUJhSHN5S2NYS0g5N0JCb21VaDF4TGl5OFRGTkk0VGdjL0JwSU51dEdrRGkrVUhCT0tBcHE0TUVaSXlsCnJpTHlaeDFNZnJ6QTF0ZUNRaVJ3T2tzN0wrT1IraElNOEwvNFRtTUd4RDFhS2tXOHhpUzlKL256YXB5YkxsczMKR3cwWER0Q25XLzREWFVLSm1wLzFrMHlNeHZjT1phUjJWSjB0aUFVMjBKNDcrcUtndi9kZHI1YjNjQ2F5NDhpVQptcks2MkNEaHdyNVpqaU1WSHg2R1NJK0kvZmhMckI2Z2dSdTBYVVVFYTljNzVvR3k1SHVKSFA5dTJIQ0dZSXI5CjBRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
-    "ip": "http://141.94.143.182:3030"
+    "ip": "https://141.94.143.182:3030"
   },
   {
     "id": 219,
     "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBcjNlTjVhR205NTN5U0VrcHBDZnAKZmp2bFpMaG51Y0c2ajI2emxHYjNobHcvVXE5aG9tSmhzOVUzTHFuYzU4dk5RR2pENzhCTUZOMy8xUStXanZRSgpuQVJJVVdJTnJONWNoMFBTMXBqb21CVlB0Nkg0RE5ha1lSamxCM0V0QmZGaGFOcDdlQzd4dGFMbzc3Qk5velMxCjBBOFpSRC9IaGg3T3lkNWttUWVnV1pIOGlGRCszcHZnV1ZMUWFibkZuK00xWW9LYUhDNkRHSzdnSzdEYTRlMGcKUTF4MFRhSmRZMUUvcStUQ01oUGhwcmtoVlFlNFBLU0NKOWJHSnRDblBpRUFqa2VWa09RZlA0Z095b0VjaW5jMQpTR2pveVo1dVZPU1hEZGYzVzdYUE9pZEpFU1VoY1hqS05DMC9IN09ZM2pqdTZyUU9NZmFqSERhb3VSWEJGaHZDCnp3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
-    "ip": "http://209.35.77.243:12015"
+    "ip": "https://209.35.77.243:12015"
   },
   {
     "id": 33,
     "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdmo5UmpQTFk5YXd1WVc3NVRVcVoKVWozRWRMN2NkdDFnUjlydHowQU02TENNbTdCNG5DcW1RYjRCeFBsUktVeVl1ZnNEbXIzeTVqUmdVbHBHR0ZRawpOWmU0VGRZQkxPNnRUZ1NyMXphMUlGR0R2dzdJUUJZSHoramFEYVN6Zk9vYnNiUldiMDVaZFdGc01keGlEam5vCnR2NHZ4eGpCOWlXa2xmaytUNXB4K3ZwTWZnd1M2Ui9EOU84Y0dZdTg1b0RpQXgzQ0tPampuY3BPV0pndHhxZUMKbENDbldxSS9PeTFSa1FVcFNYL1hsRHozSHhCN0NlY0IzeUUwNnNTbXd1WTZHdk9tMUEvMmdNVUprbDFTUmFjbgpDeFhYK1hVWWFEemZGdXBBeWxPVnIxMEFnUkpTcVd2SkoxcnJCZkFwSzBMNzFMQzFzVzRyWjloMGFIN2pweW1aCjF3SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
-    "ip": "http://51.81.109.67:3030"
+    "ip": "https://51.81.109.67:3030"
   },
   {
     "id": 190,
     "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeEowZDYxN09BSHpxOUQzTUt2WFoKTEJRR2VzVU4xZGFXOC9MNEt4UWJFVlN6Y2JzTlY1Q1RqNm5OWGtnOW1LQzIyWWRRazRZcGpNbk9reENrMXNXRApvUXI4bG4zZTJxbU9zeHJuOGFxZEJhVGZmaFZ4WDJrTU9BZUZCcEJPN0lrTXBOUTFwMzdDMzh0Rmx0eFpxSEt3CkFJVXg5UjVGWWhOZXhrOEUrQlpMYzJFSzl4bjZIMTFUY21hN2NVZW03VUpDeUR3VFlLVC9JN21ZTXV3UGFpTTAKTm1Ta0JoeFYrdkd3bmJqWWhCaEZQTi9MMTJRWi9YZUVJcHFzcGRKTFpkUmhRd2VlZG1MdTNLcXdFdnhhNEJZVQpWcTlkeG9qd1JDdU9TL2tvM1pTQ3hubWpJaHlGQUJXYW5WU2x5TW5xdGFaZTFkdm1STG12RTFpL3RjN251MnRnCi93SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
-    "ip": "http://80.181.85.114:3030"
+    "ip": "https://80.181.85.114:3030"
   },
   {
     "id": 34,
     "public_key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBNHZMUm93Ry9HeVFYdnFaS092MzEKYlNkRVFId3FoTmR2d2JCckdyYlQ0dmVWVHNPbDNPRVF6K3dWMjBVaXJjeHBVVVRKc081K0wrTzlnR0xNMWdTRgpFMVJRU01zMXEzSkZtNlY0VXFQU3pMK09DcDlMS3ZIRnJKMmU4VGwyZ25UU0tPNzFncGtUdFRrb2ZlLzlJRjFOCmNZMDlJbkQwTWNtZzk1Qm14alBuREV3VE1uVzBQU3JVTnJQYVNlMTJTVHJ0Q2JCTUJFUFR5RnI5elovRWFESFIKSHFaZjlkeE9VMjBiQnNSUVlSMnhCZFBtWHFKaFZZMTQrOExmaWpLRmhMcDNmZ25IL0xtK0NjTE5FOFQ3ZjhTTApoZUhLcnMrcUV4VERTcDR4MWhLMzk4dnpWTElOL0h6T20yeXV3Z3cxeG9zdThTOFlVUzNCeTFGZ3g2RExZc3RyCmxRSURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K",
-    "ip": "http://148.113.20.206:3030"
+    "ip": "https://148.113.20.206:3030"
   }
 ]
 ```
@@ -123,16 +123,24 @@ Operators info file example:
 Before initiate a DKG ceremony it's advised to check if all participating operators are online and healthy.
 
 ```sh
+docker run --name ssv_dkg_health -v "<PATH_TO_OPERATORS_INFO_FILE_DIR>":/data -it \
+"ssvlabs/ssv-dkg:latest" ping --operatorsInfoPath /data/operators_info.json && \
+docker rm ssv_dkg_health
+```
+
+To ping only a subset of operators, pass their endpoints explicitly:
+
+```sh
 docker run --name ssv_dkg_health \
-"ssvlabs/ssv-dkg:latest" ping --ip http://141.94.143.182:3030,http://209.35.77.243:12015,http://51.81.109.67:3030,http://80.181.85.114:3030,http://148.113.20.206:3030 && \
+"ssvlabs/ssv-dkg:latest" ping --operatorsInfoPath /data/operators_info.json --ip https://141.94.143.182:3030,https://209.35.77.243:12015,https://51.81.109.67:3030,https://80.181.85.114:3030,https://148.113.20.206:3030 && \
 docker rm ssv_dkg_health
 ```
 
 Result should look like this:
 
 ```sh
-2024-03-21T10:19:24.589162Z	INFO	dkg-initiator	🍎 operator online and healthy	{"ID": "416", "IP": "http://141.94.143.182:3030", "Version": "v1.0.3", "Public key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeHVDaUY2MW5zdTd1MEZhdUZBb1kKWll5ODA0eExENzVuMU0vYjNYTHpaZFpSWUF2aVVyeWJ3Z1gwTEFPRWhPcVIwN0QzTXV3REg0bVhUaXI2Qyt1eQpYaHpVYmFiZXd4V1NDUUtvOFBLSkZWbWxBenh1dHlTb0tPajEvdStnNGgzeHlvMkhsY0M4aERpU3pjdjZXSERtCnhxTjBKcnpHRjU2VmdGMm9EaWsrejBuMmJadDdRMDJWTWVSRnQzamc0dWdzYjY5OEF4aHdFQ3VLYVo4WjZpT3IKT2lIbzdoQUtMaGo5Nm4vdzJrd2JyZnlPUHhTaXUvdWdueXFGMG5WeU1ITmlsVGlMcnRiM2lCdlNFQlRUbHladwpLTnM4SkRVVVJ2eHRIQ3F1ZGFrc0Q4YTJ0dUFiNitVUDZUQ28yTW9aZWtUNEdJbmtBanFLODRBTjZMRUtxMEdmCk53SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K"}
-2024-03-21T10:19:24.604992Z	ERROR	dkg-initiator	😥 Operator not healthy: 	{"error": "Get \"http://80.181.85.114:3030/health_check\": dial tcp 80.181.85.114:3030: connect: connection refused", "IP": "http://80.181.85.114:3030"}
+2024-03-21T10:19:24.589162Z	INFO	dkg-initiator	🍎 operator online and healthy	{"ID": "416", "IP": "https://141.94.143.182:3030", "Version": "v1.0.3", "Public key": "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeHVDaUY2MW5zdTd1MEZhdUZBb1kKWll5ODA0eExENzVuMU0vYjNYTHpaZFpSWUF2aVVyeWJ3Z1gwTEFPRWhPcVIwN0QzTXV3REg0bVhUaXI2Qyt1eQpYaHpVYmFiZXd4V1NDUUtvOFBLSkZWbWxBenh1dHlTb0tPajEvdStnNGgzeHlvMkhsY0M4aERpU3pjdjZXSERtCnhxTjBKcnpHRjU2VmdGMm9EaWsrejBuMmJadDdRMDJWTWVSRnQzamc0dWdzYjY5OEF4aHdFQ3VLYVo4WjZpT3IKT2lIbzdoQUtMaGo5Nm4vdzJrd2JyZnlPUHhTaXUvdWdueXFGMG5WeU1ITmlsVGlMcnRiM2lCdlNFQlRUbHladwpLTnM4SkRVVVJ2eHRIQ3F1ZGFrc0Q4YTJ0dUFiNitVUDZUQ28yTW9aZWtUNEdJbmtBanFLODRBTjZMRUtxMEdmCk53SURBUUFCCi0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0K"}
+2024-03-21T10:19:24.604992Z	ERROR	dkg-initiator	😥 Operator not healthy: 	{"error": "Get \"https://80.181.85.114:3030/health_check\": dial tcp 80.181.85.114:3030: connect: connection refused", "IP": "https://80.181.85.114:3030"}
 ```
 
 ### Start DKG ceremony
@@ -158,7 +166,7 @@ withdrawAddress: "0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4" # ETH1 withdrawal 
 owner: "0xb64923DA2c1A9907AdC63617d882D824033a091c" # address of owner of the Cluster that will manage the validator on ssv.network
 nonce: 0 # owner nonce for the SSV contract (default: 0)
 network: "holesky" # network name (default: mainnet)
-operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]' # raw content of the JSON file with operators information
+operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "https://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "https://localhost:3030"},...]' # raw content of the JSON file with operators information
 # Alternatively:
 # operatorsInfoPath: /data/initiator/operators_info.json
 outputPath: /data/output #  path to store the resulting staking deposit and ssv contract payload files
@@ -210,7 +218,7 @@ The Initiator provides the initial details needed to run DKG between all operato
 ssv-dkg init \
           --validators 10
           --operatorIDs 1,2,3,4 \
-          --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "http://localhost:3030"},...]'
+          --operatorsInfo: '[{"id": 1,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "https://localhost:3030"}, {"id": 2,"public_key": "LS0tLS1CRUdJTiBSU0....","ip": "https://localhost:3030"},...]'
            # Alternatively:
            # --operatorsInfoPath ./operators_info.json \
           --owner 0x81592c3de184a3e2c0dcb5a261bc107bfa91f494 \

@@ -785,15 +785,22 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 	if res.Err != nil {
 		return res.Err
 	}
+	if len(c.Operators) == 0 {
+		return fmt.Errorf("operators list is not provided, can't verify pong identity")
+	}
+	expectedOperator := c.Operators.ByAddr(res.IP)
+	if expectedOperator == nil {
+		return fmt.Errorf("operator address %s not found in operators list", res.IP)
+	}
 	signedPongMsg := &wire.SignedTransport{}
 	if err := signedPongMsg.UnmarshalSSZ(res.Result); err != nil {
 		if strings.Contains(err.Error(), "incorrect offset") {
-			return fmt.Errorf("%w, operator probably of old version, please upgrade", err)
+			return fmt.Errorf("operator probably of old version, please upgrade: %w", err)
 		}
 		// in case we received error message, try unmarshall
-		errString, err := wire.ParseAsError(res.Result)
-		if err == nil {
-			return fmt.Errorf("cant parse error message: %w", err)
+		errString, parseErr := wire.ParseAsError(res.Result)
+		if parseErr != nil {
+			return fmt.Errorf("cant parse error message: %w", parseErr)
 		}
 		return fmt.Errorf("operator returned error: %s", errString)
 	}
@@ -806,17 +813,24 @@ func (c *Initiator) processPongMessage(res wire.PongResult) error {
 		return fmt.Errorf("🆘 cant unmarshall pong message, probably old version, please upgrade: %w", err)
 
 	}
+	if pong.ID != expectedOperator.ID {
+		return fmt.Errorf("operator pong ID %d does not match expected operator ID %d for address %s", pong.ID, expectedOperator.ID, res.IP)
+	}
 	pongBytes, err := signedPongMsg.Message.MarshalSSZ()
 	if err != nil {
 		return fmt.Errorf("error marshalling signedPongMsg: %w", err)
 	}
-	pub, err := spec_crypto.ParseRSAPublicKey(pong.PubKey)
-	if err != nil {
-		return fmt.Errorf("cant parse RSA public key from pong message: %w", err)
+	// Verify the pong signature using the operator's known RSA public key (from operators list).
+	if err := spec_crypto.VerifyRSA(expectedOperator.PubKey, pongBytes, signedPongMsg.Signature); err != nil {
+		return fmt.Errorf("operator sent pong with invalid signature for operator ID %d: %w", expectedOperator.ID, err)
 	}
-	// Check that we got pong with correct pub
-	if err := spec_crypto.VerifyRSA(pub, pongBytes, signedPongMsg.Signature); err != nil {
-		return fmt.Errorf("operator sent pong with wrong RSA public key %w", err)
+	// Defense-in-depth: verify the pong payload's embedded public key matches the expected key.
+	expectedPubKeyBytes, err := spec_crypto.EncodeRSAPublicKey(expectedOperator.PubKey)
+	if err != nil {
+		return fmt.Errorf("failed to encode expected operator RSA public key for operator ID %d: %w", expectedOperator.ID, err)
+	}
+	if !bytes.Equal(pong.PubKey, expectedPubKeyBytes) {
+		return fmt.Errorf("operator pong payload public key mismatch for operator ID %d", expectedOperator.ID)
 	}
 	if pong.Multisig {
 		if pong.EthClientConnected {

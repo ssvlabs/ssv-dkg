@@ -5,5 +5,7 @@ import (
 )
 
 func SetHealthCheckFlags(cmd *cobra.Command) {
-	AddPersistentStringSliceFlag(cmd, "ip", []string{}, "Operator ip:port", true)
+	AddPersistentStringSliceFlag(cmd, "ip", []string{}, "Operator endpoint(s) to ping (https://host:port). If empty, pings all operators from operatorsInfo", false)
+	OperatorsInfoFlag(cmd)
+	OperatorsInfoPathFlag(cmd)
 }
