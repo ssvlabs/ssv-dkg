@@ -986,7 +986,7 @@ func (c *Initiator) createBulkResults(resultsBytes [][][]byte, signedMsg, msgIDM
 func verifyMessageType(tsp *wire.SignedTransport, expectedType wire.TransportType) error {
 	if tsp.Message.Type != expectedType {
 		if tsp.Message.Type == wire.ErrorMessageType {
-			return fmt.Errorf("dkg protocol failed with %s", string(tsp.Message.Data))
+			return fmt.Errorf("dkg protocol failed with %s", wire.ParseInitiatorErrorMessage(tsp.Message.Data))
 		}
 		if tsp.Message.Type == wire.KyberMessageType {
 			kyberMsg := &wire.KyberMessage{}

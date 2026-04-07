@@ -3,7 +3,6 @@ package dkg
 import (
 	"bytes"
 	"crypto/rsa"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -535,17 +534,19 @@ func CreateExchange(pk kyber.Point, commits []byte) ([]byte, *wire.Exchange, err
 	return exchByts, &exch, nil
 }
 
-// broadcastError propagates the error at operator back to initiator
+// broadcastError logs the internal error and sends a generic error code back to
+// the initiator.
 func (o *LocalOwner) broadcastError(err error) {
-	errMsgEnc, err := json.Marshal(err.Error())
-	if err != nil {
-		o.Logger.Error("failed to marshal error message", zap.Error(err))
-		return
-	}
+	o.Logger.Error(
+		"dkg ceremony failed",
+		zap.Error(err),
+		zap.Uint64("operator_id", o.ID),
+		zap.String("reqid", fmt.Sprintf("%x", o.data.reqID[:])),
+	)
 	errMsg := &wire.Transport{
 		Type:       wire.ErrorMessageType,
 		Identifier: o.data.reqID,
-		Data:       errMsgEnc,
+		Data:       wire.InitiatorErrorCodeCeremonyFailed.Encode(),
 		Version:    o.version,
 	}
 
