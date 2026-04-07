@@ -41,7 +41,6 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		Signer:             crypto.RSASigner(s.PrivateKey),
 		EncryptFunc:        s.Encrypt,
 		DecryptFunc:        s.Decrypt,
-		BoardChanTimeout:   MaxInstancePhaseTimeout,
 		Suite:              kyber_bls12381.NewBLS12381Suite(),
 		ID:                 operatorID,
 		InitiatorPublicKey: initiatorPublicKey,
