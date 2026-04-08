@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ssvlabs/ssv-dkg/cli/flags"
+	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/initiator"
 )
 
@@ -41,7 +42,40 @@ var HealthCheck = &cobra.Command{
 			ips[i] = strings.TrimRight(s, "/")
 		}
 
-		dkgInitiator, err := initiator.New(nil, logger, cmd.Version, nil, true)
+		operatorsInfo, err := cmd.Flags().GetString("operatorsInfo")
+		if err != nil {
+			return fmt.Errorf("😥 %w", err)
+		}
+		operatorsInfoPath, err := cmd.Flags().GetString("operatorsInfoPath")
+		if err != nil {
+			return fmt.Errorf("😥 %w", err)
+		}
+		if operatorsInfo != "" && operatorsInfoPath != "" {
+			return fmt.Errorf("😥 operators info can be provided either as a raw JSON string, or path to a file, not both")
+		}
+		if operatorsInfo == "" && operatorsInfoPath == "" {
+			return fmt.Errorf("😥 operators info should be provided either as a raw JSON string, or path to a file")
+		}
+
+		opMap, err := cli_utils.LoadOperators(logger, operatorsInfo, operatorsInfoPath)
+		if err != nil {
+			return fmt.Errorf("😥 %w", err)
+		}
+
+		if len(ips) == 0 {
+			ips = make([]string, 0, len(opMap))
+			for _, op := range opMap {
+				ips = append(ips, op.Addr)
+			}
+		} else {
+			for _, ip := range ips {
+				if opMap.ByAddr(ip) == nil {
+					return fmt.Errorf("😥 operator address %s not found in operators list", ip)
+				}
+			}
+		}
+
+		dkgInitiator, err := initiator.New(opMap.Clone(), logger, cmd.Version, nil, true)
 		if err != nil {
 			return fmt.Errorf("😥 %w", err)
 		}

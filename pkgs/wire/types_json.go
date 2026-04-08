@@ -164,6 +164,16 @@ func (o OperatorsCLI) ByID(id uint64) *OperatorCLI {
 	return nil
 }
 
+func (o OperatorsCLI) ByAddr(addr string) *OperatorCLI {
+	normalizedAddr := strings.TrimRight(addr, "/")
+	for _, op := range o {
+		if strings.TrimRight(op.Addr, "/") == normalizedAddr {
+			return &op
+		}
+	}
+	return nil
+}
+
 func (o OperatorsCLI) ByPubKey(pk *rsa.PublicKey) *OperatorCLI {
 	encodedPk, err := EncodeRSAPublicKey(pk)
 	if err != nil {
