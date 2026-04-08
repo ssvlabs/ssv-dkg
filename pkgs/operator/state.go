@@ -134,7 +134,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 		return nil, utils.ErrMissingInstance
 	}
 	resp, err := inst.ProcessMessages(st)
-	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) {
 		s.Mtx.Lock()
 		current, ok := s.Instances[id]
 		if ok && current == inst {
