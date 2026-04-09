@@ -29,7 +29,7 @@ jobs:
       - uses: docker/login-action@v4.1.0
         with:
           username: ssvlabs
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.SSV_DKG_DOCKERHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v7.0.0
