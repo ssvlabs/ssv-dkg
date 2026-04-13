@@ -53,7 +53,7 @@ func TestInitResignHappyFlows(t *testing.T) {
 	}
 }
 
-func TestInitResignChangeOwnerHappyFlows(t *testing.T) {
+func TestInitResignChangeOwnerRejected(t *testing.T) {
 	t.Parallel()
 	env := setupDynamicTest(t)
 	clnt, err := initiator.New(env.ops, env.logger, testVersion, rootCert, false)
@@ -65,7 +65,7 @@ func TestInitResignChangeOwnerHappyFlows(t *testing.T) {
 	skNewOwner, err := eth_crypto.GenerateKey()
 	require.NoError(t, err)
 	newOwner := eth_crypto.PubkeyToAddress(skNewOwner.PublicKey)
-	t.Run("4 operators change owner", func(t *testing.T) {
+	t.Run("4 operators change owner rejected", func(t *testing.T) {
 		id := spec.NewID()
 		depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
 		require.NoError(t, err)
@@ -78,9 +78,7 @@ func TestInitResignChangeOwnerHappyFlows(t *testing.T) {
 		)
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
-		depositDataArr, ksArr, proofsArr, err := executeResign(t, clnt, rMsgs, sk)
-		require.NoError(t, err)
-		err = validator.ValidateResults(depositDataArr, ksArr[0], proofsArr, 1, newOwner, 10, withdraw)
-		require.NoError(t, err)
+		_, _, _, err = executeResign(t, clnt, rMsgs, sk)
+		require.ErrorContains(t, err, "invalid owner address")
 	})
 }
