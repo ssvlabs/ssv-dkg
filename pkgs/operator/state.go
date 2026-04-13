@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ import (
 
 const MaxInstances = 1024
 const MaxInstanceTime = 1 * time.Minute
+const MaxInstancePhaseTimeout = MaxInstanceTime
 
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
 type InstanceID [24]byte
@@ -131,7 +133,17 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	if !ok {
 		return nil, utils.ErrMissingInstance
 	}
-	return inst.ProcessMessages(st)
+	resp, err := inst.ProcessMessages(st)
+	if errors.Is(err, context.DeadlineExceeded) {
+		s.Mtx.Lock()
+		current, ok := s.Instances[id]
+		if ok && current == inst {
+			delete(s.Instances, id)
+			delete(s.InstanceInitTime, id)
+		}
+		s.Mtx.Unlock()
+	}
+	return resp, err
 }
 
 func (s *Switch) MarshallAndSign(msg wire.SSZMarshaller, msgType wire.TransportType, operatorID uint64, id [24]byte) ([]byte, error) {
