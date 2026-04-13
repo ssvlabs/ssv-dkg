@@ -72,7 +72,7 @@ func TestReshareValidContractSig(t *testing.T) {
 		return &stubs.Client{
 			CallContractF: func(call ethereum.CallMsg) ([]byte, error) {
 				ret := make([]byte, 32) // needs to be 32 byte for packing
-				copy(ret[:4], eip1271.MAGIC_VALUE_ETH_SIGN[:])
+				copy(ret[:4], eip1271.MAGIC_VALUE[:])
 				return ret, nil
 			},
 			CodeAtMap: map[common.Address]bool{
