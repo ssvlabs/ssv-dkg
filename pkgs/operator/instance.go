@@ -17,6 +17,8 @@ import (
 type Instance interface {
 	ProcessMessages(msg *wire.MultipleSignedTransports) ([]byte, error)
 	VerifyInitiatorMessage(msg, sig []byte) error
+	// Close cancels in-flight goroutines bound to this instance. Idempotent.
+	Close()
 }
 
 // instWrapper wraps LocalOwner instance with RSA public key
@@ -24,6 +26,13 @@ type instWrapper struct {
 	*dkg.LocalOwner                   // main DKG ceremony instance
 	InitiatorPublicKey *rsa.PublicKey // initiator's RSA public key to verify its identity. Makes sure that in the DKG process messages received only from one initiator who started it.
 	respChan           chan []byte    // channel to receive response
+	cancel             context.CancelFunc
+}
+
+func (iw *instWrapper) Close() {
+	if iw.cancel != nil {
+		iw.cancel()
+	}
 }
 
 // VerifyInitiatorMessage verifies initiator message signature
@@ -73,7 +82,8 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
+	// Derive from the lifecycle ctx so Close() short-circuits this wait.
+	ctx, cancel := context.WithTimeout(iw.Ctx(), MaxInstancePhaseTimeout)
 	defer cancel()
 	select {
 	case resp, ok := <-iw.respChan:
@@ -82,6 +92,16 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 		}
 		return resp, nil
 	case <-ctx.Done():
-		return nil, fmt.Errorf("process message: timed out waiting for response: %w", ctx.Err())
+		// Broadcast's ctx-priority prevents post-cancel writes, so a non-blocking
+		// re-check catches a response queued just before cancel.
+		select {
+		case resp, ok := <-iw.respChan:
+			if !ok {
+				return nil, fmt.Errorf("process message: response channel closed")
+			}
+			return resp, nil
+		default:
+			return nil, fmt.Errorf("process message: timed out waiting for response: %w", ctx.Err())
+		}
 	}
 }

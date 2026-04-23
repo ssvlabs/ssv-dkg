@@ -60,6 +60,7 @@ func New(key *rsa.PrivateKey, logger *zap.Logger, ver []byte, id uint64, outputP
 		return nil, fmt.Errorf("failed to connect to Ethereum backend, err: %w", err)
 	}
 	swtch := NewSwitch(key, logger, ver, pkBytes, id, ethBackend)
+	swtch.StartReaper(ReaperInterval)
 	s := &Server{
 		Logger:     logger,
 		Router:     r,

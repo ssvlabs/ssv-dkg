@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"sort"
@@ -77,6 +78,10 @@ func (ts *testState) ForAll(f func(o *LocalOwner) error) error {
 }
 
 func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
+	return NewTestOperatorWithCtx(ts, id, context.Background())
+}
+
+func NewTestOperatorWithCtx(ts *testState, id uint64, ctx context.Context) (*LocalOwner, *rsa.PrivateKey) {
 	pv, pk, err := spec_crypto.GenerateRSAKeys()
 	if err != nil {
 		ts.T.Error(err)
@@ -105,6 +110,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 		OperatorSecretKey:  pv,
 		done:               make(chan struct{}, 1),
 		startedDKG:         make(chan struct{}, 1),
+		ctx:                ctx,
 	}, pv
 }
 

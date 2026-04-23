@@ -159,7 +159,7 @@ func TestInitInstance(t *testing.T) {
 				return nil, fmt.Errorf("init: create instance: %w", err)
 			}
 			swtch.State.Mtx.Lock()
-			swtch.State.Instances[reqID] = &instWrapper{&dkg.LocalOwner{}, initiatorPubKey, make(chan []byte, 1)}
+			swtch.State.Instances[reqID] = &instWrapper{&dkg.LocalOwner{}, initiatorPubKey, make(chan []byte, 1), func() {}}
 			swtch.State.InstanceInitTime[reqID] = time.Now()
 			swtch.State.Mtx.Unlock()
 			return resp, nil
