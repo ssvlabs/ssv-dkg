@@ -64,10 +64,12 @@ func TestNewStoresSuppliedCtx(t *testing.T) {
 }
 
 func TestDKGCancelReleasesKyberGoroutines(t *testing.T) {
-	// goleak.VerifyNone is the authoritative check; runtime.NumGoroutine
-	// pre-bound was removed because it picks up runtime-internal goroutines
-	// whose counts fluctuate under -race CI and produced flakes without
-	// adding signal.
+	// The goroutine chain spawned by StartDKG (cancellablePhaser,
+	// kyber Protocol.Start, runWaitEnd) exits promptly on ctx cancel —
+	// cancellablePhaser emits FinishPhase, kyber reads it and returns,
+	// runWaitEnd observes the final result. require.Eventually below polls
+	// goleak.Find to tolerate loaded-CI scheduling without the flaky
+	// runtime.NumGoroutine pre-bound the prior version relied on.
 	ignore := goleak.IgnoreCurrent()
 
 	_, initiatorPk, err := spec_crypto.GenerateRSAKeys()
@@ -124,6 +126,7 @@ func TestDKGCancelReleasesKyberGoroutines(t *testing.T) {
 
 	cancel()
 
-	// goleak will retry internally for a short window to let goroutines drain.
-	goleak.VerifyNone(t, ignore)
+	require.Eventually(t, func() bool {
+		return goleak.Find(ignore) == nil
+	}, 2*time.Second, 50*time.Millisecond, "kyber goroutines did not exit after cancel")
 }
