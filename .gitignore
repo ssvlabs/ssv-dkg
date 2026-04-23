@@ -31,6 +31,7 @@ examples/*/output/*
 
 # Secrets
 .env
+*.env
 
 # Node.js (for utils/ JS helpers)
 node_modules/
