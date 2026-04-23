@@ -30,10 +30,31 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 	if s.OperatorID != operatorID {
 		return nil, nil, fmt.Errorf("wrong operator ID: want %d, got %d", s.OperatorID, operatorID)
 	}
+	// Lifecycle ctx for the LocalOwner's background goroutines. WithTimeout
+	// bounds it by MaxInstanceTime so abandoned instances release goroutines
+	// even if no later cleanup sweep runs.
+	instanceCtx, cancelInstance := context.WithTimeout(context.Background(), MaxInstanceTime)
+	var success bool
+	defer func() {
+		if !success {
+			cancelInstance()
+		}
+	}()
 	bchan := make(chan []byte, 1)
 	broadcast := func(msg []byte) error {
-		bchan <- msg
-		return nil
+		// A cancelled instance must not enqueue a stale response that a
+		// racing ProcessMessages could read as a real reply.
+		select {
+		case <-instanceCtx.Done():
+			return instanceCtx.Err()
+		default:
+		}
+		select {
+		case bchan <- msg:
+			return nil
+		case <-instanceCtx.Done():
+			return instanceCtx.Err()
+		}
 	}
 	opts := dkg.OwnerOpts{
 		Logger:             s.Logger.With(zap.String("instance", hex.EncodeToString(reqID[:]))),
@@ -47,7 +68,7 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		OperatorSecretKey:  s.PrivateKey,
 		Version:            s.Version,
 	}
-	owner := dkg.New(&opts)
+	owner := dkg.New(instanceCtx, &opts)
 	var resp *wire.Transport
 	// wait for exchange msg
 	switch msg := message.(type) {
@@ -77,16 +98,22 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 	if err := owner.Broadcast(resp); err != nil {
 		return nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
-	defer cancel()
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
+	defer waitCancel()
 	select {
 	case res, ok := <-bchan:
 		if !ok {
 			return nil, nil, fmt.Errorf("create instance: response channel closed")
 		}
-		return &instWrapper{owner, initiatorPublicKey, bchan}, res, nil
-	case <-ctx.Done():
-		return nil, nil, fmt.Errorf("create instance: timed out waiting for initial response: %w", ctx.Err())
+		success = true
+		return &instWrapper{
+			LocalOwner:         owner,
+			InitiatorPublicKey: initiatorPublicKey,
+			respChan:           bchan,
+			cancel:             cancelInstance,
+		}, res, nil
+	case <-waitCtx.Done():
+		return nil, nil, fmt.Errorf("create instance: timed out waiting for initial response: %w", waitCtx.Err())
 	}
 }
 
@@ -135,11 +162,15 @@ func (s *Switch) InitInstance(reqID [24]byte, initMsg *wire.Transport, initiator
 	return resp, nil
 }
 
-// cleanInstances removes all instances at Switch
+// cleanInstances removes expired instances and cancels their goroutines.
+// Caller must hold s.Mtx; Close() is lock-free so calling it under lock is safe.
 func (s *Switch) cleanInstances() int {
 	count := 0
 	for id, instime := range s.InstanceInitTime {
 		if time.Now().After(instime.Add(MaxInstanceTime)) {
+			if inst, ok := s.Instances[id]; ok {
+				inst.Close()
+			}
 			delete(s.Instances, id)
 			delete(s.InstanceInitTime, id)
 			count++
@@ -277,21 +308,22 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 // Helper functions to abstract out common behavior
 func (s *Switch) validateInstances(reqID InstanceID) error {
 	s.Mtx.Lock()
+	// Sweep on every admission so below-capacity abandoned instances don't
+	// linger until MaxInstances is hit.
+	s.cleanInstances()
 	l := len(s.Instances)
 	if l >= MaxInstances {
-		cleaned := s.cleanInstances()
-		if l-cleaned >= MaxInstances {
-			s.Mtx.Unlock()
-			return utils.ErrMaxInstances
-		}
+		s.Mtx.Unlock()
+		return utils.ErrMaxInstances
 	}
-	_, ok := s.Instances[reqID]
+	existing, ok := s.Instances[reqID]
 	if ok {
 		tm := s.InstanceInitTime[reqID]
 		if time.Now().Before(tm.Add(MaxInstanceTime)) {
 			s.Mtx.Unlock()
 			return utils.ErrAlreadyExists
 		}
+		existing.Close()
 		delete(s.Instances, reqID)
 		delete(s.InstanceInitTime, reqID)
 	}

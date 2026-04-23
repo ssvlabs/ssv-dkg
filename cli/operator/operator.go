@@ -1,8 +1,13 @@
 package operator
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -11,6 +16,10 @@ import (
 	cli_utils "github.com/ssvlabs/ssv-dkg/cli/utils"
 	"github.com/ssvlabs/ssv-dkg/pkgs/operator"
 )
+
+// shutdownTimeout bounds how long Stop will wait for in-flight HTTP handlers
+// to drain on SIGTERM/SIGINT before we force the process down.
+const shutdownTimeout = 30 * time.Second
 
 func init() {
 	flags.SetOperatorFlags(StartDKGOperator)
@@ -52,6 +61,20 @@ var StartDKGOperator = &cobra.Command{
 		if err != nil {
 			logger.Fatal("😥 Failed to create new operator instance: ", zap.Error(err))
 		}
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigs)
+		go func() {
+			sig := <-sigs
+			logger.Info("shutdown signal received, stopping operator", zap.String("signal", sig.String()))
+			ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer cancel()
+			if err := srv.Stop(ctx); err != nil {
+				logger.Error("operator shutdown error", zap.Error(err))
+			}
+		}()
+
 		logger.Info("🚀 Starting DKG operator", zap.Uint64("at port", flags.Port))
 		if err := srv.Start(uint16(flags.Port), flags.ServerTLSCertPath, flags.ServerTLSKeyPath); err != nil {
 			log.Fatalf("Error in operator %v", err)

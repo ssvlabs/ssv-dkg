@@ -2,9 +2,11 @@ package dkg
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -26,7 +28,15 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-const kyberMessageStartWaitTimeout = 2 * time.Second
+const (
+	kyberMessageStartWaitTimeout = 2 * time.Second
+
+	// waitEndCancelGrace bounds how long runWaitEnd waits for a result after
+	// ctx cancellation. Generous enough that a loaded or -race-slowed kyber
+	// still delivers a legitimate completion before we give up, bounded so a
+	// pathological kyber hang can't block cleanup forever.
+	waitEndCancelGrace = 5 * time.Second
+)
 
 // DKGdata structure to store at LocalOwner information about initial message parameters and secret scalar to be used as input for DKG protocol
 type DKGdata struct {
@@ -40,7 +50,9 @@ type DKGdata struct {
 	secret kyber.Scalar
 }
 
-// OwnerOpts structure to pass parameters from Switch to LocalOwner structure
+// OwnerOpts structure to pass parameters from Switch to LocalOwner structure.
+// The lifecycle context is passed as a positional argument to New; not embedded
+// here so the compiler enforces that callers supply one.
 type OwnerOpts struct {
 	Logger             *zap.Logger
 	ID                 uint64
@@ -62,6 +74,7 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger             *zap.Logger
 	startedDKG         chan struct{}
+	startedDKGOnce     sync.Once
 	ID                 uint64
 	data               *DKGdata
 	board              *board.Board
@@ -76,11 +89,15 @@ type LocalOwner struct {
 	InitiatorPublicKey *rsa.PublicKey
 	OperatorSecretKey  *rsa.PrivateKey
 	done               chan struct{}
+	doneOnce           sync.Once
+	ctx                context.Context
 	version            []byte
 }
 
-// New creates a LocalOwner structure. We create it for each new DKG ceremony.
-func New(opts *OwnerOpts) *LocalOwner {
+// New creates a LocalOwner structure for a new DKG ceremony. ctx cancels the
+// owner's background goroutines (runWaitEnd, board, kyber protocol) when the
+// owning instance is cleaned up or its deadline fires.
+func New(ctx context.Context, opts *OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:             opts.Logger,
 		startedDKG:         make(chan struct{}, 1),
@@ -94,10 +111,69 @@ func New(opts *OwnerOpts) *LocalOwner {
 		InitiatorPublicKey: opts.InitiatorPublicKey,
 		OperatorSecretKey:  opts.OperatorSecretKey,
 		done:               make(chan struct{}, 1),
+		ctx:                ctx,
 		Suite:              opts.Suite,
 		version:            opts.Version,
 	}
 	return owner
+}
+
+func (o *LocalOwner) closeDone() {
+	o.doneOnce.Do(func() { close(o.done) })
+}
+
+// closeStartedDKG closes startedDKG idempotently so concurrent Process paths
+// (same instance, racing on exchanges) can't double-close and panic.
+func (o *LocalOwner) closeStartedDKG() {
+	o.startedDKGOnce.Do(func() { close(o.startedDKG) })
+}
+
+// Ctx returns the lifecycle context used by background goroutines.
+func (o *LocalOwner) Ctx() context.Context {
+	return o.ctx
+}
+
+// runWaitEnd waits for the protocol's final result and dispatches it to postF.
+// A ready WaitEnd result wins over ctx cancellation to avoid dropping a
+// completed ceremony when both fire simultaneously.
+func (o *LocalOwner) runWaitEnd(
+	p *kyber_dkg.Protocol,
+	postF func(*kyber_dkg.OptionResult) error,
+	errLabel, cancelLabel string,
+) {
+	dispatch := func(res kyber_dkg.OptionResult) {
+		err := postF(&res)
+		if err == nil {
+			return
+		}
+		// A ctx error from postF means broadcast couldn't deliver because
+		// the owner's ctx already fired — either via Close()/reaper
+		// (Canceled) or MaxInstanceTime deadline (DeadlineExceeded). That's
+		// cleanup noise, not a ceremony failure: log at Debug and skip
+		// broadcastError (which would fail for the same reason and only
+		// double-log).
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			o.Logger.Debug("postF skipped after ctx ended", zap.String("label", errLabel), zap.Error(err))
+			return
+		}
+		o.Logger.Error(errLabel, zap.Error(err))
+		o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
+	}
+	select {
+	case res := <-p.WaitEnd():
+		dispatch(res)
+	case <-o.ctx.Done():
+		// A non-blocking check would miss results kyber produces a few ms
+		// after cancel while finishing the last phase transition.
+		grace := time.NewTimer(waitEndCancelGrace)
+		defer grace.Stop()
+		select {
+		case res := <-p.WaitEnd():
+			dispatch(res)
+		case <-grace.C:
+			o.Logger.Debug(cancelLabel, zap.Error(o.ctx.Err()))
+		}
+	}
 }
 
 // StartDKG initializes and starts DKG protocol
@@ -127,19 +203,13 @@ func (o *LocalOwner) StartDKG() error {
 		Threshold: int(o.data.init.T), //nolint:gosec // threshold is always small
 		Auth:      drand_bls.NewSchemeOnG2(o.Suite),
 	}
-	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
+	p, err := wire.NewDKGProtocol(o.ctx, dkgConfig, o.board, logger)
 	if err != nil {
 		return err
 	}
 	// Wait when the protocol exchanges finish and process the result
-	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
-		res := <-p.WaitEnd()
-		if err := postF(&res); err != nil {
-			o.Logger.Error("Error in PostDKG function", zap.Error(err))
-			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
-		}
-	}(p, o.PostDKG)
-	close(o.startedDKG)
+	go o.runWaitEnd(p, o.PostDKG, "Error in PostDKG function", "DKG WaitEnd watcher cancelled")
+	o.closeStartedDKG()
 	return nil
 }
 
@@ -217,7 +287,7 @@ func (o *LocalOwner) PostDKG(res *kyber_dkg.OptionResult) error {
 	if err := o.Broadcast(tsMsg); err != nil {
 		return fmt.Errorf("failed to broadcast output in PostDKG: %w", err)
 	}
-	close(o.done)
+	o.closeDone()
 	return nil
 }
 
@@ -259,9 +329,7 @@ func (o *LocalOwner) PostReshare(res *kyber_dkg.OptionResult) error {
 	if err := o.Broadcast(tsMsg); err != nil {
 		return fmt.Errorf("failed to broadcast output in PostReshare: %w", err)
 	}
-	if _, ok := <-o.done; ok {
-		close(o.done)
-	}
+	o.closeDone()
 	return nil
 }
 
@@ -553,7 +621,7 @@ func (o *LocalOwner) broadcastError(err error) {
 	if err := o.Broadcast(errMsg); err != nil {
 		o.Logger.Error("failed to broadcast error message", zap.Error(err))
 	}
-	close(o.done)
+	o.closeDone()
 }
 
 // checkOperators checks that operator received all participating parties DKG public keys
@@ -720,18 +788,12 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
 		Share:        o.SecretShare,
 	}
-	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
+	p, err := wire.NewDKGProtocol(o.ctx, dkgConfig, o.board, logger)
 	if err != nil {
 		return err
 	}
-	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
-		res := <-p.WaitEnd()
-		if err := postF(&res); err != nil {
-			o.Logger.Error("Error in PostReshare function", zap.Error(err))
-			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
-		}
-	}(p, o.PostReshare)
-	close(o.startedDKG)
+	go o.runWaitEnd(p, o.PostReshare, "Error in PostReshare function", "Reshare (old nodes) WaitEnd watcher cancelled")
+	o.closeStartedDKG()
 	return nil
 }
 
@@ -794,7 +856,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		Auth:         drand_bls.NewSchemeOnG2(o.Suite),
 		PublicCoeffs: coefs,
 	}
-	p, err := wire.NewDKGProtocol(dkgConfig, o.board, logger)
+	p, err := wire.NewDKGProtocol(o.ctx, dkgConfig, o.board, logger)
 	if err != nil {
 		return err
 	}
@@ -804,14 +866,8 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 			return fmt.Errorf("failed to enqueue stored deal bundle: %w", err)
 		}
 	}
-	go func(p *kyber_dkg.Protocol, postF func(res *kyber_dkg.OptionResult) error) {
-		res := <-p.WaitEnd()
-		if err := postF(&res); err != nil {
-			o.Logger.Error("Error in PostReshare function", zap.Error(err))
-			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
-		}
-	}(p, o.PostReshare)
-	close(o.startedDKG)
+	go o.runWaitEnd(p, o.PostReshare, "Error in PostReshare function", "Reshare (new nodes) WaitEnd watcher cancelled")
+	o.closeStartedDKG()
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -27,14 +28,16 @@ func (l *LogWrapper) Error(vals ...interface{}) {
 	l.Logger.Error(fmt.Sprint(vals...))
 }
 
-// NewDKGProtocol initializes and starts phases of the DKG protocol
-func NewDKGProtocol(dkgConfig *dkg.Config, b dkg.Board, logger *zap.Logger) (*dkg.Protocol, error) {
+// NewDKGProtocol initializes the DKG protocol. The returned protocol is driven
+// by a cancellable phaser so ctx cancellation winds the kyber goroutine down
+// within one phase signal. ctx must be non-nil.
+func NewDKGProtocol(ctx context.Context, dkgConfig *dkg.Config, b dkg.Board, logger *zap.Logger) (*dkg.Protocol, error) {
 	dkgLogger := New(logger)
 	dkgConfig.Log = dkgLogger
 	// Phaser must signal on its channel when the protocol should move to a next
 	// phase. Phase must be sequential: DealPhase (start), ResponsePhase,
 	// JustifPhase and then FinishPhase.
-	phaser := dkg.NewTimePhaser(time.Second * 10)
+	phaser := newCancellablePhaser(ctx, 10*time.Second)
 	ret, err := dkg.NewProtocol(
 		dkgConfig,
 		b,
