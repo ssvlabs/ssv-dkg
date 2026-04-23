@@ -67,9 +67,8 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 		InitiatorPublicKey: initiatorPublicKey,
 		OperatorSecretKey:  s.PrivateKey,
 		Version:            s.Version,
-		Ctx:                instanceCtx,
 	}
-	owner := dkg.New(&opts)
+	owner := dkg.New(instanceCtx, &opts)
 	var resp *wire.Transport
 	// wait for exchange msg
 	switch msg := message.(type) {
@@ -107,7 +106,12 @@ func (s *Switch) CreateInstance(reqID [24]byte, operators []*spec.Operator, mess
 			return nil, nil, fmt.Errorf("create instance: response channel closed")
 		}
 		success = true
-		return &instWrapper{owner, initiatorPublicKey, bchan, cancelInstance}, res, nil
+		return &instWrapper{
+			LocalOwner:         owner,
+			InitiatorPublicKey: initiatorPublicKey,
+			respChan:           bchan,
+			cancel:             cancelInstance,
+		}, res, nil
 	case <-waitCtx.Done():
 		return nil, nil, fmt.Errorf("create instance: timed out waiting for initial response: %w", waitCtx.Err())
 	}

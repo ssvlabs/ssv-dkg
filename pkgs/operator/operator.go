@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -83,6 +84,19 @@ func (s *Server) Start(port uint16, cert, key string) error {
 			return nil
 		}
 		return err
+	}
+	return nil
+}
+
+// Stop gracefully shuts the HTTP server down and stops the Switch's background
+// reaper. Safe to call multiple times and when Start never ran. ctx bounds the
+// HTTP server's graceful-drain window.
+func (s *Server) Stop(ctx context.Context) error {
+	if s.State != nil {
+		s.State.StopReaper()
+	}
+	if s.HttpServer != nil {
+		return s.HttpServer.Shutdown(ctx)
 	}
 	return nil
 }

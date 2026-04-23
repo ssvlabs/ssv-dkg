@@ -49,6 +49,7 @@ type Switch struct {
 	PubKeyBytes      []byte
 	OperatorID       uint64
 	EthClient        eip1271.ETHClient
+	reaperOnce       sync.Once
 	reaperCancel     context.CancelFunc
 }
 
@@ -123,12 +124,15 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 
 // StartReaper spawns a background goroutine that periodically sweeps expired
 // instances so abandoned ceremonies release heap pressure even when admission
-// traffic is sparse. Safe to call at most once per Switch. Stop with StopReaper
-// before the process exits or the Switch is discarded in tests.
+// traffic is sparse. Idempotent — only the first call spawns a reaper; later
+// calls are no-ops. Stop with StopReaper before the process exits or the
+// Switch is discarded in tests.
 func (s *Switch) StartReaper(interval time.Duration) {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.reaperCancel = cancel
-	go s.runReaper(ctx, interval)
+	s.reaperOnce.Do(func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.reaperCancel = cancel
+		go s.runReaper(ctx, interval)
+	})
 }
 
 // StopReaper cancels the background sweeper started by StartReaper. No-op if
@@ -173,7 +177,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 		return nil, utils.ErrMissingInstance
 	}
 	resp, err := inst.ProcessMessages(st)
-	if errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		s.Mtx.Lock()
 		current, ok := s.Instances[id]
 		if ok && current == inst {

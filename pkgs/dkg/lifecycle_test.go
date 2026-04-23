@@ -3,7 +3,6 @@ package dkg
 import (
 	"context"
 	"crypto/rsa"
-	"runtime"
 	"sort"
 	"sync"
 	"testing"
@@ -22,7 +21,7 @@ import (
 func TestCloseDoneIdempotent(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	owner := New(&OwnerOpts{Logger: zap.NewNop()})
+	owner := New(t.Context(), &OwnerOpts{Logger: zap.NewNop()})
 
 	owner.closeDone()
 	select {
@@ -39,7 +38,7 @@ func TestCloseDoneIdempotent(t *testing.T) {
 func TestCloseDoneConcurrent(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	owner := New(&OwnerOpts{Logger: zap.NewNop()})
+	owner := New(t.Context(), &OwnerOpts{Logger: zap.NewNop()})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 50; i++ {
@@ -60,14 +59,16 @@ func TestCloseDoneConcurrent(t *testing.T) {
 
 func TestNewStoresSuppliedCtx(t *testing.T) {
 	ctx := t.Context()
-	owner := New(&OwnerOpts{Logger: zap.NewNop(), Ctx: ctx})
+	owner := New(ctx, &OwnerOpts{Logger: zap.NewNop()})
 	require.Same(t, ctx, owner.ctx)
 }
 
 func TestDKGCancelReleasesKyberGoroutines(t *testing.T) {
-	runtime.GC()
-	time.Sleep(50 * time.Millisecond)
-	baseline := runtime.NumGoroutine()
+	// goleak.VerifyNone is the authoritative check; runtime.NumGoroutine
+	// pre-bound was removed because it picks up runtime-internal goroutines
+	// whose counts fluctuate under -race CI and produced flakes without
+	// adding signal.
+	ignore := goleak.IgnoreCurrent()
 
 	_, initiatorPk, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
@@ -123,17 +124,6 @@ func TestDKGCancelReleasesKyberGoroutines(t *testing.T) {
 
 	cancel()
 
-	deadline := time.Now().Add(1 * time.Second)
-	for time.Now().Before(deadline) {
-		runtime.GC()
-		if runtime.NumGoroutine() <= baseline+2 {
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	require.LessOrEqualf(t, runtime.NumGoroutine(), baseline+2,
-		"kyber residue not released within 1s of cancel (baseline=%d, now=%d)",
-		baseline, runtime.NumGoroutine())
-
-	goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	// goleak will retry internally for a short window to let goroutines drain.
+	goleak.VerifyNone(t, ignore)
 }

@@ -50,7 +50,9 @@ type DKGdata struct {
 	secret kyber.Scalar
 }
 
-// OwnerOpts structure to pass parameters from Switch to LocalOwner structure
+// OwnerOpts structure to pass parameters from Switch to LocalOwner structure.
+// The lifecycle context is passed as a positional argument to New; not embedded
+// here so the compiler enforces that callers supply one.
 type OwnerOpts struct {
 	Logger             *zap.Logger
 	ID                 uint64
@@ -64,9 +66,6 @@ type OwnerOpts struct {
 	Owner              [20]byte
 	Nonce              uint64
 	Version            []byte
-	// Ctx cancels background goroutines when the owning instance is cleaned up.
-	// Must be non-nil.
-	Ctx context.Context
 }
 
 var ErrAlreadyExists = errors.New("duplicate message")
@@ -75,6 +74,7 @@ var ErrAlreadyExists = errors.New("duplicate message")
 type LocalOwner struct {
 	Logger             *zap.Logger
 	startedDKG         chan struct{}
+	startedDKGOnce     sync.Once
 	ID                 uint64
 	data               *DKGdata
 	board              *board.Board
@@ -94,9 +94,10 @@ type LocalOwner struct {
 	version            []byte
 }
 
-// New creates a LocalOwner structure. We create it for each new DKG ceremony.
-// opts.Ctx must be non-nil.
-func New(opts *OwnerOpts) *LocalOwner {
+// New creates a LocalOwner structure for a new DKG ceremony. ctx cancels the
+// owner's background goroutines (runWaitEnd, board, kyber protocol) when the
+// owning instance is cleaned up or its deadline fires.
+func New(ctx context.Context, opts *OwnerOpts) *LocalOwner {
 	owner := &LocalOwner{
 		Logger:             opts.Logger,
 		startedDKG:         make(chan struct{}, 1),
@@ -110,7 +111,7 @@ func New(opts *OwnerOpts) *LocalOwner {
 		InitiatorPublicKey: opts.InitiatorPublicKey,
 		OperatorSecretKey:  opts.OperatorSecretKey,
 		done:               make(chan struct{}, 1),
-		ctx:                opts.Ctx,
+		ctx:                ctx,
 		Suite:              opts.Suite,
 		version:            opts.Version,
 	}
@@ -119,6 +120,12 @@ func New(opts *OwnerOpts) *LocalOwner {
 
 func (o *LocalOwner) closeDone() {
 	o.doneOnce.Do(func() { close(o.done) })
+}
+
+// closeStartedDKG closes startedDKG idempotently so concurrent Process paths
+// (same instance, racing on exchanges) can't double-close and panic.
+func (o *LocalOwner) closeStartedDKG() {
+	o.startedDKGOnce.Do(func() { close(o.startedDKG) })
 }
 
 // Ctx returns the lifecycle context used by background goroutines.
@@ -135,10 +142,22 @@ func (o *LocalOwner) runWaitEnd(
 	errLabel, cancelLabel string,
 ) {
 	dispatch := func(res kyber_dkg.OptionResult) {
-		if err := postF(&res); err != nil {
-			o.Logger.Error(errLabel, zap.Error(err))
-			o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
+		err := postF(&res)
+		if err == nil {
+			return
 		}
+		// A ctx error from postF means broadcast couldn't deliver because
+		// the owner's ctx already fired — either via Close()/reaper
+		// (Canceled) or MaxInstanceTime deadline (DeadlineExceeded). That's
+		// cleanup noise, not a ceremony failure: log at Debug and skip
+		// broadcastError (which would fail for the same reason and only
+		// double-log).
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			o.Logger.Debug("postF skipped after ctx ended", zap.String("label", errLabel), zap.Error(err))
+			return
+		}
+		o.Logger.Error(errLabel, zap.Error(err))
+		o.broadcastError(fmt.Errorf("operator ID:%d, err:%w", o.ID, err))
 	}
 	select {
 	case res := <-p.WaitEnd():
@@ -190,7 +209,7 @@ func (o *LocalOwner) StartDKG() error {
 	}
 	// Wait when the protocol exchanges finish and process the result
 	go o.runWaitEnd(p, o.PostDKG, "Error in PostDKG function", "DKG WaitEnd watcher cancelled")
-	close(o.startedDKG)
+	o.closeStartedDKG()
 	return nil
 }
 
@@ -774,7 +793,7 @@ func (o *LocalOwner) StartReshareDKGOldNodes() error {
 		return err
 	}
 	go o.runWaitEnd(p, o.PostReshare, "Error in PostReshare function", "Reshare (old nodes) WaitEnd watcher cancelled")
-	close(o.startedDKG)
+	o.closeStartedDKG()
 	return nil
 }
 
@@ -848,7 +867,7 @@ func (o *LocalOwner) StartReshareDKGNewNodes() error {
 		}
 	}
 	go o.runWaitEnd(p, o.PostReshare, "Error in PostReshare function", "Reshare (new nodes) WaitEnd watcher cancelled")
-	close(o.startedDKG)
+	o.closeStartedDKG()
 	return nil
 }
 

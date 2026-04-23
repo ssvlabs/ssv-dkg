@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -27,6 +28,10 @@ type instWrapper struct {
 	InitiatorPublicKey *rsa.PublicKey // initiator's RSA public key to verify its identity. Makes sure that in the DKG process messages received only from one initiator who started it.
 	respChan           chan []byte    // channel to receive response
 	cancel             context.CancelFunc
+	// procMu serializes ProcessMessages per instance. LocalOwner mutates
+	// exchanges/deals maps and closes startedDKG without its own locking;
+	// concurrent /dkg retries for the same InstanceID would race those.
+	procMu sync.Mutex
 }
 
 func (iw *instWrapper) Close() {
@@ -49,6 +54,9 @@ func (iw *instWrapper) VerifyInitiatorMessage(msg, sig []byte) error {
 }
 
 func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]byte, error) {
+	iw.procMu.Lock()
+	defer iw.procMu.Unlock()
+
 	var multipleMsgsBytes []byte
 	for _, transportMsg := range msg.Messages {
 		msgBytes, err := transportMsg.MarshalSSZ()
@@ -82,18 +90,21 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 			return nil, fmt.Errorf("process message: failed to process dkg message: %w", err)
 		}
 	}
-	// Derive from the lifecycle ctx so Close() short-circuits this wait.
-	ctx, cancel := context.WithTimeout(iw.Ctx(), MaxInstancePhaseTimeout)
-	defer cancel()
+	// Phase ctx is Background-derived so the per-call budget is not shrunk by
+	// instance age. iw.Ctx() is observed separately so Close()/reaper
+	// cancellation still short-circuits the wait.
+	phaseCtx, phaseCancel := context.WithTimeout(context.Background(), MaxInstancePhaseTimeout)
+	defer phaseCancel()
 	select {
 	case resp, ok := <-iw.respChan:
 		if !ok {
 			return nil, fmt.Errorf("process message: response channel closed")
 		}
 		return resp, nil
-	case <-ctx.Done():
-		// Broadcast's ctx-priority prevents post-cancel writes, so a non-blocking
-		// re-check catches a response queued just before cancel.
+	case <-phaseCtx.Done():
+		// Broadcast checks instanceCtx before writing but the check-then-send
+		// is a TOCTOU — a response can land in respChan concurrently with
+		// phase deadline. The non-blocking re-check catches that window.
 		select {
 		case resp, ok := <-iw.respChan:
 			if !ok {
@@ -101,7 +112,18 @@ func (iw *instWrapper) ProcessMessages(msg *wire.MultipleSignedTransports) ([]by
 			}
 			return resp, nil
 		default:
-			return nil, fmt.Errorf("process message: timed out waiting for response: %w", ctx.Err())
+			return nil, fmt.Errorf("process message: timed out waiting for response: %w", phaseCtx.Err())
+		}
+	case <-iw.Ctx().Done():
+		// Instance lifecycle ended (Close, reaper, or MaxInstanceTime).
+		select {
+		case resp, ok := <-iw.respChan:
+			if !ok {
+				return nil, fmt.Errorf("process message: response channel closed")
+			}
+			return resp, nil
+		default:
+			return nil, fmt.Errorf("process message: instance lifecycle ended: %w", iw.Ctx().Err())
 		}
 	}
 }
