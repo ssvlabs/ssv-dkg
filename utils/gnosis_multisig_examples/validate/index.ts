@@ -14,6 +14,15 @@ import SafeApiKit, {
 // This file can be used to play around with the Safe Core SDK
 import fs from "fs";
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} must be set`);
+  }
+
+  return value;
+}
+
 interface Config {
   RPC_URL: string;
   OWNER1_PRIVATE_KEY: string;
@@ -30,8 +39,7 @@ interface Config {
 //   - Owner 3: public address from OWNER3_PRIVATE_KEY
 //   - SAFE_WALLET: public of safe wallet address with 2/3 threshold
 const config: Config = {
-  RPC_URL:
-    "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz",
+  RPC_URL: requireEnv("ETH_RPC_URL"),
   OWNER1_PRIVATE_KEY: "",
   OWNER2_PRIVATE_KEY: "",
   OWNER3_PRIVATE_KEY: "",

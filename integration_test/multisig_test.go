@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -18,7 +19,23 @@ import (
 	"github.com/ssvlabs/ssv-dkg/pkgs/wire"
 )
 
-const EthRPC string = "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz"
+const ethRPCEnvVar = "ETH_RPC_URL"
+
+// requireEthereumClient skips RPC-dependent tests when no endpoint is configured locally.
+func requireEthereumClient(t *testing.T) *ethclient.Client {
+	t.Helper()
+
+	ethRPC := strings.TrimSpace(os.Getenv(ethRPCEnvVar))
+	if ethRPC == "" {
+		t.Skipf("%s is not set", ethRPCEnvVar)
+	}
+
+	client, err := ethclient.Dial(ethRPC)
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+
+	return client
+}
 
 func TestReshareBulkJSONPArsing(t *testing.T) {
 	t.Parallel()
@@ -73,8 +90,7 @@ func TestVerifyMultisigSignedOnChain2of3(t *testing.T) {
 	t.Parallel()
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
-		ethBackend, err := ethclient.Dial(EthRPC)
-		require.NoError(t, err)
+		ethBackend := requireEthereumClient(t)
 
 		var finalMsg []byte
 		message := []byte("I am the owner of this Safe account")
@@ -102,8 +118,7 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 	t.Parallel()
 	t.Run("valid Gnosis 3/3 miltisig signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x0205c708899bde67330456886a05Fe30De0A79b6")
-		ethBackend, err := ethclient.Dial(EthRPC)
-		require.NoError(t, err)
+		ethBackend := requireEthereumClient(t)
 
 		var finalMsg []byte
 		message := []byte("I am the owner of this Safe account")
@@ -118,7 +133,6 @@ func TestVerifyMultisigSignedOnChain(t *testing.T) {
 		copy(hash[:], keccak256)
 		t.Log("Hash", hex.EncodeToString(hash[:]))
 
-		require.NoError(t, err)
 		require.NoError(t, spec_crypto.VerifySignedMessageByOwner(ethBackend,
 			gnosisAddress,
 			hash,
@@ -130,8 +144,7 @@ func TestVerifyMultisigSignedOffChain(t *testing.T) {
 	t.Parallel()
 	t.Run("valid Gnosis 2/3 miltisig offchain signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0x43908b5794da9A8f714f001567D8dA1523e68bDb")
-		ethBackend, err := ethclient.Dial(EthRPC)
-		require.NoError(t, err)
+		ethBackend := requireEthereumClient(t)
 
 		msg := "932ab87aee23606dd0c085cab46322ffed345a3aa028673c25f72b5d486e14e2"
 
@@ -159,8 +172,7 @@ func TestVerifyEOASigned(t *testing.T) {
 	t.Parallel()
 	t.Run("valid EOA signatures", func(t *testing.T) {
 		gnosisAddress := common.HexToAddress("0xDCc846fA10C7CfCE9e6Eb37e06eD93b666cFC5E9")
-		ethBackend, err := ethclient.Dial(EthRPC)
-		require.NoError(t, err)
+		ethBackend := requireEthereumClient(t)
 
 		msg := "a3703ef95414e008f95e9d0adb6e0122e70ea2a71459eeafe3382dd24ae03706"
 
