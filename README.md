@@ -225,6 +225,7 @@ ssv-dkg init \
           --nonce 4 \
           --withdrawAddress 0xa1a66cc5d309f19fb2fda2b7601b223053d0f7f4  \
           --compounding \
+          --amount 2048000000000 \
           --network "holesky" \
           --outputPath ./output \
           --logLevel info \
@@ -245,6 +246,7 @@ Here's an explanation of each parameter:
 | `--nonce`             | int                                       | Owner nonce for the SSV contract (default: 0)                                                  |
 | `--withdrawAddress`   | address                                   | ETH1 withdrawal address for the validator                                                      |
 | `--compounding`       | bool                                      | Use 0x02 compounding withdrawal credentials instead of 0x01 (default: `false`)                 |
+| `--amount`            | int                                       | Amount of the deposit in Gwei (default 32000000000)                                            |
 | `--network`           | mainnet / prater / holesky / hoodi        | Network name (default: `mainnet`)                                                              |
 | `--outputPath`        | string                                    | Path to store the output files (default `./output`)                                            |
 | `--configPath`        | string                                    | Path to config file, i.e. `init.yaml`. If not supplied command line parameters are being used. |
