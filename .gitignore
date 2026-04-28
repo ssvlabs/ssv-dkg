@@ -30,7 +30,6 @@ dkg_output*/
 examples/*/output/*
 
 # Secrets
-.env
 *.env
 
 # Node.js (for utils/ JS helpers)
