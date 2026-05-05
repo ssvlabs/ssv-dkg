@@ -44,6 +44,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run integration tests
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
         run: make test-integration
 
   lint:

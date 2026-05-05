@@ -1,50 +1,28 @@
-import Safe, {
-  SigningMethod,
-  buildContractSignature,
-  getSignMessageLibContract,
-} from "@safe-global/protocol-kit";
+import Safe from "@safe-global/protocol-kit";
 import { hashSafeMessage } from "@safe-global/protocol-kit";
-import {
-  OperationType,
-  SafeTransactionDataPartial,
-} from "@safe-global/safe-core-sdk-types";
-import SafeApiKit, {
-  EIP712TypedData as ApiKitEIP712TypedData,
-} from "@safe-global/api-kit";
 // This file can be used to play around with the Safe Core SDK
 import fs from "fs";
 
-interface Config {
-  RPC_URL: string;
-  OWNER1_PRIVATE_KEY: string;
-  OWNER2_PRIVATE_KEY: string;
-  OWNER3_PRIVATE_KEY: string;
-  SAFE_ADDRESS: string;
-  CHAIN_ID: bigint;
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} must be set`);
+  }
+
+  return value;
 }
 
-// To run this script, you need a Safe with the following configuration
-// - 3/3 Safe with 3 owners and threshold 3
-//   - Owner 1: public address from OWNER1_PRIVATE_KEY
-//   - Owner 2: public address from OWNER2_PRIVATE_KEY
-//   - Owner 3: public address from OWNER3_PRIVATE_KEY
-//   - SAFE_WALLET: public of safe wallet address with 2/3 threshold
+interface Config {
+  RPC_URL: string;
+  SAFE_ADDRESS: string;
+}
+
 const config: Config = {
-  RPC_URL:
-    "https://eth-sepolia.g.alchemy.com/v2/YyqRIEgydRXKTTT-w_0jtKSAH6sfr8qz",
-  OWNER1_PRIVATE_KEY: "",
-  OWNER2_PRIVATE_KEY: "",
-  OWNER3_PRIVATE_KEY: "",
+  RPC_URL: requireEnv("ETH_RPC_URL"),
   SAFE_ADDRESS: "0xC4D860871fb983d17eC665a305e98F1B3035a817",
-  CHAIN_ID: 11155111n,
 };
 
 async function main() {
-  // Create Safe API Kit instance
-  const apiKit = new SafeApiKit({
-    chainId: config.CHAIN_ID,
-  });
-
   let protocolKit1 = await Safe.init({
     provider: config.RPC_URL,
     safeAddress: config.SAFE_ADDRESS,
@@ -66,7 +44,6 @@ async function main() {
   );
 
   var MESSAGE = JSON.stringify(reshareBulk);
-  var safeMessage = protocolKit1.createMessage(MESSAGE);
   var messageHash = hashSafeMessage(MESSAGE);
 
   var isValid = await protocolKit1.isValidSignature(
@@ -78,7 +55,6 @@ async function main() {
   console.log("Message Hash: ", messageHash);
   console.log(`The signature is ${isValid ? "valid" : "invalid"}`);
 
-
   var resignBulk = JSON.parse(
     fs.readFileSync(
       "../../../integration_test/stubs/resign/resign_msgs.json",
@@ -87,7 +63,6 @@ async function main() {
   );
 
   MESSAGE = JSON.stringify(resignBulk);
-  safeMessage = protocolKit1.createMessage(MESSAGE);
   messageHash = hashSafeMessage(MESSAGE);
 
   isValid = await protocolKit1.isValidSignature(
