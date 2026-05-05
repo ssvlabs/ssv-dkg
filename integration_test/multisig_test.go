@@ -21,12 +21,15 @@ import (
 
 const ethRPCEnvVar = "ETH_RPC_URL"
 
-// requireEthereumClient skips RPC-dependent tests when no endpoint is configured locally.
+// requireEthereumClient skips RPC-dependent tests locally, but keeps CI coverage visible.
 func requireEthereumClient(t *testing.T) *ethclient.Client {
 	t.Helper()
 
 	ethRPC := strings.TrimSpace(os.Getenv(ethRPCEnvVar))
 	if ethRPC == "" {
+		if os.Getenv("CI") == "true" {
+			t.Fatalf("%s must be set in CI to run multisig integration tests", ethRPCEnvVar)
+		}
 		t.Skipf("%s is not set", ethRPCEnvVar)
 	}
 

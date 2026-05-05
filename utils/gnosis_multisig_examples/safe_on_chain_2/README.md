@@ -18,3 +18,9 @@ $ node index.js
 ```
 
 You can also keep those values in a local `*.env` file and source it before running the script.
+
+```
+$ set -a
+$ source local.env
+$ set +a
+```
