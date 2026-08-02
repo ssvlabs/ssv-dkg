@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -148,10 +149,16 @@ func (s *Switch) cleanInstances() int {
 	return count
 }
 
+// ErrVersionMismatch reports that the initiator and this operator run different protocol
+// versions. Exact version equality is a protocol invariant, so this is the one ceremony
+// failure reported to the initiator verbatim: it is raised before any ceremony material is
+// unmarshalled and its message carries no ceremony data.
+var ErrVersionMismatch = errors.New("wrong version")
+
 // HandleInstanceOperation handles both Resign and Reshare operations.
 func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Transport, initiatorPub, initiatorSignature []byte, operationType string) ([][]byte, error) {
 	if !bytes.Equal(transportMsg.Version, s.Version) {
-		return nil, fmt.Errorf("wrong version: remote %s local %s", transportMsg.Version, s.Version)
+		return nil, fmt.Errorf("%w: remote %s local %s", ErrVersionMismatch, transportMsg.Version, s.Version)
 	}
 
 	// Check that incoming message signature is valid

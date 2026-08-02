@@ -24,24 +24,30 @@ import (
 )
 
 // newTestOwner builds a LocalOwner exactly as the operator server would: it
-// decrypts ceremony shares with the operator's own RSA private key.
-func newTestOwner(t *testing.T, id uint64) (*LocalOwner, *rsa.PrivateKey) {
+// decrypts ceremony shares with the operator's own RSA private key. The returned
+// counter records how many times the share decryption ran, so tests can assert on
+// the behaviour itself rather than on the wording of the resulting error.
+func newTestOwner(t *testing.T, id uint64) (*LocalOwner, *rsa.PrivateKey, *int) {
 	t.Helper()
 	pv, _, err := spec_crypto.GenerateRSAKeys()
 	require.NoError(t, err)
 	logger, _ := zap.NewDevelopment()
+	decrypts := new(int)
 	o := &LocalOwner{
-		Logger:            logger.With(zap.Uint64("operator_id", id)),
-		ID:                id,
-		Suite:             kyber_bls.NewBLS12381Suite(),
-		exchanges:         make(map[uint64]*wire.Exchange),
-		signer:            crypto.RSASigner(pv),
-		decryptFunc:       func(ct []byte) ([]byte, error) { return spec_crypto.Decrypt(pv, ct) },
+		Logger:    logger.With(zap.Uint64("operator_id", id)),
+		ID:        id,
+		Suite:     kyber_bls.NewBLS12381Suite(),
+		exchanges: make(map[uint64]*wire.Exchange),
+		signer:    crypto.RSASigner(pv),
+		decryptFunc: func(ct []byte) ([]byte, error) {
+			*decrypts++
+			return spec_crypto.Decrypt(pv, ct)
+		},
 		OperatorSecretKey: pv,
 		done:              make(chan struct{}, 1),
 		startedDKG:        make(chan struct{}, 1),
 	}
-	return o, pv
+	return o, pv, decrypts
 }
 
 func encodePub(t *testing.T, pk *rsa.PublicKey) []byte {
@@ -74,7 +80,7 @@ func validWithdrawalCreds() []byte {
 // encrypted share is decrypted.
 func TestResignRejectsProofNotSignedByThisOperator(t *testing.T) {
 	opID := uint64(3)
-	op, opPriv := newTestOwner(t, opID)
+	op, opPriv, decrypts := newTestOwner(t, opID)
 
 	// A throwaway RSA keypair that is not this operator's key.
 	otherPriv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -134,10 +140,15 @@ func TestResignRejectsProofNotSignedByThisOperator(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to validate resign message")
 	require.ErrorContains(t, err, "crypto/rsa: verification error")
+	require.ErrorIs(t, err, rsa.ErrVerification)
 	require.NotContains(t, err.Error(), "BLS secret key",
 		"validation must stop the request before the share is parsed")
 	require.NotContains(t, err.Error(), "decrypt",
 		"validation must stop the request before the share is decrypted")
+	// The assertions above only certify wording. This one certifies the behaviour:
+	// the chosen ciphertext was never fed to the operator's private key at all.
+	require.Zero(t, *decrypts,
+		"the share must not be decrypted when validation rejects the proof")
 }
 
 // TestResignErrorsAreIndistinguishableAcrossCiphertexts asserts that two resign
@@ -145,7 +156,7 @@ func TestResignRejectsProofNotSignedByThisOperator(t *testing.T) {
 // response carries no information about the ciphertext.
 func TestResignErrorsAreIndistinguishableAcrossCiphertexts(t *testing.T) {
 	opID := uint64(3)
-	op, opPriv := newTestOwner(t, opID)
+	op, opPriv, decrypts := newTestOwner(t, opID)
 
 	otherPriv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -195,6 +206,11 @@ func TestResignErrorsAreIndistinguishableAcrossCiphertexts(t *testing.T) {
 	// The two ciphertexts are indistinguishable from the error alone.
 	require.Equal(t, errValid.Error(), errInvalid.Error(),
 		"errors must not vary with the supplied ciphertext")
+
+	// Indistinguishable errors would still leak through a timing side channel if the
+	// ciphertexts reached the private key at all. Neither did.
+	require.Zero(t, *decrypts,
+		"neither ciphertext may be decrypted when validation rejects the proof")
 }
 
 // TestResignRejectsProofOwnerMismatch asserts the ceremony-level check that the
@@ -202,7 +218,7 @@ func TestResignErrorsAreIndistinguishableAcrossCiphertexts(t *testing.T) {
 // key, so only the owner mismatch can reject it.
 func TestResignRejectsProofOwnerMismatch(t *testing.T) {
 	opID := uint64(3)
-	op, opPriv := newTestOwner(t, opID)
+	op, opPriv, _ := newTestOwner(t, opID)
 
 	proofOwner := common.HexToAddress("0x00000000000000000000000000000000000000aa")
 	resignOwner := common.HexToAddress("0x00000000000000000000000000000000000000bb")
@@ -240,7 +256,7 @@ func TestResignRejectsProofOwnerMismatch(t *testing.T) {
 // and operators lists disagree, rather than indexing out of range.
 func TestResignRejectsProofsLenMismatch(t *testing.T) {
 	opID := uint64(3)
-	op, opPriv := newTestOwner(t, opID)
+	op, opPriv, _ := newTestOwner(t, opID)
 
 	tests := []struct {
 		name   string

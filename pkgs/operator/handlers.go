@@ -33,6 +33,23 @@ func maskCeremonyError(err error) error {
 	return &utils.SensitiveError{Err: err, PresentedErr: string(wire.InitiatorErrorCodeCeremonyFailed)}
 }
 
+// ceremonyResponseError decides what the initiator is told when a ceremony operation
+// fails. Everything is masked to the generic ceremony code, with a single carve-out: a
+// version mismatch is reported verbatim. Exact version equality between initiator and
+// operators is a protocol invariant, the check runs before any ceremony material is
+// unmarshalled, and its message carries only the two version strings — masking it would
+// hide the most likely upgrade failure behind an undiagnosable code.
+//
+// ceremonyErr is the error as returned by HandleInstanceOperation and is what the
+// carve-out matches on; respErr is the operator-prefixed error presented for every other
+// failure, unchanged from before this carve-out existed.
+func ceremonyResponseError(ceremonyErr, respErr error) error {
+	if errors.Is(ceremonyErr, ErrVersionMismatch) {
+		return ceremonyErr
+	}
+	return maskCeremonyError(respErr)
+}
+
 func (s *Server) resultsHandler(writer http.ResponseWriter, request *http.Request) {
 	signedResultMsg, err := processIncomingRequest(writer, request, wire.ResultMessageType, s.State.OperatorID)
 	if err != nil {
@@ -134,7 +151,7 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		logger.Error("error resigning instance", zap.Error(err))
 		respErr := fmt.Errorf("operator %d, failed to resign, err: %w", s.State.OperatorID, err)
-		utils.WriteErrorResponse(s.Logger, writer, maskCeremonyError(respErr), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, ceremonyResponseError(err, respErr), http.StatusBadRequest)
 		return
 	}
 	logger.Info("✅ resigned data successfully")
@@ -163,7 +180,7 @@ func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.
 	if err != nil {
 		logger.Error("error resharing instance", zap.Error(err))
 		respErr := fmt.Errorf("operator %d, err: %w", s.State.OperatorID, err)
-		utils.WriteErrorResponse(s.Logger, writer, maskCeremonyError(respErr), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, ceremonyResponseError(err, respErr), http.StatusBadRequest)
 		return
 	}
 	logger.Info("✅ Reshare instance created successfully")
