@@ -27,7 +27,9 @@ func sanitizeCeremonyError(err error) error {
 	return err
 }
 
-func sanitizeReshareError(err error) error {
+// maskCeremonyError hides ceremony failure detail from the initiator on the routes
+// that decrypt ceremony material. The full error is still logged locally.
+func maskCeremonyError(err error) error {
 	return &utils.SensitiveError{Err: err, PresentedErr: string(wire.InitiatorErrorCodeCeremonyFailed)}
 }
 
@@ -132,7 +134,7 @@ func (s *Server) signedResignHandler(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		logger.Error("error resigning instance", zap.Error(err))
 		respErr := fmt.Errorf("operator %d, failed to resign, err: %w", s.State.OperatorID, err)
-		utils.WriteErrorResponse(s.Logger, writer, sanitizeCeremonyError(respErr), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, maskCeremonyError(respErr), http.StatusBadRequest)
 		return
 	}
 	logger.Info("✅ resigned data successfully")
@@ -161,7 +163,7 @@ func (s *Server) signedReshareHandler(writer http.ResponseWriter, request *http.
 	if err != nil {
 		logger.Error("error resharing instance", zap.Error(err))
 		respErr := fmt.Errorf("operator %d, err: %w", s.State.OperatorID, err)
-		utils.WriteErrorResponse(s.Logger, writer, sanitizeReshareError(respErr), http.StatusBadRequest)
+		utils.WriteErrorResponse(s.Logger, writer, maskCeremonyError(respErr), http.StatusBadRequest)
 		return
 	}
 	logger.Info("✅ Reshare instance created successfully")

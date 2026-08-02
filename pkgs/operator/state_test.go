@@ -317,8 +317,11 @@ func TestCrashByMaliciousOperatorAtReshare(t *testing.T) {
 			WithdrawalCredentials: spec_crypto.WithdrawalCredentials(spec_crypto.ETH1WithdrawalPrefix, [20]byte{}),
 			NewOperators:          ops[:4],
 			OldOperators:          ops[4:8],
+			OldT:                  3,
+			NewT:                  3,
 			Owner:                 common.HexToAddress("0xdcc846fa10c7cfce9e6eb37e06ed93b666cfc5e9"),
 			Nonce:                 1,
+			Amount:                uint64(spec_crypto.MIN_ACTIVATION_BALANCE),
 		},
 		Proofs: signedProofs[0],
 	}

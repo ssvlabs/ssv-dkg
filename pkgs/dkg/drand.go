@@ -588,6 +588,10 @@ func (o *LocalOwner) GetDKGNodes(ops []*spec.Operator) ([]kyber_dkg.Node, error)
 }
 
 func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transport, error) {
+	// sanity check of incoming proofs len
+	if len(r.Proofs) != len(r.Operators) {
+		return nil, fmt.Errorf("wrong proofs len at resign message: expected %d, got %d", len(r.Operators), len(r.Proofs))
+	}
 	position := -1
 	for i, op := range r.Operators {
 		if o.ID == op.ID {
@@ -598,7 +602,14 @@ func (o *LocalOwner) Resign(reqID [24]byte, r *wire.ResignMessage) (*wire.Transp
 	if position == -1 {
 		return nil, fmt.Errorf("operator not found among resign operators: %d", o.ID)
 	}
-	if err := spec.ValidateResignMessage(r.Resign, spec.GetOperator(r.Operators, o.ID), r.Proofs[position]); err != nil {
+	// the proof is validated against this operator's own key, not against the key
+	// supplied in the message
+	ownPubKey, err := spec_crypto.EncodeRSAPublicKey(&o.OperatorSecretKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode operator public key: %w", err)
+	}
+	self := &spec.Operator{ID: o.ID, PubKey: ownPubKey}
+	if err := spec.ValidateResignMessage(r.Resign, self, r.Proofs[position]); err != nil {
 		return nil, fmt.Errorf("failed to validate resign message: %w", err)
 	}
 	prShare, err := o.decryptFunc(r.Proofs[position].Proof.EncryptedShare)
