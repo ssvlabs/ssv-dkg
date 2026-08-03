@@ -158,7 +158,10 @@ var ErrVersionMismatch = errors.New("wrong version")
 // HandleInstanceOperation handles both Resign and Reshare operations.
 func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Transport, initiatorPub, initiatorSignature []byte, operationType string) ([][]byte, error) {
 	if !bytes.Equal(transportMsg.Version, s.Version) {
-		return nil, fmt.Errorf("%w: remote %s local %s", ErrVersionMismatch, transportMsg.Version, s.Version)
+		// The remote version is attacker-controlled and this error is returned unmasked,
+		// so it is not echoed back: raw bytes would reach the response body and the
+		// operator's console log. The initiator already knows what it sent.
+		return nil, fmt.Errorf("%w: operator runs %s", ErrVersionMismatch, s.Version)
 	}
 
 	// Check that incoming message signature is valid

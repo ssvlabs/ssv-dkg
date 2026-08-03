@@ -302,8 +302,10 @@ func TestCeremonyRoutesReportVersionMismatch(t *testing.T) {
 			require.Equal(t, http.StatusBadRequest, recorder.Code)
 			body, err := wire.ParseAsError(recorder.Body.Bytes())
 			require.NoError(t, err)
-			require.Equal(t, "wrong version: remote other.version local test.version", body,
-				"a version mismatch must name both versions so it can be acted on")
+			require.Equal(t, "wrong version: operator runs test.version", body,
+				"a version mismatch must name the operator's version so it can be acted on")
+			require.NotContains(t, body, "other.version",
+				"the caller-supplied version must never be echoed back")
 			require.NotContains(t, body, string(wire.InitiatorErrorCodeCeremonyFailed))
 		})
 	}
