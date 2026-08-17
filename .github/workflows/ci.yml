@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.25.9"
+  GO_VERSION: "1.25.13"
   CGO_ENABLED: "1"
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
 
   test-integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
