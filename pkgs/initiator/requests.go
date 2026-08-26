@@ -36,7 +36,7 @@ func (c *Initiator) SendAndCollect(op wire.OperatorCLI, method string, data []by
 		if err != nil {
 			return nil, fmt.Errorf("cant parse error message: %w", err)
 		}
-		return nil, fmt.Errorf("operator %d failed with: probably of old version, please upgrade %w", op.ID, errors.New(errString))
+		return nil, fmt.Errorf("operator %d failed: %w", op.ID, errors.New(errString))
 	}
 	return resdata, nil
 }

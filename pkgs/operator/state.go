@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/drand/kyber"
 	kyber_bls12381 "github.com/drand/kyber-bls12381"
 	kyber_dkg "github.com/drand/kyber/share/dkg"
@@ -46,7 +47,34 @@ type Switch struct {
 	EthClient        eip1271.ETHClient
 }
 
+// validateReshareStructure runs the reshare message checks that do not depend on this
+// operator's membership in the old operator set.
+func validateReshareStructure(reshare *spec.Reshare) error {
+	if !spec.UniqueAndOrderedOperators(reshare.OldOperators) {
+		return fmt.Errorf("old operators are not unique and ordered")
+	}
+	if !spec.UniqueAndOrderedOperators(reshare.NewOperators) {
+		return fmt.Errorf("new operators are not unique and ordered")
+	}
+	if !spec.ValidThresholdSet(reshare.OldT, reshare.OldOperators) {
+		return fmt.Errorf("old threshold set is invalid")
+	}
+	if !spec.ValidThresholdSet(reshare.NewT, reshare.NewOperators) {
+		return fmt.Errorf("new threshold set is invalid")
+	}
+	if !spec.ValidAmountSet(phase0.Gwei(reshare.Amount)) {
+		return fmt.Errorf("amount should be in range between 32 ETH and 2048 ETH")
+	}
+	if err := spec_crypto.ValidateWithdrawalCredentials(reshare.WithdrawalCredentials); err != nil {
+		return fmt.Errorf("invalid withdrawal credentials: %w", err)
+	}
+	return nil
+}
+
 func (s *Switch) getPublicCommitsAndSecretShare(reshareMsg *wire.ReshareMessage) ([]kyber.Point, *kyber_dkg.DistKeyShare, error) {
+	if err := validateReshareStructure(reshareMsg.Reshare); err != nil {
+		return nil, nil, err
+	}
 	// sanity check for incoming proofs len
 	if len(reshareMsg.Proofs) != len(reshareMsg.Reshare.OldOperators) {
 		return nil, nil, fmt.Errorf("wrong proofs len at reshare message: expected %d, got %d", len(reshareMsg.Reshare.OldOperators), len(reshareMsg.Proofs))

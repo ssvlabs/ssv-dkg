@@ -79,6 +79,42 @@ func TestInitResignChangeOwnerRejected(t *testing.T) {
 		require.NoError(t, err)
 		rMsgs := []*wire.ResignMessage{rMsg}
 		_, _, _, err = executeResign(t, clnt, rMsgs, sk)
-		require.ErrorContains(t, err, "invalid owner address")
+		// the owner signature is checked against the resign message owner, so a message
+		// naming a different owner than the one that signed it stops at that check
+		require.ErrorContains(t, err, string(wire.InitiatorErrorCodeCeremonyFailed))
+	})
+}
+
+func TestInitResignProofOwnerMismatchRejected(t *testing.T) {
+	t.Parallel()
+	env := setupDynamicTest(t)
+	clnt, err := initiator.New(env.ops, env.logger, testVersion, rootCert, false)
+	require.NoError(t, err)
+	withdraw := newEthAddress(t)
+	sk, err := eth_crypto.GenerateKey()
+	require.NoError(t, err)
+	owner := eth_crypto.PubkeyToAddress(sk.PublicKey)
+	skOtherOwner, err := eth_crypto.GenerateKey()
+	require.NoError(t, err)
+	otherOwner := eth_crypto.PubkeyToAddress(skOtherOwner.PublicKey)
+	t.Run("4 operators proof owner mismatch rejected", func(t *testing.T) {
+		id := spec.NewID()
+		depositData, ks, proofs, err := clnt.StartDKG(id, eth1Creds(withdraw), []uint64{11, 22, 33, 44}, "holesky", owner, 0, uint64(spec_crypto.MIN_ACTIVATION_BALANCE))
+		require.NoError(t, err)
+		err = validator.ValidateResults([]*wire.DepositDataCLI{depositData}, ks, [][]*wire.SignedProof{proofs}, 1, owner, 0, withdraw)
+		require.NoError(t, err)
+		signedProofs := toSpecSignedProofs(proofs)
+		rMsg, err := clnt.ConstructResignMessage(
+			[]uint64{11, 22, 33, 44}, signedProofs[0].Proof.ValidatorPubKey, "mainnet",
+			eth1Creds(withdraw), owner, 10, uint64(spec_crypto.MIN_ACTIVATION_BALANCE), signedProofs,
+		)
+		require.NoError(t, err)
+		// the message keeps the owner that signs the batch, only the proofs name another
+		for _, proof := range rMsg.Proofs {
+			proof.Proof.Owner = otherOwner
+		}
+		rMsgs := []*wire.ResignMessage{rMsg}
+		_, _, _, err = executeResign(t, clnt, rMsgs, sk)
+		require.ErrorContains(t, err, string(wire.InitiatorErrorCodeCeremonyFailed))
 	})
 }

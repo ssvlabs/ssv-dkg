@@ -4,12 +4,15 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
 	"go.uber.org/zap"
 )
 
 // RegisterRoutes creates routes at operator to process messages incoming from initiator
 func RegisterRoutes(s *Server) {
+	// installed first so it also contains panics raised inside other middleware
+	s.Router.Use(middleware.Recoverer)
 	s.Router.Use(rateLimit(s.Logger, generalLimit))
 
 	addRoute(s.Router, "POST", "/init", s.initHandler, rateLimit(s.Logger, initRouteLimit))

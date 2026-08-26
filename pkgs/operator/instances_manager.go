@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -148,10 +149,19 @@ func (s *Switch) cleanInstances() int {
 	return count
 }
 
+// ErrVersionMismatch reports that the initiator and this operator run different protocol
+// versions. Exact version equality is a protocol invariant, so this is the one ceremony
+// failure reported to the initiator verbatim: it is raised before any ceremony material is
+// unmarshalled and its message carries no ceremony data.
+var ErrVersionMismatch = errors.New("wrong version")
+
 // HandleInstanceOperation handles both Resign and Reshare operations.
 func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Transport, initiatorPub, initiatorSignature []byte, operationType string) ([][]byte, error) {
 	if !bytes.Equal(transportMsg.Version, s.Version) {
-		return nil, fmt.Errorf("wrong version: remote %s local %s", transportMsg.Version, s.Version)
+		// The remote version is attacker-controlled and this error is returned unmasked,
+		// so it is not echoed back: raw bytes would reach the response body and the
+		// operator's console log. The initiator already knows what it sent.
+		return nil, fmt.Errorf("%w: operator runs %s", ErrVersionMismatch, s.Version)
 	}
 
 	// Check that incoming message signature is valid
@@ -170,15 +180,15 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 	s.Logger.Info(fmt.Sprintf("🚀 Handling %s operation", operationType))
 
-	var allOps []*spec.Operator
-
 	switch operationType {
 	case "resign":
 		signedResign := &wire.SignedResign{}
 		if err := signedResign.UnmarshalSSZ(transportMsg.Data); err != nil {
 			return nil, fmt.Errorf("failed to ssz unmarshal message: probably an upgrade to latest version needed: %w", err)
 		}
-		allOps = signedResign.Messages[0].Operators
+		if len(signedResign.Messages) == 0 {
+			return nil, fmt.Errorf("%s: no resign messages", operationType)
+		}
 		hexString, err := utils.GetMessageString(signedResign.Messages)
 		if err != nil {
 			return nil, err
@@ -190,6 +200,9 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			zap.String("resign message hash", hexString),
 			zap.String("EIP1271 owner signature", hex.EncodeToString(signedResign.Signature)))
 
+		// the batch is authorised by a single owner signature; that owner is the one
+		// the signature is verified against
+		owner := signedResign.Messages[0].Resign.Owner
 		// verify EIP1271 signature
 		hash, err := utils.GetMessageHash(signedResign.Messages)
 		if err != nil {
@@ -197,7 +210,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			signedResign.Messages[0].Proofs[0].Proof.Owner,
+			owner,
 			hash,
 			signedResign.Signature,
 		); err != nil {
@@ -206,10 +219,17 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 
+		// every message in the batch must belong to the authorised owner
+		for i, instance := range signedResign.Messages {
+			if err := checkBatchMessageOwner(owner, instance.Resign.Owner, instance.Proofs, i); err != nil {
+				return nil, fmt.Errorf("%s: %w", operationType, err)
+			}
+		}
+
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedResign.Messages {
-			resp, err := s.runInstance(reqID, instance, allOps, initiatorPubKey, operationType)
+			resp, err := s.runInstance(reqID, instance, instance.Operators, initiatorPubKey, operationType)
 			if err != nil {
 				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
 			}
@@ -226,8 +246,6 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		if len(signedReshare.Messages) == 0 {
 			return nil, fmt.Errorf("%s: no reshare messages", operationType)
 		}
-		allOps = append(allOps, signedReshare.Messages[0].Reshare.OldOperators...)
-		allOps = append(allOps, signedReshare.Messages[0].Reshare.NewOperators...)
 		hexString, err := utils.GetMessageString(signedReshare.Messages)
 		if err != nil {
 			return nil, err
@@ -241,6 +259,9 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 			zap.String("reshare message hash", hexString),
 			zap.String("EIP1271 owner signature", hex.EncodeToString(signedReshare.Signature)))
 
+		// the batch is authorised by a single owner signature; that owner is the one
+		// the signature is verified against
+		owner := signedReshare.Messages[0].Reshare.Owner
 		// verify EIP1271 signature
 		hash, err := utils.GetMessageHash(signedReshare.Messages)
 		if err != nil {
@@ -248,7 +269,7 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 		}
 		if err := spec_crypto.VerifySignedMessageByOwner(
 			s.EthClient,
-			signedReshare.Messages[0].Proofs[0].Proof.Owner,
+			owner,
 			hash,
 			signedReshare.Signature,
 		); err != nil {
@@ -257,9 +278,19 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 
 		s.Logger.Info(fmt.Sprintf("✅ %s eip1271 owner signature is successfully verified", operationType), zap.String("from initiator", fmt.Sprintf("%x", initiatorPubKey.N.Bytes())))
 
+		// every message in the batch must belong to the authorised owner
+		for i, instance := range signedReshare.Messages {
+			if err := checkBatchMessageOwner(owner, instance.Reshare.Owner, instance.Proofs, i); err != nil {
+				return nil, fmt.Errorf("%s: %w", operationType, err)
+			}
+		}
+
 		resps := [][]byte{}
 		// Run all resign/reshare ceremonies
 		for _, instance := range signedReshare.Messages {
+			var allOps []*spec.Operator
+			allOps = append(allOps, instance.Reshare.OldOperators...)
+			allOps = append(allOps, instance.Reshare.NewOperators...)
 			resp, err := s.runInstance(reqID, instance, allOps, initiatorPubKey, operationType)
 			if err != nil {
 				return nil, fmt.Errorf("%s: failed to run instance: %w", operationType, err)
@@ -272,6 +303,23 @@ func (s *Switch) HandleInstanceOperation(reqID [24]byte, transportMsg *wire.Tran
 	default:
 		return nil, fmt.Errorf("unknown operation type: %s", operationType)
 	}
+}
+
+// checkBatchMessageOwner verifies that a batch message and every proof it carries
+// belong to the owner that authorised the batch.
+func checkBatchMessageOwner(authorised, msgOwner [20]byte, proofs []*spec.SignedProof, index int) error {
+	if msgOwner != authorised {
+		return fmt.Errorf("message %d owner %x is not the authorised owner %x", index, msgOwner, authorised)
+	}
+	if len(proofs) == 0 {
+		return fmt.Errorf("message %d has no proofs", index)
+	}
+	for j, proof := range proofs {
+		if proof.Proof.Owner != authorised {
+			return fmt.Errorf("message %d proof %d owner %x is not the authorised owner %x", index, j, proof.Proof.Owner, authorised)
+		}
+	}
+	return nil
 }
 
 // Helper functions to abstract out common behavior
