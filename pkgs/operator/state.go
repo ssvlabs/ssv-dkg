@@ -31,6 +31,11 @@ const MaxInstances = 1024
 const MaxInstanceTime = 1 * time.Minute
 const MaxInstancePhaseTimeout = MaxInstanceTime
 
+// ReaperInterval is how often the background reaper sweeps expired instances
+// when StartReaper is running. Kept below MaxInstanceTime so map entries
+// don't accumulate heap pressure between admission bursts.
+const ReaperInterval = 30 * time.Second
+
 // InstanceID each new DKG ceremony has a unique random ID that we can identify messages and be able to process them in parallel
 type InstanceID [24]byte
 
@@ -45,6 +50,8 @@ type Switch struct {
 	PubKeyBytes      []byte
 	OperatorID       uint64
 	EthClient        eip1271.ETHClient
+	reaperOnce       sync.Once
+	reaperCancel     context.CancelFunc
 }
 
 // validateReshareStructure runs the reshare message checks that do not depend on this
@@ -143,6 +150,42 @@ func NewSwitch(pv *rsa.PrivateKey, logger *zap.Logger, ver, pkBytes []byte, id u
 	}
 }
 
+// StartReaper spawns a background goroutine that periodically sweeps expired
+// instances so abandoned ceremonies release heap pressure even when admission
+// traffic is sparse. Idempotent — only the first call spawns a reaper; later
+// calls are no-ops. Stop with StopReaper before the process exits or the
+// Switch is discarded in tests.
+func (s *Switch) StartReaper(interval time.Duration) {
+	s.reaperOnce.Do(func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.reaperCancel = cancel
+		go s.runReaper(ctx, interval)
+	})
+}
+
+// StopReaper cancels the background sweeper started by StartReaper. No-op if
+// StartReaper was never called.
+func (s *Switch) StopReaper() {
+	if s.reaperCancel != nil {
+		s.reaperCancel()
+	}
+}
+
+func (s *Switch) runReaper(ctx context.Context, interval time.Duration) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			s.Mtx.Lock()
+			s.cleanInstances()
+			s.Mtx.Unlock()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // ProcessMessage processes incoming message to /dkg route
 func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 	// get instanceID
@@ -162,7 +205,7 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 		return nil, utils.ErrMissingInstance
 	}
 	resp, err := inst.ProcessMessages(st)
-	if errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		s.Mtx.Lock()
 		current, ok := s.Instances[id]
 		if ok && current == inst {
@@ -170,6 +213,8 @@ func (s *Switch) ProcessMessage(dkgMsg []byte) ([]byte, error) {
 			delete(s.InstanceInitTime, id)
 		}
 		s.Mtx.Unlock()
+		// Close is idempotent; safe even if another cleanup path beat us.
+		inst.Close()
 	}
 	return resp, err
 }

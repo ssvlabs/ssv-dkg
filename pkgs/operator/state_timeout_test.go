@@ -19,6 +19,8 @@ func (timeoutInstance) ProcessMessages(*wire.MultipleSignedTransports) ([]byte, 
 
 func (timeoutInstance) VerifyInitiatorMessage([]byte, []byte) error { return nil }
 
+func (timeoutInstance) Close() {}
+
 func TestProcessMessage_DeletesInstanceOnTimeout(t *testing.T) {
 	var instanceID InstanceID
 	copy(instanceID[:], "test-instance-id-0123456")
