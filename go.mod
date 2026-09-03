@@ -1,6 +1,6 @@
 module github.com/ssvlabs/ssv-dkg
 
-go 1.24
+go 1.24.0
 
 toolchain go1.25.0
 
@@ -8,7 +8,7 @@ require (
 	github.com/aquasecurity/table v1.8.0
 	github.com/attestantio/go-eth2-client v0.24.1
 	github.com/drand/kyber v1.3.1
-	github.com/drand/kyber-bls12381 v0.3.3
+	github.com/drand/kyber-bls12381 v0.3.4
 	github.com/ethereum/go-ethereum v1.15.4
 	github.com/ferranbt/fastssz v0.1.4
 	github.com/go-chi/chi/v5 v5.2.2
@@ -24,7 +24,7 @@ require (
 	github.com/ssvlabs/dkg-spec v1.0.2
 	github.com/ssvlabs/eth2-key-manager v1.5.3
 	github.com/ssvlabs/ssv-spec v1.1.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/wealdtech/go-eth2-util v1.8.2
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.3.0
 	go.uber.org/zap v1.27.0
@@ -92,15 +92,15 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7 // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/tools v0.30.0 // indirect
+	golang.org/x/mod v0.28.0 // indirect
+	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.36.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
