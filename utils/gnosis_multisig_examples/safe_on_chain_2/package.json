@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "typescript": "^5.6.2"
+    "typescript": "5.6.2"
   },
   "dependencies": {
     "@safe-global/api-kit": "^2.4.5",
