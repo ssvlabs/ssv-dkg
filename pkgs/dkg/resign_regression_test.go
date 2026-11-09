@@ -94,7 +94,7 @@ func TestResignRejectsProofNotSignedByThisOperator(t *testing.T) {
 
 	// A chosen ciphertext, encrypted under the operator's public key so PKCS#1 v1.5
 	// padding validates. Its plaintext is not a BLS secret key.
-	chosenCiphertext, err := rsa.EncryptPKCS1v15(rand.Reader, &opPriv.PublicKey, []byte("not-a-bls-key"))
+	chosenCiphertext, err := spec_crypto.Encrypt(&opPriv.PublicKey, []byte("not-a-bls-key"))
 	require.NoError(t, err)
 
 	proof := &spec.Proof{
@@ -184,7 +184,7 @@ func TestResignErrorsAreIndistinguishableAcrossCiphertexts(t *testing.T) {
 	}
 
 	// Well-formed PKCS#1 v1.5 padding.
-	validPadding, err := rsa.EncryptPKCS1v15(rand.Reader, &opPriv.PublicKey, []byte("x"))
+	validPadding, err := spec_crypto.Encrypt(&opPriv.PublicKey, []byte("x"))
 	require.NoError(t, err)
 	_, errValid := op.Resign([24]byte{}, buildResign(validPadding))
 	require.Error(t, errValid)
