@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
 	"sort"
 	"sync"
@@ -83,7 +82,7 @@ func NewTestOperator(ts *testState, id uint64) (*LocalOwner, *rsa.PrivateKey) {
 	}
 	ts.tv.Add(id, pk)
 	encrypt := func(d []byte) ([]byte, error) {
-		return rsa.EncryptPKCS1v15(rand.Reader, pk, d)
+		return spec_crypto.Encrypt(pk, d)
 	}
 	decrypt := func(d []byte) ([]byte, error) {
 		return spec_crypto.Decrypt(pv, d)

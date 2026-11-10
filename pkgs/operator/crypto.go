@@ -1,9 +1,6 @@
 package operator
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-
 	spec_crypto "github.com/ssvlabs/dkg-spec/crypto"
 )
 
@@ -14,7 +11,7 @@ func (s *Switch) Sign(msg []byte) ([]byte, error) {
 
 // Encrypt with RSA public key private DKG share key
 func (s *Switch) Encrypt(msg []byte) ([]byte, error) {
-	return rsa.EncryptPKCS1v15(rand.Reader, &s.PrivateKey.PublicKey, msg)
+	return spec_crypto.Encrypt(&s.PrivateKey.PublicKey, msg)
 }
 
 // Decrypt with RSA private key private DKG share key
